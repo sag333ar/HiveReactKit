@@ -2,14 +2,16 @@ import { useState } from "react";
 import { ApiVideoFeedType, VideoFeedItem } from "@/types/video";
 import VideoFeed from "@/components/VideoFeed";
 import VideoInfo from "@/components/VideoInfo";
+import Wallet from "@/components/Wallet";
 import Modal from "@/components/modals/Modal";
-import { Play, Github, Package, Users, Zap, Code } from "lucide-react";
+import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon } from "lucide-react";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(null);
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ApiVideoFeedType>(ApiVideoFeedType.TRENDING);
+  const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [demoUsername, setDemoUsername] = useState("threespeak");
 
   const handleVideoClick = (video: VideoFeedItem) => {
     setSelectedVideo(video);
@@ -23,9 +25,10 @@ const Index = () => {
   };
 
   const feedTabs = [
-    { id: ApiVideoFeedType.TRENDING, label: "Trending", icon: "🔥" },
-    { id: ApiVideoFeedType.NEW_VIDEOS, label: "New", icon: "✨" },
-    { id: ApiVideoFeedType.FIRST_UPLOADS, label: "First Uploads", icon: "🎬" },
+    { id: "trending", label: "Trending", icon: "🔥", type: ApiVideoFeedType.TRENDING },
+    { id: "new", label: "New", icon: "✨", type: ApiVideoFeedType.NEW_VIDEOS },
+    { id: "first", label: "First Uploads", icon: "🎬", type: ApiVideoFeedType.FIRST_UPLOADS },
+    { id: "wallet", label: "Wallet Demo", icon: "💰" },
   ];
 
   return (
@@ -134,12 +137,43 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Video Feed */}
-          <VideoFeed
-            feedType={activeTab}
-            onVideoClick={handleVideoClick}
-            onAuthorClick={handleAuthorClick}
-          />
+          {/* Wallet Demo Controls */}
+          {activeTab === "wallet" && (
+            <div className="mb-8 p-6 bg-card border border-border rounded-xl max-w-2xl mx-auto">
+              <h3 className="text-lg font-semibold mb-4 text-card-foreground">Try the Wallet Component</h3>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  value={demoUsername}
+                  onChange={(e) => setDemoUsername(e.target.value)}
+                  placeholder="Enter Hive username..."
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <button
+                  onClick={() => setDemoUsername(demoUsername || "threespeak")}
+                  className="px-6 py-2 bg-gradient-primary text-primary-foreground rounded-lg hover:shadow-glow transition-all duration-300"
+                >
+                  Load Wallet
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Try usernames like: threespeak, gtg, blocktrades, acidyo
+              </p>
+            </div>
+          )}
+
+          {/* Content */}
+          {activeTab === "wallet" ? (
+            <div className="max-w-2xl mx-auto">
+              <Wallet username={demoUsername} />
+            </div>
+          ) : (
+            <VideoFeed
+              feedType={feedTabs.find(t => t.id === activeTab)?.type || ApiVideoFeedType.TRENDING}
+              onVideoClick={handleVideoClick}
+              onAuthorClick={handleAuthorClick}
+            />
+          )}
         </div>
       </section>
 
