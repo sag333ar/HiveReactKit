@@ -313,7 +313,7 @@ const VideoDetail = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="flex flex-col gap-8">
           {/* Main video section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
@@ -445,7 +445,6 @@ const VideoDetail = () => {
           </div>
 
           {/* Sidebar - Related Videos */}
-          <div className="lg:col-span-1">
             <div className="bg-card border border-border rounded-xl p-6 sticky top-24">
               <h3 className="font-semibold text-card-foreground mb-4 text-lg">
                 Related Videos
@@ -459,7 +458,6 @@ const VideoDetail = () => {
                 />
               </div>
             </div>
-          </div>
         </div>
       </div>
 
