@@ -14,8 +14,8 @@ const Index = () => {
   const [demoUsername, setDemoUsername] = useState("threespeak");
 
   const handleVideoClick = (video: VideoFeedItem) => {
-    setSelectedVideo(video);
-    setShowVideoPlayer(true);
+    // Navigate to video detail page instead of showing modal
+    window.location.href = `/video/${video.author}/${video.permlink}`;
   };
 
   const handleAuthorClick = (author: string) => {
