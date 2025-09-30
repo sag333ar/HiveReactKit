@@ -8,8 +8,10 @@ import Wallet from "@/components/Wallet";
 import CommunitiesList from "@/components/community/CommunitiesList";
 import CommunityDetail from "@/components/community/CommunityDetail";
 import UserAccount from "@/components/user/UserAccount";
+import TransactionHistory from "@/components/TransactionHistory";
+import ActivityHistory from "@/components/ActivityHistory";
 import Modal from "@/components/modals/Modal";
-import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon } from "lucide-react";
+import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Activity, FileText } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -47,6 +49,8 @@ const Index = () => {
     { id: "new", label: "New", icon: "✨", type: ApiVideoFeedType.NEW_VIDEOS },
     { id: "first", label: "First Uploads", icon: "🎬", type: ApiVideoFeedType.FIRST_UPLOADS },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
+    { id: "transactions", label: "Transactions", icon: "💸" },
+    { id: "activity", label: "Activity", icon: "📝" },
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
   ];
@@ -108,7 +112,7 @@ const Index = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center p-6 rounded-xl bg-background border border-border">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Play className="w-6 h-6 text-primary" />
@@ -130,12 +134,22 @@ const Index = () => {
             </div>
             
             <div className="text-center p-6 rounded-xl bg-background border border-border">
-              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-6 h-6 text-success" />
+              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Activity className="w-6 h-6 text-blue-500" />
               </div>
-              <h3 className="text-lg font-semibold text-card-foreground mb-2">Hive Blockchain</h3>
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">Transaction History</h3>
               <p className="text-muted-foreground text-sm">
-                Full integration with 3Speak and Hive blockchain APIs
+                Complete transaction history with filtering and search capabilities
+              </p>
+            </div>
+            
+            <div className="text-center p-6 rounded-xl bg-background border border-border">
+              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-6 h-6 text-green-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-card-foreground mb-2">Activity History</h3>
+              <p className="text-muted-foreground text-sm">
+                User posts, comments, and replies with detailed analytics
               </p>
             </div>
           </div>
@@ -199,10 +213,45 @@ const Index = () => {
             </div>
           )}
 
+          {/* Transaction History Demo Controls */}
+          {(activeTab === "transactions" || activeTab === "activity") && (
+            <div className="mb-8 p-6 bg-card border border-border rounded-xl max-w-2xl mx-auto">
+              <h3 className="text-lg font-semibold mb-4 text-card-foreground">
+                {activeTab === "transactions" ? "Transaction History Demo" : "Activity History Demo"}
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  value={demoUsername}
+                  onChange={(e) => setDemoUsername(e.target.value)}
+                  placeholder="Enter Hive username..."
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <button
+                  onClick={() => setDemoUsername(demoUsername || "threespeak")}
+                  className="px-6 py-2 bg-gradient-primary text-primary-foreground rounded-lg hover:shadow-glow transition-all duration-300"
+                >
+                  Load History
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Try usernames like: threespeak, gtg, blocktrades, acidyo
+              </p>
+            </div>
+          )}
+
           {/* Content */}
           {activeTab === "wallet" ? (
             <div className="max-w-2xl mx-auto">
               <Wallet username={demoUsername} />
+            </div>
+          ) : activeTab === "transactions" ? (
+            <div className="max-w-4xl mx-auto">
+              <TransactionHistory account={demoUsername} />
+            </div>
+          ) : activeTab === "activity" ? (
+            <div className="max-w-4xl mx-auto">
+              <ActivityHistory username={demoUsername} />
             </div>
           ) : activeTab === "communities" ? (
             <CommunitiesList onSelectCommunity={handleCommunitySelect} />
