@@ -3,6 +3,8 @@ import { ApiVideoFeedType, VideoFeedItem } from "@/types/video";
 import VideoFeed from "@/components/VideoFeed";
 import VideoInfo from "@/components/VideoInfo";
 import Wallet from "@/components/Wallet";
+import CommunitiesList from "@/components/community/CommunitiesList";
+import CommunityDetail from "@/components/community/CommunityDetail";
 import Modal from "@/components/modals/Modal";
 import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon } from "lucide-react";
 
@@ -12,6 +14,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [demoUsername, setDemoUsername] = useState("threespeak");
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
 
   const handleVideoClick = (video: VideoFeedItem) => {
     // Navigate to video detail page instead of showing modal
@@ -24,40 +27,63 @@ const Index = () => {
     console.log("Navigate to author:", author);
   };
 
+  const handleCommunitySelect = (communityId: string) => {
+    console.log("Selected community:", communityId);
+    setSelectedCommunityId(communityId);
+  };
+
   const feedTabs = [
     { id: "trending", label: "Trending", icon: "🔥", type: ApiVideoFeedType.TRENDING },
     { id: "new", label: "New", icon: "✨", type: ApiVideoFeedType.NEW_VIDEOS },
     { id: "first", label: "First Uploads", icon: "🎬", type: ApiVideoFeedType.FIRST_UPLOADS },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
+    { id: "communities", label: "Communities", icon: "👥" },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-hero text-white">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="relative max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold mb-6">
-              HiveReactkit
-            </h1>
-            <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto">
-              Professional React components for Hive blockchain video content. 
-              Beautiful, responsive, and ready to integrate into your projects.
-            </p>
-            <div className="flex justify-center gap-4">
-              <button className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors">
-                <Package className="w-5 h-5" />
-                Install Package
-              </button>
-              <button className="inline-flex items-center gap-2 border border-white/30 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg font-semibold hover:bg-white/20 transition-colors">
-                <Github className="w-5 h-5" />
-                View on GitHub
-              </button>
+      {selectedCommunityId ? (
+        <CommunityDetail
+          communityId={selectedCommunityId}
+          onBack={() => setSelectedCommunityId(null)}
+          onVideoClick={handleVideoClick}
+          onAuthorClick={handleAuthorClick}
+          // onclickAboutTab={() => console.log("About tab clicked")}
+          // onclickTeamTab={() => console.log("Team tab clicked")}
+          // onclickMemberTab={() => console.log("Member tab clicked")}
+          // onShare={() => console.log("Share clicked")}
+          // onFavourite={() => console.log("Favourite clicked")}
+          // onRss={() => console.log("RSS clicked")}
+          // onMoreVertical={() => console.log("MoreVertical clicked")}
+          // showMoreVertical={false}
+        />
+      ) : (
+        <>
+          {/* Hero Section */}
+          <section className="relative overflow-hidden bg-gradient-hero text-white">
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="relative max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8">
+              <div className="text-center">
+                <h1 className="text-5xl font-bold mb-6">
+                  HiveReactkit
+                </h1>
+                <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto">
+                  Professional React components for Hive blockchain video content. 
+                  Beautiful, responsive, and ready to integrate into your projects.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors">
+                    <Package className="w-5 h-5" />
+                    Install Package
+                  </button>
+                  <button className="inline-flex items-center gap-2 border border-white/30 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-lg font-semibold hover:bg-white/20 transition-colors">
+                    <Github className="w-5 h-5" />
+                    View on GitHub
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
       {/* Features Section */}
       <section className="py-16 bg-card">
@@ -167,6 +193,8 @@ const Index = () => {
             <div className="max-w-2xl mx-auto">
               <Wallet username={demoUsername} />
             </div>
+          ) : activeTab === "communities" ? (
+            <CommunitiesList onSelectCommunity={handleCommunitySelect} />
           ) : (
             <VideoFeed
               feedType={feedTabs.find(t => t.id === activeTab)?.type || ApiVideoFeedType.TRENDING}
@@ -195,17 +223,17 @@ const Index = () => {
               <span className="font-medium text-card-foreground">Quick Start</span>
             </div>
             <pre className="text-sm text-muted-foreground overflow-x-auto">
-{`import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
-
-function App() {
-  return (
-    <VideoFeed
-      feedType={ApiVideoFeedType.TRENDING}
-      onVideoClick={(video) => console.log(video)}
-      onAuthorClick={(author) => console.log(author)}
-    />
-  );
-}`}
+              {`import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
+                  function App() {
+                    return (
+                      <VideoFeed
+                        feedType={ApiVideoFeedType.TRENDING}
+                        onVideoClick={(video) => console.log(video)}
+                        onAuthorClick={(author) => console.log(author)}
+                      />
+                    );
+                  }`
+              }
             </pre>
           </div>
         </div>
@@ -239,6 +267,8 @@ function App() {
             description="This is a demo description for the video."
           />
         </Modal>
+      )}
+        </>
       )}
     </div>
   );
