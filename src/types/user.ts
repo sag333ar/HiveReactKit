@@ -41,3 +41,8 @@ export interface Following {
   following: string;
   what: string[];
 }
+
+export interface User {
+  username: string;
+  token: string;
+}

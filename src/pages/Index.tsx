@@ -1,20 +1,30 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ApiVideoFeedType, VideoFeedItem } from "@/types/video";
+import { User } from "@/types/user";
 import VideoFeed from "@/components/VideoFeed";
 import VideoInfo from "@/components/VideoInfo";
 import Wallet from "@/components/Wallet";
 import CommunitiesList from "@/components/community/CommunitiesList";
 import CommunityDetail from "@/components/community/CommunityDetail";
+import UserAccount from "@/components/user/UserAccount";
 import Modal from "@/components/modals/Modal";
 import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(null);
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [demoUsername, setDemoUsername] = useState("threespeak");
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  
+  // Mock user for demonstration - in a real app, this would come from authentication
+  const mockUser: User | null = {
+    username: "demo_user",
+    token: "demo_token_123"
+  };
 
   const handleVideoClick = (video: VideoFeedItem) => {
     // Navigate to video detail page instead of showing modal
@@ -38,6 +48,7 @@ const Index = () => {
     { id: "first", label: "First Uploads", icon: "🎬", type: ApiVideoFeedType.FIRST_UPLOADS },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
     { id: "communities", label: "Communities", icon: "👥" },
+    { id: "account", label: "My Account", icon: "👤" },
   ];
 
   return (
@@ -195,6 +206,20 @@ const Index = () => {
             </div>
           ) : activeTab === "communities" ? (
             <CommunitiesList onSelectCommunity={handleCommunitySelect} />
+          ) : activeTab === "account" ? (
+            <UserAccount
+              currentUser={mockUser}
+              onPublish={(username, permlink) => {
+                navigate(`/video/${username}/${permlink}`);
+              }}
+              onViewMyVideo={(username, permlink) => {
+                navigate(`/video/${username}/${permlink}`);
+              }}
+              onTapBackButton={() => navigate(-1)}
+              shouldShowBackButton={false}
+              shouldShowPublishButton={false}
+              shouldShowMoreOptionsButton={false}  
+            />
           ) : (
             <VideoFeed
               feedType={feedTabs.find(t => t.id === activeTab)?.type || ApiVideoFeedType.TRENDING}
