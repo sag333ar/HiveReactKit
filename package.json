@@ -1,5 +1,5 @@
 {
-  "name": "hivereactkit",
+  "name": "hive-react-kit",
   "private": false,
   "version": "0.0.5",
   "type": "module",
@@ -46,7 +46,7 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -r dist/*",
-    "build": "tsc -p tsconfig.build.json && vite build && npx @tailwindcss/cli -i src/build.css -o dist/build.css --minify",
+    "build": "tsc -p tsconfig.build.json && vite build && tsc --project tsconfig.build.json",
     "lint": "eslint .",
     "prepublish": "pnpm run clean; pnpm run build",
     "preview": "vite preview"
