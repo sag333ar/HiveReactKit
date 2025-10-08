@@ -178,7 +178,43 @@ const Index = () => {
               />
             );
           }`;
+      case "community-detail":
+        return `import { CommunityDetail } from 'hive-reactkit';
+          function App() {
+            return (
+              <CommunityDetail
+                communityId="hive-163772"
+                onVideoClick={(video) => console.log("Video clicked:", video)}
+                onAuthorClick={(author) => console.log("Author clicked:", author)}
+                onBack={() => console.log("Back clicked")}
+                onclickAboutTab={() => console.log("About tab clicked")}
+                onclickTeamTab={() => console.log("Team tab clicked")}
+                onclickMemberTab={() => console.log("Member tab clicked")}
+                onShare={() => console.log("Share clicked")}
+                onFavourite={() => console.log("Favourite clicked")}
+                onRss={() => console.log("RSS clicked")}
+                onMoreVertical={() => console.log("MoreVertical clicked")}
+                showMoreVertical={false}
+              />
+            );
+          }`;
       case "account":
+        return `import { UserAccount } from 'hive-reactkit';
+          function App() {
+            const user = { username: "shaktimaaan", token: "demo_token" };
+
+            return (
+              <UserAccount
+                currentUser={user}
+                onPublish={(username, permlink) => console.log("Publish:", username, permlink)}
+                onViewMyVideo={(username, permlink) => console.log("View my video:", username, permlink)}
+                onTapBackButton={() => console.log("Back button tapped")}
+                shouldShowBackButton={false}
+                shouldShowPublishButton={false}
+                shouldShowMoreOptionsButton={false}
+              />
+            );
+          }`;
         return `import { UserAccount } from 'hive-reactkit';
           function App() {
             const user = { username: "shaktimaaan", token: "demo_token" };
@@ -292,6 +328,7 @@ const Index = () => {
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
+    { id: "community-detail", label: "Community Detail", icon: "👥" },
     { id: "comments", label: "Comments Modal", icon: "💬" },
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
   ];
@@ -513,6 +550,21 @@ const Index = () => {
                     onShare={(username) => console.log("Share:", username)}
                     onMoreMenu={(username) => console.log("More menu:", username)}
                     showMoreMenu={false}
+                  />
+                ) : activeTab === "community-detail" ? (
+                  <CommunityDetail
+                    communityId="hive-163772"
+                    onVideoClick={(video) => console.log("Video clicked:", video)}
+                    onAuthorClick={(author) => console.log("Author clicked:", author)}
+                    onBack={() => console.log("Back clicked")}
+                    onclickAboutTab={() => console.log("About tab clicked")}
+                    onclickTeamTab={() => console.log("Team tab clicked")}
+                    onclickMemberTab={() => console.log("Member tab clicked")}
+                    onShare={() => console.log("Share clicked")}
+                    onFavourite={() => console.log("Favourite clicked")}
+                    onRss={() => console.log("RSS clicked")}
+                    onMoreVertical={() => console.log("MoreVertical clicked")}
+                    showMoreVertical={false}
                   />
                 ) : activeTab === "account" ? (
                   <UserAccount
