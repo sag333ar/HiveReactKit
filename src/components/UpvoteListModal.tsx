@@ -10,6 +10,7 @@ interface UpvoteListModalProps {
   onClose: () => void;
   currentUser?: string;
   token?: string;
+  onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
 }
 
 export function formatTimeAgo(date: string | Date): string {
@@ -30,7 +31,7 @@ export function formatTimeAgo(date: string | Date): string {
   return "just now";
 }
 
-const UpvoteListModal = ({ author, permlink, onClose, currentUser, token }: UpvoteListModalProps) => {
+const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClickUpvoteButton }: UpvoteListModalProps) => {
   const [votes, setVotes] = useState<ActiveVote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -111,8 +112,13 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token }: Upvo
           {!showVoteSlider && (
             <button
               onClick={() => {
+                if (onClickUpvoteButton) {
+                  onClickUpvoteButton(currentUser, token);
+                  return;
+                }
+
                 if (!currentUser || !token) {
-                  // User not logged in → don’t open slider
+                  // User not logged in → show login message
                   showToast("Please login to upvote");
                   return;
                 }

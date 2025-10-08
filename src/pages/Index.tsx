@@ -232,12 +232,15 @@ const Index = () => {
                   Open Upvotes
                 </button>
                 <UpvoteListModal
-                  isOpen={showUpvotes}
-                  onClose={() => setShowUpvotes(false)}
                   author="shaktimaaan"
                   permlink="fyiytkhbkz"
+                  onClose={() => setShowUpvotes(false)}
                   currentUser={user.username}
                   token={user.token}
+                  onClickUpvoteButton={(currentUser, token) => {
+                    // Custom upvote logic here
+                    console.log("Custom upvote:", currentUser, token);
+                  }}
                 />
               </>
             );
@@ -687,6 +690,10 @@ const Index = () => {
               onClose={() => setShowUpvoteModal(false)}
               currentUser={mockUser?.username}
               token={mockUser?.token}
+              onClickUpvoteButton={(currentUser, token) => {
+                console.log("Custom upvote button clicked:", currentUser, token);
+                // Custom logic can be added here
+              }}
             />
           )}
         </>
