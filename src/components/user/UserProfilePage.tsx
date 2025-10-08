@@ -13,7 +13,6 @@ import UserInfo from "./UserInfo";
 import UserFollowers from "./UserFollowers";
 import UserFollowing from "./UserFollowing";
 import { ApiVideoFeedType } from "@/types/video";
-import { useNavigate } from "react-router-dom";
 import FavouriteWidget from "../common/FavouriteWidget";
 import { userService } from "@/services/userService";
 import VideoFeed from "../VideoFeed";
@@ -24,6 +23,14 @@ interface UserProfilePageProps {
   onVideoClick: (video: any) => void;
   onAuthorClick: (author: string) => void;
   onBack: () => void;
+  onClickUserInfoTab?: () => void;
+  onClickFollowersTab?: () => void;
+  onClickFollowingTab?: () => void;
+  onBookmarkToggle?: (username: string, isBookmarked: boolean) => void;
+  onRss?: (username: string) => void;
+  onShare?: (username: string) => void;
+  onMoreMenu?: (username: string) => void;
+  showMoreMenu?: boolean;
 }
 
 const UserProfilePage = ({
@@ -31,8 +38,15 @@ const UserProfilePage = ({
   onVideoClick,
   onAuthorClick,
   onBack,
+  onClickUserInfoTab,
+  onClickFollowersTab,
+  onClickFollowingTab,
+  onBookmarkToggle,
+  onRss,
+  onShare,
+  onMoreMenu,
+  showMoreMenu = false,
 }: UserProfilePageProps) => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("videos");
   const [userDetails, setUserDetails] =
     useState<UserProfileResponse | null>(null);
@@ -55,19 +69,27 @@ const UserProfilePage = ({
   }, [username]);
 
   const handleShare = () => {
-    const url = `https://3speak.tv/user/${username}`;
-    if (navigator.share) {
-      navigator.share({
-        title: userDetails?.result?.name || username,
-        url,
-      });
+    if (onShare) {
+      onShare(username);
     } else {
-      navigator.clipboard.writeText(url);
+      const url = `https://3speak.tv/user/${username}`;
+      if (navigator.share) {
+        navigator.share({
+          title: userDetails?.result?.name || username,
+          url,
+        });
+      } else {
+        navigator.clipboard.writeText(url);
+      }
     }
   };
 
   const handleRssFeed = () => {
-    window.open(`https://3speak.tv/rss/${username}.xml`, "_blank");
+    if (onRss) {
+      onRss(username);
+    } else {
+      window.open(`https://3speak.tv/rss/${username}.xml`, "_blank");
+    }
   };
 
   const handleBookmark = () => {
@@ -75,7 +97,7 @@ const UserProfilePage = ({
   };
 
   const handleUserClick = (user: string) => {
-    navigate(`/user/${user}`);
+    onAuthorClick(user);
   };
 
   if (loading) {
@@ -192,8 +214,8 @@ const UserProfilePage = ({
               <FavouriteWidget
                 id={username}
                 toastType="user"
-                onAdd={(id, action) => console.log("Added:", id, action)}
-                onRemove={(id, action) => console.log("Removed:", id, action)}
+                onAdd={(id, action) => { if (onBookmarkToggle) onBookmarkToggle(id, true); else console.log("Added:", id, action) }}
+                onRemove={(id, action) => { if (onBookmarkToggle) onBookmarkToggle(id, false); else console.log("Removed:", id, action) }}
               />
               <button
                 onClick={handleRssFeed}
@@ -209,9 +231,14 @@ const UserProfilePage = ({
                 <Share2 className="w-4 h-4" />
               </button>
 
-              <button className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+              {showMoreMenu && (
+                <button
+                  onClick={() => { if (onMoreMenu) onMoreMenu(username); }}
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -222,13 +249,13 @@ const UserProfilePage = ({
         <div className="grid grid-cols-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           {[
             { key: "videos", label: "Videos" },
-            { key: "about", label: "User Info" },
-            { key: "followers", label: "Followers" },
-            { key: "following", label: "Following" },
+            { key: "about", label: "User Info", callback: onClickUserInfoTab },
+            { key: "followers", label: "Followers", callback: onClickFollowersTab },
+            { key: "following", label: "Following", callback: onClickFollowingTab },
           ].map((tab, idx) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { if (tab.callback) tab.callback(); else setActiveTab(tab.key); }}
               className={`px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${activeTab === tab.key
                 ? "bg-blue-600 dark:bg-blue-500 text-white"
                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
