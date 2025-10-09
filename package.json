@@ -45,7 +45,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "clean": "rm -r dist/* dist-app/*",
+    "clean": "rm -rf dist dist-app && mkdir -p dist dist-app",
     "build": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json",
     "build:app": "vite build",
     "build:lib": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json",
