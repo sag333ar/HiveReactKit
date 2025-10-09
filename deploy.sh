@@ -13,13 +13,13 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 console.log('Updated version to:', pkg.version);
 "
 
-npm run build
+npm run build:all
 
 git add .
 git commit -m "Updated version"
 git push origin main
 
-cd dist
+cd dist-app
 
 pm2 restart hivereactkit
 
