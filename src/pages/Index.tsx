@@ -10,7 +10,9 @@ import CommunityDetail from "@/components/community/CommunityDetail";
 import UserAccount from "@/components/user/UserAccount";
 import UserProfilePage from "@/components/user/UserProfilePage";
 import Modal from "@/components/modals/Modal";
-import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Copy } from "lucide-react";
+import CommentsModal from "@/components/comments/CommentsModal";
+import UpvoteListModal from "@/components/UpvoteListModal";
+import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Copy, MessageSquare, ThumbsUp } from "lucide-react";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(null);
@@ -23,6 +25,8 @@ const Index = () => {
   const [usernameQuery, setUsernameQuery] = useState("shaktimaaan");
   const [communityQuery, setCommunityQuery] = useState("hive-163772");
   const [tagQuery, setTagQuery] = useState("threespeak");
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showUpvoteModal, setShowUpvoteModal] = useState(false);
 
   const getQuickStartCode = () => {
     switch (activeTab) {
@@ -174,6 +178,26 @@ const Index = () => {
               />
             );
           }`;
+      case "community-detail":
+        return `import { CommunityDetail } from 'hive-reactkit';
+          function App() {
+            return (
+              <CommunityDetail
+                communityId="hive-163772"
+                onVideoClick={(video) => console.log("Video clicked:", video)}
+                onAuthorClick={(author) => console.log("Author clicked:", author)}
+                onBack={() => console.log("Back clicked")}
+                onclickAboutTab={() => console.log("About tab clicked")}
+                onclickTeamTab={() => console.log("Team tab clicked")}
+                onclickMemberTab={() => console.log("Member tab clicked")}
+                onShare={() => console.log("Share clicked")}
+                onFavourite={() => console.log("Favourite clicked")}
+                onRss={() => console.log("RSS clicked")}
+                onMoreVertical={() => console.log("MoreVertical clicked")}
+                showMoreVertical={false}
+              />
+            );
+          }`;
       case "account":
         return `import { UserAccount } from 'hive-reactkit';
           function App() {
@@ -189,6 +213,72 @@ const Index = () => {
                 shouldShowPublishButton={false}
                 shouldShowMoreOptionsButton={false}
               />
+            );
+          }`;
+        return `import { UserAccount } from 'hive-reactkit';
+          function App() {
+            const user = { username: "shaktimaaan", token: "demo_token" };
+
+            return (
+              <UserAccount
+                currentUser={user}
+                onPublish={(username, permlink) => console.log("Publish:", username, permlink)}
+                onViewMyVideo={(username, permlink) => console.log("View my video:", username, permlink)}
+                onTapBackButton={() => console.log("Back button tapped")}
+                shouldShowBackButton={false}
+                shouldShowPublishButton={false}
+                shouldShowMoreOptionsButton={false}
+              />
+            );
+          }`;
+      case "comments":
+        return `import { CommentsModal } from 'hive-reactkit';
+          function App() {
+            const [showComments, setShowComments] = useState(false);
+            const user = { username: "shaktimaaan", token: "demo_token" };
+
+            return (
+              <>
+                <button onClick={() => setShowComments(true)}>
+                  Open Comments
+                </button>
+                <CommentsModal
+                  isOpen={showComments}
+                  onClose={() => setShowComments(false)}
+                  author="shaktimaaan"
+                  permlink="fyiytkhbkz"
+                  currentUser={user.username}
+                  token={user.token}
+                  onClickCommentUpvote={(comment) => console.log("Upvote comment:", comment)}
+                  onClickCommentReply={(comment) => console.log("Reply to comment:", comment)}
+                  onClickUpvoteButton={(currentUser, token) => console.log("Custom upvote:", currentUser, token)}
+                />
+              </>
+            );
+          }`;
+      case "upvotes":
+        return `import { UpvoteListModal } from 'hive-reactkit';
+          function App() {
+            const [showUpvotes, setShowUpvotes] = useState(false);
+            const user = { username: "shaktimaaan", token: "demo_token" };
+
+            return (
+              <>
+                <button onClick={() => setShowUpvotes(true)}>
+                  Open Upvotes
+                </button>
+                <UpvoteListModal
+                  author="shaktimaaan"
+                  permlink="fyiytkhbkz"
+                  onClose={() => setShowUpvotes(false)}
+                  currentUser={user.username}
+                  token={user.token}
+                  onClickUpvoteButton={(currentUser, token) => {
+                    // Custom upvote logic here
+                    console.log("Custom upvote:", currentUser, token);
+                  }}
+                />
+              </>
             );
           }`;
       default:
@@ -238,6 +328,9 @@ const Index = () => {
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
+    { id: "community-detail", label: "Community Detail", icon: "👥" },
+    { id: "comments", label: "Comments Modal", icon: "💬" },
+    { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
   ];
 
   return (
@@ -458,6 +551,21 @@ const Index = () => {
                     onMoreMenu={(username) => console.log("More menu:", username)}
                     showMoreMenu={false}
                   />
+                ) : activeTab === "community-detail" ? (
+                  <CommunityDetail
+                    communityId="hive-163772"
+                    onVideoClick={(video) => console.log("Video clicked:", video)}
+                    onAuthorClick={(author) => console.log("Author clicked:", author)}
+                    onBack={() => console.log("Back clicked")}
+                    onclickAboutTab={() => console.log("About tab clicked")}
+                    onclickTeamTab={() => console.log("Team tab clicked")}
+                    onclickMemberTab={() => console.log("Member tab clicked")}
+                    onShare={() => console.log("Share clicked")}
+                    onFavourite={() => console.log("Favourite clicked")}
+                    onRss={() => console.log("RSS clicked")}
+                    onMoreVertical={() => console.log("MoreVertical clicked")}
+                    showMoreVertical={false}
+                  />
                 ) : activeTab === "account" ? (
                   <UserAccount
                     currentUser={mockUser}
@@ -472,7 +580,62 @@ const Index = () => {
                     shouldShowPublishButton={false}
                     shouldShowMoreOptionsButton={false}
                   />
-                ) : (
+                ) : activeTab === "comments" ? (
+                  <div className="max-w-2xl mx-auto text-center">
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                        Comments Modal Demo
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Click the button below to open the comments modal for a sample video.
+                      </p>
+                      <button
+                        onClick={() => setShowCommentsModal(true)}
+                        className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                      >
+                        <MessageSquare className="w-5 h-5" />
+                        Open Comments Modal
+                      </button>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Features:</h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        <li>• View and interact with comments</li>
+                        <li>• Reply to comments</li>
+                        <li>• Upvote comments (with optional token)</li>
+                        <li>• Custom callback support</li>
+                        <li>• Search through comments</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : activeTab === "upvotes" ? (
+                  <div className="max-w-2xl mx-auto text-center">
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                        Upvotes Modal Demo
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Click the button below to open the upvotes modal for a sample video.
+                      </p>
+                      <button
+                        onClick={() => setShowUpvoteModal(true)}
+                        className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                      >
+                        <ThumbsUp className="w-5 h-5" />
+                        Open Upvotes Modal
+                      </button>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Features:</h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        <li>• View all upvotes for a post</li>
+                        <li>• See voting percentages and timestamps</li>
+                        <li>• Cast your own vote (with token)</li>
+                        <li>• Real-time vote updates</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : feedTabs.find(t => t.id === activeTab)?.type ? (
                   <>
                     {activeTab === "search" && (
                       <div className="mb-4">
@@ -525,7 +688,7 @@ const Index = () => {
                       {...(activeTab === "search" ? { tag: searchQuery } : activeTab === "user" ? { username: usernameQuery } : activeTab === "community" ? { communityId: communityQuery } : activeTab === "tag" ? { tag: tagQuery } : {})}
                     />
                   </>
-                )}
+                ) : null}
               </div>
             </div>
           </section>
@@ -558,6 +721,32 @@ const Index = () => {
                 description="This is a demo description for the video."
               />
             </Modal>
+          )}
+
+          {/* Comments Modal */}
+          {showCommentsModal && (
+            <CommentsModal
+              author="shaktimaaan"
+              permlink="fyiytkhbkz"
+              onClose={() => setShowCommentsModal(false)}
+              currentUser={mockUser?.username}
+              token={mockUser?.token}
+            />
+          )}
+
+          {/* Upvotes Modal */}
+          {showUpvoteModal && (
+            <UpvoteListModal
+              author="shaktimaaan"
+              permlink="fyiytkhbkz"
+              onClose={() => setShowUpvoteModal(false)}
+              currentUser={mockUser?.username}
+              token={mockUser?.token}
+              onClickUpvoteButton={(currentUser, token) => {
+                console.log("Custom upvote button clicked:", currentUser, token);
+                // Custom logic can be added here
+              }}
+            />
           )}
         </>
       )}
