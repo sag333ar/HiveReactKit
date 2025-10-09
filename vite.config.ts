@@ -93,6 +93,11 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist-app',
       rollupOptions: {
         input: path.resolve(__dirname, "index.html"),
+        output: {
+          manualChunks: {
+            'hive-content-renderer': ['@hiveio/content-renderer']
+          }
+        }
       },
     },
   };
