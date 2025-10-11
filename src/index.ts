@@ -4,6 +4,7 @@ export { default as VideoDetail } from './components/VideoDetail';
 export { default as VideoFeed } from './components/VideoFeed';
 export { default as VideoInfo } from './components/VideoInfo';
 export { default as Wallet } from './components/Wallet';
+export { default as ListOfWitnesses } from './components/ListOfWitnesses';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';
@@ -44,9 +45,11 @@ export * from './types/graphql';
 export * from './types/trending';
 export * from './types/video';
 export * from './types/wallet';
+export * from './types/witness';
 
 // Services
 export * from './services/apiService';
+export * from './services/witnessService';
 
 // Store
 export * from './store/walletStore';

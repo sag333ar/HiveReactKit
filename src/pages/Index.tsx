@@ -12,6 +12,7 @@ import UserProfilePage from "@/components/user/UserProfilePage";
 import Modal from "@/components/modals/Modal";
 import CommentsModal from "@/components/comments/CommentsModal";
 import UpvoteListModal from "@/components/UpvoteListModal";
+import ListOfWitnesses from "@/components/ListOfWitnesses";
 import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Copy, MessageSquare, ThumbsUp } from "lucide-react";
 
 const Index = () => {
@@ -281,6 +282,18 @@ const Index = () => {
               </>
             );
           }`;
+      case "witnesses":
+        return `import { ListOfWitnesses } from 'hive-reactkit';
+          function App() {
+            return (
+              <ListOfWitnesses
+                username="shaktimaaan"
+                onWitnessVoteClick={(witness) => console.log("Witness vote clicked:", witness)}
+                onWitnessStatsClick={(witness) => console.log("Witness stats clicked:", witness)}
+                onWitnessUrlClick={(url) => console.log("Witness URL clicked:", url)}
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
@@ -331,6 +344,7 @@ const Index = () => {
     { id: "community-detail", label: "Community Detail", icon: "👥" },
     { id: "comments", label: "Comments Modal", icon: "💬" },
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
+    { id: "witnesses", label: "Witnesses", icon: "👥" },
   ];
 
   return (
@@ -634,6 +648,14 @@ const Index = () => {
                         <li>• Real-time vote updates</li>
                       </ul>
                     </div>
+                  </div>
+                ) : activeTab === "witnesses" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ListOfWitnesses
+                      username={mockUser?.username || "shaktimaaan"}
+                      onWitnessStatsClick={(witness) => window.open(`https://hivehub.dev/witnesses/@${witness}`, '_blank')}
+                      onWitnessUrlClick={(url) => window.open(url, '_blank')}
+                    />
                   </div>
                 ) : feedTabs.find(t => t.id === activeTab)?.type ? (
                   <>
