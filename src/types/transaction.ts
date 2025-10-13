@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export interface TransactionHistoryItem {
-  id: number;
   trx_id: string;
   block: number;
   trx_in_block: number;
   op_in_trx: number;
-  virtual_op: number;
+  virtual_op: boolean;
   timestamp: string;
   op: any;
 }
@@ -67,8 +66,45 @@ export interface CustomJsonOperation {
   };
 }
 
-export type Operation = 
-  | TransferOperation 
-  | VoteOperation 
-  | CommentOperation 
-  | CustomJsonOperation;
+export interface CommentPayoutUpdateOperation {
+  type: "comment_payout_update";
+  value: {
+    author: string;
+    permlink: string;
+  };
+}
+
+export interface CommentOptionsOperation {
+  type: "comment_options";
+  value: {
+    author: string;
+    permlink: string;
+    max_accepted_payout: string;
+    percent_hbd: number;
+    allow_votes: boolean;
+    allow_curation_rewards: boolean;
+    extensions: any[];
+  };
+}
+
+export interface EffectiveCommentVoteOperation {
+  type: "effective_comment_vote";
+  value: {
+    voter: string;
+    author: string;
+    permlink: string;
+    pending_payout: string;
+    weight: number;
+    rshares: number;
+    total_vote_weight: number;
+  };
+}
+
+export type Operation =
+  | TransferOperation
+  | VoteOperation
+  | CommentOperation
+  | CustomJsonOperation
+  | CommentPayoutUpdateOperation
+  | CommentOptionsOperation
+  | EffectiveCommentVoteOperation;

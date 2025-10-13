@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Client } from "@hiveio/dhive";
-import { 
-  TransactionHistoryItem, 
-  TransactionHistoryParams, 
+import {
+  TransactionHistoryItem,
+  TransactionHistoryParams,
   TransactionHistoryResponse,
-  Operation 
+  Operation,
 } from "@/types/transaction";
 
 // Initialize DHive client
@@ -44,8 +44,18 @@ class TransactionService {
         params
       );
 
-      // Return raw operation history
-      return Array.isArray(result) ? result : [];
+      // The API returns an array of [index, transaction] pairs
+      // Extract the transaction objects from the response
+      if (Array.isArray(result)) {
+        return result.map((item: any) => {
+          if (Array.isArray(item) && item.length >= 2) {
+            return item[1]; // Return the transaction object (second element)
+          }
+          return item; // Fallback for unexpected format
+        });
+      }
+
+      return [];
     } catch (error) {
       console.error("Error in getTransactionHistory:", error);
       return [];
@@ -65,12 +75,16 @@ class TransactionService {
     limit: number = 100
   ): Promise<TransactionHistoryItem[]> {
     try {
-      const allTransactions = await this.getTransactionHistory(account, -1, 1000);
-      
+      const allTransactions = await this.getTransactionHistory(
+        account,
+        -1,
+        1000
+      );
+
       let filtered = allTransactions;
-      
+
       if (operationTypes.length > 0) {
-        filtered = allTransactions.filter(transaction => {
+        filtered = allTransactions.filter((transaction) => {
           const opType = transaction.op?.[0];
           return operationTypes.includes(opType);
         });
@@ -89,8 +103,11 @@ class TransactionService {
    * @param limit - Maximum number of transfers to return
    * @returns Promise<TransactionHistoryItem[]>
    */
-  async getRecentTransfers(account: string, limit: number = 50): Promise<TransactionHistoryItem[]> {
-    return this.getFilteredTransactionHistory(account, ['transfer'], limit);
+  async getRecentTransfers(
+    account: string,
+    limit: number = 50
+  ): Promise<TransactionHistoryItem[]> {
+    return this.getFilteredTransactionHistory(account, ["transfer"], limit);
   }
 
   /**
@@ -99,8 +116,11 @@ class TransactionService {
    * @param limit - Maximum number of votes to return
    * @returns Promise<TransactionHistoryItem[]>
    */
-  async getRecentVotes(account: string, limit: number = 50): Promise<TransactionHistoryItem[]> {
-    return this.getFilteredTransactionHistory(account, ['vote'], limit);
+  async getRecentVotes(
+    account: string,
+    limit: number = 50
+  ): Promise<TransactionHistoryItem[]> {
+    return this.getFilteredTransactionHistory(account, ["vote"], limit);
   }
 
   /**
@@ -109,8 +129,11 @@ class TransactionService {
    * @param limit - Maximum number of comments to return
    * @returns Promise<TransactionHistoryItem[]>
    */
-  async getRecentComments(account: string, limit: number = 50): Promise<TransactionHistoryItem[]> {
-    return this.getFilteredTransactionHistory(account, ['comment'], limit);
+  async getRecentComments(
+    account: string,
+    limit: number = 50
+  ): Promise<TransactionHistoryItem[]> {
+    return this.getFilteredTransactionHistory(account, ["comment"], limit);
   }
 
   /**
@@ -120,65 +143,107 @@ class TransactionService {
    */
   parseOperation(transaction: TransactionHistoryItem): Operation | null {
     try {
-      if (!transaction.op || !Array.isArray(transaction.op) || transaction.op.length < 2) {
+      if (
+        !transaction.op ||
+        !Array.isArray(transaction.op) ||
+        transaction.op.length < 2
+      ) {
         return null;
       }
 
       const [opType, opData] = transaction.op;
 
       switch (opType) {
-        case 'transfer':
+        case "transfer":
           return {
-            type: 'transfer',
+            type: "transfer",
             value: {
-              from: opData.from || '',
-              to: opData.to || '',
-              amount: opData.amount || '',
-              memo: opData.memo || ''
-            }
+              from: opData.from || "",
+              to: opData.to || "",
+              amount: opData.amount || "",
+              memo: opData.memo || "",
+            },
           } as Operation;
 
-        case 'vote':
+        case "vote":
           return {
-            type: 'vote',
+            type: "vote",
             value: {
-              voter: opData.voter || '',
-              author: opData.author || '',
-              permlink: opData.permlink || '',
-              weight: opData.weight || 0
-            }
+              voter: opData.voter || "",
+              author: opData.author || "",
+              permlink: opData.permlink || "",
+              weight: opData.weight || 0,
+            },
           } as Operation;
 
-        case 'comment':
+        case "comment":
           return {
-            type: 'comment',
+            type: "comment",
             value: {
-              parent_author: opData.parent_author || '',
-              parent_permlink: opData.parent_permlink || '',
-              author: opData.author || '',
-              permlink: opData.permlink || '',
-              title: opData.title || '',
-              body: opData.body || '',
-              json_metadata: opData.json_metadata || ''
-            }
+              parent_author: opData.parent_author || "",
+              parent_permlink: opData.parent_permlink || "",
+              author: opData.author || "",
+              permlink: opData.permlink || "",
+              title: opData.title || "",
+              body: opData.body || "",
+              json_metadata: opData.json_metadata || "",
+            },
           } as Operation;
 
-        case 'custom_json':
+        case "custom_json":
           return {
-            type: 'custom_json',
+            type: "custom_json",
             value: {
               required_auths: opData.required_auths || [],
               required_posting_auths: opData.required_posting_auths || [],
-              id: opData.id || '',
-              json: opData.json || ''
-            }
+              id: opData.id || "",
+              json: opData.json || "",
+            },
+          } as Operation;
+
+        case "comment_payout_update":
+          return {
+            type: "comment_payout_update",
+            value: {
+              author: opData.author || "",
+              permlink: opData.permlink || "",
+            },
+          } as Operation;
+
+        case "comment_options":
+          return {
+            type: "comment_options",
+            value: {
+              author: opData.author || "",
+              permlink: opData.permlink || "",
+              max_accepted_payout: opData.max_accepted_payout || "",
+              percent_hbd: opData.percent_hbd || 0,
+              allow_votes: opData.allow_votes || false,
+              allow_curation_rewards: opData.allow_curation_rewards || false,
+              extensions: opData.extensions || [],
+            },
+          } as Operation;
+
+        case "effective_comment_vote":
+          return {
+            type: "effective_comment_vote",
+            value: {
+              voter: opData.voter || "",
+              author: opData.author || "",
+              permlink: opData.permlink || "",
+              pending_payout: opData.pending_payout || "",
+              weight: opData.weight || 0,
+              rshares: opData.rshares || 0,
+              total_vote_weight: opData.total_vote_weight || 0,
+            },
           } as Operation;
 
         default:
+          console.warn("Unknown operation type:", opType, transaction.op);
           return null;
       }
     } catch (error) {
-      console.error("Error parsing operation:", error);
+      console.error("Error parsing operation:", error, transaction.op);
       return null;
     }
   }
@@ -209,11 +274,11 @@ class TransactionService {
     dateRange: { earliest: string; latest: string };
   } {
     const operationCounts: Record<string, number> = {};
-    let earliest = '';
-    let latest = '';
+    let earliest = "";
+    let latest = "";
 
-    transactions.forEach(transaction => {
-      const opType = transaction.op?.[0] || 'unknown';
+    transactions.forEach((transaction) => {
+      const opType = transaction.op?.[0] || "unknown";
       operationCounts[opType] = (operationCounts[opType] || 0) + 1;
 
       if (!earliest || transaction.timestamp < earliest) {
@@ -227,7 +292,7 @@ class TransactionService {
     return {
       totalTransactions: transactions.length,
       operationCounts,
-      dateRange: { earliest, latest }
+      dateRange: { earliest, latest },
     };
   }
 }
