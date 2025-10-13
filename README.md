@@ -1,73 +1,105 @@
-# Welcome to your Lovable project
+# Hive React Kit
 
-## Project info
+A comprehensive React component library for building Hive blockchain applications with modern UI components.
 
-**URL**: https://lovable.dev/projects/385a37fa-02ab-4ab2-9620-2eb469c39cd5
+## Features
 
-## How can I edit this code?
+- 🎨 **Modern UI Components** - Built with shadcn/ui and Radix UI primitives
+- 🔗 **Hive Integration** - Ready-to-use components for Hive blockchain
+- 📱 **Responsive Design** - Mobile-first approach with Tailwind CSS
+- 🎯 **TypeScript Support** - Full TypeScript support with type definitions
+- 🚀 **Tree Shaking** - Optimized bundle size with tree shaking support
+- 🎭 **Customizable** - Easy to customize and extend
 
-There are several ways of editing your application.
+## Installation
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/385a37fa-02ab-4ab2-9620-2eb469c39cd5) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install hive-react-kit
+# or
+yarn add hive-react-kit
+# or
+pnpm add hive-react-kit
 ```
 
-**Edit a file directly in GitHub**
+## Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Basic Import
 
-**Use GitHub Codespaces**
+```tsx
+import { VideoCard, VideoFeed, Wallet } from 'hive-react-kit';
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### UI Components
 
-## What technologies are used for this project?
+```tsx
+import { Button, Card, Input } from 'hive-react-kit/ui';
+```
 
-This project is built with:
+### Hooks
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```tsx
+import { useMobile } from 'hive-react-kit/hooks';
+```
 
-## How can I deploy this project?
+### Types
 
-Simply open [Lovable](https://lovable.dev/projects/385a37fa-02ab-4ab2-9620-2eb469c39cd5) and click on Share -> Publish.
+```tsx
+import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types';
+```
 
-## Can I connect a custom domain to my Lovable project?
+## Components
 
-Yes, you can!
+### Main Components
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **VideoCard** - Display video content with metadata
+- **VideoFeed** - Feed of videos with pagination
+- **VideoDetail** - Detailed video view
+- **VideoInfo** - Video information display
+- **Wallet** - Hive wallet integration
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Community Components
+
+- **CommunitiesList** - List of communities
+- **CommunityDetail** - Community details
+- **CommunityAbout** - Community about section
+- **CommunityMembers** - Community members list
+- **CommunityTeam** - Community team members
+
+### Modal Components
+
+- **CommentsModal** - Comments display modal
+- **DescriptionModal** - Description editing modal
+- **UpvoteListModal** - Upvote list modal
+- **Modal** - Base modal component
+
+### User Components
+
+- **UserAccount** - User account management
+- **UserProfilePage** - User profile page
+- **UserInfo** - User information display
+- **UserFollowers** - User followers list
+- **UserFollowing** - User following list
+
+## Setup
+
+Make sure to install the required peer dependencies:
+
+```bash
+npm install react react-dom @tanstack/react-query @hiveio/dhive zustand
+```
+
+## Styling
+
+This package uses Tailwind CSS. Make sure to include Tailwind CSS in your project:
+
+```bash
+npm install tailwindcss
+```
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

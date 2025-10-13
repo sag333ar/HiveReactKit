@@ -40,6 +40,8 @@ const VideoFeed = ({
         return `community:${communityId || ""}`;
       case ApiVideoFeedType.TAG_FEED:
         return `tag:${tag || ""}`;
+      case ApiVideoFeedType.SEARCH:
+        return `search:${tag || ""}`;
       default:
         return feedType;
     }

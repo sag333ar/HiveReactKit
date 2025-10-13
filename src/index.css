@@ -1,162 +1,25 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* HiveReactkit Design System - Professional video platform aesthetic */
+@import "tailwindcss";
 
 @layer base {
-  :root {
-    /* Base colors - Clean modern video platform */
-    --background: 0 0% 100%;
-    --foreground: 210 11% 15%;
-    
-    /* Card system - Elevated surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 210 11% 15%;
-    --card-hover: 0 0% 98%;
-    
-    /* Primary brand - Deep video platform purple */
-    --primary: 259 83% 57%;
-    --primary-hover: 259 83% 47%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 259 100% 70%;
-    
-    /* Secondary accent - Complementary blue */
-    --secondary: 217 91% 60%;
-    --secondary-hover: 217 91% 50%;
-    --secondary-foreground: 0 0% 100%;
-    
-    /* Neutral system */
-    --muted: 210 40% 96%;
-    --muted-foreground: 210 6% 46%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    
-    /* Interactive states */
-    --accent: 210 40% 96%;
-    --accent-foreground: 210 11% 15%;
-    --hover-overlay: 0 0% 0% / 0.05;
-    
-    /* Status colors */
-    --success: 142 71% 45%;
-    --warning: 45 93% 58%;
-    --error: 0 84% 60%;
-    --info: 217 91% 60%;
-    
-    /* Video platform specific */
-    --video-overlay: 0 0% 0% / 0.8;
-    --thumbnail-radius: 0.75rem;
-    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(var(--video-overlay)) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
-    
-    /* Animations */
-    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    /* Dark theme - Modern video platform aesthetic */
-    --background: 210 11% 4%;
-    --foreground: 210 6% 93%;
-    
-    --card: 210 11% 6%;
-    --card-foreground: 210 6% 93%;
-    --card-hover: 210 11% 8%;
-    
-    --primary: 259 83% 67%;
-    --primary-hover: 259 83% 77%;
-    --primary-foreground: 210 11% 4%;
-    --primary-glow: 259 100% 80%;
-    
-    --secondary: 217 91% 70%;
-    --secondary-hover: 217 91% 80%;
-    --secondary-foreground: 210 11% 4%;
-    
-    --muted: 210 11% 11%;
-    --muted-foreground: 210 6% 63%;
-    --border: 210 11% 15%;
-    --input: 210 11% 15%;
-    
-    --accent: 210 11% 11%;
-    --accent-foreground: 210 6% 93%;
-    --hover-overlay: 255 255% 100% / 0.05;
-    
-    --success: 142 71% 55%;
-    --warning: 45 93% 68%;
-    --error: 0 84% 70%;
-    --info: 217 91% 70%;
-    
-    --video-overlay: 0 0% 0% / 0.9;
-    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-    --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
-  /* Video platform specific base styles */
-  .video-container {
-    @apply relative overflow-hidden;
-    border-radius: var(--thumbnail-radius);
-  }
-  
-  .card-interactive {
-    @apply transition-all duration-200 hover:shadow-lg;
-    box-shadow: var(--card-shadow);
-  }
-  
-  .card-interactive:hover {
-    box-shadow: var(--card-shadow-hover);
-    transform: translateY(-2px);
-  }
-  
-  .gradient-primary {
-    background: var(--gradient-primary);
-  }
-  
-  .gradient-overlay {
-    background: var(--gradient-overlay);
-  }
-  
+
   /* Custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-muted;
+    @apply bg-gray-100 dark:bg-gray-800;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground rounded-full;
+    @apply bg-gray-400 dark:bg-gray-600 rounded-full;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
+    @apply bg-gray-500 dark:bg-gray-500;
   }
 }

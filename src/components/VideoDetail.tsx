@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import { ThreeSpeakVideo, ApiVideoFeedType, VideoFeedItem } from "@/types/video";
 import { apiService } from "@/services/apiService";
 import { ArrowLeft, Clock, Eye, Play } from "lucide-react";
@@ -11,12 +10,24 @@ import DescriptionModal from "@/components/modals/DescriptionModal";
 import Hls from "hls.js";
 import { formatThumbnailUrl } from "@/utils/thumbnail";
 
-const VideoDetail = () => {
-  const { author, permlink } = useParams<{
-    author: string;
-    permlink: string;
-  }>();
-  const navigate = useNavigate();
+interface VideoDetailProps {
+  username?: string;
+  permlink?: string;
+  onAuthorClick?: (author: string) => void;
+  onVideoClick?: (video: VideoFeedItem) => void;
+  onTagClick?: (tag: string) => void;
+  onBack?: () => void;
+  onCommentsModal?: (author: string, permlink: string) => void;
+  onUpvotesModal?: (author: string, permlink: string) => void;
+  onDescriptionModal?: (author: string, permlink: string, content: string) => void;
+  onVideoInfo?: (video: any) => void;
+  onShare?: (author: string, permlink: string) => void;
+  onBookmark?: (author: string, permlink: string) => void;
+}
+
+const VideoDetail = ({ username, permlink, onAuthorClick, onVideoClick, onTagClick, onBack, onCommentsModal, onUpvotesModal, onDescriptionModal, onVideoInfo, onShare, onBookmark }: VideoDetailProps = {}) => {
+  const author = username;
+  const permlinkParam = permlink;
   const [video, setVideo] = useState<ThreeSpeakVideo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +44,11 @@ const VideoDetail = () => {
   // Fetch video details when route changes
   useEffect(() => {
     const fetchVideo = async () => {
-      if (!author || !permlink) return;
+      if (!author || !permlinkParam) return;
       try {
         setLoading(true);
         setError(null);
-        const videoData = await apiService.getVideoDetails(author, permlink);
+        const videoData = await apiService.getVideoDetails(author, permlinkParam);
         setVideo(videoData);
         setIsPlaying(false);
         setVideoError(null);
@@ -48,7 +59,7 @@ const VideoDetail = () => {
       }
     };
     fetchVideo();
-  }, [author, permlink]);
+  }, [author, permlinkParam]);
 
   // Enhanced IPFS URL resolution matching Flutter logic
   const resolveIpfsUrl = (url: string): string => {
@@ -226,11 +237,11 @@ const VideoDetail = () => {
   };
 
   const handleVideoClick = (clickedVideo: VideoFeedItem) => {
-    navigate(`/video/${clickedVideo.author}/${clickedVideo.permlink}`);
+    if (onVideoClick) onVideoClick(clickedVideo);
   };
 
   const handleAuthorClick = (authorName: string) => {
-    navigate(`/user/${authorName}`);
+    if (onAuthorClick) onAuthorClick(authorName);
   };
 
   const formatDuration = (seconds?: number) => {
@@ -286,7 +297,7 @@ const VideoDetail = () => {
             {error || "Video not found"}
           </p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => { if (onBack) onBack(); }}
             className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border text-card-foreground rounded-lg hover:bg-card-hover transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -303,7 +314,7 @@ const VideoDetail = () => {
       <div className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container mx-auto px-4 py-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => { if (onBack) onBack(); }}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-card-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -422,10 +433,12 @@ const VideoDetail = () => {
                 thumbnail: video.thumbnail,
                 views: video.views,
               }}
-              onTapComment={() => setShowComments(true)}
-              onTapUpvote={() => setShowUpvotes(true)}
-              onTapInfo={() => setShowDescription(true)}
-              onTapAuthor={() => navigate(`/user/${video.owner}`)}
+              onTapComment={() => { if (onCommentsModal) onCommentsModal(author, permlinkParam); else setShowComments(true); }}
+              onTapUpvote={() => { if (onUpvotesModal) onUpvotesModal(author, permlinkParam); else setShowUpvotes(true); }}
+              onTapInfo={() => { if (onDescriptionModal) onDescriptionModal(author, permlinkParam, video.description || ""); else setShowDescription(true); }}
+              onTapAuthor={() => { if (onAuthorClick) onAuthorClick(video.owner); }}
+              onTapShare={() => { if (onShare) onShare(author, permlinkParam); }}
+              onTapBookmark={() => { if (onBookmark) onBookmark(author, permlinkParam); }}
             />
 
             {/* Tags */}
@@ -435,7 +448,7 @@ const VideoDetail = () => {
                   <span
                     key={index}
                     className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium hover:bg-primary/20 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/tag/${tag.trim()}`)}
+                    onClick={() => { if (onTagClick) onTagClick(tag.trim()); }}
                   >
                     #{tag.trim()}
                   </span>
@@ -462,26 +475,26 @@ const VideoDetail = () => {
       </div>
 
       {/* Modals */}
-      {showComments && author && permlink && (
+      {showComments && author && permlinkParam && (
         <CommentsModal
           author={author}
-          permlink={permlink}
+          permlink={permlinkParam}
           onClose={() => setShowComments(false)}
         />
       )}
 
-      {showUpvotes && author && permlink && (
+      {showUpvotes && author && permlinkParam && (
         <UpvoteListModal
           author={author}
-          permlink={permlink}
+          permlink={permlinkParam}
           onClose={() => setShowUpvotes(false)}
         />
       )}
 
-      {showDescription && author && permlink && (
+      {showDescription && author && permlinkParam && (
         <DescriptionModal
           author={author}
-          permlink={permlink}
+          permlink={permlinkParam}
           content={video.description || ""}
           onClose={() => setShowDescription(false)}
         />
