@@ -136,7 +136,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
       case "transfer":
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs font-medium">
                 Transfer
               </span>
@@ -144,21 +144,42 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 {operation.value.amount}
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              From:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">From:</span>
+              <img
+                src={userService.userAvatar(operation.value.from)}
+                alt={`${operation.value.from} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.from
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.from}
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              To:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">To:</span>
+              <img
+                src={userService.userAvatar(operation.value.to)}
+                alt={`${operation.value.to} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.to
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.to}
               </span>
             </div>
             {operation.value.memo && (
               <div className="text-sm text-gray-400">
-                Memo: {operation.value.memo}
+                <span className="flex-shrink-0">Memo:</span>{" "}
+                {operation.value.memo}
               </div>
             )}
           </div>
@@ -167,7 +188,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
       case "vote":
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs font-medium">
                 Vote
               </span>
@@ -175,14 +196,41 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 {operation.value.weight}%
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              Voter:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">Voter:</span>
+              <img
+                src={userService.userAvatar(operation.value.voter)}
+                alt={`${operation.value.voter} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.voter
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.voter}
               </span>
             </div>
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">Author:</span>
+              <img
+                src={userService.userAvatar(operation.value.author)}
+                alt={`${operation.value.author} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.author
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
+                {operation.value.author}
+              </span>
+            </div>
             <div className="text-sm text-gray-400">
-              Post: @{operation.value.author}/{operation.value.permlink}
+              <span className="flex-shrink-0">Permlink:</span>{" "}
+              {operation.value.permlink}
             </div>
           </div>
         );
@@ -195,17 +243,29 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 Comment
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              Author:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">Author:</span>
+              <img
+                src={userService.userAvatar(operation.value.author)}
+                alt={`${operation.value.author} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.author
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.author}
               </span>
             </div>
             <div className="text-sm text-gray-400">
-              Title: {operation.value.title}
+              <span className="flex-shrink-0">Title:</span>{" "}
+              {operation.value.title}
             </div>
             <div className="text-sm text-gray-400">
-              Permlink: {operation.value.permlink}
+              <span className="flex-shrink-0">Permlink:</span>{" "}
+              {operation.value.permlink}
             </div>
           </div>
         );
@@ -235,14 +295,25 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 Payout Update
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              Author:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">Author:</span>
+              <img
+                src={userService.userAvatar(operation.value.author)}
+                alt={`${operation.value.author} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.author
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.author}
               </span>
             </div>
             <div className="text-sm text-gray-400">
-              Permlink: {operation.value.permlink}
+              <span className="flex-shrink-0">Permlink:</span>{" "}
+              {operation.value.permlink}
             </div>
           </div>
         );
@@ -255,17 +326,29 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 Comment Options
               </span>
             </div>
-            <div className="text-sm text-gray-400">
-              Author:{" "}
-              <span className="font-mono text-gray-300">
+            <div className="text-sm text-gray-400 flex items-center gap-2">
+              <span className="flex-shrink-0">Author:</span>
+              <img
+                src={userService.userAvatar(operation.value.author)}
+                alt={`${operation.value.author} avatar`}
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = userService.userAvatar(
+                    operation.value.author
+                  );
+                }}
+              />
+              <span className="font-mono text-gray-300 truncate">
                 {operation.value.author}
               </span>
             </div>
             <div className="text-sm text-gray-400">
-              Max Payout: {operation.value.max_accepted_payout}
+              <span className="flex-shrink-0">Max Payout:</span>{" "}
+              {operation.value.max_accepted_payout}
             </div>
             <div className="text-sm text-gray-400">
-              HBD Percent: {operation.value.percent_hbd}%
+              <span className="flex-shrink-0">HBD Percent:</span>{" "}
+              {operation.value.percent_hbd}%
             </div>
           </div>
         );
@@ -308,7 +391,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
       <div
         className={`bg-gray-800 border border-gray-700 rounded-lg shadow-sm ${className}`}
       >
-        <div className="p-6">
+        <div className="p-2 md:p-6">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="h-5 w-5 text-gray-300" />
             <h3 className="text-lg font-semibold text-white">
@@ -328,12 +411,10 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                   userService.userAvatar(account);
               }}
             />
-            <p className="text-sm text-gray-400">
-              @{account}
-            </p>
+            <p className="text-sm text-gray-400">@{account}</p>
           </div>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-2 md:p-6 space-y-2 md:space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
@@ -349,7 +430,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
     <div
       className={`bg-gray-800 border border-gray-700 rounded-lg shadow-sm ${className}`}
     >
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="flex items-center gap-2 mb-2">
           <Activity className="h-5 w-5 text-gray-300" />
           <h3 className="text-lg font-semibold text-white">
@@ -357,9 +438,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-400">
-            Transaction history for
-          </p>
+          <p className="text-sm text-gray-400">Transaction history for</p>
           <img
             src={userService.userAvatar(account)}
             alt={`${account} avatar`}
@@ -369,9 +448,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                 userService.userAvatar(account);
             }}
           />
-          <p className="text-sm text-gray-400">
-          @{account}
-          </p>
+          <p className="text-sm text-gray-400">@{account}</p>
         </div>
 
         {/* Summary Stats */}
@@ -403,7 +480,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
         </div>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -465,7 +542,7 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
               return (
                 <div
                   key={`${transaction.trx_id}-${transaction.op_in_trx}`}
-                  className="border border-gray-600 rounded-lg p-4 space-y-3 hover:bg-gray-700 transition-colors"
+                  className="border border-gray-600 rounded-lg p-3 md:p-4 space-y-3 hover:bg-gray-700 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -485,17 +562,9 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-400">
-                        Block #{transaction.block}
-                      </div>
-                      {/* <div className="text-xs text-muted-foreground font-mono">
-                        {transaction.trx_id.substring(0, 8)}...
-                      </div> */}
-                    </div>
                   </div>
 
-                  <div className="ml-7">
+                  <div className="ml-6 md:ml-7">
                     {renderOperationDetails(transaction)}
                   </div>
                 </div>

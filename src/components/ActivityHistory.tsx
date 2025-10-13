@@ -158,13 +158,15 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
     return (
       <div
         key={activityId}
-        className="border border-gray-600 rounded-lg p-4 space-y-3 hover:bg-gray-700 transition-colors"
+        className="border border-gray-600 rounded-lg p-3 sm:p-4 space-y-3 hover:bg-gray-700 transition-colors"
       >
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="flex items-start gap-3 flex-1">
-            <div className="mt-1">{getActivityIcon(activity)}</div>
+            <div className="mt-1 flex-shrink-0">
+              {getActivityIcon(activity)}
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span
                   className={`px-2 py-1 rounded text-xs font-medium ${
                     activity.parent_author === ""
@@ -183,20 +185,21 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                 <img
                   src={userService.userAvatar(activity.author)}
                   alt={`${activity.author} avatar`}
-                  className="w-6 h-6 rounded-full"
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = userService.userAvatar(
                       activity.author
                     );
                   }}
                 />
-                <h3 className="font-medium text-lg leading-tight text-white">
+                <h3 className="font-medium text-base sm:text-lg leading-tight text-white break-words">
                   {activity.title || "Untitled"}
                 </h3>
               </div>
 
-              <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-400 comment-content">
+              <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-400 comment-content overflow-hidden">
                 <div
+                  className="break-words overflow-wrap-anywhere"
                   dangerouslySetInnerHTML={{
                     __html: hiveRenderer.render(
                       shouldTruncate && !isExpanded
@@ -220,22 +223,24 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-4 text-sm text-gray-400">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-400">
                 <div className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {activityService.getRelativeTime(activity.created)}
+                  <Clock className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">
+                    {activityService.getRelativeTime(activity.created)}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  {activity.net_votes} votes
+                  <TrendingUp className="h-3 w-3 flex-shrink-0" />
+                  <span>{activity.net_votes} votes</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />
-                  {activity.children} replies
+                  <MessageSquare className="h-3 w-3 flex-shrink-0" />
+                  <span>{activity.children} replies</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>💰</span>
-                  {formatPayout(activity.total_payout_value)}
+                  <span>{formatPayout(activity.total_payout_value)}</span>
                 </div>
               </div>
             </div>
@@ -248,7 +253,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                 "_blank"
               )
             }
-            className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white"
+            className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white self-start sm:self-center"
           >
             <ExternalLink className="h-4 w-4" />
           </button>
@@ -354,10 +359,10 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
 
       <div className="p-6 space-y-4">
         {/* Tabs */}
-        <div className="flex border-b border-gray-700">
+        <div className="flex flex-wrap border-b border-gray-700">
           <button
             onClick={() => setActiveTab("all")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "all"
                 ? "border-blue-500 text-blue-400"
                 : "border-transparent text-gray-400 hover:text-gray-300"
@@ -368,7 +373,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
           </button>
           <button
             onClick={() => setActiveTab("posts")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "posts"
                 ? "border-blue-500 text-blue-400"
                 : "border-transparent text-gray-400 hover:text-gray-300"
@@ -379,7 +384,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
           </button>
           <button
             onClick={() => setActiveTab("comments")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "comments"
                 ? "border-blue-500 text-blue-400"
                 : "border-transparent text-gray-400 hover:text-gray-300"
@@ -390,7 +395,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
           </button>
           <button
             onClick={() => setActiveTab("replies")}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "replies"
                 ? "border-blue-500 text-blue-400"
                 : "border-transparent text-gray-400 hover:text-gray-300"
