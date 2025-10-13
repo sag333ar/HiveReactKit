@@ -166,7 +166,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                         >
                           {p.creator}
                         </span>
-                        <span className="ml-2 text-gray-500 dark:text-gray-400">with receiver <strong className="text-gray-900 dark:text-gray-100">{p.receiver}</strong></span>
+                        {p.receiver && <span className="ml-2 text-gray-500 dark:text-gray-400">with receiver <strong className="text-gray-900 dark:text-gray-100">{p.receiver}</strong></span>}
                       </div>
                       <div
                         className="cursor-pointer text-lg font-semibold mb-1 text-gray-900 dark:text-gray-100"
