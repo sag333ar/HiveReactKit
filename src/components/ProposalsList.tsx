@@ -25,23 +25,11 @@ const formatNumber = (num: number | string) => {
 
 // Calculate days info for display
 const getDaysInfo = (proposal: Proposal) => {
-  const now = new Date();
   const startDate = new Date(proposal.start_date);
   const endDate = new Date(proposal.end_date);
+  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (startDate > now) {
-    // Upcoming
-    const daysUntilStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return `(${daysUntilStart} days until start)`;
-  } else if (endDate < now) {
-    // Expired
-    const daysSinceEnd = Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
-    return `(${daysSinceEnd} days ago)`;
-  } else {
-    // Active
-    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return `(${daysRemaining} days remaining)`;
-  }
+  return `(${totalDays} total days)`;
 };
 
 const ProposalsList: React.FC<ProposalsListProps> = ({
