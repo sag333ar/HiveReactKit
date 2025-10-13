@@ -13,6 +13,7 @@ import Modal from "@/components/modals/Modal";
 import CommentsModal from "@/components/comments/CommentsModal";
 import UpvoteListModal from "@/components/UpvoteListModal";
 import ListOfWitnesses from "@/components/ListOfWitnesses";
+import ProposalsList from "@/components/ProposalsList";
 import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Copy, MessageSquare, ThumbsUp } from "lucide-react";
 
 const Index = () => {
@@ -43,7 +44,7 @@ const Index = () => {
             );
           }`;
       case "new":
-        return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';    
+        return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
             return (
               <VideoFeed
@@ -294,6 +295,19 @@ const Index = () => {
               />
             );
           }`;
+      case "proposals":
+        return `import { ProposalsList } from 'hive-reactkit';
+          function App() {
+            return (
+              <ProposalsList
+                onClickSupport={(proposal) => console.log("Support clicked:", proposal)}
+                onClickVoteValue={(proposal) => console.log("Vote value clicked:", proposal)}
+                onClickSelect={(proposal) => console.log("Select clicked:", proposal)}
+                onClickUser={(proposal) => console.log("User clicked:", proposal)}
+                onClickAvatar={(proposal) => console.log("Avatar clicked:", proposal)}
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
@@ -345,6 +359,7 @@ const Index = () => {
     { id: "comments", label: "Comments Modal", icon: "💬" },
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
     { id: "witnesses", label: "Witnesses", icon: "👥" },
+    { id: "proposals", label: "Proposals List", icon: "📋" },
   ];
 
   return (
@@ -655,6 +670,16 @@ const Index = () => {
                       username={mockUser?.username || "shaktimaaan"}
                       onWitnessStatsClick={(witness) => window.open(`https://hivehub.dev/witnesses/@${witness}`, '_blank')}
                       onWitnessUrlClick={(url) => window.open(url, '_blank')}
+                    />
+                  </div>
+                ) : activeTab === "proposals" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ProposalsList
+                      onClickSupport={(proposal) => console.log("Support clicked:", proposal)}
+                      onClickVoteValue={(proposal) => console.log("Vote value clicked:", proposal)}
+                      onClickSelect={(proposal) => console.log("Select clicked:", proposal)}
+                      onClickUser={(proposal) => console.log("User clicked:", proposal)}
+                      onClickAvatar={(proposal) => console.log("Avatar clicked:", proposal)}
                     />
                   </div>
                 ) : feedTabs.find(t => t.id === activeTab)?.type ? (

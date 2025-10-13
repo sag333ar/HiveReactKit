@@ -4,6 +4,7 @@ export { default as VideoDetail } from './VideoDetail';
 export { default as VideoFeed } from './VideoFeed';
 export { default as VideoInfo } from './VideoInfo';
 export { default as Wallet } from './Wallet';
+export { default as ProposalsList } from './ProposalsList';
 
 // Common components
 export { default as FavouriteWidget } from './common/FavouriteWidget';
@@ -27,4 +28,3 @@ export { default as UserFollowers } from './user/UserFollowers';
 export { default as UserFollowing } from './user/UserFollowing';
 export { default as UserInfo } from './user/UserInfo';
 export { default as UserProfilePage } from './user/UserProfilePage';
-
