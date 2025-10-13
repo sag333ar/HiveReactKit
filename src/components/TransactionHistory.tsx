@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { transactionService } from "@/services/transactionService";
+import { userService } from "@/services/userService";
 import { TransactionHistoryItem, Operation } from "@/types/transaction";
 
 interface TransactionHistoryProps {
@@ -314,9 +315,23 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
               Transaction History
             </h3>
           </div>
-          <p className="text-sm text-gray-400">
-            Loading transaction history for @{account}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-400">
+              Loading transaction history for
+            </p>
+            <img
+              src={userService.userAvatar(account)}
+              alt={`${account} avatar`}
+              className="w-6 h-6 rounded-full"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  userService.userAvatar(account);
+              }}
+            />
+            <p className="text-sm text-gray-400">
+              @{account}
+            </p>
+          </div>
         </div>
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -341,9 +356,23 @@ function TransactionHistory({ account, className }: TransactionHistoryProps) {
             Transaction History
           </h3>
         </div>
-        <p className="text-sm text-gray-400">
-          Transaction history for @{account}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-gray-400">
+            Transaction history for
+          </p>
+          <img
+            src={userService.userAvatar(account)}
+            alt={`${account} avatar`}
+            className="w-6 h-6 rounded-full"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                userService.userAvatar(account);
+            }}
+          />
+          <p className="text-sm text-gray-400">
+          @{account}
+          </p>
+        </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">

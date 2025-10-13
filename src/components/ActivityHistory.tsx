@@ -13,9 +13,12 @@ import {
   Eye,
   Heart,
   MessageSquare,
+  ChevronDown,
 } from "lucide-react";
 import { activityService } from "@/services/activityService";
+import { userService } from "@/services/userService";
 import { ActivityHistoryItem, ActivityDisplayItem } from "@/types/activity";
+import { DefaultRenderer } from "@hiveio/content-renderer";
 
 interface ActivityHistoryProps {
   username: string;
@@ -38,6 +41,9 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
   );
   const [limit, setLimit] = useState(20);
   const [activeTab, setActiveTab] = useState("all");
+  const [expandedActivities, setExpandedActivities] = useState<Set<string>>(
+    new Set()
+  );
 
   const loadActivities = async () => {
     if (!username) return;
@@ -116,68 +122,135 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
     }
   };
 
-  const renderActivityCard = (activity: ActivityHistoryItem) => (
-    <div
-      key={`${activity.author}-${activity.permlink}`}
-      className="border border-gray-600 rounded-lg p-4 space-y-3 hover:bg-gray-700 transition-colors"
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-3 flex-1">
-          <div className="mt-1">{getActivityIcon(activity)}</div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className={`px-2 py-1 rounded text-xs font-medium ${
-                  activity.parent_author === ""
-                    ? "bg-blue-900 text-blue-300"
-                    : "bg-gray-700 text-gray-300"
-                }`}
-              >
-                {getActivityType(activity)}
-              </span>
-              <span className="text-sm text-gray-400">
-                in #{activity.category}
-              </span>
-            </div>
+  // Hive content renderer instance (memoized per render)
+  const hiveRenderer = new DefaultRenderer({
+    baseUrl: "https://hive.blog/",
+    breaks: true,
+    skipSanitization: false,
+    allowInsecureScriptTags: false,
+    addNofollowToLinks: true,
+    doNotShowImages: false,
+    assetsWidth: 640,
+    assetsHeight: 480,
+    imageProxyFn: (url: string) => url,
+    usertagUrlFn: (account: string) => `/@${account}`,
+    hashtagUrlFn: (hashtag: string) => `/trending/${hashtag}`,
+    isLinkSafeFn: (_url: string) => true,
+    addExternalCssClassToMatchingLinksFn: (_url: string) => true,
+    ipfsPrefix: "https://ipfs.io/ipfs/",
+  });
 
-            <h3 className="font-medium text-lg leading-tight mb-2 text-white">
-              {activity.title || "Untitled"}
-            </h3>
+  const toggleExpanded = (activityId: string) => {
+    const newExpanded = new Set(expandedActivities);
+    if (newExpanded.has(activityId)) {
+      newExpanded.delete(activityId);
+    } else {
+      newExpanded.add(activityId);
+    }
+    setExpandedActivities(newExpanded);
+  };
 
-            <div className="text-sm text-gray-400 mb-3">
-              {activityService.truncateText(activity.body, 200)}
-            </div>
+  const renderActivityCard = (activity: ActivityHistoryItem) => {
+    const activityId = `${activity.author}-${activity.permlink}`;
+    const isExpanded = expandedActivities.has(activityId);
+    const shouldTruncate = activity.body.length > 100;
 
-            <div className="flex items-center gap-4 text-sm text-gray-400">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {activityService.getRelativeTime(activity.created)}
+    return (
+      <div
+        key={activityId}
+        className="border border-gray-600 rounded-lg p-4 space-y-3 hover:bg-gray-700 transition-colors"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="mt-1">{getActivityIcon(activity)}</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    activity.parent_author === ""
+                      ? "bg-blue-900 text-blue-300"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  {getActivityType(activity)}
+                </span>
+                <span className="text-sm text-gray-400">
+                  in #{activity.category}
+                </span>
               </div>
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                {activity.net_votes} votes
+
+              <div className="flex items-center gap-2 mb-2">
+                <img
+                  src={userService.userAvatar(activity.author)}
+                  alt={`${activity.author} avatar`}
+                  className="w-6 h-6 rounded-full"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = userService.userAvatar(
+                      activity.author
+                    );
+                  }}
+                />
+                <h3 className="font-medium text-lg leading-tight text-white">
+                  {activity.title || "Untitled"}
+                </h3>
               </div>
-              <div className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {activity.children} replies
+
+              <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-400 comment-content">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: hiveRenderer.render(
+                      shouldTruncate && !isExpanded
+                        ? activity.body.substring(0, 50) + "....."
+                        : activity.body
+                    ),
+                  }}
+                />
+                {shouldTruncate && (
+                  <button
+                    onClick={() => toggleExpanded(activityId)}
+                    className="mt-2 text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
+                  >
+                    <ChevronDown
+                      className={`h-3 w-3 transition-transform ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                    {isExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-1">
-                <span>💰</span>
-                {formatPayout(activity.total_payout_value)}
+
+              <div className="flex items-center gap-4 text-sm text-gray-400">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {activityService.getRelativeTime(activity.created)}
+                </div>
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {activity.net_votes} votes
+                </div>
+                <div className="flex items-center gap-1">
+                  <MessageSquare className="h-3 w-3" />
+                  {activity.children} replies
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>💰</span>
+                  {formatPayout(activity.total_payout_value)}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => window.open(activity.url, "_blank")}
-          className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </button>
+          <button
+            onClick={() => window.open(activity.url, "_blank")}
+            className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const summary = activityService.getActivitySummary(activities);
 
@@ -193,9 +266,21 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
               Activity History
             </h3>
           </div>
-          <p className="text-sm text-gray-400">
-            Loading activity history for @{username}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-400">
+              Loading activity history for
+            </p>
+            <img
+              src={userService.userAvatar(username)}
+              alt={`${username} avatar`}
+              className="w-6 h-6 rounded-full"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  userService.userAvatar(username);
+              }}
+            />
+            <p className="text-sm text-gray-400">@{username}</p>
+          </div>
         </div>
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -219,9 +304,19 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
           <FileText className="h-5 w-5 text-gray-300" />
           <h3 className="text-lg font-semibold text-white">Activity History</h3>
         </div>
-        <p className="text-sm text-gray-400">
-          Activity history for @{username}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-gray-400">Activity history for</p>
+          <img
+            src={userService.userAvatar(username)}
+            alt={`${username} avatar`}
+            className="w-6 h-6 rounded-full"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                userService.userAvatar(username);
+            }}
+          />
+          <p className="text-sm text-gray-400">@{username}</p>
+        </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
