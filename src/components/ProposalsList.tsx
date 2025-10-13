@@ -29,7 +29,7 @@ const getDaysInfo = (proposal: Proposal) => {
   const endDate = new Date(proposal.end_date);
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  return `(${totalDays} total days)`;
+  return `(${totalDays} days)`;
 };
 
 const ProposalsList: React.FC<ProposalsListProps> = ({
@@ -164,7 +164,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                           className="font-bold cursor-pointer text-gray-900 dark:text-gray-100"
                           onClick={() => onClickUser(p)}
                         >
-                          {p.creator}
+                         by {p.creator}
                         </span>
                         {p.receiver && <span className="ml-2 text-gray-500 dark:text-gray-400">with receiver <strong className="text-gray-900 dark:text-gray-100">{p.receiver}</strong></span>}
                       </div>
@@ -172,7 +172,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                         className="cursor-pointer text-lg font-semibold mb-1 text-gray-900 dark:text-gray-100"
                         onClick={() => onClickSelect(p)}
                       >
-                        {p.subject}
+                        {p.subject} <span className='cursor-pointer text-lg font-semibold mb-1 text-gray-600 dark:text-gray-500'>#{p.proposal_id}</span>
                       </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                             <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className="text-xs text-gray-400 dark:text-gray-500">{getDaysInfo(p)}</span>
