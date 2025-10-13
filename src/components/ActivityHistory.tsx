@@ -242,7 +242,12 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
           </div>
 
           <button
-            onClick={() => window.open(activity.url, "_blank")}
+            onClick={() =>
+              window.open(
+                `https://peakd.com/@${activity.author}/${activity.permlink}`,
+                "_blank"
+              )
+            }
             className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white"
           >
             <ExternalLink className="h-4 w-4" />
