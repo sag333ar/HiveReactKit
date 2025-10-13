@@ -16,6 +16,8 @@ import ListOfWitnesses from "@/components/ListOfWitnesses";
 import ProposalsList from "@/components/ProposalsList";
 import TransactionHistory from "@/components/TransactionHistory";
 import ActivityHistory from "@/components/ActivityHistory";
+import PostFeedList from "@/components/PostFeedList";
+import { Post } from "@/types/post";
 import {
   Play,
   Github,
@@ -406,6 +408,7 @@ const Index = () => {
       icon: "🔍",
       type: ApiVideoFeedType.SEARCH,
     },
+    { id: "post-feed", label: "Post Feed", icon: "📝" },
     { id: "video-detail", label: "Video Detail", icon: "🎥" },
     { id: "user-profile", label: "User Profile", icon: "👤" },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
@@ -877,6 +880,18 @@ const Index = () => {
                       onClickAvatar={(proposal) =>
                         console.log("Avatar clicked:", proposal)
                       }
+                    />
+                  </div>
+                ) : activeTab === "post-feed" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <PostFeedList
+                      onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
+                      onPostClick={(post) => console.log("Post clicked:", post)}
+                      onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
+                      onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
+                      onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
+                      onCommentClick={(post) => console.log("Comment clicked:", post)}
+                      onReblogClick={(post) => console.log("Reblog clicked:", post)}
                     />
                   </div>
                 ) : feedTabs.find((t) => t.id === activeTab)?.type ? (
