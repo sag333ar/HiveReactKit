@@ -23,6 +23,27 @@ const formatNumber = (num: number | string) => {
   return numericValue.toLocaleString();
 };
 
+// Calculate days info for display
+const getDaysInfo = (proposal: Proposal) => {
+  const now = new Date();
+  const startDate = new Date(proposal.start_date);
+  const endDate = new Date(proposal.end_date);
+
+  if (startDate > now) {
+    // Upcoming
+    const daysUntilStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `(${daysUntilStart} days until start)`;
+  } else if (endDate < now) {
+    // Expired
+    const daysSinceEnd = Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    return `(${daysSinceEnd} days ago)`;
+  } else {
+    // Active
+    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `(${daysRemaining} days remaining)`;
+  }
+};
+
 const ProposalsList: React.FC<ProposalsListProps> = ({
   onClickSupport,
   onClickVoteValue,
@@ -65,10 +86,10 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
 
   // Filter logic
   const filteredProposals = allProposals.filter((p) => {
-    if (filter === 'All') return p.status === 'active' || new Date(p.start_date) > new Date();
+    if (filter === 'All') return p.status === 'active' || new Date(p.start_date + 'Z') > new Date();
     if (filter === 'Active') return p.status === 'active';
-    if (filter === 'Upcoming') return new Date(p.start_date) > new Date();
-    if (filter === 'Expired') return new Date(p.end_date) < new Date();
+    if (filter === 'Upcoming') return new Date(p.start_date + 'Z') > new Date();
+    if (filter === 'Expired') return new Date(p.end_date + 'Z') < new Date();
     if (filter === 'By Peak Projects') return p.creator === 'peakd';
     return true;
   }).sort((a, b) => {
@@ -83,12 +104,12 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
   const sortedProposals = filter === 'All'
     ? (() => {
         const activeProposals = filteredProposals.filter(p => p.status === 'active');
-        const upcomingProposals = filteredProposals.filter(p => new Date(p.start_date) > new Date());
+        const upcomingProposals = filteredProposals.filter(p => new Date(p.start_date + 'Z') > new Date());
 
         const sortFn = (a: Proposal, b: Proposal) => {
           if (sort === 'Votes') return Number(b.all_votes_num) - Number(a.all_votes_num);
-          if (sort === 'Start Date') return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-          if (sort === 'End Date') return new Date(a.end_date).getTime() - new Date(b.end_date).getTime(); // Reverse for ascending order
+          if (sort === 'Start Date') return new Date(b.start_date + 'Z').getTime() - new Date(a.start_date + 'Z').getTime();
+          if (sort === 'End Date') return new Date(a.end_date + 'Z').getTime() - new Date(b.end_date + 'Z').getTime(); // Reverse for ascending order
           if (sort === 'Creator') return a.creator.localeCompare(b.creator);
           return 0;
         };
@@ -97,8 +118,8 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
       })()
     : filteredProposals.sort((a, b) => {
         if (sort === 'Votes') return Number(b.all_votes_num) - Number(a.all_votes_num);
-        if (sort === 'Start Date') return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-        if (sort === 'End Date') return new Date(a.end_date).getTime() - new Date(b.end_date).getTime(); // Reverse for ascending order
+        if (sort === 'Start Date') return new Date(b.start_date + 'Z').getTime() - new Date(a.start_date + 'Z').getTime();
+        if (sort === 'End Date') return new Date(a.end_date + 'Z').getTime() - new Date(b.end_date + 'Z').getTime(); // Reverse for ascending order
         if (sort === 'Creator') return a.creator.localeCompare(b.creator);
         return 0;
       });
@@ -137,7 +158,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
       <div>
         {filter === 'All' && (() => {
           const activeProposals = sortedProposals.filter(p => p.status === 'active');
-          const upcomingProposals = sortedProposals.filter(p => new Date(p.start_date) > new Date());
+          const upcomingProposals = sortedProposals.filter(p => new Date(p.start_date + 'Z') > new Date());
 
           return (
             <>
@@ -165,9 +186,9 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                       >
                         {p.subject}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date) > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date) < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date) > new Date() ? 'upcoming' : new Date(p.end_date) < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date).toLocaleDateString() + ' - ' + new Date(p.end_date).toLocaleDateString()}
-                      </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className="text-xs text-gray-400 dark:text-gray-500">{getDaysInfo(p)}</span>
+                          </div>
                       <div className="flex gap-2 mb-2">
                         <button
                           onClick={() => window.open(`https://peakd.com/${p.creator}/${p.permlink}`, '_blank')}
@@ -258,7 +279,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                             {p.subject}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date) > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date) < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date) > new Date() ? 'upcoming' : new Date(p.end_date) < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date).toLocaleDateString() + ' - ' + new Date(p.end_date).toLocaleDateString()}
+                            <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className="text-xs text-gray-400 dark:text-gray-500">{getDaysInfo(p)}</span>
                           </div>
                           <div className="flex gap-2 mb-2">
                             <button
@@ -347,7 +368,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                   {p.subject} #{p.proposal_id}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date) > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date) < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date) > new Date() ? 'upcoming' : new Date(p.end_date) < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date).toLocaleDateString() + ' - ' + new Date(p.end_date).toLocaleDateString()}
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className="text-xs text-gray-400 dark:text-gray-500">{getDaysInfo(p)}</span>
                 </div>
                 <div className="flex gap-2 mb-2">
                   <button
