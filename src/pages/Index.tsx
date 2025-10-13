@@ -353,6 +353,8 @@ const Index = () => {
     { id: "video-detail", label: "Video Detail", icon: "🎥" },
     { id: "user-profile", label: "User Profile", icon: "👤" },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
+    { id: "transactions", label: "Transactions", icon: "💸" },
+    { id: "activity", label: "Activity", icon: "📝" },
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
     { id: "community-detail", label: "Community Detail", icon: "👥" },
