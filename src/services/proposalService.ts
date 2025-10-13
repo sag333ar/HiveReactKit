@@ -174,6 +174,16 @@ export class ProposalService {
       const proposalsJson = await proposalsRes.json();
       const proposals = proposalsJson.result.proposals;
 
+      // Get additional data from stats.hivehub.dev
+      const statsRes = await fetch('https://stats.hivehub.dev/dhf_proposals');
+      const statsJson = await statsRes.json();
+
+      // Create a map of stats data by proposal_id
+      const statsMap: { [key: number]: any } = {};
+      statsJson.forEach((stat: any) => {
+        statsMap[stat.proposal_id] = stat;
+      });
+
       // Then get the proposal votes
       const votesRes = await fetch('https://api.hive.blog/', {
         method: 'POST',
@@ -219,7 +229,9 @@ export class ProposalService {
       // Transform the data to match our interface
       return proposals.map((proposal: any) => {
         const proposalId = proposal.id;
+        const stats = statsMap[proposalId];
         const votes = votesByProposal[proposalId] || [];
+        const totalHp = votes.reduce((sum: number, vote: any) => sum + parseFloat(vote.total_hbd || '0'), 0);
 
         return {
           proposal_id: proposalId,
@@ -229,17 +241,17 @@ export class ProposalService {
           receiver: proposal.receiver,
           start_date: proposal.start_date,
           end_date: proposal.end_date,
-          total_hbd_received: '0', // Not available in expired API
-          max_hbd_remaining: '0', // Not available
+          total_hbd_received: stats ? stats.total_hbd_received : '0',
+          max_hbd_remaining: stats ? stats.max_hbd_remaining : '0',
           all_votes_num: proposal.total_votes || '0',
-          all_votes_hp: '0', // HP values not available for expired proposals
-          votes: votes,
+          all_votes_hp: stats ? stats.all_votes_hp : totalHp.toString(),
+          votes: stats ? stats.votes : votes,
           status: proposal.status,
           daily_pay: proposal.daily_pay,
           total_votes: proposal.total_votes,
           daily_pay_hbd: proposal.daily_pay ? Number(proposal.daily_pay.amount) / Math.pow(10, proposal.daily_pay.precision) : 0,
           remaining_days: 0, // Expired, so 0
-          vote_value_total: 0 // HP values not available for expired proposals
+          vote_value_total: stats ? parseFloat(stats.all_votes_hp) : totalHp
         };
       });
     } catch (error) {
