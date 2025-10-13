@@ -14,15 +14,32 @@ import CommentsModal from "@/components/comments/CommentsModal";
 import UpvoteListModal from "@/components/UpvoteListModal";
 import ListOfWitnesses from "@/components/ListOfWitnesses";
 import ProposalsList from "@/components/ProposalsList";
-import { Play, Github, Package, Users, Zap, Code, Wallet as WalletIcon, Copy, MessageSquare, ThumbsUp } from "lucide-react";
+import TransactionHistory from "@/components/TransactionHistory";
+import ActivityHistory from "@/components/ActivityHistory";
+import {
+  Play,
+  Github,
+  Package,
+  Users,
+  Zap,
+  Code,
+  Wallet as WalletIcon,
+  Copy,
+  MessageSquare,
+  ThumbsUp,
+} from "lucide-react";
 
 const Index = () => {
-  const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
+    null
+  );
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [demoUsername, setDemoUsername] = useState("threespeak");
-  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  const [demoUsername, setDemoUsername] = useState("shaktimaaan");
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(
+    null
+  );
   const [searchQuery, setSearchQuery] = useState("shaktimaaan");
   const [usernameQuery, setUsernameQuery] = useState("shaktimaaan");
   const [communityQuery, setCommunityQuery] = useState("hive-163772");
@@ -295,6 +312,20 @@ const Index = () => {
               />
             );
           }`;
+      case "transactions":
+        return `import { TransactionHistory } from 'hive-reactkit';
+          function App() {
+            return (
+              <TransactionHistory username="threespeak" />
+            );
+          }`;
+      case "activity":
+        return `import { ActivityHistory } from 'hive-reactkit';
+          function App() {
+            return (
+              <ActivityHistory username="threespeak" />
+            );
+          }`;
       case "proposals":
         return `import { ProposalsList } from 'hive-reactkit';
           function App() {
@@ -325,7 +356,7 @@ const Index = () => {
   // Mock user for demonstration - in a real app, this would come from authentication
   const mockUser: User | null = {
     username: "shaktimaaan",
-    token: "demo_token_123"
+    token: "demo_token_123",
   };
 
   const handleVideoClick = (video: VideoFeedItem) => {
@@ -342,14 +373,39 @@ const Index = () => {
   };
 
   const feedTabs = [
-    { id: "trending", label: "Trending", icon: "🔥", type: ApiVideoFeedType.TRENDING },
+    {
+      id: "trending",
+      label: "Trending",
+      icon: "🔥",
+      type: ApiVideoFeedType.TRENDING,
+    },
     { id: "new", label: "New", icon: "✨", type: ApiVideoFeedType.NEW_VIDEOS },
-    { id: "first", label: "First Uploads", icon: "🎬", type: ApiVideoFeedType.FIRST_UPLOADS },
+    {
+      id: "first",
+      label: "First Uploads",
+      icon: "🎬",
+      type: ApiVideoFeedType.FIRST_UPLOADS,
+    },
     { id: "home", label: "Home", icon: "🏠", type: ApiVideoFeedType.HOME },
     { id: "user", label: "User Feed", icon: "👤", type: ApiVideoFeedType.USER },
-    { id: "community", label: "Community Feed", icon: "👥", type: ApiVideoFeedType.COMMUNITY },
-    { id: "tag", label: "Tag Feed", icon: "🏷️", type: ApiVideoFeedType.TAG_FEED },
-    { id: "search", label: "Search", icon: "🔍", type: ApiVideoFeedType.SEARCH },
+    {
+      id: "community",
+      label: "Community Feed",
+      icon: "👥",
+      type: ApiVideoFeedType.COMMUNITY,
+    },
+    {
+      id: "tag",
+      label: "Tag Feed",
+      icon: "🏷️",
+      type: ApiVideoFeedType.TAG_FEED,
+    },
+    {
+      id: "search",
+      label: "Search",
+      icon: "🔍",
+      type: ApiVideoFeedType.SEARCH,
+    },
     { id: "video-detail", label: "Video Detail", icon: "🎥" },
     { id: "user-profile", label: "User Profile", icon: "👤" },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
@@ -372,14 +428,14 @@ const Index = () => {
           onBack={() => setSelectedCommunityId(null)}
           onVideoClick={handleVideoClick}
           onAuthorClick={handleAuthorClick}
-        // onclickAboutTab={() => console.log("About tab clicked")}
-        // onclickTeamTab={() => console.log("Team tab clicked")}
-        // onclickMemberTab={() => console.log("Member tab clicked")}
-        // onShare={() => console.log("Share clicked")}
-        // onFavourite={() => console.log("Favourite clicked")}
-        // onRss={() => console.log("RSS clicked")}
-        // onMoreVertical={() => console.log("MoreVertical clicked")}
-        // showMoreVertical={false}
+          // onclickAboutTab={() => console.log("About tab clicked")}
+          // onclickTeamTab={() => console.log("Team tab clicked")}
+          // onclickMemberTab={() => console.log("Member tab clicked")}
+          // onShare={() => console.log("Share clicked")}
+          // onFavourite={() => console.log("Favourite clicked")}
+          // onRss={() => console.log("RSS clicked")}
+          // onMoreVertical={() => console.log("MoreVertical clicked")}
+          // showMoreVertical={false}
         />
       ) : (
         <>
@@ -388,12 +444,11 @@ const Index = () => {
             <div className="absolute inset-0 bg-black/20" />
             <div className="relative max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8">
               <div className="text-center">
-                <h1 className="text-5xl font-bold mb-6">
-                  HiveReactkit
-                </h1>
+                <h1 className="text-5xl font-bold mb-6">HiveReactkit</h1>
                 <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto">
-                  Professional React components for Hive blockchain video content.
-                  Beautiful, responsive, and ready to integrate into your projects.
+                  Professional React components for Hive blockchain video
+                  content. Beautiful, responsive, and ready to integrate into
+                  your projects.
                 </p>
                 <div className="flex justify-center gap-4">
                   <button className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors">
@@ -417,7 +472,8 @@ const Index = () => {
                   Powerful Components
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                  Everything you need to build amazing video applications with Hive blockchain integration
+                  Everything you need to build amazing video applications with
+                  Hive blockchain integration
                 </p>
               </div>
 
@@ -426,9 +482,12 @@ const Index = () => {
                   <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <Play className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Video Components</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Video Components
+                  </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Ready-to-use video cards, feeds, and players with beautiful animations
+                    Ready-to-use video cards, feeds, and players with beautiful
+                    animations
                   </p>
                 </div>
 
@@ -436,7 +495,9 @@ const Index = () => {
                   <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Social Features</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Social Features
+                  </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     Comments, upvotes, sharing, and user interactions built-in
                   </p>
@@ -446,7 +507,9 @@ const Index = () => {
                   <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <Zap className="w-6 h-6 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Hive Blockchain</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                    Hive Blockchain
+                  </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     Full integration with 3Speak and Hive blockchain APIs
                   </p>
@@ -471,10 +534,15 @@ const Index = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Code className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Quick Start - {feedTabs.find(t => t.id === activeTab)?.label}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      Quick Start -{" "}
+                      {feedTabs.find((t) => t.id === activeTab)?.label}
+                    </span>
                   </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText(getQuickStartCode())}
+                    onClick={() =>
+                      navigator.clipboard.writeText(getQuickStartCode())
+                    }
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     title="Copy code"
                   >
@@ -507,10 +575,11 @@ const Index = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                        ? "bg-purple-600 text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
-                        }`}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? "bg-purple-600 text-white shadow-sm"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
                     >
                       <span className="mr-2">{tab.icon}</span>
                       {tab.label}
@@ -522,7 +591,9 @@ const Index = () => {
               {/* Wallet Demo Controls */}
               {activeTab === "wallet" && (
                 <div className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-2xl mx-auto">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Try the Wallet Component</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    Try the Wallet Component
+                  </h3>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <input
                       type="text"
@@ -532,10 +603,70 @@ const Index = () => {
                       className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-gray-900 dark:text-gray-100"
                     />
                     <button
-                      onClick={() => setDemoUsername(demoUsername || "threespeak")}
+                      onClick={() =>
+                        setDemoUsername(demoUsername || "threespeak")
+                      }
                       className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-300"
                     >
                       Load Wallet
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Try usernames like: threespeak, gtg, blocktrades, acidyo
+                  </p>
+                </div>
+              )}
+
+              {/* Transactions Demo Controls */}
+              {activeTab === "transactions" && (
+                <div className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-2xl mx-auto">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    Try the Transaction History Component
+                  </h3>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <input
+                      type="text"
+                      value={demoUsername}
+                      onChange={(e) => setDemoUsername(e.target.value)}
+                      placeholder="Enter Hive username..."
+                      className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-gray-900 dark:text-gray-100"
+                    />
+                    <button
+                      onClick={() =>
+                        setDemoUsername(demoUsername || "threespeak")
+                      }
+                      className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-300"
+                    >
+                      Load Transactions
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Try usernames like: threespeak, gtg, blocktrades, acidyo
+                  </p>
+                </div>
+              )}
+
+              {/* Activity Demo Controls */}
+              {activeTab === "activity" && (
+                <div className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-2xl mx-auto">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    Try the Activity History Component
+                  </h3>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <input
+                      type="text"
+                      value={demoUsername}
+                      onChange={(e) => setDemoUsername(e.target.value)}
+                      placeholder="Enter Hive username..."
+                      className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-gray-900 dark:text-gray-100"
+                    />
+                    <button
+                      onClick={() =>
+                        setDemoUsername(demoUsername || "threespeak")
+                      }
+                      className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-300"
+                    >
+                      Load Activity
                     </button>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
@@ -550,43 +681,86 @@ const Index = () => {
                   <div className="max-w-2xl mx-auto">
                     <Wallet username={demoUsername} />
                   </div>
+                ) : activeTab === "transactions" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <TransactionHistory account={demoUsername} />
+                  </div>
+                ) : activeTab === "activity" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ActivityHistory username={demoUsername} />
+                  </div>
                 ) : activeTab === "communities" ? (
-                  <CommunitiesList onSelectCommunity={handleCommunitySelect} />
+                  <div className="max-w-4xl mx-auto">
+                    <CommunitiesList
+                      onSelectCommunity={handleCommunitySelect}
+                    />
+                  </div>
                 ) : activeTab === "video-detail" ? (
                   <VideoDetail
                     username="shaktimaaan"
                     permlink="fyiytkhbkz"
-                    onAuthorClick={(author) => console.log("Author clicked:", author)}
-                    onVideoClick={(video) => console.log("Video clicked:", video)}
+                    onAuthorClick={(author) =>
+                      console.log("Author clicked:", author)
+                    }
+                    onVideoClick={(video) =>
+                      console.log("Video clicked:", video)
+                    }
                     onTagClick={(tag) => console.log("Tag clicked:", tag)}
                     onBack={() => console.log("Back clicked")}
-                    onCommentsModal={(author, permlink) => console.log("Comments modal:", author, permlink)}
-                    onUpvotesModal={(author, permlink) => console.log("Upvotes modal:", author, permlink)}
-                    onDescriptionModal={(author, permlink, content) => console.log("Description modal:", author, permlink, content)}
+                    onCommentsModal={(author, permlink) =>
+                      console.log("Comments modal:", author, permlink)
+                    }
+                    onUpvotesModal={(author, permlink) =>
+                      console.log("Upvotes modal:", author, permlink)
+                    }
+                    onDescriptionModal={(author, permlink, content) =>
+                      console.log(
+                        "Description modal:",
+                        author,
+                        permlink,
+                        content
+                      )
+                    }
                     onVideoInfo={(video) => console.log("Video info:", video)}
-                    onShare={(author, permlink) => console.log("Share:", author, permlink)}
-                    onBookmark={(author, permlink) => console.log("Bookmark:", author, permlink)}
+                    onShare={(author, permlink) =>
+                      console.log("Share:", author, permlink)
+                    }
+                    onBookmark={(author, permlink) =>
+                      console.log("Bookmark:", author, permlink)
+                    }
                   />
                 ) : activeTab === "user-profile" ? (
                   <UserProfilePage
                     username="shaktimaaan"
-                    onVideoClick={(video) => console.log("Video clicked:", video)}
-                    onAuthorClick={(author) => console.log("Author clicked:", author)}
+                    onVideoClick={(video) =>
+                      console.log("Video clicked:", video)
+                    }
+                    onAuthorClick={(author) =>
+                      console.log("Author clicked:", author)
+                    }
                     onBack={() => console.log("Back clicked")}
                     // onClickUserInfoTab={() => console.log("User Info tab clicked")}
                     // onClickFollowersTab={() => console.log("Followers tab clicked")}
                     // onClickFollowingTab={() => console.log("Following tab clicked")}
-                    onBookmarkToggle={(username, isBookmarked) => console.log("Bookmark toggled:", username, isBookmarked)}
+                    onBookmarkToggle={(username, isBookmarked) =>
+                      console.log("Bookmark toggled:", username, isBookmarked)
+                    }
                     onRss={(username) => console.log("RSS:", username)}
                     onShare={(username) => console.log("Share:", username)}
-                    onMoreMenu={(username) => console.log("More menu:", username)}
+                    onMoreMenu={(username) =>
+                      console.log("More menu:", username)
+                    }
                     showMoreMenu={false}
                   />
                 ) : activeTab === "community-detail" ? (
                   <CommunityDetail
                     communityId="hive-163772"
-                    onVideoClick={(video) => console.log("Video clicked:", video)}
-                    onAuthorClick={(author) => console.log("Author clicked:", author)}
+                    onVideoClick={(video) =>
+                      console.log("Video clicked:", video)
+                    }
+                    onAuthorClick={(author) =>
+                      console.log("Author clicked:", author)
+                    }
                     onBack={() => console.log("Back clicked")}
                     onclickAboutTab={() => console.log("About tab clicked")}
                     onclickTeamTab={() => console.log("Team tab clicked")}
@@ -618,7 +792,8 @@ const Index = () => {
                         Comments Modal Demo
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Click the button below to open the comments modal for a sample video.
+                        Click the button below to open the comments modal for a
+                        sample video.
                       </p>
                       <button
                         onClick={() => setShowCommentsModal(true)}
@@ -629,7 +804,9 @@ const Index = () => {
                       </button>
                     </div>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Features:</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Features:
+                      </h4>
                       <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                         <li>• View and interact with comments</li>
                         <li>• Reply to comments</li>
@@ -646,7 +823,8 @@ const Index = () => {
                         Upvotes Modal Demo
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Click the button below to open the upvotes modal for a sample video.
+                        Click the button below to open the upvotes modal for a
+                        sample video.
                       </p>
                       <button
                         onClick={() => setShowUpvoteModal(true)}
@@ -657,7 +835,9 @@ const Index = () => {
                       </button>
                     </div>
                     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Features:</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Features:
+                      </h4>
                       <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                         <li>• View all upvotes for a post</li>
                         <li>• See voting percentages and timestamps</li>
@@ -670,21 +850,36 @@ const Index = () => {
                   <div className="max-w-4xl mx-auto">
                     <ListOfWitnesses
                       username={mockUser?.username || "shaktimaaan"}
-                      onWitnessStatsClick={(witness) => window.open(`https://hivehub.dev/witnesses/@${witness}`, '_blank')}
-                      onWitnessUrlClick={(url) => window.open(url, '_blank')}
+                      onWitnessStatsClick={(witness) =>
+                        window.open(
+                          `https://hivehub.dev/witnesses/@${witness}`,
+                          "_blank"
+                        )
+                      }
+                      onWitnessUrlClick={(url) => window.open(url, "_blank")}
                     />
                   </div>
                 ) : activeTab === "proposals" ? (
                   <div className="max-w-4xl mx-auto">
                     <ProposalsList
-                      onClickSupport={(proposal) => console.log("Support clicked:", proposal)}
-                      onClickVoteValue={(proposal) => console.log("Vote value clicked:", proposal)}
-                      onClickSelect={(proposal) => console.log("Select clicked:", proposal)}
-                      onClickUser={(proposal) => console.log("User clicked:", proposal)}
-                      onClickAvatar={(proposal) => console.log("Avatar clicked:", proposal)}
+                      onClickSupport={(proposal) =>
+                        console.log("Support clicked:", proposal)
+                      }
+                      onClickVoteValue={(proposal) =>
+                        console.log("Vote value clicked:", proposal)
+                      }
+                      onClickSelect={(proposal) =>
+                        console.log("Select clicked:", proposal)
+                      }
+                      onClickUser={(proposal) =>
+                        console.log("User clicked:", proposal)
+                      }
+                      onClickAvatar={(proposal) =>
+                        console.log("Avatar clicked:", proposal)
+                      }
                     />
                   </div>
-                ) : feedTabs.find(t => t.id === activeTab)?.type ? (
+                ) : feedTabs.find((t) => t.id === activeTab)?.type ? (
                   <>
                     {activeTab === "search" && (
                       <div className="mb-4">
@@ -731,10 +926,18 @@ const Index = () => {
                       </div>
                     )}
                     <VideoFeed
-                      feedType={feedTabs.find(t => t.id === activeTab)?.type}
+                      feedType={feedTabs.find((t) => t.id === activeTab)?.type}
                       onVideoClick={handleVideoClick}
                       onAuthorClick={handleAuthorClick}
-                      {...(activeTab === "search" ? { tag: searchQuery } : activeTab === "user" ? { username: usernameQuery } : activeTab === "community" ? { communityId: communityQuery } : activeTab === "tag" ? { tag: tagQuery } : {})}
+                      {...(activeTab === "search"
+                        ? { tag: searchQuery }
+                        : activeTab === "user"
+                        ? { username: usernameQuery }
+                        : activeTab === "community"
+                        ? { communityId: communityQuery }
+                        : activeTab === "tag"
+                        ? { tag: tagQuery }
+                        : {})}
                     />
                   </>
                 ) : null}
@@ -792,7 +995,11 @@ const Index = () => {
               currentUser={mockUser?.username}
               token={mockUser?.token}
               onClickUpvoteButton={(currentUser, token) => {
-                console.log("Custom upvote button clicked:", currentUser, token);
+                console.log(
+                  "Custom upvote button clicked:",
+                  currentUser,
+                  token
+                );
                 // Custom logic can be added here
               }}
             />
