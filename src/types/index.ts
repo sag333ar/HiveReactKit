@@ -5,4 +5,4 @@ export * from './trending';
 export * from './video';
 export * from './wallet';
 export * from './witness';
-
+export * from './proposal';
