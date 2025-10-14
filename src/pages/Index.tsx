@@ -341,6 +341,26 @@ const Index = () => {
               />
             );
           }`;
+      case "post-feed":
+        return `import { PostFeedList } from 'hive-reactkit';
+          function App() {
+            return (
+              <PostFeedList
+                sort="trending"
+                tag=""
+                observer="hive.blog"
+                limit={20}
+                onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
+                onPostClick={(post) => console.log("Post clicked:", post)}
+                onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
+                onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
+                onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
+                onCommentClick={(post) => console.log("Comment clicked:", post)}
+                onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                showCodeTab={true}
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {

@@ -80,6 +80,26 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 - **UserFollowers** - User followers list
 - **UserFollowing** - User following list
 
+### Feed Components
+
+- **PostFeedList** - Display a list of posts with sorting, filtering, and interaction capabilities
+
+#### PostFeedList Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `sort` | `PostSort` | `'trending'` | Sort order for posts. Options: `'trending'`, `'hot'`, `'created'` |
+| `tag` | `string` | `''` | Filter posts by tag |
+| `observer` | `string` | `'hive.blog'` | Observer account for filtering |
+| `limit` | `number` | `20` | Number of posts to load per request |
+| `onAuthorClick` | `(author: string, avatar: string) => void` | - | Callback when author is clicked |
+| `onPostClick` | `(post: Post) => void` | - | Callback when post is clicked |
+| `onCommunityClick` | `(communityTitle: string) => void` | - | Callback when community is clicked |
+| `onPayoutClick` | `(payout: number) => void` | - | Callback when payout is clicked |
+| `onUpvoteClick` | `(post: Post) => void` | - | Callback when upvote button is clicked |
+| `onCommentClick` | `(post: Post) => void` | - | Callback when comment button is clicked |
+| `onReblogClick` | `(post: Post) => void` | - | Callback when reblog button is clicked |
+
 ## Setup
 
 Make sure to install the required peer dependencies:
