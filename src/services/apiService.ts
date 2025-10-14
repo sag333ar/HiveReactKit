@@ -3,6 +3,7 @@ import { ThreeSpeakVideo, LoginModel, ActiveVote } from "@/types/video";
 import { TrendingTag } from "@/types/trending";
 import { Discussion } from "@/types/comment";
 import { GQLVideoItem } from "@/types/graphql";
+import { Post, PostSort } from "@/types/post";
 const server = {
   domain: "https://studio.3speak.tv",
   kThreeSpeakApiUrl: "https://studio.3speak.tv/mobile/api",
@@ -537,6 +538,26 @@ class ApiService {
     } else {
       console.error("Failed to fetch my videos:", response.statusText);
       throw new Error(`Failed to fetch my videos: ${response.status}`);
+    }
+  }
+
+  async getRankedPosts(sort: PostSort = 'trending', tag = '', observer = 'hive.blog', limit = 20, start_author?: string, start_permlink?: string): Promise<Post[]> {
+    try {
+      const params: any = {
+        sort,
+        tag,
+        observer,
+        limit,
+      };
+      if (start_author && start_permlink) {
+        params.start_author = start_author;
+        params.start_permlink = start_permlink;
+      }
+      const result: any = await dhiveClient.call('bridge', 'get_ranked_posts', params);
+      return result as Post[];
+    } catch (error) {
+      console.error('Error fetching ranked posts:', error);
+      return [];
     }
   }
 }
