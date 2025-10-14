@@ -1,114 +1,97 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export interface ActivityHistoryItem {
+export interface AccountHistoryItem {
   id: number;
+  op: AccountOperation;
+  block: number;
+  timestamp: string;
+  trx_id: string;
+  trx_in_block: number;
+  op_in_trx: number;
+  virtual_op: boolean;
+}
+
+export interface AccountOperation {
+  type: string;
+  value: any;
+}
+
+export interface VoteOperation {
+  voter: string;
   author: string;
   permlink: string;
-  category: string;
+  weight: number;
+}
+
+export interface CommentOperation {
   parent_author: string;
   parent_permlink: string;
+  author: string;
+  permlink: string;
   title: string;
   body: string;
   json_metadata: string;
-  last_update: string;
-  created: string;
-  active: string;
-  last_payout: string;
-  depth: number;
-  children: number;
-  net_rshares: number;
-  abs_rshares: number;
-  vote_rshares: number;
-  children_abs_rshares: number;
-  cashout_time: string;
-  max_cashout_time: string;
-  total_vote_weight: number;
-  reward_weight: number;
-  total_payout_value: string;
-  curator_payout_value: string;
-  author_rewards: number;
-  net_votes: number;
-  root_author: string;
-  root_permlink: string;
-  max_accepted_payout: string;
-  percent_hbd: number;
-  allow_replies: boolean;
-  allow_votes: boolean;
-  allow_curation_rewards: boolean;
-  beneficiaries: any[];
-  url: string;
-  root_title: string;
-  pending_payout_value: string;
-  total_pending_payout_value: string;
-  active_votes: any[];
-  replies: string[];
-  author_reputation: number;
-  promoted: string;
-  body_length: number;
-  reblogged_by: string[];
-  active_votes_count: number;
-  author_title: string;
-  author_role: string;
-  author_about: string;
-  author_location: string;
-  author_website: string;
-  author_cover_image: string;
-  author_profile_image: string;
-  author_blacklist_description: string;
-  author_muted_list_description: string;
-  author_reputation_formatted: string;
-  author_vests_formatted: string;
-  author_balance_formatted: string;
-  author_hbd_balance_formatted: string;
-  author_savings_hbd_balance_formatted: string;
-  author_savings_balance_formatted: string;
-  author_vesting_shares_formatted: string;
-  author_delegated_vesting_shares_formatted: string;
-  author_received_vesting_shares_formatted: string;
-  author_vesting_withdraw_rate_formatted: string;
-  author_next_vesting_withdrawal_formatted: string;
-  author_vesting_withdraw_rate: number;
-  author_next_vesting_withdrawal: string;
-  author_vesting_shares: string;
-  author_delegated_vesting_shares: string;
-  author_received_vesting_shares: string;
-  author_balance: string;
-  author_hbd_balance: string;
-  author_savings_hbd_balance: string;
-  author_savings_balance: string;
-  author_post_count: number;
-  author_voting_power: number;
-  author_voting_manabar: any;
-  author_downvote_manabar: any;
-  author_rc_manabar: any;
 }
 
-export interface ActivityHistoryParams {
-  username: string;
-  sortBy?: 'posts' | 'comments' | 'replies';
-  limit?: number;
-  startAuthor?: string;
-  startPermlink?: string;
-  observer?: string;
+export interface CustomJsonOperation {
+  required_auths: string[];
+  required_posting_auths: string[];
+  id: string;
+  json: string;
 }
 
-export interface ActivityHistoryResponse {
-  result: ActivityHistoryItem[];
+export interface TransferOperation {
+  from: string;
+  to: string;
+  amount: string;
+  memo: string;
 }
 
-// Simplified interface for UI display
-export interface ActivityDisplayItem {
-  id: number;
+export interface RewardOperation {
   author: string;
   permlink: string;
-  title: string;
-  body: string;
-  created: string;
-  category: string;
-  net_votes: number;
-  children: number;
-  total_payout_value: string;
-  pending_payout_value: string;
-  url: string;
-  type: 'post' | 'comment';
+  hbd_payout: string;
+  hive_payout: string;
+  vesting_payout: string;
 }
+
+export interface ActivityFilters {
+  direction: 'all' | 'in' | 'out';
+  general: {
+    votes: boolean;
+    comments: boolean;
+    replies: boolean;
+    showOthers: boolean;
+  };
+  rewards: {
+    authorRewards: boolean;
+    curationRewards: boolean;
+    benefactorRewards: boolean;
+  };
+  search: string;
+}
+
+export interface ActivityItem {
+  id: number;
+  type: ActivityType;
+  direction: 'in' | 'out';
+  timestamp: string;
+  description: string;
+  details: any;
+  author?: string;
+  permlink?: string;
+  voter?: string;
+  amount?: string;
+  weight?: number;
+}
+
+export type ActivityType =
+  | 'vote'
+  | 'comment'
+  | 'reply'
+  | 'author_reward'
+  | 'curation_reward'
+  | 'benefactor_reward'
+  | 'transfer'
+  | 'custom_json'
+  | 'other';

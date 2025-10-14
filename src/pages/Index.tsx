@@ -1092,3 +1092,47 @@ const Index = () => {
 };
 
 export default Index;
+import ActivityList from "@/components/ActivityList";
+      case "activity-list":
+        return `import { ActivityList } from 'hive-reactkit';
+          function App() {
+            return (
+              <ActivityList username="threespeak" />
+            );
+          }`;
+          }`;
+          }`;
+    { id: "activity-list", label: "Activity List", icon: "📝" },
+                ) : activeTab === "activity-list" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ActivityList username={demoUsername} />
+                  </div>
+                ) : null}
+              {/* Activity Demo Controls */}
+              {activeTab === "activity-list" && (
+                <div className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-2xl mx-auto">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    Activity Demo Controls
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={demoUsername}
+                        onChange={(e) => setDemoUsername(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
