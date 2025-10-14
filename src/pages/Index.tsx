@@ -31,6 +31,7 @@ import {
   MessageSquare,
   ThumbsUp,
 } from "lucide-react";
+import ActivityList from "@/components/ActivityList";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -323,6 +324,13 @@ const Index = () => {
               <TransactionHistory username="threespeak" />
             );
           }`;
+      case "activity-list":
+        return `import { ActivityList } from 'hive-reactkit';
+          function App() {
+            return (
+              <ActivityList username="threespeak" />
+            );
+          }`;
       case "activity":
         return `import { ActivityHistory } from 'hive-reactkit';
           function App() {
@@ -469,6 +477,7 @@ const Index = () => {
     { id: "proposals", label: "Proposals List", icon: "📋" },
     { id: "followers-list", label: "Followers List", icon: "👥" },
     { id: "following-list", label: "Following List", icon: "👥" },
+    { id: "activity-list", label: "Activity List", icon: "📋" },
   ];
 
   return (
@@ -739,6 +748,10 @@ const Index = () => {
                 ) : activeTab === "activity" ? (
                   <div className="max-w-4xl mx-auto">
                     <ActivityHistory username={demoUsername} />
+                  </div>
+                ) : activeTab === "activity-list" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ActivityList username={demoUsername} />
                   </div>
                 ) : activeTab === "communities" ? (
                   <div className="max-w-4xl mx-auto">
