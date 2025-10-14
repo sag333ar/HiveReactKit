@@ -360,7 +360,7 @@ const Index = () => {
                 onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                 onCommentClick={(post) => console.log("Comment clicked:", post)}
                 onReblogClick={(post) => console.log("Reblog clicked:", post)}
-                showCodeTab={true}
+                showSortDropdown={true}
               />
             );
           }`;
@@ -949,6 +949,7 @@ const Index = () => {
                       onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                       onCommentClick={(post) => console.log("Comment clicked:", post)}
                       onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                      showSortDropdown={true}
                     />
                   </div>
                 ) : activeTab === "followers-list" ? (
@@ -963,6 +964,7 @@ const Index = () => {
                 ) : activeTab === "hive-community-detail" ? (
                   <div className="max-w-4xl mx-auto">
                     <CommunityDetails communityId="hive-163772" />
+                  </div>
                 ) : activeTab === "following-list" ? (
                   <div className="max-w-4xl mx-auto">
                     <FollowingList

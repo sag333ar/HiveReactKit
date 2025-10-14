@@ -1,13 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { Users, Calendar, Loader2 } from "lucide-react";
+import {
+  Users,
+  Calendar,
+  Loader2,
+  MessageCircle,
+  ThumbsUp,
+} from "lucide-react";
 import { communityService } from "../../services/communityService";
 import {
   CommunityDetailsResult,
-  CommunityPost,
   CommunitySubscriber,
   CommunityActivity,
 } from "../../types/community";
+import PostFeedList from "../PostFeedList";
 
 interface CommunityDetailsProps {
   communityId: string;
@@ -17,15 +23,12 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
   const [activeTab, setActiveTab] = useState("posts");
   const [communityDetails, setCommunityDetails] =
     useState<CommunityDetailsResult | null>(null);
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [subscribers, setSubscribers] = useState<CommunitySubscriber[]>([]);
   const [activities, setActivities] = useState<CommunityActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(false);
   const [loadingSubscribers, setLoadingSubscribers] = useState(false);
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchCommunityDetails = async () => {
       try {
@@ -48,30 +51,12 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
   }, [communityId]);
 
   useEffect(() => {
-    if (activeTab === "posts" && communityDetails) {
-      fetchPosts();
-    } else if (activeTab === "subscribers" && communityDetails) {
+    if (activeTab === "subscribers" && communityDetails) {
       fetchSubscribers();
     } else if (activeTab === "activities" && communityDetails) {
       fetchActivities();
     }
   }, [activeTab, communityDetails]);
-
-  const fetchPosts = async () => {
-    try {
-      setLoadingPosts(true);
-      const postsData = await communityService.getRankedPosts(
-        communityId,
-        "created",
-        20
-      );
-      setPosts(postsData);
-    } catch (err) {
-      console.error("Failed to fetch posts:", err);
-    } finally {
-      setLoadingPosts(false);
-    }
-  };
 
   const fetchSubscribers = async () => {
     try {
@@ -101,13 +86,31 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatTimeAgo = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInMs = now.getTime() - date.getTime();
+      const diffInSeconds = Math.floor(diffInMs / 1000);
+      const diffInMinutes = Math.floor(diffInSeconds / 60);
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      const diffInDays = Math.floor(diffInHours / 24);
+      const diffInMonths = Math.floor(diffInDays / 30);
+      const diffInYears = Math.floor(diffInDays / 365);
+
+      if (diffInYears > 0) {
+        return `${diffInYears} year${diffInYears > 1 ? "s" : ""} ago`;
+      } else if (diffInMonths > 0) {
+        return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`;
+      } else if (diffInDays > 0) {
+        return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
+      } else if (diffInHours > 0) {
+        return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
+      } else if (diffInMinutes > 0) {
+        return `${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""} ago`;
+      } else {
+        return "just now";
+      }
     } catch {
       return dateString;
     }
@@ -115,6 +118,10 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
 
   const removeHtmlTags = (str: string) => {
     return str.replace(/<[^>]*>/g, "");
+  };
+
+  const removeImagesFromHtml = (html: string) => {
+    return html.replace(/<img[^>]*>/g, "");
   };
 
   if (loading) {
@@ -171,7 +178,9 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
               </div>
               <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                 <Calendar className="w-4 h-4" />
-                <span>Created {formatDate(communityDetails.created_at)}</span>
+                <span>
+                  Created {formatTimeAgo(communityDetails.created_at)}
+                </span>
               </div>
             </div>
           </div>
@@ -226,39 +235,12 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
         <div className="mt-6">
           {/* Posts Tab */}
           {activeTab === "posts" && (
-            <div className="space-y-4">
-              {loadingPosts ? (
-                <div className="flex items-center justify-center min-h-[200px]">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </div>
-              ) : posts.length > 0 ? (
-                posts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4"
-                  >
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      {post.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
-                      By {post.author} • {formatDate(post.created)}
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">
-                      {removeHtmlTags(post.body).substring(0, 200)}...
-                    </p>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{post.children} comments</span>
-                      <span>${post.payout.toFixed(2)}</span>
-                      <span>{post.stats?.total_votes || 0} votes</span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No posts found
-                </div>
-              )}
-            </div>
+            <PostFeedList
+              tag={communityId}
+              sort="created"
+              limit={20}
+              showSortDropdown={false}
+            />
           )}
 
           {/* About Tab */}
@@ -325,7 +307,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
                     Created
                   </h4>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {formatDate(communityDetails.created_at)}
+                    {formatTimeAgo(communityDetails.created_at)}
                   </p>
                 </div>
 
@@ -396,7 +378,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           Role: {subscriber.role} • Subscribed{" "}
-                          {formatDate(subscriber.subscribedAt)}
+                          {formatTimeAgo(subscriber.subscribedAt)}
                         </p>
                       </div>
                     </div>
@@ -444,7 +426,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
                             {activity.msg}
                           </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(activity.date)}
+                            {formatTimeAgo(activity.date)}
                             {activity.score && ` • Score: ${activity.score}`}
                           </p>
                         </div>
