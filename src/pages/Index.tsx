@@ -18,7 +18,7 @@ import ProposalsList from "@/components/ProposalsList";
 import TransactionHistory from "@/components/TransactionHistory";
 import ActivityHistory from "@/components/ActivityHistory";
 import PostFeedList from "@/components/PostFeedList";
-import { Post } from "@/types/post";
+import FollowersList from "@/components/FollowersList";
 import {
   Play,
   Github,
@@ -237,6 +237,7 @@ const Index = () => {
               />
             );
           }`;
+      case "user-account":
         return `import { UserAccount } from 'hive-reactkit';
           function App() {
             const user = { username: "shaktimaaan", token: "demo_token" };
@@ -362,6 +363,18 @@ const Index = () => {
               />
             );
           }`;
+      case "followers-list":
+        return `import { FollowersList } from 'hive-reactkit';
+          function App() {
+            return (
+              <FollowersList
+                username="shaktimaaan"
+                onClickAuthor={(username) => console.log("Author clicked:", username)}
+                onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
+                onClickFollow={(username) => console.log("Follow clicked:", username)}
+              />
+            );
+          }`;
       case "hive-community-detail":
         return `import { CommunityDetails } from 'hive-reactkit';
           function App() {
@@ -450,6 +463,7 @@ const Index = () => {
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
     { id: "witnesses", label: "Witnesses", icon: "👥" },
     { id: "proposals", label: "Proposals List", icon: "📋" },
+    { id: "followers-list", label: "Followers List", icon: "👥" },
   ];
 
   return (
@@ -921,6 +935,15 @@ const Index = () => {
                       onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                       onCommentClick={(post) => console.log("Comment clicked:", post)}
                       onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                    />
+                  </div>
+                ) : activeTab === "followers-list" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <FollowersList
+                      username="shaktimaaan"
+                      onClickAuthor={(username) => console.log("Author clicked:", username)}
+                      onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
+                      onClickFollow={(username) => console.log("Follow clicked:", username)}
                     />
                   </div>
                 ) : activeTab === "hive-community-detail" ? (
