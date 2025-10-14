@@ -541,14 +541,19 @@ class ApiService {
     }
   }
 
-  async getRankedPosts(sort: PostSort = 'trending', tag = '', observer = 'hive.blog', limit = 20): Promise<Post[]> {
+  async getRankedPosts(sort: PostSort = 'trending', tag = '', observer = 'hive.blog', limit = 20, start_author?: string, start_permlink?: string): Promise<Post[]> {
     try {
-      const result: any = await dhiveClient.call('bridge', 'get_ranked_posts', {
+      const params: any = {
         sort,
         tag,
         observer,
         limit,
-      });
+      };
+      if (start_author && start_permlink) {
+        params.start_author = start_author;
+        params.start_permlink = start_permlink;
+      }
+      const result: any = await dhiveClient.call('bridge', 'get_ranked_posts', params);
       return result as Post[];
     } catch (error) {
       console.error('Error fetching ranked posts:', error);

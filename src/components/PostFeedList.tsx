@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Post, PostSort } from '@/types/post';
 import { apiService } from '@/services/apiService';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,6 +37,9 @@ export default function PostFeedList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSort, setSelectedSort] = useState<PostSort>(sort);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
 
   // Hive content renderer instance
   const hiveRenderer = new DefaultRenderer({
@@ -56,25 +59,79 @@ export default function PostFeedList({
     ipfsPrefix: 'https://ipfs.io/ipfs/'
   });
 
+  const fetchPosts = useCallback(async (sortType: PostSort, append = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+      setHasMore(true);
+    }
+    setError(null);
+    try {
+      const lastPost = append && posts.length > 0 ? posts[posts.length - 1] : null;
+      const data = await apiService.getRankedPosts(
+        sortType,
+        tag,
+        observer,
+        limit,
+        lastPost?.author,
+        lastPost?.permlink
+      );
+      if (append) {
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.post_id));
+          const newPosts = data.filter(p => !existingIds.has(p.post_id));
+          return [...prev, ...newPosts];
+        });
+        setHasMore(data.length === limit);
+      } else {
+        setPosts(data);
+        setHasMore(data.length === limit);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load posts');
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [tag, observer, limit, posts]);
+
+  const loadMorePosts = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      fetchPosts(selectedSort, true);
+    }
+  }, [loadingMore, hasMore, loading, selectedSort, fetchPosts]);
+
   useEffect(() => {
     fetchPosts(selectedSort);
   }, [selectedSort, tag, observer, limit]);
 
-  const fetchPosts = async (sortType: PostSort) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiService.getRankedPosts(sortType, tag, observer, limit);
-      setPosts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load posts');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMorePosts();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
     }
-  };
+
+    return () => {
+      if (observerRef.current) {
+        observer.unobserve(observerRef.current);
+      }
+    };
+  }, [loadMorePosts]);
 
   const handleSortChange = (newSort: PostSort) => {
     setSelectedSort(newSort);
+    setPosts([]);
+    setHasMore(true);
   };
 
   const formatNumber = (num: number) => {
@@ -197,12 +254,16 @@ export default function PostFeedList({
                   {firstImage ? (
                     <div className="relative">
                       <img
-                        src={`https://images.hive.blog/u/320x0/${firstImage}`}
+                        src={firstImage.startsWith('http') ? firstImage : `https://images.hive.blog/u/320x0/${firstImage}`}
                         alt={post.title}
                         className="w-20 h-20 sm:w-32 sm:h-32 object-cover rounded-lg cursor-pointer"
                         onClick={() => onPostClick?.(post)}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
+                          if ((e.target as HTMLImageElement).src !== `https://images.hive.blog/u/${post.author}/avatar`) {
+                            (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
+                          }else{
+                            (e.target as HTMLImageElement).src = `https://images.hive.blog/u/null/avatar`;
+                          }
                         }}
                       />
                       {/* Show small images from body if they exist */}
@@ -315,6 +376,19 @@ export default function PostFeedList({
             </div>
           );
         })}
+
+        {/* Loading More Indicator */}
+        {loadingMore && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="ml-2 text-muted-foreground">Loading more posts...</span>
+          </div>
+        )}
+
+        {/* Intersection Observer Target */}
+        {hasMore && !loadingMore && (
+          <div ref={observerRef} className="h-10" />
+        )}
       </div>
     </div>
   );
