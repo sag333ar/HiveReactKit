@@ -16,7 +16,7 @@ A comprehensive React component for displaying Hive blockchain witnesses with fi
 ## Installation
 
 ```bash
-npm install @hiveio/dhive
+npm install hive-react-kit
 ```
 
 ## Usage
@@ -24,7 +24,7 @@ npm install @hiveio/dhive
 ### Basic Usage
 
 ```tsx
-import { ListOfWitnesses } from 'your-package';
+import { ListOfWitnesses } from 'hive-react-kit';
 
 function App() {
   return (
@@ -38,8 +38,8 @@ function App() {
 ### Advanced Usage with Custom Handlers
 
 ```tsx
-import { ListOfWitnesses } from 'your-package';
-import { WitnessFilters } from 'your-package';
+import { ListOfWitnesses } from 'hive-react-kit';
+import { WitnessFilters } from 'hive-react-kit';
 
 function App() {
   const [filters, setFilters] = useState<WitnessFilters>({

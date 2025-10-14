@@ -7,6 +7,7 @@ export { default as Wallet } from './Wallet';
 export { default as PostFeedList } from './PostFeedList';
 export { default as ProposalsList } from './ProposalsList';
 export { default as FollowersList } from './FollowersList';
+export { default as FollowingList } from './FollowingList';
 
 // Common components
 export { default as FavouriteWidget } from './common/FavouriteWidget';
