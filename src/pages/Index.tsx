@@ -19,6 +19,7 @@ import TransactionHistory from "@/components/TransactionHistory";
 import ActivityHistory from "@/components/ActivityHistory";
 import PostFeedList from "@/components/PostFeedList";
 import FollowersList from "@/components/FollowersList";
+import FollowingList from "@/components/FollowingList";
 import {
   Play,
   Github,
@@ -382,6 +383,18 @@ const Index = () => {
               <CommunityDetails communityId="hive-163772" />
             );
           }`;
+      case "following-list":
+        return `import { FollowingList } from 'hive-reactkit';
+          function App() {
+            return (
+              <FollowingList
+                username="shaktimaaan"
+                onClickAuthor={(username) => console.log("Author clicked:", username)}
+                onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
+                onClickUnfollow={(username) => console.log("Unfollow clicked:", username)}
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
@@ -464,6 +477,7 @@ const Index = () => {
     { id: "witnesses", label: "Witnesses", icon: "👥" },
     { id: "proposals", label: "Proposals List", icon: "📋" },
     { id: "followers-list", label: "Followers List", icon: "👥" },
+    { id: "following-list", label: "Following List", icon: "👥" },
   ];
 
   return (
@@ -949,6 +963,14 @@ const Index = () => {
                 ) : activeTab === "hive-community-detail" ? (
                   <div className="max-w-4xl mx-auto">
                     <CommunityDetails communityId="hive-163772" />
+                ) : activeTab === "following-list" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <FollowingList
+                      username="shaktimaaan"
+                      onClickAuthor={(username) => console.log("Author clicked:", username)}
+                      onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
+                      onClickUnfollow={(username) => console.log("Unfollow clicked:", username)}
+                    />
                   </div>
                 ) : feedTabs.find((t) => t.id === activeTab)?.type ? (
                   <>
