@@ -189,10 +189,10 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
 
       {/* Tabs */}
       <div>
-        <div className="grid grid-cols-4 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div className="flex overflow-x-auto w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
           <button
             onClick={() => setActiveTab("posts")}
-            className={`px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "posts"
                 ? "bg-blue-600 dark:bg-blue-500 text-white"
                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
@@ -202,7 +202,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
           </button>
           <button
             onClick={() => setActiveTab("about")}
-            className={`px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "about"
                 ? "bg-blue-600 dark:bg-blue-500 text-white"
                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
@@ -212,7 +212,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
           </button>
           <button
             onClick={() => setActiveTab("subscribers")}
-            className={`px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "subscribers"
                 ? "bg-blue-600 dark:bg-blue-500 text-white"
                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
@@ -222,7 +222,7 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
           </button>
           <button
             onClick={() => setActiveTab("activities")}
-            className={`px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "activities"
                 ? "bg-blue-600 dark:bg-blue-500 text-white"
                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
