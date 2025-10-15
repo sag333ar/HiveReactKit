@@ -21,6 +21,12 @@ git push origin main
 
 cd dist-app
 
+# Check if pm2 is installed, install if not
+if ! command -v pm2 &> /dev/null; then
+    echo "pm2 not found, installing globally..."
+    npm install -g pm2
+fi
+
 pm2 restart hivereactkit
 
 cd ..
