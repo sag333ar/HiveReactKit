@@ -4,12 +4,14 @@ import {
   MessageCircle,
   RefreshCw,
   Clock,
-  TrendingUp,
+  Wallet,
   Eye,
   MoreVertical,
   ArrowUp,
   ArrowDown,
   Search,
+  DollarSign,
+  User,
 } from "lucide-react";
 import { activityListService } from "@/services/activityListService";
 import {
@@ -35,14 +37,13 @@ const ActivityList: React.FC<ActivityListProps> = ({
   generalFilter = 'all',
   rewardFilter = 'all',
   searchTerm = '',
-  limit = 100,
+  limit = 1000,
   className,
 }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [localDirectionFilter, setLocalDirectionFilter] = useState(directionFilter);
   const [localGeneralFilter, setLocalGeneralFilter] = useState(generalFilter);
   const [localRewardFilter, setLocalRewardFilter] = useState(rewardFilter);
-  const [localLimit, setLocalLimit] = useState(limit);
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<ActivityListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,9 +52,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [lastIndex, setLastIndex] = useState<number>(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const observerRef = useRef<IntersectionObserver>();
-  const lastActivityRef = useRef<HTMLDivElement>(null);
 
   const loadActivities = async (loadMore = false) => {
     if (!username) return;
@@ -63,12 +63,20 @@ const ActivityList: React.FC<ActivityListProps> = ({
     } else {
       setLoading(true);
       setHasMore(true);
+      setLastIndex(-1);
     }
     setError(null);
 
     try {
-      // Fetch account history
-      const historyItems = await activityListService.getAccountHistory(username, -1, limit);
+      let historyItems: any[];
+
+      if (loadMore) {
+        // Use the new pagination method for loading more
+        historyItems = await activityListService.getNextAccountHistoryPage(username, lastIndex, limit);
+      } else {
+        // First load - get most recent activities
+        historyItems = await activityListService.getAccountHistory(username, -1, limit);
+      }
 
       // Convert to activity list items
       const activityItems = activityListService.convertToActivityListItems(historyItems, username);
@@ -82,8 +90,15 @@ const ActivityList: React.FC<ActivityListProps> = ({
         setActivities(activityItems);
       }
 
-      // Check if we have more data
-      if (activityItems.length < limit) {
+      // Update lastIndex for pagination - use the lowest index for next page
+      if (historyItems.length > 0) {
+        const lowestIndex = Math.min(...historyItems.map(item => item.index));
+        setLastIndex(lowestIndex);
+      }
+
+      // Check if we have more data - only set hasMore to false if we got 0 items
+      // This ensures we can load multiple pages until we actually run out of data
+      if (activityItems.length === 0) {
         setHasMore(false);
       }
     } catch (err) {
@@ -98,40 +113,14 @@ const ActivityList: React.FC<ActivityListProps> = ({
 
   useEffect(() => {
     loadActivities();
-  }, [username, localLimit]);
+  }, [username, limit]);
 
-  // Infinite scroll callback
+  // Load more activities function for button click
   const loadMoreActivities = useCallback(() => {
     if (hasMore && !loading && !loadingMore) {
       loadActivities(true);
     }
-  }, [hasMore, loading, loadingMore, activities.length]);
-
-  // Set up intersection observer for infinite scroll
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
-          loadMoreActivities();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (lastActivityRef.current) {
-      observerRef.current.observe(lastActivityRef.current);
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [loadMoreActivities, hasMore, loading, loadingMore]);
+  }, [hasMore, loading, loadingMore]);
 
   useEffect(() => {
     let filtered = activities;
@@ -152,6 +141,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
         filtered = filtered.filter(activity => activity.type === 'comment');
       } else if (localGeneralFilter === 'replies') {
         filtered = filtered.filter(activity => activity.type === 'comment' && activity.direction === 'in');
+      } else if (localGeneralFilter === 'curation') {
+        filtered = filtered.filter(activity => activity.type === 'curation_reward');
       } else if (localGeneralFilter === 'others') {
         // When filtering for 'others', include custom_json and comment_options regardless of direction filter
         filtered = activities.filter(activity => activity.type === 'custom_json' || activity.type === 'comment_options');
@@ -199,11 +190,17 @@ const ActivityList: React.FC<ActivityListProps> = ({
     switch (activity.type) {
       case 'vote':
       case 'effective_comment_vote':
-        return <TrendingUp className="h-4 w-4" />;
+        return <Wallet className="h-4 w-4" />;
       case 'comment':
         return <MessageCircle className="h-4 w-4" />;
       case 'custom_json':
         return <FileText className="h-4 w-4" />;
+      case 'curation_reward':
+        return <Wallet className="h-4 w-4" />;
+      case 'author_reward':
+        return <DollarSign className="h-4 w-4" />;
+      case 'comment_benefactor_reward':
+        return <User className="h-4 w-4" />;
       default:
         return <Eye className="h-4 w-4" />;
     }
@@ -239,7 +236,25 @@ const ActivityList: React.FC<ActivityListProps> = ({
         <div className="flex items-start gap-3">
           {/* Avatar/Icon */}
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
+            {activity.type === 'vote' && activity.voter ? (
+              <img
+                src={`https://images.hive.blog/u/${activity.voter}/avatar`}
+                alt={activity.voter}
+                className="w-10 h-10 rounded-full"
+                onError={(e) => {
+                  // Fallback to icon if avatar fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const fallback = target.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              className={`w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${
+                activity.type === 'vote' && activity.voter ? 'hidden' : ''
+              }`}
+            >
               {getActivityIcon(activity)}
             </div>
           </div>
@@ -314,6 +329,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                   <span>💰 {activity.payout}</span>
                 </div>
               )}
+
             </div>
 
             {isExpanded && (
@@ -443,6 +459,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
               <option value="votes">Votes</option>
               <option value="comments">Comments</option>
               <option value="replies">Replies</option>
+              <option value="curation">Curation</option>
               <option value="others">Others</option>
             </select>
 
@@ -506,11 +523,54 @@ const ActivityList: React.FC<ActivityListProps> = ({
             {filteredActivities.map((activity, index) => (
                 <div
                   key={`${activity.id}-${index}`}
-                  ref={index === filteredActivities.length - 1 ? lastActivityRef : null}
                   className="flex items-center justify-between py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    {activity.type === 'vote' && activity.voter ? (
+                      <img
+                        src={`https://images.hive.blog/u/${activity.voter}/avatar`}
+                        alt={activity.voter}
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        onError={(e) => {
+                          // Fallback to icon if avatar fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : activity.type === 'comment_benefactor_reward' && activity.author ? (
+                      <img
+                        src={`https://images.hive.blog/u/${activity.author}/avatar`}
+                        alt={activity.author}
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        onError={(e) => {
+                          // Fallback to icon if avatar fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : activity.type === 'comment' && activity.author ? (
+                      <img
+                        src={`https://images.hive.blog/u/${activity.author}/avatar`}
+                        alt={activity.author}
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        onError={(e) => {
+                          // Fallback to icon if avatar fails to load
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        (activity.type === 'vote' && activity.voter) || (activity.type === 'comment_benefactor_reward' && activity.author) || (activity.type === 'comment' && activity.author) ? 'hidden' : ''
+                      }`}
+                    >
                       {getActivityIcon(activity)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -520,7 +580,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                             {activity.description}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {activityListService.getRelativeTime(activity.timestamp)}
+                            {activityListService.getRelativeTime(activity.timestamp+'Z')}
                           </p>
                           <div className="border border-gray-200 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-700/50 mt-1">
                             <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 font-mono break-words">
@@ -553,7 +613,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                       <>
                         <Clock className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">
-                          {activityListService.getRelativeTime(activity.timestamp)}
+                          {activityListService.getRelativeTime(activity.timestamp+'Z')}
                         </span>
                       </>
                     )}
@@ -561,9 +621,22 @@ const ActivityList: React.FC<ActivityListProps> = ({
                 </div>
             ))}
 
-            {loadingMore && (
-              <div className="flex justify-center py-4">
-                <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+            {hasMore && activities.length > 0 && (
+              <div className="flex justify-center py-6">
+                <button
+                  onClick={loadMoreActivities}
+                  disabled={loading || loadingMore}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {loadingMore ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Load More Activities'
+                  )}
+                </button>
               </div>
             )}
 

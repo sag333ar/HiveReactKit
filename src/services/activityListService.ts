@@ -36,6 +36,7 @@ class ActivityListService {
     try {
       const params: any[] = [username, start, limit];
 
+      // Add operation filters for pagination if provided
       if (operationFilterLow !== undefined && operationFilterHigh !== undefined) {
         params.push(operationFilterLow, operationFilterHigh);
       }
@@ -67,6 +68,53 @@ class ActivityListService {
   }
 
   /**
+   * Get the next page of account history for pagination
+   * @param username - Hive username
+   * @param lastIndex - Last operation index from previous page
+   * @param limit - Number of operations to fetch
+   * @returns Promise<AccountHistoryItem[]>
+   */
+  async getNextAccountHistoryPage(
+    username: string,
+    lastIndex: number,
+    limit: number = 1000
+  ): Promise<AccountHistoryItem[]> {
+    try {
+      // For pagination, we need to get operations starting from lastIndex - 1
+      // to get the next batch of older operations (lower indices)
+      const startIndex = lastIndex - 1;
+
+      const response: any[] = await dhiveClient.call(
+        "condenser_api",
+        "get_account_history",
+        [username, startIndex, limit]
+      );
+
+      // Convert the array response to AccountHistoryItem format
+      const items = response.map(([index, opData]) => ({
+        index,
+        block: opData.block,
+        op: {
+          type: opData.op[0],
+          value: opData.op[1]
+        },
+        op_in_trx: opData.op_in_trx,
+        timestamp: opData.timestamp,
+        trx_id: opData.trx_id,
+        trx_in_block: opData.trx_in_block,
+        virtual_op: opData.virtual_op
+      }));
+
+      // Filter out any items that have index >= lastIndex to avoid duplicates
+      // and ensure we only get older operations
+      return items.filter(item => item.index < lastIndex);
+    } catch (error) {
+      console.error("Error fetching next page of account history:", error);
+      return [];
+    }
+  }
+
+  /**
    * Convert account history items to activity list items
    * @param historyItems - Raw account history items
    * @param username - The account we're viewing history for
@@ -76,19 +124,35 @@ class ActivityListService {
     historyItems: AccountHistoryItem[],
     username: string
   ): ActivityListItem[] {
-    return historyItems.map(item => {
-      const activityItem = this.parseOperation(item, username);
-      return {
-        id: `${item.index}-${item.trx_id}`,
-        type: activityItem.type,
-        direction: activityItem.direction,
-        timestamp: item.timestamp,
-        block: item.block,
-        description: activityItem.description,
-        details: item.op.value,
-        ...activityItem.extraFields
-      };
-    }).filter(item => item !== null) as ActivityListItem[];
+    return historyItems
+      .filter(item => {
+        // Filter out unwanted operations
+        const operationType = item.op.type;
+        return operationType !== 'effective_comment_vote' &&
+               operationType !== 'witness_set_properties' &&
+               operationType !== 'producer_reward' &&
+               operationType !== 'comment_reward' &&
+               operationType !== 'comment_payout_update' &&
+               operationType !== 'claim_reward_balance' &&
+               operationType !== 'transfer' &&
+               operationType !== 'claim_account' &&
+               operationType !== 'transfer_to_vesting' &&
+               operationType !== 'transfer_to_vesting_completed';
+      })
+      .map(item => {
+        const activityItem = this.parseOperation(item, username);
+        return {
+          id: `${item.index}-${item.trx_id}`,
+          type: activityItem.type,
+          direction: activityItem.direction,
+          timestamp: item.timestamp,
+          block: item.block,
+          description: activityItem.description,
+          details: item.op.value,
+          index: item.index,
+          ...activityItem.extraFields
+        };
+      }).filter(item => item !== null) as ActivityListItem[];
   }
 
   /**
@@ -122,6 +186,18 @@ class ActivityListService {
 
       case 'effective_comment_vote':
         return this.parseEffectiveCommentVoteOperation(value, username);
+
+      case 'curation_reward':
+        return this.parseCurationRewardOperation(value, username);
+
+      case 'author_reward':
+        return this.parseAuthorRewardOperation(value, username);
+
+      case 'comment_benefactor_reward':
+        return this.parseCommentBenefactorRewardOperation(value, username);
+
+      case 'comment':
+        return this.parseCommentOperation(value, username);
 
       default:
         return {
@@ -170,22 +246,13 @@ class ActivityListService {
     description: string;
     extraFields: Partial<ActivityListItem>;
   } {
-    const { author, permlink, parent_author, parent_permlink, title } = value;
+    const { author, parent_author, parent_permlink, permlink } = value;
     const isIncoming = parent_author === username;
     const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
 
-    let description = '';
-    if (parent_author === '') {
-      // This is a post
-      description = isIncoming
-        ? `Published post "${title}" in community ${value.parent_permlink}`
-        : `Commented on ${parent_author}/${parent_permlink}`;
-    } else {
-      // This is a comment/reply
-      description = isIncoming
-        ? `${author} commented on ${parent_author}/${parent_permlink}`
-        : `Commented on ${parent_author}/${parent_permlink}`;
-    }
+    // Show parent_author if available, otherwise show the comment author
+    const displayAuthor = parent_author || author;
+    const description = `Commented on ${parent_permlink} by ${displayAuthor}.`;
 
     return {
       type: 'comment',
@@ -194,7 +261,8 @@ class ActivityListService {
       extraFields: {
         author,
         permlink,
-        community: value.parent_permlink
+        parent_author,
+        parent_permlink
       }
     };
   }
@@ -282,6 +350,107 @@ class ActivityListService {
       }
     };
   }
+
+  private parseCurationRewardOperation(value: any, username: string): {
+    type: ActivityListItem['type'];
+    direction: ActivityListItem['direction'];
+    description: string;
+    extraFields: Partial<ActivityListItem>;
+  } {
+    const { author, curator, permlink, reward } = value;
+    const isIncoming = curator === username;
+    const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
+
+    // Convert VESTS to HP (Hive Power) - rough approximation: 1 VESTS ≈ 0.000001 HP
+    const vestsAmount = parseFloat(reward.split(' ')[0]);
+    const hpAmount = (vestsAmount * 0.000001).toFixed(3);
+    const formattedReward = `${hpAmount} HP`;
+
+    const description = `Curation reward for ${curator}/${permlink} by ${author}`;
+
+    return {
+      type: 'curation_reward',
+      direction,
+      description,
+      extraFields: {
+        author,
+        curator,
+        permlink,
+        reward: formattedReward
+      }
+    };
+  }
+
+  private parseAuthorRewardOperation(value: any, username: string): {
+    type: ActivityListItem['type'];
+    direction: ActivityListItem['direction'];
+    description: string;
+    extraFields: Partial<ActivityListItem>;
+  } {
+    const { author, permlink, hbd_payout, hive_payout, vesting_payout } = value;
+    const isIncoming = author === username;
+    const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
+
+    // Convert vesting_payout to HP
+    const vestsAmount = parseFloat(vesting_payout.split(' ')[0]);
+    const hpAmount = (vestsAmount * 0.000001).toFixed(3);
+
+    // Extract HBD and HIVE amounts
+    const hbdAmount = hbd_payout.split(' ')[0];
+    const hiveAmount = hive_payout.split(' ')[0];
+
+    const description = `Author reward: ${hbdAmount} HBD, ${hiveAmount} HIVE, ${hpAmount} HP for ${permlink}`;
+
+    return {
+      type: 'author_reward',
+      direction,
+      description,
+      extraFields: {
+        author,
+        permlink,
+        hbd_payout,
+        hive_payout,
+        vesting_payout
+      }
+    };
+  }
+
+  private parseCommentBenefactorRewardOperation(value: any, username: string): {
+    type: ActivityListItem['type'];
+    direction: ActivityListItem['direction'];
+    description: string;
+    extraFields: Partial<ActivityListItem>;
+  } {
+    const { author, benefactor, permlink, hbd_payout, hive_payout, vesting_payout } = value;
+    const isIncoming = benefactor === username;
+    const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
+
+    // Convert vesting_payout to HP
+    const vestsAmount = parseFloat(vesting_payout.split(' ')[0]);
+    const hpAmount = (vestsAmount * 0.000001).toFixed(3);
+
+    // Extract HBD and HIVE amounts
+    const hbdAmount = hbd_payout.split(' ')[0];
+    const hiveAmount = hive_payout.split(' ')[0];
+
+    const description = `Benefactor reward on ${permlink} by ${author}: ${hbdAmount} HBD, ${hiveAmount} HIVE, ${hpAmount} HP`;
+
+    return {
+      type: 'comment_benefactor_reward',
+      direction,
+      description,
+      extraFields: {
+        author,
+        benefactor,
+        permlink,
+        hbd_payout,
+        hive_payout,
+        vesting_payout
+      }
+    };
+  }
+
+
 
   /**
    * Filter activities by direction (in/out)

@@ -24,7 +24,7 @@ export interface AccountHistoryResponse {
 // Activity List Types
 export interface ActivityListItem {
   id: string;
-  type: 'vote' | 'comment' | 'custom_json' | 'comment_options' | 'effective_comment_vote' | 'other';
+  type: 'vote' | 'comment' | 'custom_json' | 'comment_options' | 'effective_comment_vote' | 'curation_reward' | 'author_reward' | 'comment_benefactor_reward' | 'other';
   direction: 'in' | 'out';
   timestamp: string;
   block: number;
@@ -37,9 +37,17 @@ export interface ActivityListItem {
   weight?: number;
   payout?: string;
   community?: string;
+  curator?: string;
+  reward?: string;
+  hbd_payout?: string;
+  hive_payout?: string;
+  vesting_payout?: string;
+  benefactor?: string;
+  parent_author?: string;
+  parent_permlink?: string;
 }
 
 // Filter types
 export type DirectionFilter = 'all' | 'in' | 'out';
-export type GeneralFilter = 'all' | 'votes' | 'comments' | 'replies' | 'others';
+export type GeneralFilter = 'all' | 'votes' | 'comments' | 'replies' | 'curation' | 'others';
 export type RewardFilter = 'all' | 'author' | 'curation' | 'benefactor';

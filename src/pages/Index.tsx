@@ -41,7 +41,7 @@ const Index = () => {
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [demoUsername, setDemoUsername] = useState("shaktimaaan");
+  const [demoUsername, setDemoUsername] = useState("sagarkothari88");
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(
     null
   );
