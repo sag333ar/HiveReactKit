@@ -1,26 +1,30 @@
 {
   "name": "hive-react-kit",
   "private": false,
-  "version": "0.0.15",
+  "version": "0.0.16",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js",
       "types": "./dist/index.d.ts"
     },
     "./components": {
       "import": "./dist/components/index.js",
+      "require": "./dist/components/index.js",
       "types": "./dist/components/index.d.ts"
     },
     "./hooks": {
       "import": "./dist/hooks/index.js",
+      "require": "./dist/hooks/index.js",
       "types": "./dist/hooks/index.d.ts"
     },
     "./types": {
       "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js",
       "types": "./dist/types/index.d.ts"
     }
   },
