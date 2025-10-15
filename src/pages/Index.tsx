@@ -7,6 +7,7 @@ import VideoDetail from "@/components/VideoDetail";
 import Wallet from "@/components/Wallet";
 import CommunitiesList from "@/components/community/CommunitiesList";
 import CommunityDetail from "@/components/community/CommunityDetail";
+import CommunityDetails from "@/components/community/CommunityDetails";
 import UserAccount from "@/components/user/UserAccount";
 import UserProfilePage from "@/components/user/UserProfilePage";
 import Modal from "@/components/modals/Modal";
@@ -367,7 +368,7 @@ const Index = () => {
                 onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                 onCommentClick={(post) => console.log("Comment clicked:", post)}
                 onReblogClick={(post) => console.log("Reblog clicked:", post)}
-                showCodeTab={true}
+                showSortDropdown={true}
               />
             );
           }`;
@@ -381,6 +382,13 @@ const Index = () => {
                 onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
                 onClickFollow={(username) => console.log("Follow clicked:", username)}
               />
+            );
+          }`;
+      case "hive-community-detail":
+        return `import { CommunityDetails } from 'hive-reactkit';
+          function App() {
+            return (
+              <CommunityDetails communityId="hive-163772" />
             );
           }`;
       case "following-list":
@@ -471,6 +479,7 @@ const Index = () => {
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
     { id: "community-detail", label: "Community Detail", icon: "👥" },
+    { id: "hive-community-detail", label: "Hive Community Detail", icon: "🏘️" },
     { id: "comments", label: "Comments Modal", icon: "💬" },
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
     { id: "witnesses", label: "Witnesses", icon: "👥" },
@@ -953,6 +962,7 @@ const Index = () => {
                       onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                       onCommentClick={(post) => console.log("Comment clicked:", post)}
                       onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                      showSortDropdown={true}
                     />
                   </div>
                 ) : activeTab === "followers-list" ? (
@@ -963,6 +973,10 @@ const Index = () => {
                       onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
                       onClickFollow={(username) => console.log("Follow clicked:", username)}
                     />
+                  </div>
+                ) : activeTab === "hive-community-detail" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <CommunityDetails communityId="hive-163772" />
                   </div>
                 ) : activeTab === "following-list" ? (
                   <div className="max-w-4xl mx-auto">

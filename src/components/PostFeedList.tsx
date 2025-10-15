@@ -11,6 +11,7 @@ interface PostFeedListProps {
   tag?: string;
   observer?: string;
   limit?: number;
+  showSortDropdown?: boolean;
   onAuthorClick?: (author: string, avatar: string) => void;
   onPostClick?: (post: Post) => void;
   onCommunityClick?: (communityTitle: string) => void;
@@ -25,6 +26,7 @@ export default function PostFeedList({
   tag = '',
   observer = 'hive.blog',
   limit = 20,
+  showSortDropdown = true,
   onAuthorClick,
   onPostClick,
   onCommunityClick,
@@ -197,17 +199,19 @@ export default function PostFeedList({
   return (
     <div className="space-y-6">
       {/* Sort Dropdown */}
-      <div className="flex justify-center">
-        <select
-          value={selectedSort}
-          onChange={(e) => handleSortChange(e.target.value as PostSort)}
-          className="px-4 py-2 border border-border rounded-lg bg-card text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="trending">Trending</option>
-          <option value="hot">Hot</option>
-          <option value="created">New</option>
-        </select>
-      </div>
+      {showSortDropdown && (
+        <div className="flex justify-center">
+          <select
+            value={selectedSort}
+            onChange={(e) => handleSortChange(e.target.value as PostSort)}
+            className="px-4 py-2 border border-border rounded-lg bg-card text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="trending">Trending</option>
+            <option value="hot">Hot</option>
+            <option value="created">New</option>
+          </select>
+        </div>
+      )}
 
       {/* Posts List */}
       <div className="space-y-4">
