@@ -196,9 +196,6 @@ class ActivityListService {
       case 'comment_benefactor_reward':
         return this.parseCommentBenefactorRewardOperation(value, username);
 
-      case 'comment':
-        return this.parseCommentOperation(value, username);
-
       default:
         return {
           type: 'other',

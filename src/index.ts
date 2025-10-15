@@ -4,6 +4,11 @@ export { default as VideoDetail } from './components/VideoDetail';
 export { default as VideoFeed } from './components/VideoFeed';
 export { default as VideoInfo } from './components/VideoInfo';
 export { default as Wallet } from './components/Wallet';
+export { default as PostFeedList } from './components/PostFeedList';
+export { default as ProposalsList } from './components/ProposalsList';
+export { default as FollowersList } from './components/FollowersList';
+export { default as FollowingList } from './components/FollowingList';
+export { default as ActivityList } from './components/ActivityList';
 export { default as ListOfWitnesses } from './components/ListOfWitnesses';
 
 // Common components
