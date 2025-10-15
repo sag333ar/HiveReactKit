@@ -32,6 +32,7 @@ import {
   MessageSquare,
   ThumbsUp,
 } from "lucide-react";
+import ActivityList from "@/components/ActivityList";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -40,7 +41,7 @@ const Index = () => {
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("trending");
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [demoUsername, setDemoUsername] = useState("shaktimaaan");
+  const [demoUsername, setDemoUsername] = useState("sagarkothari88");
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(
     null
   );
@@ -324,6 +325,17 @@ const Index = () => {
               <TransactionHistory username="threespeak" />
             );
           }`;
+      case "activity-list":
+        return `import { ActivityList } from 'hive-reactkit';
+          function App() {
+            return (
+              <ActivityList
+                username="shaktimaaan"
+                onClickPermlink={(author, permlink) => console.log("Permlink clicked:", author, permlink)}
+                onSelectActivity={(activity) => console.log("Activity selected:", activity)}
+              />
+            );
+          }`;
       case "activity":
         return `import { ActivityHistory } from 'hive-reactkit';
           function App() {
@@ -478,6 +490,7 @@ const Index = () => {
     { id: "proposals", label: "Proposals List", icon: "📋" },
     { id: "followers-list", label: "Followers List", icon: "👥" },
     { id: "following-list", label: "Following List", icon: "👥" },
+    { id: "activity-list", label: "Activity List", icon: "📋" },
   ];
 
   return (
@@ -748,6 +761,14 @@ const Index = () => {
                 ) : activeTab === "activity" ? (
                   <div className="max-w-4xl mx-auto">
                     <ActivityHistory username={demoUsername} />
+                  </div>
+                ) : activeTab === "activity-list" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <ActivityList
+                      username={demoUsername}
+                      onClickPermlink={(author, permlink) => console.log("Permlink clicked:", author, permlink)}
+                      onSelectActivity={(activity) => console.log("Activity selected:", activity)}
+                    />
                   </div>
                 ) : activeTab === "communities" ? (
                   <div className="max-w-4xl mx-auto">
