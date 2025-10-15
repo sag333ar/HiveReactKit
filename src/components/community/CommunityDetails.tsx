@@ -13,13 +13,30 @@ import {
   CommunitySubscriber,
   CommunityActivity,
 } from "../../types/community";
+import { Post } from "../../types/post";
 import PostFeedList from "../PostFeedList";
 
 interface CommunityDetailsProps {
   communityId: string;
+  onAuthorClick?: (author: string, avatar: string) => void;
+  onPostClick?: (post: Post) => void;
+  onCommunityClick?: (communityTitle: string) => void;
+  onPayoutClick?: (payout: number) => void;
+  onUpvoteClick?: (post: Post) => void;
+  onCommentClick?: (post: Post) => void;
+  onReblogClick?: (post: Post) => void;
 }
 
-const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
+const CommunityDetails = ({
+  communityId,
+  onAuthorClick,
+  onPostClick,
+  onCommunityClick,
+  onPayoutClick,
+  onUpvoteClick,
+  onCommentClick,
+  onReblogClick,
+}: CommunityDetailsProps) => {
   const [activeTab, setActiveTab] = useState("posts");
   const [communityDetails, setCommunityDetails] =
     useState<CommunityDetailsResult | null>(null);
@@ -240,6 +257,13 @@ const CommunityDetails = ({ communityId }: CommunityDetailsProps) => {
               sort="created"
               limit={20}
               showSortDropdown={false}
+              onAuthorClick={onAuthorClick}
+              onPostClick={onPostClick}
+              onCommunityClick={onCommunityClick}
+              onPayoutClick={onPayoutClick}
+              onUpvoteClick={onUpvoteClick}
+              onCommentClick={onCommentClick}
+              onReblogClick={onReblogClick}
             />
           )}
 
