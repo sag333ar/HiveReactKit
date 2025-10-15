@@ -1,26 +1,24 @@
 {
-  "extends": "./tsconfig.app.json",
   "compilerOptions": {
-    "declaration": true,
-    "emitDeclarationOnly": false,
-    "outDir": "./dist",
-    "declarationDir": "./dist",
+    "declaration": true,                  // generate .d.ts files
+    "emitDeclarationOnly": true,          // only emit types, no JS
+    "outDir": "dist",                     // output folder
+    "declarationDir": "dist",             // type declaration folder
     "module": "ESNext",
-    "target": "ES2017",
+    "target": "ES2020",
     "moduleResolution": "Node",
-    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
     "strict": false,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "types": ["react", "react-dom", "node"],
+    "baseUrl": ".",                        // required for path mapping
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": ["src/*"]                     // map @ to src
+    },
+    "types": ["react", "react-dom", "node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.*", "src/**/*.spec.*", "dist", "node_modules"]
+  "exclude": ["node_modules", "dist"]
 }
