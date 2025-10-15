@@ -29,6 +29,8 @@ interface ActivityListProps {
   searchTerm?: string;
   limit?: number;
   className?: string;
+  onClickPermlink?: (author: string, permlink: string) => void;
+  onSelectActivity?: (activity: ActivityListItem) => void;
 }
 
 const ActivityList: React.FC<ActivityListProps> = ({
@@ -39,6 +41,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
   searchTerm = '',
   limit = 1000,
   className,
+  onClickPermlink,
+  onSelectActivity,
 }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [localDirectionFilter, setLocalDirectionFilter] = useState(directionFilter);
@@ -224,6 +228,31 @@ const ActivityList: React.FC<ActivityListProps> = ({
     setExpandedActivities(newExpanded);
   };
 
+  const renderDescription = (description: string, activity: ActivityListItem) => {
+    const parts = description.split(/(\s+)/);
+    return parts.map((part, index) => {
+      if (part.includes('/')) {
+        const [author, permlink] = part.split('/');
+        if (author && permlink) {
+          return (
+            <span
+              key={index}
+              className="text-blue-500 cursor-pointer hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Clicked permlink:', author, permlink);
+                onClickPermlink?.(author, permlink);
+              }}
+            >
+              {part}
+            </span>
+          );
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   const renderActivityCard = (activity: ActivityListItem) => {
     const activityId = activity.id;
     const isExpanded = expandedActivities.has(activityId);
@@ -251,9 +280,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
               />
             ) : null}
             <div
-              className={`w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${
-                activity.type === 'vote' && activity.voter ? 'hidden' : ''
-              }`}
+              className={`w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${activity.type === 'vote' && activity.voter ? 'hidden' : ''
+                }`}
             >
               {getActivityIcon(activity)}
             </div>
@@ -264,11 +292,10 @@ const ActivityList: React.FC<ActivityListProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    activity.direction === 'in'
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${activity.direction === 'in'
                       ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300"
                       : "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300"
-                  }`}
+                    }`}
                 >
                   {activity.direction === 'in' ? 'Incoming' : 'Outgoing'}
                 </span>
@@ -521,104 +548,130 @@ const ActivityList: React.FC<ActivityListProps> = ({
         ) : (
           <>
             {filteredActivities.map((activity, index) => (
-                <div
-                  key={`${activity.id}-${index}`}
-                  className="flex items-center justify-between py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {activity.type === 'vote' && activity.voter ? (
-                      <img
-                        src={`https://images.hive.blog/u/${activity.voter}/avatar`}
-                        alt={activity.voter}
-                        className="w-8 h-8 rounded-full flex-shrink-0"
-                        onError={(e) => {
-                          // Fallback to icon if avatar fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }}
-                      />
-                    ) : activity.type === 'comment_benefactor_reward' && activity.author ? (
-                      <img
-                        src={`https://images.hive.blog/u/${activity.author}/avatar`}
-                        alt={activity.author}
-                        className="w-8 h-8 rounded-full flex-shrink-0"
-                        onError={(e) => {
-                          // Fallback to icon if avatar fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }}
-                      />
-                    ) : activity.type === 'comment' && activity.author ? (
-                      <img
-                        src={`https://images.hive.blog/u/${activity.author}/avatar`}
-                        alt={activity.author}
-                        className="w-8 h-8 rounded-full flex-shrink-0"
-                        onError={(e) => {
-                          // Fallback to icon if avatar fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        (activity.type === 'vote' && activity.voter) || (activity.type === 'comment_benefactor_reward' && activity.author) || (activity.type === 'comment' && activity.author) ? 'hidden' : ''
+              <div
+                key={`${activity.id}-${index}`}
+                className="flex items-center justify-between py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  onSelectActivity?.(activity);
+                }}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {activity.type === 'vote' && activity.voter ? (
+                    <img
+                      src={`https://images.hive.blog/u/${activity.voter}/avatar`}
+                      alt={activity.voter}
+                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        // Fallback to icon if avatar fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : activity.type === 'comment_benefactor_reward' && activity.author ? (
+                    <img
+                      src={`https://images.hive.blog/u/${activity.author}/avatar`}
+                      alt={activity.author}
+                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        // Fallback to icon if avatar fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : activity.type === 'comment' && activity.author ? (
+                    <img
+                      src={`https://images.hive.blog/u/${activity.author}/avatar`}
+                      alt={activity.author}
+                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        // Fallback to icon if avatar fails to load
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${(activity.type === 'vote' && activity.voter) || (activity.type === 'comment_benefactor_reward' && activity.author) || (activity.type === 'comment' && activity.author) ? 'hidden' : ''
                       }`}
-                    >
-                      {getActivityIcon(activity)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {activity.type === 'custom_json' || activity.type === 'comment_options' ? (
-                        <div>
-                          <p className="text-sm text-gray-900 dark:text-white break-words font-medium">
-                            {activity.description}
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {activityListService.getRelativeTime(activity.timestamp+'Z')}
-                          </p>
-                          <div className="border border-gray-200 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-700/50 mt-1">
-                            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 font-mono break-words">
-                              {activity.type === 'custom_json' && (
-                                <>
-                                  <div><span className="font-medium">id:</span> {activity.details.id}</div>
-                                  <div className="break-all"><span className="font-medium">json:</span> {JSON.stringify(activity.details.json).replace(/\\\"/g, '"').replace(/^"|"$/g, '')}</div>
-                                  <div><span className="font-medium">required_auths:</span> {JSON.stringify(activity.details.required_auths)}</div>
-                                  <div><span className="font-medium">required_posting_auths:</span> {JSON.stringify(activity.details.required_posting_auths)}</div>
-                                </>
-                              )}
-                              {activity.type === 'comment_options' && (
-                                <>
-                                  <div><span className="font-medium">author:</span> {activity.details.author}</div>
-                                  <div><span className="font-medium">permlink:</span> {activity.details.permlink}</div>
-                                </>
-                              )}
-                            </div>
+                  >
+                    {getActivityIcon(activity)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {activity.type === 'custom_json' || activity.type === 'comment_options' ? (
+                      <div>
+                        <p className="text-sm text-gray-900 dark:text-white break-words font-medium">
+                          {renderDescription(activity.description, activity)}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                        </p>
+                        <div className="border border-gray-200 dark:border-gray-600 rounded p-2 bg-gray-50 dark:bg-gray-700/50 mt-1">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 font-mono break-words">
+                            {activity.type === 'custom_json' && (
+                              <>
+                                <div><span className="font-medium">id:</span> {activity.details.id}</div>
+                                <div className="break-all"><span className="font-medium">json:</span> {JSON.stringify(activity.details.json).replace(/\\\"/g, '"').replace(/^"|"$/g, '')}</div>
+                                <div><span className="font-medium">required_auths:</span> {JSON.stringify(activity.details.required_auths)}</div>
+                                <div><span className="font-medium">required_posting_auths:</span> {JSON.stringify(activity.details.required_posting_auths)}</div>
+                              </>
+                            )}
+                            {activity.type === 'comment_options' && (
+                              <>
+                                <div>
+                                  <span className="font-medium">author:</span>
+                                  <span
+                                    className="text-blue-500 cursor-pointer hover:underline"
+                                  >
+                                    {activity.details.author}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium">permlink:</span>
+                                  <span
+                                    className="text-blue-500 cursor-pointer hover:underline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log('Clicked permlink:', activity.details.author, activity.details.permlink);
+                                      onClickPermlink?.(activity.details.author, activity.details.permlink);
+                                    }}
+                                  >
+                                    {activity.details.permlink}
+                                  </span>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
-                      ) : (
+                      </div>
+                    ) : (
+                      <div>
                         <p className="text-sm text-gray-900 dark:text-white break-words">
-                          {activity.description}
+                          {renderDescription(activity.description, activity)}
                         </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 flex-shrink-0 ml-4">
-                    {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
-                      <>
-                        <Clock className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">
-                          {activityListService.getRelativeTime(activity.timestamp+'Z')}
-                        </span>
-                      </>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 sm:hidden">
+                          {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
+                <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 flex-shrink-0 ml-4 hidden sm:flex">
+                  {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
+                    <>
+                      <Clock className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             ))}
 
             {hasMore && activities.length > 0 && (

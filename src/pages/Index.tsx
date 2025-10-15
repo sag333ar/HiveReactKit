@@ -329,7 +329,11 @@ const Index = () => {
         return `import { ActivityList } from 'hive-reactkit';
           function App() {
             return (
-              <ActivityList username="threespeak" />
+              <ActivityList
+                username="shaktimaaan"
+                onClickPermlink={(author, permlink) => console.log("Permlink clicked:", author, permlink)}
+                onSelectActivity={(activity) => console.log("Activity selected:", activity)}
+              />
             );
           }`;
       case "activity":
@@ -760,7 +764,11 @@ const Index = () => {
                   </div>
                 ) : activeTab === "activity-list" ? (
                   <div className="max-w-4xl mx-auto">
-                    <ActivityList username={demoUsername} />
+                    <ActivityList
+                      username={demoUsername}
+                      onClickPermlink={(author, permlink) => console.log("Permlink clicked:", author, permlink)}
+                      onSelectActivity={(activity) => console.log("Activity selected:", activity)}
+                    />
                   </div>
                 ) : activeTab === "communities" ? (
                   <div className="max-w-4xl mx-auto">
