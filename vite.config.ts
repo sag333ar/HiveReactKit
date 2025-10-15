@@ -22,7 +22,8 @@ export default defineConfig(({ mode }) => {
         lib: {
           entry: path.resolve(__dirname, "src/index.ts"),
           name: "HiveReactKit",
-          fileName: (format) => `index.${format}.js`,
+          formats: ["es", "cjs"],
+          fileName: (format) => `index.${format === "es" ? "esm" : "cjs"}.js`,
         },
         rollupOptions: {
           external: [
@@ -57,21 +58,42 @@ export default defineConfig(({ mode }) => {
             "tailwindcss-animate",
             "tailwindcss",
           ],
-          output: {
-            globals: {
-              react: "React",
-              "react-dom": "ReactDOM",
-              "react-router-dom": "ReactRouterDOM",
-              "@tanstack/react-query": "ReactQuery",
-              "@hiveio/dhive": "Dhive",
-              zustand: "Zustand",
-              "lucide-react": "LucideReact",
-              "react-icons": "ReactIcons",
-              "@tailwindcss/vite": "TailwindCSSVite",
-              "tailwindcss-animate": "TailwindCSSAnimate",
-              "tailwindcss": "TailwindCSS",
+          output: [
+            {
+              format: "es",
+              entryFileNames: "index.esm.js",
+              globals: {
+                react: "React",
+                "react-dom": "ReactDOM",
+                "react-router-dom": "ReactRouterDOM",
+                "@tanstack/react-query": "ReactQuery",
+                "@hiveio/dhive": "Dhive",
+                zustand: "Zustand",
+                "lucide-react": "LucideReact",
+                "react-icons": "ReactIcons",
+                "@tailwindcss/vite": "TailwindCSSVite",
+                "tailwindcss-animate": "TailwindCSSAnimate",
+                "tailwindcss": "TailwindCSS",
+              },
             },
-          },
+            {
+              format: "cjs",
+              entryFileNames: "index.cjs.js",
+              globals: {
+                react: "React",
+                "react-dom": "ReactDOM",
+                "react-router-dom": "ReactRouterDOM",
+                "@tanstack/react-query": "ReactQuery",
+                "@hiveio/dhive": "Dhive",
+                zustand: "Zustand",
+                "lucide-react": "LucideReact",
+                "react-icons": "ReactIcons",
+                "@tailwindcss/vite": "TailwindCSSVite",
+                "tailwindcss-animate": "TailwindCSSAnimate",
+                "tailwindcss": "TailwindCSS",
+              },
+            },
+          ],
         },
       },
     };
