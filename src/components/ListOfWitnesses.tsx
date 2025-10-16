@@ -3,6 +3,7 @@ import { Witness, WitnessFilters, ListOfWitnessesProps, WitnessVote, Account } f
 import { useWitnessStore } from '../store';
 import { witnessService } from '../services/witnessService';
 import WitnessFiltersComponent from './WitnessFilters';
+import { useIsMobile } from '../hooks/use-mobile';
 
 interface WitnessVotesModalProps {
   isOpen: boolean;
@@ -56,12 +57,12 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h3 className="text-lg font-semibold text-white">Votes for @{witness} (showing {votes.length})</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Votes for @{witness} (showing {votes.length})</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-xl font-bold"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl font-bold"
           >
             ×
           </button>
@@ -69,30 +70,30 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
         <div ref={scrollContainerRef} className="p-4 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {votes.map((vote, index) => (
-              <div key={vote.account} className="flex items-center space-x-3 p-3 bg-gray-800 rounded-lg">
-                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+              <div key={vote.account} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-900 dark:text-white text-sm font-medium">
                   <img
-                        className="w-8 h-8 rounded-full"
-                        src={`https://images.hive.blog/u/${vote.account}/avatar`}
-                        alt={vote.account}
-                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
-                      />
+                    className="w-8 h-8 rounded-full"
+                    src={`https://images.hive.blog/u/${vote.account}/avatar`}
+                    alt={vote.account}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
+                  />
                 </div>
                 <div className="flex-1">
-                  <div className="text-white font-medium">{vote.account}</div>
-                  <div className="text-gray-400 text-sm">Vote #{index + 1}</div>
+                  <div className="text-gray-900 dark:text-white font-medium">{vote.account}</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-sm">Vote #{index + 1}</div>
                 </div>
-                <div className="text-gray-400 text-sm">25</div>
+                <div className="text-gray-500 dark:text-gray-400 text-sm">25</div>
               </div>
             ))}
           </div>
           {votes.length === 0 && !loadingInitial && (
-            <div className="text-center text-gray-400 py-8">
+            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
               No votes found for this witness.
             </div>
           )}
           {loadingMore && (
-            <div className="text-center text-gray-400 py-4">
+            <div className="text-center text-gray-500 dark:text-gray-400 py-4">
               Loading more votes...
             </div>
           )}
@@ -122,6 +123,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
   onWitnessStatsClick,
   onWitnessUrlClick
 }) => {
+  const isMobile = useIsMobile();
   const witnesses = useWitnessStore(state => state.witnesses);
   const userWitnessVotes = useWitnessStore(state => state.userWitnessVotes);
   const loading = useWitnessStore(state => state.loadingWitnesses);
@@ -144,6 +146,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
   const loadUserWitnessVotes = useWitnessStore(state => state.loadUserWitnessVotes);
   const setFilters = useWitnessStore(state => state.setFilters);
   const [votesModalOpen, setVotesModalOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -289,136 +292,298 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
         loadMoreVotes={loadMoreVotes}
       />
 
-      <WitnessFiltersComponent
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
+      {isMobile ? (
+        <div className="w-full">
+          {/* Filter Toggle Button */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Witnesses</h2>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>{showFilters ? 'Hide Filters' : 'Show Filters'}</span>
+            </button>
+          </div>
 
-      <div className="overflow-auto max-h-[70vh]">
-        <table className="w-full text-sm text-left text-gray-400">
-          <thead className="text-xs text-gray-400 uppercase bg-gray-800">
-            <tr>
-              <th scope="col" className="px-4 py-3">Rank</th>
-              <th scope="col" className="px-4 py-3">Witness</th>
-              <th scope="col" className="px-4 py-3">Version</th>
-              <th scope="col" className="px-4 py-3">Votes (MHP)</th>
-              <th scope="col" className="px-4 py-3">Last Block</th>
-              <th scope="col" className="px-4 py-3">Miss</th>
-              <th scope="col" className="px-4 py-3">Price Feed</th>
-              <th scope="col" className="px-4 py-3">APR (%)</th>
-              <th scope="col" className="px-4 py-3">Vote</th>
-            </tr>
-          </thead>
-          <tbody>
+          {/* Filters Modal */}
+          {showFilters && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+                  <button
+                    onClick={() => setShowFilters(false)}
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="p-4 overflow-y-auto max-h-[60vh]">
+                  <WitnessFiltersComponent
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Witnesses List */}
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
             {filteredWitnesses.map((witness, index) => {
               const versionStatus = witnessService.getVersionStatus(
                 witness.running_version,
                 witness.hardfork_version_vote
               );
               const votedFor = isVotedFor(witness.owner);
+              const rank = witnesses.findIndex(w => w.owner === witness.owner) + 1;
 
               return (
-                <tr key={witness.owner} className="border-b border-gray-700 hover:bg-gray-800">
-                  <td className="px-4 py-4 font-medium text-white">
-                    {witnesses.findIndex(w => w.owner === witness.owner) + 1}
-                  </td>
-                  <td className="px-4 py-4">
+                <div key={witness.owner} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                  {/* Header Row: Rank, Witness, Vote Status */}
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">#{rank}</span>
                       <img
-                        className="w-8 h-8 rounded-full"
+                        className="w-10 h-10 rounded-full"
                         src={`https://images.hive.blog/u/${witness.owner}/avatar`}
                         alt={witness.owner}
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
                       />
-                      <div className="flex-1">
-                        <div className="text-white font-medium">{witness.owner}</div>
-                        <div className="text-gray-400 text-xs">Witness since {new Date(witness.created).getFullYear()}</div>
-                        {witnessDetails.get(witness.owner) && (
-                          <div className="text-gray-400 text-xs mt-1 line-clamp-2">
-                            {witnessDetails.get(witness.owner)}
-                          </div>
-                        )}
+                      <div>
+                        <div className="text-gray-900 dark:text-white font-medium">{witness.owner}</div>
+                        <div className="text-gray-500 dark:text-gray-400 text-xs">Since {new Date(witness.created).getFullYear()}</div>
                       </div>
-                      <div className="flex space-x-2 flex-shrink-0">
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center justify-center">
+                        <svg
+                          className={`w-6 h-6 ${votedFor ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'}`}
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="flex space-x-1">
                         <button
                           onClick={() => handleUrlClick(witness.url)}
-                          className="text-gray-400 hover:text-white"
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                           title="Visit witness URL"
                         >
                           🔗
                         </button>
                         <button
                           onClick={() => handleStatsClick(witness.owner)}
-                          className="text-gray-400 hover:text-white"
+                          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                           title="View witness stats"
                         >
                           📊
                         </button>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      versionStatus === 'green' ? 'bg-green-900 text-green-300' :
-                      versionStatus === 'red' ? 'bg-red-900 text-red-300' :
-                      'bg-gray-700 text-gray-300'
-                    }`}>
-                      {witness.running_version}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <button
-                      onClick={() => handleVotesClick(witness.owner)}
-                      className="text-blue-400 hover:text-blue-300 cursor-pointer"
-                      disabled={loadingVotes}
-                    >
-                      {loadingVotes && selectedWitness === witness.owner ? 'Loading...' : witnessService.formatVotesToMHP(witness.votes)}
-                    </button>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div className="text-white">{witness.last_confirmed_block_num.toLocaleString()}</div>
-                    <div className="text-gray-400 text-xs">
-                      NA
+                  </div>
+
+                  {/* Details Row: Version, Votes, APR */}
+                  <div className="grid grid-cols-3 gap-4 mb-3">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Version</div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1 block ${versionStatus === 'green' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
+                        versionStatus === 'red' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' :
+                          'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                        }`}>
+                        {witness.running_version}
+                      </span>
                     </div>
-                  </td>
-                  <td className="px-4 py-4 text-right text-white">
-                    {witness.total_missed.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    <div className="text-white">{witness.hbd_exchange_rate.base}</div>
-                    <div className="text-gray-400 text-xs">
-                      {witnessService.formatTimeAgo(witness.last_hbd_exchange_update+'Z')}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-right text-white">
-                    {witnessService.calculateAPR(witness.props.hbd_interest_rate)}%
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center justify-center">
-                      <svg
-                        className={`w-5 h-5 ${votedFor ? 'text-green-500' : 'text-gray-500'}`}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Votes (MHP)</div>
+                      <button
+                        onClick={() => handleVotesClick(witness.owner)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer text-sm font-medium mt-1"
+                        disabled={loadingVotes}
                       >
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
+                        {loadingVotes && selectedWitness === witness.owner ? 'Loading...' : witnessService.formatVotesToMHP(witness.votes)}
+                      </button>
                     </div>
-                  </td>
-                </tr>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">APR</div>
+                      <div className="text-gray-900 dark:text-white font-medium mt-1">
+                        {witnessService.calculateAPR(witness.props.hbd_interest_rate)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Details Row: Last Block, Miss, Price Feed */}
+                  <div className="grid grid-cols-3 gap-4 text-xs">
+                    <div className="text-center">
+                      <div className="text-gray-500 dark:text-gray-400 uppercase">Last Block</div>
+                      <div className="text-gray-900 dark:text-white">{witness.last_confirmed_block_num.toLocaleString()}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-500 dark:text-gray-400 uppercase">Miss</div>
+                      <div className="text-gray-900 dark:text-white">{witness.total_missed.toLocaleString()}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-500 dark:text-gray-400 uppercase">Price Feed</div>
+                      <div className="text-gray-900 dark:text-white">{witness.hbd_exchange_rate.base}</div>
+                      <div className="text-gray-500 dark:text-gray-400">
+                        {witnessService.formatTimeAgo(witness.last_hbd_exchange_update + 'Z')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Witness Details */}
+                  {witnessDetails.get(witness.owner) && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2">
+                        {witnessDetails.get(witness.owner)}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </tbody>
-        </table>
-        {loadingMoreWitnesses && (
-          <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-            <span className="ml-2 text-gray-400">Loading more witnesses...</span>
+            {loadingMoreWitnesses && (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span className="ml-2 text-gray-500 dark:text-gray-400">Loading more witnesses...</span>
+              </div>
+            )}
+            {hasMoreWitnesses && (
+              <div ref={witnessSentinelRef} className="h-1"></div>
+            )}
           </div>
-        )}
-        {hasMoreWitnesses && (
-          <div ref={witnessSentinelRef} className="h-1"></div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-5 gap-4">
+            <div className="col-span-1 sticky top-0 h-screen overflow-y-auto">
+              <WitnessFiltersComponent
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
+            </div>
+
+            <div className="col-span-4 overflow-auto max-h-screen">
+              <table className="w-full text-xs text-left text-gray-500 dark:text-gray-400">
+                <thead className="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th scope="col" className="px-2 py-2">Rank</th>
+                    <th scope="col" className="px-2 py-2">Witness</th>
+                    <th scope="col" className="px-2 py-2">Version</th>
+                    <th scope="col" className="px-2 py-2">Votes</th>
+                    <th scope="col" className="px-2 py-2">Last Block</th>
+                    <th scope="col" className="px-2 py-2">Miss</th>
+                    <th scope="col" className="px-2 py-2">Feed</th>
+                    <th scope="col" className="px-2 py-2">APR</th>
+                    <th scope="col" className="px-2 py-2">Vote</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredWitnesses.map((witness, index) => {
+                    const versionStatus = witnessService.getVersionStatus(
+                      witness.running_version,
+                      witness.hardfork_version_vote
+                    );
+                    const votedFor = isVotedFor(witness.owner);
+
+                    return (
+                      <tr key={witness.owner} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-2 py-2 font-medium text-gray-900 dark:text-white text-xs">
+                          {witnesses.findIndex(w => w.owner === witness.owner) + 1}
+                        </td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center space-x-2">
+                            <img
+                              className="w-6 h-6 rounded-full"
+                              src={`https://images.hive.blog/u/${witness.owner}/avatar`}
+                              alt={witness.owner}
+                              onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-gray-900 dark:text-white font-medium text-xs truncate">{witness.owner}</div>
+                              <div className="text-gray-500 dark:text-gray-400 text-xs">Since {new Date(witness.created).getFullYear()}</div>
+                            </div>
+                            <div className="flex space-x-1 flex-shrink-0">
+                              <button
+                                onClick={() => handleUrlClick(witness.url)}
+                                className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs"
+                                title="Visit witness URL"
+                              >
+                                🔗
+                              </button>
+                              <button
+                                onClick={() => handleStatsClick(witness.owner)}
+                                className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs"
+                                title="View witness stats"
+                              >
+                                📊
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2">
+                          <span className={`px-1 py-0.5 rounded text-xs font-medium ${versionStatus === 'green' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
+                            versionStatus === 'red' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' :
+                              'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                            }`}>
+                            {witness.running_version}
+                          </span>
+                        </td>
+                        <td className="px-2 py-2">
+                          <button
+                            onClick={() => handleVotesClick(witness.owner)}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer text-xs"
+                            disabled={loadingVotes}
+                          >
+                            {loadingVotes && selectedWitness === witness.owner ? '...' : witnessService.formatVotesToMHP(witness.votes)}
+                          </button>
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <div className="text-gray-900 dark:text-white text-xs">{witness.last_confirmed_block_num.toLocaleString()}</div>
+                        </td>
+                        <td className="px-2 py-2 text-right text-gray-900 dark:text-white text-xs">
+                          {witness.total_missed.toLocaleString()}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <div className="text-gray-900 dark:text-white text-xs">{witness.hbd_exchange_rate.base}</div>
+                        </td>
+                        <td className="px-2 py-2 text-right text-gray-900 dark:text-white text-xs">
+                          {witnessService.calculateAPR(witness.props.hbd_interest_rate)}%
+                        </td>
+                        <td className="px-2 py-2">
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className={`w-4 h-4 ${votedFor ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'}`}
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {loadingMoreWitnesses && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-gray-500 dark:text-gray-400">Loading more witnesses...</span>
+                </div>
+              )}
+              {hasMoreWitnesses && (
+                <div ref={witnessSentinelRef} className="h-1"></div>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+      }
     </div>
   );
 };

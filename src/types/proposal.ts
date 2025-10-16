@@ -30,4 +30,5 @@ export interface ProposalsListProps {
   onClickSelect: (proposal: Proposal) => void;
   onClickUser: (proposal: Proposal) => void;
   onClickAvatar: (proposal: Proposal) => void;
+  theme?: 'light' | 'dark';
 }
