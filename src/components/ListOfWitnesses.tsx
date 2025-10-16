@@ -16,6 +16,7 @@ interface WitnessVotesModalProps {
   scrollContainerRef: React.RefObject<HTMLDivElement>;
   sentinelRef: React.RefObject<HTMLDivElement>;
   loadMoreVotes: () => void;
+  theme?: 'light' | 'dark';
 }
 
 const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
@@ -28,7 +29,8 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
   loadingInitial,
   scrollContainerRef,
   sentinelRef,
-  loadMoreVotes
+  loadMoreVotes,
+  theme = 'dark'
 }) => {
   // Intersection Observer for infinite scroll votes
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
@@ -56,13 +58,13 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Votes for @{witness} (showing {votes.length})</h3>
+    <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className={`rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+          <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Votes for @{witness} (showing {votes.length})</h3>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl font-bold"
+            className={`text-xl font-bold ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
           >
             ×
           </button>
@@ -70,8 +72,8 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
         <div ref={scrollContainerRef} className="p-4 overflow-y-auto max-h-[60vh]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {votes.map((vote, index) => (
-              <div key={vote.account} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center text-gray-900 dark:text-white text-sm font-medium">
+              <div key={vote.account} className={`flex items-center space-x-3 p-3 rounded-lg border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${theme === 'dark' ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-900'}`}>
                   <img
                     className="w-8 h-8 rounded-full"
                     src={`https://images.hive.blog/u/${vote.account}/avatar`}
@@ -80,20 +82,20 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
                   />
                 </div>
                 <div className="flex-1">
-                  <div className="text-gray-900 dark:text-white font-medium">{vote.account}</div>
-                  <div className="text-gray-500 dark:text-gray-400 text-sm">Vote #{index + 1}</div>
+                  <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{vote.account}</div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Vote #{index + 1}</div>
                 </div>
-                <div className="text-gray-500 dark:text-gray-400 text-sm">25</div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>25</div>
               </div>
             ))}
           </div>
           {votes.length === 0 && !loadingInitial && (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <div className={`text-center py-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               No votes found for this witness.
             </div>
           )}
           {loadingMore && (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+            <div className={`text-center py-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               Loading more votes...
             </div>
           )}
@@ -121,7 +123,8 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
   filters: initialFilters = { status: 'all', name: '', version: '' },
   onWitnessVoteClick,
   onWitnessStatsClick,
-  onWitnessUrlClick
+  onWitnessUrlClick,
+  theme = 'dark'
 }) => {
   const isMobile = useIsMobile();
   const witnesses = useWitnessStore(state => state.witnesses);
@@ -290,13 +293,14 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
         scrollContainerRef={scrollContainerRef}
         sentinelRef={sentinelRef}
         loadMoreVotes={loadMoreVotes}
+        theme={theme}
       />
 
       {isMobile ? (
-        <div className="w-full">
+        <div className={`w-full p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
           {/* Filter Toggle Button */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Witnesses</h2>
+            <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Witnesses</h2>
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center space-x-2"
@@ -311,12 +315,12 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
           {/* Filters Modal */}
           {showFilters && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+              <div className={`rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Filters</h3>
                   <button
                     onClick={() => setShowFilters(false)}
-                    className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xl font-bold"
+                    className={`text-xl font-bold ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                   >
                     ×
                   </button>
@@ -342,11 +346,11 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
               const rank = witnesses.findIndex(w => w.owner === witness.owner) + 1;
 
               return (
-                <div key={witness.owner} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                <div key={witness.owner} className={`rounded-lg border p-4 shadow-sm ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   {/* Header Row: Rank, Witness, Vote Status */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <span className="text-lg font-bold text-gray-900 dark:text-white">#{rank}</span>
+                      <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>#{rank}</span>
                       <img
                         className="w-10 h-10 rounded-full"
                         src={`https://images.hive.blog/u/${witness.owner}/avatar`}
@@ -354,14 +358,14 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
                       />
                       <div>
-                        <div className="text-gray-900 dark:text-white font-medium">{witness.owner}</div>
-                        <div className="text-gray-500 dark:text-gray-400 text-xs">Since {new Date(witness.created).getFullYear()}</div>
+                        <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.owner}</div>
+                        <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Since {new Date(witness.created).getFullYear()}</div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="flex items-center justify-center">
                         <svg
-                          className={`w-6 h-6 ${votedFor ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'}`}
+                          className={`w-6 h-6 ${votedFor ? 'text-green-600' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -371,14 +375,14 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                       <div className="flex space-x-1">
                         <button
                           onClick={() => handleUrlClick(witness.url)}
-                          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                           title="Visit witness URL"
                         >
                           🔗
                         </button>
                         <button
                           onClick={() => handleStatsClick(witness.owner)}
-                          className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                           title="View witness stats"
                         >
                           📊
@@ -390,27 +394,27 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                   {/* Details Row: Version, Votes, APR */}
                   <div className="grid grid-cols-3 gap-4 mb-3">
                     <div className="text-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Version</div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1 block ${versionStatus === 'green' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
-                        versionStatus === 'red' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' :
-                          'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                      <div className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Version</div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium mt-1 block ${versionStatus === 'green' ? 'bg-green-100 text-green-800' :
+                        versionStatus === 'red' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
                         }`}>
                         {witness.running_version}
                       </span>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Votes (MHP)</div>
+                      <div className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Votes (MHP)</div>
                       <button
                         onClick={() => handleVotesClick(witness.owner)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer text-sm font-medium mt-1"
+                        className="text-blue-600 hover:text-blue-800 cursor-pointer text-sm font-medium mt-1"
                         disabled={loadingVotes}
                       >
                         {loadingVotes && selectedWitness === witness.owner ? 'Loading...' : witnessService.formatVotesToMHP(witness.votes)}
                       </button>
                     </div>
                     <div className="text-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">APR</div>
-                      <div className="text-gray-900 dark:text-white font-medium mt-1">
+                      <div className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>APR</div>
+                      <div className={`font-medium mt-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {witnessService.calculateAPR(witness.props.hbd_interest_rate)}%
                       </div>
                     </div>
@@ -419,17 +423,17 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                   {/* Additional Details Row: Last Block, Miss, Price Feed */}
                   <div className="grid grid-cols-3 gap-4 text-xs">
                     <div className="text-center">
-                      <div className="text-gray-500 dark:text-gray-400 uppercase">Last Block</div>
-                      <div className="text-gray-900 dark:text-white">{witness.last_confirmed_block_num.toLocaleString()}</div>
+                      <div className={`uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Last Block</div>
+                      <div className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.last_confirmed_block_num.toLocaleString()}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-gray-500 dark:text-gray-400 uppercase">Miss</div>
-                      <div className="text-gray-900 dark:text-white">{witness.total_missed.toLocaleString()}</div>
+                      <div className={`uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Miss</div>
+                      <div className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.total_missed.toLocaleString()}</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-gray-500 dark:text-gray-400 uppercase">Price Feed</div>
-                      <div className="text-gray-900 dark:text-white">{witness.hbd_exchange_rate.base}</div>
-                      <div className="text-gray-500 dark:text-gray-400">
+                      <div className={`uppercase ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Price Feed</div>
+                      <div className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.hbd_exchange_rate.base}</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         {witnessService.formatTimeAgo(witness.last_hbd_exchange_update + 'Z')}
                       </div>
                     </div>
@@ -437,8 +441,8 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
 
                   {/* Witness Details */}
                   {witnessDetails.get(witness.owner) && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="text-gray-500 dark:text-gray-400 text-xs line-clamp-2">
+                    <div className={`mt-3 pt-3 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <div className={`text-xs line-clamp-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         {witnessDetails.get(witness.owner)}
                       </div>
                     </div>
@@ -449,7 +453,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
             {loadingMoreWitnesses && (
               <div className="flex items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                <span className="ml-2 text-gray-500 dark:text-gray-400">Loading more witnesses...</span>
+                <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading more witnesses...</span>
               </div>
             )}
             {hasMoreWitnesses && (
@@ -458,18 +462,19 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
           </div>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto">
+        <div className={`max-w-7xl mx-auto p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
           <div className="grid grid-cols-5 gap-4">
             <div className="col-span-1 sticky top-0 h-screen overflow-y-auto">
               <WitnessFiltersComponent
                 filters={filters}
                 onFiltersChange={setFilters}
+                theme={theme}
               />
             </div>
 
             <div className="col-span-4 overflow-auto max-h-screen">
-              <table className="w-full text-xs text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 dark:text-gray-400 uppercase bg-gray-50 dark:bg-gray-800">
+              <table className={`w-full text-xs text-left ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                <thead className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400 bg-gray-800' : 'text-gray-700 bg-gray-50'}`}>
                   <tr>
                     <th scope="col" className="px-2 py-2">Rank</th>
                     <th scope="col" className="px-2 py-2">Witness</th>
@@ -491,8 +496,8 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                     const votedFor = isVotedFor(witness.owner);
 
                     return (
-                      <tr key={witness.owner} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-2 py-2 font-medium text-gray-900 dark:text-white text-xs">
+                      <tr key={witness.owner} className={`border-b hover:bg-gray-50 ${theme === 'dark' ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200'}`}>
+                        <td className={`px-2 py-2 font-medium text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {witnesses.findIndex(w => w.owner === witness.owner) + 1}
                         </td>
                         <td className="px-2 py-2">
@@ -504,20 +509,20 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                               onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-gray-900 dark:text-white font-medium text-xs truncate">{witness.owner}</div>
-                              <div className="text-gray-500 dark:text-gray-400 text-xs">Since {new Date(witness.created).getFullYear()}</div>
+                              <div className={`font-medium text-xs truncate ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.owner}</div>
+                              <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Since {new Date(witness.created).getFullYear()}</div>
                             </div>
                             <div className="flex space-x-1 flex-shrink-0">
                               <button
                                 onClick={() => handleUrlClick(witness.url)}
-                                className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs"
+                                className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                                 title="Visit witness URL"
                               >
                                 🔗
                               </button>
                               <button
                                 onClick={() => handleStatsClick(witness.owner)}
-                                className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs"
+                                className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
                                 title="View witness stats"
                               >
                                 📊
@@ -526,9 +531,9 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                           </div>
                         </td>
                         <td className="px-2 py-2">
-                          <span className={`px-1 py-0.5 rounded text-xs font-medium ${versionStatus === 'green' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300' :
-                            versionStatus === 'red' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' :
-                              'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                          <span className={`px-1 py-0.5 rounded text-xs font-medium ${versionStatus === 'green' ? 'bg-green-100 text-green-800' :
+                            versionStatus === 'red' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
                             }`}>
                             {witness.running_version}
                           </span>
@@ -536,28 +541,28 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                         <td className="px-2 py-2">
                           <button
                             onClick={() => handleVotesClick(witness.owner)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 cursor-pointer text-xs"
+                            className="text-blue-600 hover:text-blue-800 cursor-pointer text-xs"
                             disabled={loadingVotes}
                           >
                             {loadingVotes && selectedWitness === witness.owner ? '...' : witnessService.formatVotesToMHP(witness.votes)}
                           </button>
                         </td>
                         <td className="px-2 py-2 text-right">
-                          <div className="text-gray-900 dark:text-white text-xs">{witness.last_confirmed_block_num.toLocaleString()}</div>
+                          <div className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.last_confirmed_block_num.toLocaleString()}</div>
                         </td>
-                        <td className="px-2 py-2 text-right text-gray-900 dark:text-white text-xs">
-                          {witness.total_missed.toLocaleString()}
+                        <td className="px-2 py-2 text-right text-xs">
+                          <div className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.total_missed.toLocaleString()}</div>
                         </td>
                         <td className="px-2 py-2 text-right">
-                          <div className="text-gray-900 dark:text-white text-xs">{witness.hbd_exchange_rate.base}</div>
+                          <div className={`text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witness.hbd_exchange_rate.base}</div>
                         </td>
-                        <td className="px-2 py-2 text-right text-gray-900 dark:text-white text-xs">
-                          {witnessService.calculateAPR(witness.props.hbd_interest_rate)}%
+                        <td className="px-2 py-2 text-right text-xs">
+                          <div className={`${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{witnessService.calculateAPR(witness.props.hbd_interest_rate)}%</div>
                         </td>
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center">
                             <svg
-                              className={`w-4 h-4 ${votedFor ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'}`}
+                              className={`w-4 h-4 ${votedFor ? 'text-green-600' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
                               fill="currentColor"
                               viewBox="0 0 20 20"
                             >
@@ -573,7 +578,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
               {loadingMoreWitnesses && (
                 <div className="flex items-center justify-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                  <span className="ml-2 text-gray-500 dark:text-gray-400">Loading more witnesses...</span>
+                  <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading more witnesses...</span>
                 </div>
               )}
               {hasMoreWitnesses && (
