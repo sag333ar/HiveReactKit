@@ -4,8 +4,6 @@ import {
   Users,
   Calendar,
   Loader2,
-  MessageCircle,
-  ThumbsUp,
 } from "lucide-react";
 import { communityService } from "../../services/communityService";
 import {
@@ -135,10 +133,6 @@ const CommunityDetails = ({
 
   const removeHtmlTags = (str: string) => {
     return str.replace(/<[^>]*>/g, "");
-  };
-
-  const removeImagesFromHtml = (html: string) => {
-    return html.replace(/<img[^>]*>/g, "");
   };
 
   if (loading) {
