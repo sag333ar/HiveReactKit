@@ -937,6 +937,7 @@ const Index = () => {
                           "_blank"
                         )
                       }
+                      theme="dark"
                       onWitnessUrlClick={(url) => window.open(url, "_blank")}
                     />
                   </div>

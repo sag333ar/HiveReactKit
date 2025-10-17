@@ -12,6 +12,7 @@ interface PostFeedListProps {
   observer?: string;
   limit?: number;
   showSortDropdown?: boolean;
+  theme?: 'dark' | 'light';
   onAuthorClick?: (author: string, avatar: string) => void;
   onPostClick?: (post: Post) => void;
   onCommunityClick?: (communityTitle: string) => void;
@@ -27,6 +28,7 @@ export default function PostFeedList({
   observer = 'hive.blog',
   limit = 20,
   showSortDropdown = true,
+  theme = 'dark',
   onAuthorClick,
   onPostClick,
   onCommunityClick,
@@ -197,30 +199,31 @@ export default function PostFeedList({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Sort Dropdown */}
-      {showSortDropdown && (
-        <div className="flex justify-center">
+    <div className={theme === 'dark' ? 'dark' : ''}>
+      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+        {/* Sort Dropdown */}
+        {showSortDropdown && (
+          <div className="flex justify-center">
           <select
             value={selectedSort}
             onChange={(e) => handleSortChange(e.target.value as PostSort)}
-            className="px-4 py-2 border border-border rounded-lg bg-card text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className={`px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-card text-card-foreground'}`}
           >
-            <option value="trending">Trending</option>
-            <option value="hot">Hot</option>
-            <option value="created">New</option>
-          </select>
-        </div>
-      )}
+              <option value="trending">Trending</option>
+              <option value="hot">Hot</option>
+              <option value="created">New</option>
+            </select>
+          </div>
+        )}
 
-      {/* Posts List */}
-      <div className="space-y-4">
+        {/* Posts List */}
+        <div className="space-y-4">
         {posts.map((post) => {
           const firstImage = post.json_metadata?.image?.[0];
           const breakdown = getPayoutBreakdown(post);
 
           return (
-            <div key={post.post_id} className="bg-slate-50 dark:bg-slate-800 border border-border rounded-xl p-4 shadow-card hover:shadow-card-hover transition-shadow">
+            <div key={post.post_id} className={`border border-border rounded-xl p-4 shadow-card hover:shadow-card-hover transition-shadow ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-black'}`}>
               {/* Author Info */}
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <img
@@ -238,15 +241,15 @@ export default function PostFeedList({
                 >
                   {post.author}
                 </span>
-                <span className="text-muted-foreground">({post.author_reputation.toFixed(2)})</span>
+                <span className={theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}>({post.author_reputation.toFixed(2)})</span>
                 <span
-                  className="text-muted-foreground cursor-pointer hover:text-primary"
+                  className={`cursor-pointer hover:text-primary ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}
                   onClick={() => onCommunityClick?.(post.community_title)}
                 >
                   {post.community_title}
                 </span>
-                <span className="text-muted-foreground hidden sm:inline">•</span>
-                <span className="text-muted-foreground text-sm">
+                <span className={`hidden sm:inline ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>•</span>
+                <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>
                   {formatDistanceToNow(new Date(post.created+'Z'), { addSuffix: true })}
                 </span>
               </div>
@@ -321,7 +324,7 @@ export default function PostFeedList({
                     {post.title}
                   </h3>
                   <p
-                    className="text-gray-600 dark:text-gray-300 mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-3 cursor-pointer hover:text-primary text-sm sm:text-base"
+                    className={`mb-2 sm:mb-3 line-clamp-2 sm:line-clamp-3 cursor-pointer hover:text-primary text-sm sm:text-base ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}
                     onClick={() => onPostClick?.(post)}
                   >
                     {post.json_metadata?.description || getDescriptionFromBody(post) || 'No description available'}
@@ -349,7 +352,7 @@ export default function PostFeedList({
                     <div className="flex items-center gap-3 sm:gap-4">
                       {/* Votes */}
                       <div
-                        className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                        className={`flex items-center gap-1 hover:text-primary transition-colors cursor-pointer ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}
                         onClick={() => onUpvoteClick?.(post)}
                       >
                         <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -358,7 +361,7 @@ export default function PostFeedList({
 
                       {/* Comments */}
                       <div
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                        className={`flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}
                         onClick={() => onCommentClick?.(post)}
                       >
                         <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -367,7 +370,7 @@ export default function PostFeedList({
 
                       {/* Reblogs */}
                       <div
-                        className="flex items-center gap-1 text-gray-600 hover:text-gray-700 transition-colors cursor-pointer"
+                        className={`flex items-center gap-1 hover:text-gray-400 transition-colors cursor-pointer ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}
                         onClick={() => onReblogClick?.(post)}
                       >
                         <Repeat2 className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -385,7 +388,7 @@ export default function PostFeedList({
         {loadingMore && (
           <div className="flex justify-center items-center py-4">
             <Loader2 className="w-6 h-6 animate-spin" />
-            <span className="ml-2 text-muted-foreground">Loading more posts...</span>
+            <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}>Loading more posts...</span>
           </div>
         )}
 
@@ -393,6 +396,7 @@ export default function PostFeedList({
         {hasMore && !loadingMore && (
           <div ref={observerRef} className="h-10" />
         )}
+        </div>
       </div>
     </div>
   );

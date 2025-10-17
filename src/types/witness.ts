@@ -59,4 +59,5 @@ export interface ListOfWitnessesProps {
   onWitnessVoteClick?: (witness: string) => void;
   onWitnessStatsClick?: (witness: string) => void;
   onWitnessUrlClick?: (url: string) => void;
+  theme?: 'light' | 'dark';
 }
