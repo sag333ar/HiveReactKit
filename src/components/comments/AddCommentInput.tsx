@@ -10,10 +10,10 @@ interface AddCommentInputProps {
   parentPermlink?: string;
 }
 
-const AddCommentInput = ({ 
-  onSubmit, 
-  onCancel, 
-  currentUser, 
+const AddCommentInput = ({
+  onSubmit,
+  onCancel,
+  currentUser,
   placeholder = "Write your comment...",
   parentAuthor,
   parentPermlink

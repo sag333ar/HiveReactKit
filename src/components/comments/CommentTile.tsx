@@ -19,6 +19,7 @@ interface CommentTileProps {
   onVotedRefresh?: () => void;
   onClickCommentUpvote?: (comment: Discussion) => void;
   onClickCommentReply?: (comment: Discussion) => void;
+
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
 }
 
@@ -280,7 +281,10 @@ const CommentTile = ({
                 </button>
               )}
 
-              <button className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200">
+              <button
+                onClick={() => onClickCommentReply?.(comment)}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+              >
                 <MoreHorizontal className="w-4 h-4 text-gray-400" />
               </button>
             </div>

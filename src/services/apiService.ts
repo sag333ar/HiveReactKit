@@ -560,6 +560,20 @@ class ApiService {
       return [];
     }
   }
+
+  async getPostContent(author: string, permlink: string): Promise<Post | null> {
+    try {
+      const result: any = await dhiveClient.call(
+        "condenser_api",
+        "get_content",
+        [author, permlink]
+      );
+      return result as Post;
+    } catch (error) {
+      console.error('Error fetching post content:', error);
+      return null;
+    }
+  }
 }
 
 export const apiService = new ApiService();

@@ -4,11 +4,11 @@ import { apiService } from "@/services/apiService";
 import { ArrowLeft, Clock, Eye, Play } from "lucide-react";
 import VideoInfo from "@/components/VideoInfo";
 import VideoFeed from "@/components/VideoFeed";
-import CommentsModal from "@/components/modals/CommentsModal";
-import UpvoteListModal from "@/components/modals/UpvoteListModal";
-import DescriptionModal from "@/components/modals/DescriptionModal";
 import Hls from "hls.js";
 import { formatThumbnailUrl } from "@/utils/thumbnail";
+import CommentsModal from "./comments/CommentsModal";
+import UpvoteListModal from "./UpvoteListModal";
+import DescriptionModal from "./modals/DescriptionModal";
 
 interface VideoDetailProps {
   username?: string;
