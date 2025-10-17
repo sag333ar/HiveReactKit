@@ -26,7 +26,8 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js",
       "require": "./dist/types/index.js"
-    }
+    },
+    "./build.css": "./dist/build.css"
   },
   "files": [
     "dist",
@@ -52,7 +53,7 @@
     "clean": "rm -rf dist dist-app && mkdir -p dist dist-app",
     "build": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json",
     "build:app": "vite build",
-    "build:lib": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}'",
     "build:all": "npm run clean && npm run build:lib && npm run build:app",
     "lint": "eslint .",
     "preview": "vite preview",
