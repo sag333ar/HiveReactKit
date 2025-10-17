@@ -10,6 +10,8 @@ export { default as FollowersList } from './components/FollowersList';
 export { default as FollowingList } from './components/FollowingList';
 export { default as ActivityList } from './components/ActivityList';
 export { default as ListOfWitnesses } from './components/ListOfWitnesses';
+export { default as TransactionHistory } from './components/TransactionHistory';
+export { default as UserChannel } from './components/UserChannel';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

@@ -16,7 +16,7 @@ import UpvoteListModal from "@/components/UpvoteListModal";
 import ListOfWitnesses from "@/components/ListOfWitnesses";
 import ProposalsList from "@/components/ProposalsList";
 import TransactionHistory from "@/components/TransactionHistory";
-import ActivityHistory from "@/components/ActivityHistory";
+import UserChannel from "@/components/UserChannel";
 import PostFeedList from "@/components/PostFeedList";
 import FollowersList from "@/components/FollowersList";
 import FollowingList from "@/components/FollowingList";
@@ -337,10 +337,10 @@ const Index = () => {
             );
           }`;
       case "activity":
-        return `import { ActivityHistory } from 'hive-reactkit';
+        return `import { UserChannel } from 'hive-reactkit';
           function App() {
             return (
-              <ActivityHistory username="threespeak" />
+              <UserChannel username="threespeak" />
             );
           }`;
       case "proposals":
@@ -488,7 +488,7 @@ const Index = () => {
     { id: "user-profile", label: "User Profile", icon: "👤" },
     { id: "wallet", label: "Wallet Demo", icon: "💰" },
     { id: "transactions", label: "Transactions", icon: "💸" },
-    { id: "activity", label: "Activity", icon: "📝" },
+    { id: "userchannel", label: "User Channel", icon: "📝" },
     { id: "communities", label: "Communities", icon: "👥" },
     { id: "account", label: "My Account", icon: "👤" },
     { id: "community-detail", label: "Community Detail", icon: "👥" },
@@ -729,10 +729,10 @@ const Index = () => {
               )}
 
               {/* Activity Demo Controls */}
-              {activeTab === "activity" && (
+              {activeTab === "userchannel" && (
                 <div className="mb-8 p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl max-w-2xl mx-auto">
                   <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                    Try the Activity History Component
+                    Try the User Channel Component
                   </h3>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <input
@@ -748,7 +748,7 @@ const Index = () => {
                       }
                       className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-300"
                     >
-                      Load Activity
+                      Load data
                     </button>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
@@ -767,9 +767,9 @@ const Index = () => {
                   <div className="max-w-4xl mx-auto">
                     <TransactionHistory account={demoUsername} />
                   </div>
-                ) : activeTab === "activity" ? (
+                ) : activeTab === "userchannel" ? (
                   <div className="max-w-4xl mx-auto">
-                    <ActivityHistory username={demoUsername} />
+                    <UserChannel username={demoUsername} />
                   </div>
                 ) : activeTab === "activity-list" ? (
                   <div className="max-w-4xl mx-auto">

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export interface ActivityHistoryItem {
+export interface UserChannelItem {
   id: number;
   author: string;
   permlink: string;
@@ -83,17 +83,17 @@ export interface ActivityHistoryItem {
   author_rc_manabar: any;
 }
 
-export interface ActivityHistoryParams {
+export interface UserChannelParams {
   username: string;
-  sortBy?: 'posts' | 'comments' | 'replies';
+  sortBy?: "posts" | "comments" | "replies";
   limit?: number;
   startAuthor?: string;
   startPermlink?: string;
   observer?: string;
 }
 
-export interface ActivityHistoryResponse {
-  result: ActivityHistoryItem[];
+export interface UserChannelResponse {
+  result: UserChannelItem[];
 }
 
 // Simplified interface for UI display
@@ -110,5 +110,5 @@ export interface ActivityDisplayItem {
   total_payout_value: string;
   pending_payout_value: string;
   url: string;
-  type: 'post' | 'comment';
+  type: "post" | "comment";
 }
