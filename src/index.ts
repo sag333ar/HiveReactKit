@@ -18,6 +18,7 @@ export { default as FavouriteWidget } from './components/common/FavouriteWidget'
 export { default as CommunitiesList } from './components/community/CommunitiesList';
 export { default as CommunityAbout } from './components/community/CommunityAbout';
 export { default as CommunityDetail } from './components/community/CommunityDetail';
+export { default as CommunityDetails } from './components/community/CommunityDetails';
 export { default as CommunityMembers } from './components/community/CommunityMembers';
 export { default as CommunityTeam } from './components/community/CommunityTeam';
 
