@@ -22,10 +22,12 @@ export { default as CommunityMembers } from './community/CommunityMembers';
 export { default as CommunityTeam } from './community/CommunityTeam';
 
 // Modal components
-export { default as CommentsModal } from './modals/CommentsModal';
 export { default as DescriptionModal } from './modals/DescriptionModal';
 export { default as Modal } from './modals/Modal';
-export { default as UpvoteListModal } from './modals/UpvoteListModal';
+
+// List components
+export { UpvoteList } from './UpvoteList';
+export { CommentsList } from './CommentsList';
 
 // User components
 export { default as UserAccount } from './user/UserAccount';
