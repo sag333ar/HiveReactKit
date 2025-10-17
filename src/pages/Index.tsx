@@ -7,7 +7,7 @@ import VideoDetail from "@/components/VideoDetail";
 import Wallet from "@/components/Wallet";
 import CommunitiesList from "@/components/community/CommunitiesList";
 import CommunityDetail from "@/components/community/CommunityDetail";
-import CommunityDetails from "@/components/community/CommunityDetails";
+import CommunityPostDetails from "@/components/community/CommunityPostDetails";
 import UserAccount from "@/components/user/UserAccount";
 import UserProfilePage from "@/components/user/UserProfilePage";
 import Modal from "@/components/modals/Modal";
@@ -389,10 +389,19 @@ const Index = () => {
             );
           }`;
       case "hive-community-detail":
-        return `import { CommunityDetails } from 'hive-reactkit';
+        return `import { CommunityPostDetails } from 'hive-reactkit';
           function App() {
             return (
-              <CommunityDetails communityId="hive-163772" />
+              <CommunityPostDetails 
+                communityId="hive-163772"
+                onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
+                onPostClick={(post) => console.log("Post clicked:", post)}
+                onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
+                onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
+                onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
+                onCommentClick={(post) => console.log("Comment clicked:", post)}
+                onReblogClick={(post) => console.log("Reblog clicked:", post)}
+              />
             );
           }`;
       case "following-list":
@@ -985,7 +994,16 @@ const Index = () => {
                   </div>
                 ) : activeTab === "hive-community-detail" ? (
                   <div className="max-w-4xl mx-auto">
-                    <CommunityDetails communityId="hive-163772" />
+                    <CommunityPostDetails 
+                    communityId="hive-163772" 
+                    onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
+                    onPostClick={(post) => console.log("Post clicked:", post)}
+                    onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
+                    onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
+                    onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
+                    onCommentClick={(post) => console.log("Comment clicked:", post)}
+                    onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                    />
                   </div>
                 ) : activeTab === "following-list" ? (
                   <div className="max-w-4xl mx-auto">

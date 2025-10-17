@@ -14,7 +14,7 @@ import {
 import { Post } from "../../types/post";
 import PostFeedList from "../PostFeedList";
 
-interface CommunityDetailsProps {
+interface CommunityPostDetailsProps {
   communityId: string;
   onAuthorClick?: (author: string, avatar: string) => void;
   onPostClick?: (post: Post) => void;
@@ -25,7 +25,7 @@ interface CommunityDetailsProps {
   onReblogClick?: (post: Post) => void;
 }
 
-const CommunityDetails = ({
+const CommunityPostDetails = ({
   communityId,
   onAuthorClick,
   onPostClick,
@@ -34,7 +34,7 @@ const CommunityDetails = ({
   onUpvoteClick,
   onCommentClick,
   onReblogClick,
-}: CommunityDetailsProps) => {
+}: CommunityPostDetailsProps) => {
   const [activeTab, setActiveTab] = useState("posts");
   const [communityDetails, setCommunityDetails] =
     useState<CommunityDetailsResult | null>(null);
@@ -465,4 +465,4 @@ const CommunityDetails = ({
   );
 };
 
-export default CommunityDetails;
+export default CommunityPostDetails;
