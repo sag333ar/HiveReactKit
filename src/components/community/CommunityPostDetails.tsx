@@ -137,7 +137,7 @@ const CommunityPostDetails = ({
     return (
       <div
         className={`flex items-center justify-center min-h-[400px] ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
+          theme === "dark" ? "bg-slate-950" : "bg-white"
         }`}
       >
         <div
@@ -156,7 +156,7 @@ const CommunityPostDetails = ({
     return (
       <div
         className={`flex flex-col items-center justify-center min-h-[400px] space-y-4 ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
+          theme === "dark" ? "bg-slate-950" : "bg-white"
         }`}
       >
         <h3
@@ -176,12 +176,14 @@ const CommunityPostDetails = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div
+      className={`space-y-6 ${theme === "dark" ? "bg-slate-950" : "bg-white"}`}
+    >
       {/* Community Header */}
       <div
         className={`${
           theme === "dark"
-            ? "bg-gray-800 border-gray-700"
+            ? "bg-slate-900 border-gray-800"
             : "bg-white border-gray-200"
         } border rounded-xl p-6`}
       >
@@ -243,7 +245,7 @@ const CommunityPostDetails = ({
         <div
           className={`flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-visible w-full ${
             theme === "dark"
-              ? "bg-gray-800 border-gray-700"
+              ? "bg-slate-900 border-gray-800"
               : "bg-white border-gray-200"
           } border rounded-lg`}
         >
@@ -345,7 +347,7 @@ const CommunityPostDetails = ({
             <div
               className={`${
                 theme === "dark"
-                  ? "bg-gray-800 border-gray-700"
+                  ? "bg-slate-900 border-gray-800"
                   : "bg-white border-gray-200"
               } border rounded-xl p-6`}
             >
@@ -413,7 +415,7 @@ const CommunityPostDetails = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div
                   className={`${
-                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                   } p-4 rounded-lg`}
                 >
                   <h4
@@ -434,7 +436,7 @@ const CommunityPostDetails = ({
 
                 <div
                   className={`${
-                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                   } p-4 rounded-lg`}
                 >
                   <h4
@@ -455,7 +457,7 @@ const CommunityPostDetails = ({
 
                 <div
                   className={`${
-                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                   } p-4 rounded-lg`}
                 >
                   <h4
@@ -477,7 +479,7 @@ const CommunityPostDetails = ({
                 {communityDetails.lang && (
                   <div
                     className={`${
-                      theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                      theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                     } p-4 rounded-lg`}
                   >
                     <h4
@@ -499,7 +501,7 @@ const CommunityPostDetails = ({
 
                 <div
                   className={`${
-                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                   } p-4 rounded-lg`}
                 >
                   <h4
@@ -520,7 +522,7 @@ const CommunityPostDetails = ({
 
                 <div
                   className={`${
-                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                   } p-4 rounded-lg`}
                 >
                   <h4
@@ -547,7 +549,7 @@ const CommunityPostDetails = ({
             <div
               className={`${
                 theme === "dark"
-                  ? "bg-gray-800 border-gray-700"
+                  ? "bg-slate-900 border-gray-800"
                   : "bg-white border-gray-200"
               } border rounded-xl p-6`}
             >
@@ -568,7 +570,7 @@ const CommunityPostDetails = ({
                     <div
                       key={subscriber.username}
                       className={`${
-                        theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                        theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                       } flex items-center gap-4 p-4 rounded-lg`}
                     >
                       <img
@@ -620,7 +622,7 @@ const CommunityPostDetails = ({
             <div
               className={`${
                 theme === "dark"
-                  ? "bg-gray-800 border-gray-700"
+                  ? "bg-slate-900 border-gray-800"
                   : "bg-white border-gray-200"
               } border rounded-xl p-6`}
             >
@@ -643,7 +645,7 @@ const CommunityPostDetails = ({
                       <div
                         key={activity.id}
                         className={`${
-                          theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                          theme === "dark" ? "bg-slate-800" : "bg-gray-50"
                         } flex items-center gap-4 p-4 rounded-lg`}
                       >
                         <img
