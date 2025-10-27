@@ -23,10 +23,7 @@ export { default as CommunityMembers } from './components/community/CommunityMem
 export { default as CommunityTeam } from './components/community/CommunityTeam';
 
 // Modal components
-export { default as CommentsModal } from './components/modals/CommentsModal';
-export { default as DescriptionModal } from './components/modals/DescriptionModal';
 export { default as Modal } from './components/modals/Modal';
-export { default as UpvoteListModal } from './components/modals/UpvoteListModal';
 
 // User components
 export { default as UserAccount } from './components/user/UserAccount';

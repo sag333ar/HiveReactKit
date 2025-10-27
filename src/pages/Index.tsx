@@ -33,6 +33,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import ActivityList from "@/components/ActivityList";
+import { HiveDetailPost } from "@/components/HiveDetailPost";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -416,6 +417,19 @@ const Index = () => {
               />
             );
           }`;
+      case "hive-detail-post":
+        return `import { HiveDetailPost } from 'hive-reactkit';
+          function App() {
+            return (
+              <HiveDetailPost
+                author="shaktimaaan"
+                permlink="fyiytkhbkz"
+                currentUser="your_username"
+                token="your_token"
+                onClickUpvoteButton={(currentUser, token) => console.log("Upvote clicked:", currentUser, token)}
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
@@ -499,6 +513,7 @@ const Index = () => {
     { id: "proposals", label: "Proposals List", icon: "📋" },
     { id: "followers-list", label: "Followers List", icon: "👥" },
     { id: "following-list", label: "Following List", icon: "👥" },
+    { id: "hive-detail-post", label: "Hive Detail Post", icon: "📄" },
     { id: "activity-list", label: "Activity List", icon: "📋" },
   ];
 
@@ -1012,6 +1027,18 @@ const Index = () => {
                       onClickAuthor={(username) => console.log("Author clicked:", username)}
                       onClickAddRemoveFromLists={(username) => console.log("Add/remove from lists:", username)}
                       onClickUnfollow={(username) => console.log("Unfollow clicked:", username)}
+                    />
+                  </div>
+                ) : activeTab === "hive-detail-post" ? (
+                  <div className="max-w-4xl mx-auto">
+                    <HiveDetailPost
+                      author="sagarkothari88"
+                      permlink="hivereactkit--hive-mobile-app-a-buzzing-double-update"
+                      currentUser={mockUser?.username}
+                      token={mockUser?.token}
+                      // onClickUpvoteButton={(currentUser, token) => console.log("Upvote clicked:", currentUser, token)}
+                      // onClickCommentUpvote={(comment) => console.log("Comment upvote clicked:", comment.author, comment.permlink)}
+                      // onClickCommentReply={(comment) => console.log("Comment reply clicked:", comment.author, comment.permlink)}
                     />
                   </div>
                 ) : feedTabs.find((t) => t.id === activeTab)?.type ? (
