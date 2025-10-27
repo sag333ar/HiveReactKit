@@ -798,6 +798,7 @@ const Index = () => {
                   <div className="max-w-4xl mx-auto">
                     <CommunitiesList
                       onSelectCommunity={handleCommunitySelect}
+                      theme="dark"
                     />
                   </div>
                 ) : activeTab === "video-detail" ? (
