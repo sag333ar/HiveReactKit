@@ -314,7 +314,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
 
           {/* Filters Modal */}
           {showFilters && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className={`rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-slate-950 border-gray-800' : 'bg-white border-gray-200'}`}>
                 <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                   <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Filters</h3>
@@ -329,6 +329,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                   <WitnessFiltersComponent
                     filters={filters}
                     onFiltersChange={setFilters}
+                    theme={theme}
                   />
                 </div>
               </div>
@@ -346,7 +347,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
               const rank = witnesses.findIndex(w => w.owner === witness.owner) + 1;
 
               return (
-                <div key={witness.owner} className={`rounded-lg border p-4 shadow-sm ${theme === 'dark' ? 'bg-gray-800 border-gray-800' : 'bg-white border-gray-200'}`}>
+                <div key={witness.owner} className={`rounded-lg border p-4 shadow-sm ${theme === 'dark' ? 'bg-slate-900 border-gray-800' : 'bg-white border-gray-200'}`}>
                   {/* Header Row: Rank, Witness, Vote Status */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
