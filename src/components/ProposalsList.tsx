@@ -123,11 +123,11 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
-      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {FILTERS.map(f => (
-            <button key={f} className={`px-3 py-1 rounded text-sm ${filter === f ? 'bg-blue-500 text-white' : `${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'}`}`}
+            <button key={f} className={`px-3 py-1 rounded text-sm ${filter === f ? 'bg-blue-500 text-white' : `${theme === 'dark' ? 'bg-slate-900 text-gray-300' : 'bg-gray-200 text-gray-700'}`}`}
               onClick={() => setFilter(f)}>
               {f}
             </button>
@@ -137,7 +137,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
         {/* Sort Select */}
         <div className="mb-4">
           <label className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mr-2`}>Sort by:</label>
-          <select value={sort} onChange={e => setSort(e.target.value)} className={`px-3 py-1 border rounded ${theme === 'dark' ? 'border-gray-600 bg-gray-800 text-gray-100' : 'border-gray-300 bg-white text-gray-900'}`}>
+          <select value={sort} onChange={e => setSort(e.target.value)} className={`px-3 py-1 border rounded ${theme === 'dark' ? 'border-gray-600 bg-slate-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900'}`}>
             {getSortOptions(filter).map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -153,7 +153,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
             return (
               <>
                 {activeProposals.map((p) => (
-                  <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                  <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-900' : 'border-gray-200 bg-white'}`}>
                     {/* Existing proposal content */}
                     <div className="flex flex-col sm:flex-row">
                       {/* Left side content */}
@@ -197,7 +197,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                         </div>
                         <div className="mb-2">
                           <span
-                            className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                            className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
                             onClick={() => onClickVoteValue(p)}
                           >
                             Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP
@@ -245,7 +245,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                     </div>
 
                     {upcomingProposals.map((p) => (
-                      <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-950' : 'border-gray-200 bg-white'}`}>
                         {/* Existing proposal content */}
                         <div className="flex flex-col sm:flex-row">
                           {/* Left side content */}
@@ -289,7 +289,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                             </div>
                             <div className="mb-2">
                               <span
-                                className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                                className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
                                 onClick={() => onClickVoteValue(p)}
                               >
                                 Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP
@@ -335,7 +335,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
           })()}
 
           {filter !== 'All' && sortedProposals.map((p) => (
-            <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+            <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-950' : 'border-gray-200 bg-white'}`}>
               <div className="flex flex-col sm:flex-row">
                 {/* Left side content */}
                 <div className="flex-1">
@@ -378,7 +378,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                   </div>
                   <div className="mb-2">
                     <span
-                      className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                      className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
                       onClick={() => onClickVoteValue(p)}
                     >
                       Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP

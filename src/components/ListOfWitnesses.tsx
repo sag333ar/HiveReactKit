@@ -59,7 +59,7 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+      <div className={`rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-slate-950 border-gray-800' : 'bg-white border-gray-200'}`}>
         <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
           <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Votes for @{witness} (showing {votes.length})</h3>
           <button
@@ -297,7 +297,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
       />
 
       {isMobile ? (
-        <div className={`w-full p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className={`w-full p-2 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
           {/* Filter Toggle Button */}
           <div className="flex justify-between items-center mb-4">
             <h2 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Witnesses</h2>
@@ -315,7 +315,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
           {/* Filters Modal */}
           {showFilters && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className={`rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+              <div className={`rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-slate-950 border-gray-800' : 'bg-white border-gray-200'}`}>
                 <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
                   <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Filters</h3>
                   <button
@@ -462,7 +462,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
           </div>
         </div>
       ) : (
-        <div className={`max-w-7xl mx-auto p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className={`max-w-7xl mx-auto p-2 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
           <div className="grid grid-cols-5 gap-4">
             <div className="col-span-1 sticky top-0 h-screen overflow-y-auto">
               <WitnessFiltersComponent
@@ -474,7 +474,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
 
             <div className="col-span-4 overflow-auto max-h-screen">
               <table className={`w-full text-xs text-left ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                <thead className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400 bg-gray-800' : 'text-gray-700 bg-gray-50'}`}>
+                <thead className={`text-xs uppercase ${theme === 'dark' ? 'text-gray-400 bg-slate-900' : 'text-gray-700 bg-gray-50'}`}>
                   <tr>
                     <th scope="col" className="px-2 py-2">Rank</th>
                     <th scope="col" className="px-2 py-2">Witness</th>

@@ -200,14 +200,14 @@ export default function PostFeedList({
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
-      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
         {/* Sort Dropdown */}
         {showSortDropdown && (
           <div className="flex justify-center">
           <select
             value={selectedSort}
             onChange={(e) => handleSortChange(e.target.value as PostSort)}
-            className={`px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-card text-card-foreground'}`}
+            className={`px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${theme === 'dark' ? 'bg-slate-950 text-white' : 'bg-card text-card-foreground'}`}
           >
               <option value="trending">Trending</option>
               <option value="hot">Hot</option>
@@ -223,7 +223,7 @@ export default function PostFeedList({
           const breakdown = getPayoutBreakdown(post);
 
           return (
-            <div key={post.post_id} className={`border border-border rounded-xl p-4 shadow-card hover:shadow-card-hover transition-shadow ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-black'}`}>
+            <div key={post.post_id} className={`border border-border rounded-xl p-4 shadow-card hover:shadow-card-hover transition-shadow ${theme === 'dark' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-black'}`}>
               {/* Author Info */}
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <img
