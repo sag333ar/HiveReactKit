@@ -4,76 +4,66 @@ import {
   MessageCircle,
   Reply,
   Search,
-  Filter,
   RefreshCw,
   ExternalLink,
   Clock,
   TrendingUp,
-  Users,
   Eye,
-  Heart,
   MessageSquare,
   ChevronDown,
+  Heart,
+  ThumbsUp,
 } from "lucide-react";
 import { activityService } from "@/services/activityService";
 import { userService } from "@/services/userService";
-import { ActivityHistoryItem, ActivityDisplayItem } from "@/types/activity";
+import { UserChannelItem, ActivityDisplayItem } from "@/types/activity";
 import { DefaultRenderer } from "@hiveio/content-renderer";
 
-interface ActivityHistoryProps {
+interface UserChannelProps {
   username: string;
   className?: string;
 }
 
-const ActivityHistory: React.FC<ActivityHistoryProps> = ({
+const UserChannel: React.FC<UserChannelProps> = ({
   username,
   className,
 }) => {
-  const [activities, setActivities] = useState<ActivityHistoryItem[]>([]);
+  const [posts, setPosts] = useState<UserChannelItem[]>([]);
+  const [comments, setComments] = useState<UserChannelItem[]>([]);
+  const [replies, setReplies] = useState<UserChannelItem[]>([]);
+  const [activities, setActivities] = useState<UserChannelItem[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<
-    ActivityHistoryItem[]
+    UserChannelItem[]
   >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"posts" | "comments" | "replies">(
-    "posts"
-  );
+
   const [limit, setLimit] = useState(20);
   const [activeTab, setActiveTab] = useState("all");
   const [expandedActivities, setExpandedActivities] = useState<Set<string>>(
     new Set()
   );
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  const loadActivities = async () => {
-    if (!username) return;
+  const loadAllActivities = async () => {
+    if (!username || dataLoaded) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      let data: ActivityHistoryItem[] = [];
+      // Load all three types in parallel
+      const [postsData, commentsData, repliesData] = await Promise.all([
+        activityService.getUserPosts(username, limit),
+        activityService.getUserComments(username, limit),
+        activityService.getUserReplies(username, limit),
+      ]);
 
-      switch (activeTab) {
-        case "posts":
-          data = await activityService.getUserPosts(username, limit);
-          break;
-        case "comments":
-          data = await activityService.getUserComments(username, limit);
-          break;
-        case "replies":
-          data = await activityService.getUserReplies(username, limit);
-          break;
-        default:
-          data = await activityService.getAllUserActivity(
-            username,
-            Math.floor(limit / 3)
-          );
-          break;
-      }
-
-      setActivities(data);
-      setFilteredActivities(data);
+      setPosts(postsData);
+      setComments(commentsData);
+      setReplies(repliesData);
+      setDataLoaded(true);
     } catch (err) {
       setError("Failed to load activity history");
       console.error("Error loading activities:", err);
@@ -83,8 +73,35 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
   };
 
   useEffect(() => {
-    loadActivities();
-  }, [username, activeTab, limit]);
+    loadAllActivities();
+  }, [username]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+
+    let data: UserChannelItem[] = [];
+
+    switch (activeTab) {
+      case "posts":
+        data = posts;
+        break;
+      case "comments":
+        data = comments;
+        break;
+      case "replies":
+        data = replies;
+        break;
+      default:
+        // Combine all activities for "all" tab
+        data = [...posts, ...comments, ...replies].sort((a, b) =>
+          new Date(b.created).getTime() - new Date(a.created).getTime()
+        );
+        break;
+    }
+
+    setActivities(data);
+    setFilteredActivities(data);
+  }, [activeTab, posts, comments, replies, dataLoaded]);
 
   useEffect(() => {
     let filtered = activities;
@@ -102,17 +119,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
     return payoutValue;
   };
 
-  const getActivityIcon = (activity: ActivityHistoryItem) => {
-    if (activity.parent_author === "") {
-      return <FileText className="h-4 w-4" />;
-    } else if (activity.depth === 1) {
-      return <MessageCircle className="h-4 w-4" />;
-    } else {
-      return <Reply className="h-4 w-4" />;
-    }
-  };
-
-  const getActivityType = (activity: ActivityHistoryItem): string => {
+  const getActivityType = (activity: UserChannelItem): string => {
     if (activity.parent_author === "") {
       return "Post";
     } else if (activity.depth === 1) {
@@ -150,7 +157,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
     setExpandedActivities(newExpanded);
   };
 
-  const renderActivityCard = (activity: ActivityHistoryItem) => {
+  const renderActivityCard = (activity: UserChannelItem) => {
     const activityId = `${activity.author}-${activity.permlink}`;
     const isExpanded = expandedActivities.has(activityId);
     const shouldTruncate = activity.body.length > 100;
@@ -158,25 +165,22 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
     return (
       <div
         key={activityId}
-        className="border border-gray-600 rounded-lg p-3 sm:p-4 space-y-3 hover:bg-gray-700 transition-colors"
+        className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 sm:p-4 space-y-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors relative"
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="flex items-start gap-3 flex-1">
-            <div className="mt-1 flex-shrink-0">
-              {getActivityIcon(activity)}
-            </div>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span
                   className={`px-2 py-1 rounded text-xs font-medium ${
                     activity.parent_author === ""
                       ? "bg-blue-900 text-blue-300"
-                      : "bg-gray-700 text-gray-300"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                   }`}
                 >
                   {getActivityType(activity)}
                 </span>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   in #{activity.category}
                 </span>
               </div>
@@ -192,12 +196,12 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                     );
                   }}
                 />
-                <h3 className="font-medium text-base sm:text-lg leading-tight text-white break-words">
+                <h3 className="font-medium text-base sm:text-lg leading-tight text-gray-900 dark:text-white break-words">
                   {activity.title || "Untitled"}
                 </h3>
               </div>
 
-              <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-400 comment-content overflow-hidden">
+              <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-500 dark:text-gray-400 comment-content overflow-hidden">
                 <div
                   className="break-words overflow-wrap-anywhere"
                   dangerouslySetInnerHTML={{
@@ -223,7 +227,7 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-400">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <div className="flex items-center gap-1">
                   <Clock className="h-3 w-3 flex-shrink-0" />
                   <span className="truncate">
@@ -231,11 +235,11 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 flex-shrink-0" />
+                  <ThumbsUp className="h-3 w-3 flex-shrink-0" />
                   <span>{activity.net_votes} votes</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3 flex-shrink-0" />
+                  <Reply className="h-3 w-3 flex-shrink-0" />
                   <span>{activity.children} replies</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -245,19 +249,19 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
               </div>
             </div>
           </div>
-
-          <button
-            onClick={() =>
-              window.open(
-                `https://peakd.com/@${activity.author}/${activity.permlink}`,
-                "_blank"
-              )
-            }
-            className="flex-shrink-0 p-2 hover:bg-gray-600 rounded-md transition-colors text-gray-400 hover:text-white self-start sm:self-center"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </button>
         </div>
+
+        <button
+          onClick={() =>
+            window.open(
+              `https://peakd.com/@${activity.author}/${activity.permlink}`,
+              "_blank"
+            )
+          }
+          className="absolute top-3 right-3 flex-shrink-0 p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </button>
       </div>
     );
   };
@@ -267,17 +271,11 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
   if (loading) {
     return (
       <div
-        className={`bg-gray-800 border border-gray-700 rounded-lg shadow-sm ${className}`}
+        className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm ${className}`}
       >
         <div className="p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="h-5 w-5 text-gray-300" />
-            <h3 className="text-lg font-semibold text-white">
-              Activity History
-            </h3>
-          </div>
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Loading activity history for
             </p>
             <img
@@ -289,15 +287,15 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
                   userService.userAvatar(username);
               }}
             />
-            <p className="text-sm text-gray-400">@{username}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">@{username}</p>
           </div>
         </div>
         <div className="p-6 space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-2">
-              <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
-              <div className="h-3 bg-gray-700 rounded animate-pulse w-1/2" />
-              <div className="h-20 bg-gray-700 rounded animate-pulse w-full" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4" />
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2" />
+              <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-full" />
             </div>
           ))}
         </div>
@@ -306,148 +304,121 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
   }
 
   return (
-    <div
-      className={`bg-gray-800 border border-gray-700 rounded-lg shadow-sm ${className}`}
-    >
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <FileText className="h-5 w-5 text-gray-300" />
-          <h3 className="text-lg font-semibold text-white">Activity History</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-400">Activity history for</p>
+    <div className={`space-y-6 ${className}`}>
+      {/* User Header */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           <img
             src={userService.userAvatar(username)}
             alt={`${username} avatar`}
-            className="w-6 h-6 rounded-full"
+            className="w-16 h-16 rounded-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src =
                 userService.userAvatar(username);
             }}
           />
-          <p className="text-sm text-gray-400">@{username}</p>
-        </div>
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-white">
-              {summary.totalActivities}
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              @{username}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Activity History
+            </p>
+            {/* Stats */}
+            <div className="flex flex-wrap gap-6 text-sm">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <FileText className="w-4 h-4" />
+                <span>
+                  {summary.totalActivities} Total Activities
+                </span>
+              </div>
             </div>
-            <div className="text-sm text-gray-400">Total</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-white">
-              {summary.postsCount}
-            </div>
-            <div className="text-sm text-gray-400">Posts</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-white">
-              {summary.commentsCount}
-            </div>
-            <div className="text-sm text-gray-400">Comments</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-white">
-              {summary.totalVotes}
-            </div>
-            <div className="text-sm text-gray-400">Votes</div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-4">
-        {/* Tabs */}
-        <div className="flex flex-wrap border-b border-gray-700">
+      {/* Tabs */}
+      <div>
+        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-visible w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
           <button
             onClick={() => setActiveTab("all")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "all"
-                ? "border-blue-500 text-blue-400"
-                : "border-transparent text-gray-400 hover:text-gray-300"
+                ? "bg-blue-600 dark:bg-blue-500 text-white"
+                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
             }`}
           >
-            <Eye className="h-4 w-4" />
             All
           </button>
           <button
             onClick={() => setActiveTab("posts")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "posts"
-                ? "border-blue-500 text-blue-400"
-                : "border-transparent text-gray-400 hover:text-gray-300"
+                ? "bg-blue-600 dark:bg-blue-500 text-white"
+                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
             }`}
           >
-            <FileText className="h-4 w-4" />
             Posts
           </button>
           <button
             onClick={() => setActiveTab("comments")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "comments"
-                ? "border-blue-500 text-blue-400"
-                : "border-transparent text-gray-400 hover:text-gray-300"
+                ? "bg-blue-600 dark:bg-blue-500 text-white"
+                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
             }`}
           >
-            <MessageCircle className="h-4 w-4" />
             Comments
           </button>
           <button
             onClick={() => setActiveTab("replies")}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "replies"
-                ? "border-blue-500 text-blue-400"
-                : "border-transparent text-gray-400 hover:text-gray-300"
+                ? "bg-blue-600 dark:bg-blue-500 text-white"
+                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
             }`}
           >
-            <Reply className="h-4 w-4" />
             Replies
           </button>
         </div>
 
+        <div className="mt-6">
+
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-row gap-4 mb-6">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400" />
               <input
                 type="text"
                 placeholder="Search activities..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
-          <select
-            value={limit.toString()}
-            onChange={(e) => setLimit(parseInt(e.target.value))}
-            className="w-full sm:w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
           <button
-            onClick={loadActivities}
-            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={() => {
+              setDataLoaded(false);
+              loadAllActivities();
+            }}
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-4 border border-red-700 bg-red-900 rounded-md">
-            <p className="text-red-300">{error}</p>
+          <div className="p-4 border border-red-200 dark:border-red-700 bg-red-50 dark:bg-red-900 rounded-md">
+            <p className="text-red-600 dark:text-red-300">{error}</p>
           </div>
         )}
 
         {/* Activity List */}
         <div className="space-y-4">
           {filteredActivities.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
               No activities found
             </div>
           ) : (
@@ -456,14 +427,15 @@ const ActivityHistory: React.FC<ActivityHistoryProps> = ({
         </div>
 
         {filteredActivities.length > 0 && (
-          <div className="text-center text-sm text-gray-400">
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
             Showing {filteredActivities.length} of {activities.length}{" "}
             activities
           </div>
         )}
+        </div>
       </div>
     </div>
   );
 };
 
-export default ActivityHistory;
+export default UserChannel;
