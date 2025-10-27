@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import {
-  Users,
-  Calendar,
-  Loader2,
-} from "lucide-react";
+import { Users, Calendar, Loader2 } from "lucide-react";
 import { communityService } from "../../services/communityService";
 import {
   CommunityDetailsResult,
@@ -23,6 +19,7 @@ interface CommunityPostDetailsProps {
   onUpvoteClick?: (post: Post) => void;
   onCommentClick?: (post: Post) => void;
   onReblogClick?: (post: Post) => void;
+  theme?: "light" | "dark";
 }
 
 const CommunityPostDetails = ({
@@ -34,6 +31,7 @@ const CommunityPostDetails = ({
   onUpvoteClick,
   onCommentClick,
   onReblogClick,
+  theme = "dark",
 }: CommunityPostDetailsProps) => {
   const [activeTab, setActiveTab] = useState("posts");
   const [communityDetails, setCommunityDetails] =
@@ -137,8 +135,16 @@ const CommunityPostDetails = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+      <div
+        className={`flex items-center justify-center min-h-[400px] ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}
+      >
+        <div
+          className={`flex items-center gap-2 ${
+            theme === "dark" ? "text-gray-400" : "text-gray-500"
+          }`}
+        >
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading community details...
         </div>
@@ -148,11 +154,23 @@ const CommunityPostDetails = ({
 
   if (error || !communityDetails) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div
+        className={`flex flex-col items-center justify-center min-h-[400px] space-y-4 ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}
+      >
+        <h3
+          className={`text-lg font-semibold ${
+            theme === "dark" ? "text-white" : "text-gray-900"
+          }`}
+        >
           Failed to load community details
         </h3>
-        <p className="text-gray-500 dark:text-gray-400">{error}</p>
+        <p
+          className={`${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
+        >
+          {error}
+        </p>
       </div>
     );
   }
@@ -160,7 +178,13 @@ const CommunityPostDetails = ({
   return (
     <div className="space-y-6">
       {/* Community Header */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+      <div
+        className={`${
+          theme === "dark"
+            ? "bg-gray-800 border-gray-700"
+            : "bg-white border-gray-200"
+        } border rounded-xl p-6`}
+      >
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           <img
             src={communityService.userOwnerThumb(communityId)}
@@ -173,21 +197,37 @@ const CommunityPostDetails = ({
             }}
           />
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1
+              className={`text-2xl font-bold mb-2 ${
+                theme === "dark" ? "text-white" : "text-gray-900"
+              }`}
+            >
               {communityDetails.title}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p
+              className={`${
+                theme === "dark" ? "text-gray-400" : "text-gray-600"
+              } mb-4`}
+            >
               {communityDetails.about}
             </p>
             {/* Stats */}
             <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <div
+                className={`flex items-center gap-2 ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
                 <Users className="w-4 h-4" />
                 <span>
                   {communityDetails.subscribers.toLocaleString()} members
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <div
+                className={`flex items-center gap-2 ${
+                  theme === "dark" ? "text-gray-400" : "text-gray-500"
+                }`}
+              >
                 <Calendar className="w-4 h-4" />
                 <span>
                   Created {formatTimeAgo(communityDetails.created_at)}
@@ -200,13 +240,27 @@ const CommunityPostDetails = ({
 
       {/* Tabs */}
       <div>
-        <div className="flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-visible w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div
+          className={`flex md:grid md:grid-cols-4 overflow-x-auto md:overflow-visible w-full ${
+            theme === "dark"
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          } border rounded-lg`}
+        >
           <button
             onClick={() => setActiveTab("posts")}
             className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "posts"
-                ? "bg-blue-600 dark:bg-blue-500 text-white"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+                ? `${
+                    theme === "dark"
+                      ? "bg-blue-500 text-white"
+                      : "bg-blue-600 text-white"
+                  }`
+                : `${
+                    theme === "dark"
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-300"
+                  }`
             }`}
           >
             Posts
@@ -215,8 +269,16 @@ const CommunityPostDetails = ({
             onClick={() => setActiveTab("about")}
             className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "about"
-                ? "bg-blue-600 dark:bg-blue-500 text-white"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+                ? `${
+                    theme === "dark"
+                      ? "bg-blue-500 text-white"
+                      : "bg-blue-600 text-white"
+                  }`
+                : `${
+                    theme === "dark"
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-300"
+                  }`
             }`}
           >
             About
@@ -225,8 +287,16 @@ const CommunityPostDetails = ({
             onClick={() => setActiveTab("subscribers")}
             className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "subscribers"
-                ? "bg-blue-600 dark:bg-blue-500 text-white"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+                ? `${
+                    theme === "dark"
+                      ? "bg-blue-500 text-white"
+                      : "bg-blue-600 text-white"
+                  }`
+                : `${
+                    theme === "dark"
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-300"
+                  }`
             }`}
           >
             Subscribers
@@ -235,8 +305,16 @@ const CommunityPostDetails = ({
             onClick={() => setActiveTab("activities")}
             className={`flex-shrink-0 md:flex-shrink px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
               activeTab === "activities"
-                ? "bg-blue-600 dark:bg-blue-500 text-white"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700"
+                ? `${
+                    theme === "dark"
+                      ? "bg-blue-500 text-white"
+                      : "bg-blue-600 text-white"
+                  }`
+                : `${
+                    theme === "dark"
+                      ? "text-gray-300 hover:bg-gray-700"
+                      : "text-gray-700 hover:bg-gray-300"
+                  }`
             }`}
           >
             Activities
@@ -258,19 +336,34 @@ const CommunityPostDetails = ({
               onUpvoteClick={onUpvoteClick}
               onCommentClick={onCommentClick}
               onReblogClick={onReblogClick}
+              theme={theme}
             />
           )}
 
           {/* About Tab */}
           {activeTab === "about" && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div
+              className={`${
+                theme === "dark"
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-200"
+              } border rounded-xl p-6`}
+            >
               {/* About Section */}
               {communityDetails.about && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3
+                    className={`text-lg font-semibold mb-3 ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     About
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p
+                    className={`${
+                      theme === "dark" ? "text-gray-300" : "text-gray-600"
+                    } leading-relaxed`}
+                  >
                     {removeHtmlTags(communityDetails.about)}
                   </p>
                 </div>
@@ -279,10 +372,18 @@ const CommunityPostDetails = ({
               {/* Description Section */}
               {communityDetails.description && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3
+                    className={`text-lg font-semibold mb-3 ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     Information
                   </h3>
-                  <div className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  <div
+                    className={`${
+                      theme === "dark" ? "text-gray-300" : "text-gray-600"
+                    } leading-relaxed whitespace-pre-wrap`}
+                  >
                     {removeHtmlTags(communityDetails.description)}
                   </div>
                 </div>
@@ -291,10 +392,18 @@ const CommunityPostDetails = ({
               {/* Rules Section */}
               {communityDetails.flag_text && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3
+                    className={`text-lg font-semibold mb-3 ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     Community Rules
                   </h3>
-                  <div className="text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  <div
+                    className={`${
+                      theme === "dark" ? "text-gray-300" : "text-gray-600"
+                    } leading-relaxed whitespace-pre-wrap`}
+                  >
                     {removeHtmlTags(communityDetails.flag_text)}
                   </div>
                 </div>
@@ -302,58 +411,130 @@ const CommunityPostDetails = ({
 
               {/* Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <div
+                  className={`${
+                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                  } p-4 rounded-lg`}
+                >
+                  <h4
+                    className={`text-sm font-medium mb-1 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Total Authors
                   </h4>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p
+                    className={`text-2xl font-bold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     {communityDetails.num_authors.toLocaleString()}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <div
+                  className={`${
+                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                  } p-4 rounded-lg`}
+                >
+                  <h4
+                    className={`text-sm font-medium mb-1 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Subscribers
                   </h4>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p
+                    className={`text-2xl font-bold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     {communityDetails.subscribers.toLocaleString()}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <div
+                  className={`${
+                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                  } p-4 rounded-lg`}
+                >
+                  <h4
+                    className={`text-sm font-medium mb-1 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Created
                   </h4>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <p
+                    className={`text-lg font-semibold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     {formatTimeAgo(communityDetails.created_at)}
                   </p>
                 </div>
 
                 {communityDetails.lang && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  <div
+                    className={`${
+                      theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                    } p-4 rounded-lg`}
+                  >
+                    <h4
+                      className={`text-sm font-medium mb-1 ${
+                        theme === "dark" ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
                       Language
                     </h4>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <p
+                      className={`text-lg font-semibold ${
+                        theme === "dark" ? "text-white" : "text-gray-900"
+                      }`}
+                    >
                       {communityDetails.lang.toUpperCase()}
                     </p>
                   </div>
                 )}
 
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <div
+                  className={`${
+                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                  } p-4 rounded-lg`}
+                >
+                  <h4
+                    className={`text-sm font-medium mb-1 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Pending Posts
                   </h4>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <p
+                    className={`text-lg font-semibold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     {communityDetails.num_pending.toLocaleString()}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                <div
+                  className={`${
+                    theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                  } p-4 rounded-lg`}
+                >
+                  <h4
+                    className={`text-sm font-medium mb-1 ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     Type
                   </h4>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <p
+                    className={`text-lg font-semibold ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     {communityDetails.is_nsfw ? "NSFW" : "Safe"}
                   </p>
                 </div>
@@ -363,20 +544,32 @@ const CommunityPostDetails = ({
 
           {/* Subscribers Tab */}
           {activeTab === "subscribers" && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div
+              className={`${
+                theme === "dark"
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-200"
+              } border rounded-xl p-6`}
+            >
               {loadingSubscribers ? (
                 <div className="flex items-center justify-center min-h-[200px]">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
               ) : subscribers.length > 0 ? (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  <h3
+                    className={`text-lg font-semibold mb-4 ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     Subscribers ({subscribers.length})
                   </h3>
                   {subscribers.map((subscriber) => (
                     <div
                       key={subscriber.username}
-                      className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                      className={`${
+                        theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                      } flex items-center gap-4 p-4 rounded-lg`}
                     >
                       <img
                         src={communityService.userOwnerThumb(
@@ -391,10 +584,18 @@ const CommunityPostDetails = ({
                         }}
                       />
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900 dark:text-white">
+                        <p
+                          className={`font-medium ${
+                            theme === "dark" ? "text-white" : "text-gray-900"
+                          }`}
+                        >
                           @{subscriber.username}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p
+                          className={`text-sm ${
+                            theme === "dark" ? "text-gray-400" : "text-gray-500"
+                          }`}
+                        >
                           Role: {subscriber.role} • Subscribed{" "}
                           {formatTimeAgo(subscriber.subscribedAt)}
                         </p>
@@ -403,7 +604,11 @@ const CommunityPostDetails = ({
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <div
+                  className={`text-center py-8 ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
                   No subscribers found
                 </div>
               )}
@@ -412,14 +617,24 @@ const CommunityPostDetails = ({
 
           {/* Activities Tab */}
           {activeTab === "activities" && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div
+              className={`${
+                theme === "dark"
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-200"
+              } border rounded-xl p-6`}
+            >
               {loadingActivities ? (
                 <div className="flex items-center justify-center min-h-[200px]">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
               ) : activities.length > 0 ? (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  <h3
+                    className={`text-lg font-semibold mb-4 ${
+                      theme === "dark" ? "text-white" : "text-gray-900"
+                    }`}
+                  >
                     Recent Activities ({activities.length})
                   </h3>
                   {activities.map((activity) => {
@@ -427,7 +642,9 @@ const CommunityPostDetails = ({
                     return (
                       <div
                         key={activity.id}
-                        className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg"
+                        className={`${
+                          theme === "dark" ? "bg-gray-900" : "bg-gray-50"
+                        } flex items-center gap-4 p-4 rounded-lg`}
                       >
                         <img
                           src={communityService.userOwnerThumb(username)}
@@ -440,10 +657,20 @@ const CommunityPostDetails = ({
                           }}
                         />
                         <div className="flex-1">
-                          <p className="text-gray-900 dark:text-white mb-1">
+                          <p
+                            className={`mb-1 ${
+                              theme === "dark" ? "text-white" : "text-gray-900"
+                            }`}
+                          >
                             {activity.msg}
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p
+                            className={`text-sm ${
+                              theme === "dark"
+                                ? "text-gray-400"
+                                : "text-gray-500"
+                            }`}
+                          >
                             {formatTimeAgo(activity.date)}
                             {activity.score && ` • Score: ${activity.score}`}
                           </p>
@@ -453,7 +680,11 @@ const CommunityPostDetails = ({
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <div
+                  className={`text-center py-8 ${
+                    theme === "dark" ? "text-gray-400" : "text-gray-500"
+                  }`}
+                >
                   No activities found
                 </div>
               )}

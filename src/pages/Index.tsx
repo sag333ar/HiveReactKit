@@ -1018,6 +1018,7 @@ const Index = () => {
                     onUpvoteClick={(post) => console.log("Upvote clicked:", post)}
                     onCommentClick={(post) => console.log("Comment clicked:", post)}
                     onReblogClick={(post) => console.log("Reblog clicked:", post)}
+                    theme="dark"
                     />
                   </div>
                 ) : activeTab === "following-list" ? (
