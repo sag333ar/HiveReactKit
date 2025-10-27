@@ -24,7 +24,7 @@ const WitnessFiltersComponent: React.FC<WitnessFiltersProps> = ({ filters, onFil
   };
 
   return (
-    <div className={`rounded-lg p-4 mb-6 border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+    <div className={`rounded-lg p-4 mb-6 border ${theme === 'dark' ? 'bg-slate-950 border-gray-800' : 'bg-white border-gray-200'}`}>
       <h3 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>FILTERS</h3>
 
       {/* WITNESS Status Filter */}
@@ -83,7 +83,7 @@ const WitnessFiltersComponent: React.FC<WitnessFiltersProps> = ({ filters, onFil
             placeholder="Search"
             value={filters.name}
             onChange={(e) => handleNameChange(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 border-b focus:outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500'}`}
+            className={`w-full pl-10 pr-4 py-2 border-b focus:outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-slate-900 border-gray-700 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500'}`}
           />
         </div>
       </div>
@@ -102,7 +102,7 @@ const WitnessFiltersComponent: React.FC<WitnessFiltersProps> = ({ filters, onFil
             placeholder="Version"
             value={filters.version}
             onChange={(e) => handleVersionChange(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 border-b focus:outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500'}`}
+            className={`w-full pl-10 pr-4 py-2 border-b focus:outline-none focus:border-blue-500 ${theme === 'dark' ? 'bg-slate-900 border-gray-700 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-500'}`}
           />
         </div>
       </div>
