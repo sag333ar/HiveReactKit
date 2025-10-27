@@ -153,7 +153,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
             return (
               <>
                 {activeProposals.map((p) => (
-                  <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                  <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                     {/* Existing proposal content */}
                     <div className="flex flex-col sm:flex-row">
                       {/* Left side content */}
@@ -245,7 +245,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                     </div>
 
                     {upcomingProposals.map((p) => (
-                      <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+                      <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                         {/* Existing proposal content */}
                         <div className="flex flex-col sm:flex-row">
                           {/* Left side content */}
@@ -335,7 +335,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
           })()}
 
           {filter !== 'All' && sortedProposals.map((p) => (
-            <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+            <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
               <div className="flex flex-col sm:flex-row">
                 {/* Left side content */}
                 <div className="flex-1">
