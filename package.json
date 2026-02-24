@@ -1,7 +1,7 @@
 {
   "name": "hive-react-kit",
   "private": false,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
@@ -51,7 +51,7 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist dist-app && mkdir -p dist dist-app",
-    "build": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}'",
     "build:app": "vite build",
     "build:lib": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}'",
     "build:all": "npm run clean && npm run build:lib && npm run build:app",

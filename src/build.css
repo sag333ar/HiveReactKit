@@ -1,1 +1,4 @@
 @import "tailwindcss";
+
+/* Library build: scan src so all component classes are included in dist/build.css */
+@source "./**/*.{ts,tsx}";
