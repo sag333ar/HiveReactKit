@@ -29,6 +29,9 @@ export { default as Modal } from './modals/Modal';
 export { UpvoteList } from './UpvoteList';
 export { CommentsList } from './CommentsList';
 
+// Comments
+export { default as CommentsModal } from './comments/CommentsModal';
+
 // User components
 export { default as UserAccount } from './user/UserAccount';
 export { default as UserFollowers } from './user/UserFollowers';
