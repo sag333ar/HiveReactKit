@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
 import { X, Search, MessageCirclePlus, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -13,12 +13,15 @@ interface CommentsModalProps {
   onClose: () => void;
   currentUser?: string;
   token?: string;
-  onClickCommentUpvote?: (comment: Discussion) => void;
+  /** Called with (author, permlink, percent) when user confirms comment upvote; frontend handles signing. */
+  onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
+  /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet) */
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +80,22 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
   };
 
   const handleCommentSubmitted = async (parentAuthor: string, parentPermlink: string, body: string) => {
+    // When callback is provided: use only the callback. No token, no apiService. (Same pattern as CommentTile onClickCommentUpvote.)
+    if (onSubmitComment) {
+      try {
+        await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        setShowAddComment(false);
+        setIsRefreshing(true);
+        setTimeout(async () => {
+          await fetchComments(true);
+          setIsRefreshing(false);
+        }, 3000);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to post comment';
+        alert(message);
+      }
+      return;
+    }
     if (!token) {
       alert('Please login to comment');
       return;
@@ -100,7 +119,23 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
     }
   };
 
-  const topLevelComments = filteredComments.filter(c => c.author === author && c.permlink === permlink);
+  // When currentUser is set, show their comments at the top
+  const sortedForDisplay = useMemo(() => {
+    if (!currentUser?.trim()) return filteredComments;
+    const user = currentUser.toLowerCase();
+    return [...filteredComments].sort((a, b) => {
+      const aIsCurrent = a.author?.toLowerCase() === user;
+      const bIsCurrent = b.author?.toLowerCase() === user;
+      if (aIsCurrent && !bIsCurrent) return -1;
+      if (!aIsCurrent && bIsCurrent) return 1;
+      return 0;
+    });
+  }, [filteredComments, currentUser]);
+
+  // Direct replies to the post only (root post is excluded in apiService.getCommentsList)
+  const topLevelComments = sortedForDisplay.filter(
+    (c) => c.parent_author === author && c.parent_permlink === permlink
+  );
 
 
   if (loading) {
@@ -155,7 +190,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
           <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
             <div className="flex items-center space-x-4">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                Comments ({comments.length - 1})
+                Comments ({comments.length})
               </h2>
               {isRefreshing && <Loader2 className="w-5 h-5 animate-spin text-blue-500" />}
             </div>
@@ -232,7 +267,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   <CommentTile
                     key={comment.permlink}
                     comment={comment}
-                    allComments={filteredComments}
+                    allComments={sortedForDisplay}
                     onReply={handleReply}
                     currentUser={currentUser}
                     token={token}

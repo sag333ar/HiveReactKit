@@ -17,7 +17,8 @@ interface CommentTileProps {
   searchQuery?: string;
   depth?: number;
   onVotedRefresh?: () => void;
-  onClickCommentUpvote?: (comment: Discussion) => void;
+  /** When provided: called with (author, permlink, percent) on vote confirm; apiService.handleUpvote is never used. Token is ignored. */
+  onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
 
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
@@ -41,7 +42,9 @@ const CommentTile = ({
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const hasAlreadyVoted = useMemo(() => {
     const activeVotes = comment.active_votes || [];
-    return !!currentUser && activeVotes.some(v => v.voter === currentUser);
+    if (!currentUser) return false;
+    const user = currentUser.toLowerCase();
+    return activeVotes.some((v: { voter?: string }) => (v.voter || '').toLowerCase() === user);
   }, [comment.active_votes, currentUser]);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -83,9 +86,25 @@ const CommentTile = ({
   };
 
   const handlePerformUpvote = async (percent: number) => {
+    // When callback is provided: use only the callback. No token, no apiService.
+    if (onClickCommentUpvote) {
+      try {
+        await Promise.resolve(onClickCommentUpvote(comment.author, comment.permlink, percent));
+        setIsUpvoted(true);
+        setShowVoteSlider(false);
+        setTimeout( () => {
+          onVotedRefresh?.();
+          showToast('Vote submitted successfully!');
+        }, 3000);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to upvote';
+        alert(message);
+      }
+      return;
+    }
+    // No callback: optional token path – only call apiService when token is provided
     if (!token) {
-      onVotedRefresh?.();
-      showToast('Vote submitted successfully ✅');
+      showToast('Please login or provide an upvote handler to vote');
       return;
     }
     try {
@@ -201,12 +220,12 @@ const CommentTile = ({
               )}
             </div>
 
-            {/* Content */}
-            <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none mb-3 comment-content text-gray-900 dark:text-gray-100 prose-a:text-blue-600 dark:prose-a:text-blue-400">
+            {/* Content - left-aligned with header and actions */}
+            <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none mb-3 comment-content text-left text-gray-900 dark:text-gray-100 prose-a:text-blue-600 dark:prose-a:text-blue-400 [&>*]:text-left">
               {searchQuery ? (
-                <div dangerouslySetInnerHTML={{ __html: displayBody }} />
+                <div className="text-left" dangerouslySetInnerHTML={{ __html: displayBody }} />
               ) : (
-                <div dangerouslySetInnerHTML={{ __html: hiveRenderer.render(sanitizedBody) }} />
+                <div className="text-left" dangerouslySetInnerHTML={{ __html: hiveRenderer.render(sanitizedBody) }} />
               )}
             </div>
 
@@ -230,9 +249,25 @@ const CommentTile = ({
               <button
                 onClick={() => {
                   if (onClickCommentUpvote) {
-                    onClickCommentUpvote(comment);
+                    if (!currentUser) {
+                      showToast("Please login to upvote");
+                      return;
+                    }
+                    if (hasAlreadyVoted || isUpvoted) {
+                      showToast('You have already upvoted this comment');
+                      return;
+                    }
+                    handleOpenVote();
                   } else if (onClickUpvoteButton) {
-                    onClickUpvoteButton(currentUser, token);
+                    if (!currentUser) {
+                      showToast("Please login to upvote");
+                      return;
+                    }
+                    if (hasAlreadyVoted || isUpvoted) {
+                      showToast('You have already upvoted this comment');
+                      return;
+                    }
+                    handleOpenVote();
                   } else {
                     if (!currentUser) {
                       showToast("Please login to upvote");
@@ -329,6 +364,9 @@ const CommentTile = ({
               searchQuery={searchQuery}
               depth={depth + 1}
               onVotedRefresh={onVotedRefresh}
+              onClickCommentUpvote={onClickCommentUpvote}
+              onClickCommentReply={onClickCommentReply}
+              onClickUpvoteButton={onClickUpvoteButton}
             />
           ))}
         </div>

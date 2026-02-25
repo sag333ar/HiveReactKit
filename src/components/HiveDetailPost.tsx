@@ -14,7 +14,7 @@ interface HiveDetailPostProps {
   currentUser?: string;
   token?: string;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
-  onClickCommentUpvote?: (comment: Discussion) => void;
+  onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
 }
 

@@ -32,6 +32,9 @@ export { CommentsList } from './CommentsList';
 // Comments
 export { default as CommentsModal } from './comments/CommentsModal';
 
+// Action buttons
+export { PostActionButton, type PostActionButtonProps } from './actionButtons';
+
 // User components
 export { default as UserAccount } from './user/UserAccount';
 export { default as UserFollowers } from './user/UserFollowers';

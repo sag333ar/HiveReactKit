@@ -54,8 +54,8 @@ const AddCommentInput = ({
 
   return (
     <div className="p-4 md:p-6 space-y-4 bg-white dark:bg-gray-800">
-      {/* Header with user info */}
-      <div className="flex items-center space-x-3">
+      {/* Header with user info - left-aligned with avatar */}
+      <div className="flex items-center justify-start space-x-3 text-left">
         <div className="flex-shrink-0">
           {currentUser ? (
             <img
@@ -72,7 +72,7 @@ const AddCommentInput = ({
             </div>
           )}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 text-left">
           <div className="text-sm text-gray-900 dark:text-white font-medium">
             {currentUser ? `@${currentUser}` : 'Anonymous'}
           </div>
