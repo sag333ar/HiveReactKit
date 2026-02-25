@@ -11,7 +11,7 @@ interface CommentsListProps {
   currentUser?: string;
   token?: string;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
-  onClickCommentUpvote?: (comment: Discussion) => void;
+  onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
 }
 
@@ -85,7 +85,10 @@ export function CommentsList({
     setReplyingTo({ author: parentAuthor, permlink: parentPermlink });
   };
 
-  const topLevelComments = filteredComments.filter(c => !(c.author === author && c.permlink === permlink));
+  // Direct replies to the post only (root post excluded in apiService.getCommentsList)
+  const topLevelComments = filteredComments.filter(
+    (c) => c.parent_author === author && c.parent_permlink === permlink
+  );
 
   if (loading) {
     return (

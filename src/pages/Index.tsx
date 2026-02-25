@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import ActivityList from "@/components/ActivityList";
 import { HiveDetailPost } from "@/components/HiveDetailPost";
+import { PostActionButton } from "@/components/actionButtons";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -275,7 +276,7 @@ const Index = () => {
                   permlink="fyiytkhbkz"
                   currentUser={user.username}
                   token={user.token}
-                  onClickCommentUpvote={(comment) => console.log("Upvote comment:", comment)}
+                  onClickCommentUpvote={(author, permlink, percent) => console.log("Upvote comment:", author, permlink, percent)}
                   onClickCommentReply={(comment) => console.log("Reply to comment:", comment)}
                   onClickUpvoteButton={(currentUser, token) => console.log("Custom upvote:", currentUser, token)}
                 />
@@ -446,7 +447,7 @@ const Index = () => {
 
   // Mock user for demonstration - in a real app, this would come from authentication
   const mockUser: User | null = {
-    username: "shaktimaaan",
+    username: "sagar-test1",
     token: "demo_token_123",
   };
 
@@ -509,6 +510,7 @@ const Index = () => {
     { id: "hive-community-detail", label: "Hive Community Detail", icon: "🏘️" },
     { id: "comments", label: "Comments Modal", icon: "💬" },
     { id: "upvotes", label: "Upvotes Modal", icon: "👍" },
+    { id: "post-action-button", label: "Post Action Button", icon: "🔘" },
     { id: "witnesses", label: "Witnesses", icon: "👥" },
     { id: "proposals", label: "Proposals List", icon: "📋" },
     { id: "followers-list", label: "Followers List", icon: "👥" },
@@ -949,6 +951,64 @@ const Index = () => {
                         <li>• See voting percentages and timestamps</li>
                         <li>• Cast your own vote (with token)</li>
                         <li>• Real-time vote updates</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : activeTab === "post-action-button" ? (
+                  <div className="max-w-2xl mx-auto text-center">
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                        Post Action Button Demo
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Upvote, comment, reblog, share, report, tip — handled
+                        via callbacks. Pass currentUser (null/empty = not
+                        logged in). Your comments show at top when set.
+                      </p>
+                      <div className="max-w-2xl mx-auto">
+                        <PostActionButton
+                          author="shaktimaaan"
+                          permlink="fyiytkhbkz"
+                          currentUser={mockUser?.username ?? null}
+                          hiveValue={8.5}
+                          onUpvote={(percent) =>
+                            console.log("Upvote:", percent)
+                          }
+                          onSubmitComment={(parentAuthor, parentPermlink, body) =>
+                            console.log(
+                              "Submit comment:",
+                              parentAuthor,
+                              parentPermlink,
+                              body
+                            )
+                          }
+                          onComments={() =>
+                            console.log("Comments opened")
+                          }
+                          onReblog={() => console.log("Reblog")}
+                          onShare={() => console.log("Share")}
+                          onTip={() => console.log("Tip")}
+                          onReport={() => console.log("Report")}
+                          onClickCommentUpvote={(author, permlink, percent) =>
+                            console.log(
+                              "Comment upvote:",
+                              author,
+                              permlink,
+                              percent
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-left">
+                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Features:
+                      </h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        <li>• currentUser: null/&quot;&quot; = not logged in; used for hasVoted + comment sort</li>
+                        <li>• onUpvote(percent), onSubmitComment, onClickCommentUpvote(author, permlink, percent), onComments, onReblog, onShare, onTip, onReport</li>
+                        <li>• &quot;Please Login to...&quot; when not logged in</li>
+                        <li>• Current user&apos;s comments shown at top in CommentsModal</li>
                       </ul>
                     </div>
                   </div>

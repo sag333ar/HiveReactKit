@@ -13,6 +13,7 @@ export { default as ListOfWitnesses } from './components/ListOfWitnesses';
 export { default as TransactionHistory } from './components/TransactionHistory';
 export { default as UserChannel } from './components/UserChannel';
 export { default as CommentsModal } from './components/comments/CommentsModal';
+export { PostActionButton, type PostActionButtonProps } from './components/actionButtons';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

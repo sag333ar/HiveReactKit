@@ -473,11 +473,16 @@ class ApiService {
 
       // The bridge API may return either an array of discussions or
       // an object keyed by "author/permlink" → Discussion.
-      const list: Discussion[] = Array.isArray(rawResult)
+      let list: Discussion[] = Array.isArray(rawResult)
         ? (rawResult as Discussion[])
         : rawResult && typeof rawResult === "object"
           ? Object.values(rawResult as Record<string, Discussion>)
           : [];
+
+      // Exclude the root post (supplied author/permlink) so only comments/replies are returned
+      list = list.filter(
+        (c) => !(c.author === author && c.permlink === permlink)
+      );
 
       return list.map((comment) => {
         // Normalize depth as number and ensure required fields exist
