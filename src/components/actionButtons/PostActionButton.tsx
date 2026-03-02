@@ -19,8 +19,8 @@ export interface PostActionButtonProps {
   permlink: string;
   /** Current logged-in username; null or '' means not logged in */
   currentUser?: string | null;
-  /** Optional: Hive payout/value to display */
-  hiveValue?: number;
+  /** Optional: Hive value to display (string so unit is decided by user, e.g. "$8.50", "10 HIVE") */
+  hiveValue?: string;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
   /** Called when user submits a comment. Frontend handles signing/broadcast. */
@@ -47,7 +47,7 @@ export function PostActionButton({
   author,
   permlink,
   currentUser: currentUserProp,
-  hiveValue = 0,
+  hiveValue,
   onUpvote,
   onSubmitComment,
   onComments,
@@ -212,7 +212,9 @@ export function PostActionButton({
     "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-800 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
 
   return (
-    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm">
+    <div className="flex items-center justify-between gap-4 text-sm w-full">
+      {/* All action buttons centered */}
+      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 shrink-0">
       {/* Upvotes count + Upvote button */}
       <div className="flex items-center gap-1">
         <div className="relative group">
@@ -315,13 +317,16 @@ export function PostActionButton({
           <Gift className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
+      </div>
 
-      {/* Hive Value */}
-      {hiveValue > 0 && (
-        <span className="font-semibold text-green-600 dark:text-green-400">
-          ${hiveValue.toFixed(2)}
-        </span>
-      )}
+      {/* Hive Value at end - spacer keeps icons centered when no value */}
+      <div className="flex-1 flex justify-end min-w-0 shrink-0">
+        {hiveValue != null && hiveValue !== "" && (
+          <span className="font-semibold text-green-600 dark:text-green-400">
+            {hiveValue}
+          </span>
+        )}
+      </div>
 
       {/* Vote slider overlay */}
       {showVoteSlider && (

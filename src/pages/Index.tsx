@@ -970,7 +970,7 @@ const Index = () => {
                           author="shaktimaaan"
                           permlink="fyiytkhbkz"
                           currentUser={mockUser?.username ?? null}
-                          hiveValue={8.5}
+                          hiveValue="8.500 HP"
                           onUpvote={(percent) =>
                             console.log("Upvote:", percent)
                           }
