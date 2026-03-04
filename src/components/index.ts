@@ -28,6 +28,7 @@ export { default as Modal } from './modals/Modal';
 // List components
 export { UpvoteList } from './UpvoteList';
 export { CommentsList } from './CommentsList';
+export { default as UpvoteListModal } from './UpvoteListModal';
 
 // Comments
 export { default as CommentsModal } from './comments/CommentsModal';

@@ -26,6 +26,11 @@ export { default as CommunityPostDetails } from './components/community/Communit
 export { default as CommunityMembers } from './components/community/CommunityMembers';
 export { default as CommunityTeam } from './components/community/CommunityTeam';
 
+// List components
+export { UpvoteList } from './components/UpvoteList';
+export { CommentsList } from './components/CommentsList';
+export { default as UpvoteListModal } from './components/UpvoteListModal';
+
 // Modal components
 export { default as Modal } from './components/modals/Modal';
 
