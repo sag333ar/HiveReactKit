@@ -80,6 +80,55 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 - **UserFollowers** - User followers list
 - **UserFollowing** - User following list
 
+### Toolbar Component
+
+- **HiveToolbar** - A fixed bottom toolbar showcasing Hive ecosystem apps and witness voting links. Responsive across mobile, tablet, and desktop.
+
+#### HiveToolbar Usage
+
+```tsx
+import { HiveToolbar } from 'hive-react-kit';
+
+// Show all items (default)
+<HiveToolbar />
+
+// Hide specific items
+<HiveToolbar isDistriator={false} isHpolls={false} />
+
+// Custom background color
+<HiveToolbar backgroundColor="#1a1a2e" />
+```
+
+#### HiveToolbar Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `isDistriator` | `boolean` | `true` | Show/hide Distriator link |
+| `isCheckinwithxyz` | `boolean` | `true` | Show/hide CheckinWithXYZ link |
+| `isHreplier` | `boolean` | `true` | Show/hide HReplier link |
+| `isHpolls` | `boolean` | `true` | Show/hide HPolls link |
+| `isHstats` | `boolean` | `true` | Show/hide HStats link |
+| `isHsnaps` | `boolean` | `true` | Show/hide HSnaps link |
+| `isHiveFestFacts` | `boolean` | `true` | Show/hide HiveFestFacts link |
+| `backgroundColor` | `string` | `'#ffffff'` | Toolbar background color |
+
+> **Note:** Vote Witness Sagar, Vote Witness 3Speak, and 3Speak are always visible and cannot be hidden.
+
+#### Toolbar Items
+
+| Item | URL |
+|------|-----|
+| Vote Witness Sagar | https://vote.hive.uno/@sagarkothari88 |
+| Vote Witness 3Speak | https://vote.hive.uno/@threespeak |
+| Distriator | https://distriator.com/ |
+| CheckinWithXYZ | https://checkinwith.xyz/ |
+| HReplier | https://hreplier.sagarkothari88.one/ |
+| HPolls | https://hpolls.sagarkothari88.one/ |
+| HStats | https://hstats.sagarkothari88.one/ |
+| HSnaps | https://hsnaps.sagarkothari88.one/ |
+| 3Speak | https://3speak.tv/ |
+| HiveFestFacts | https://hivefestfacts.sagarkothari88.one/ |
+
 ### Feed Components
 
 - **PostFeedList** - Display a list of posts with sorting, filtering, and interaction capabilities
