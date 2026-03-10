@@ -18,6 +18,8 @@ export interface HiveToolbarProps {
   isHsnaps?: boolean;
   isHiveFestFacts?: boolean;
   backgroundColor?: string;
+  textColor?: string;
+  borderTopColor?: string;
 }
 
 interface ToolbarItem {
@@ -141,6 +143,8 @@ const HiveToolbar: React.FC<HiveToolbarProps> = ({
   isHsnaps = true,
   isHiveFestFacts = true,
   backgroundColor = "#ffffff",
+  textColor = "#4b5563",
+  borderTopColor = "#e2e8f0",
 }) => {
   const screenSize = useScreenSize();
   const sizes = sizeConfig[screenSize];
@@ -170,7 +174,7 @@ const HiveToolbar: React.FC<HiveToolbarProps> = ({
         right: 0,
         zIndex: 9999,
         backgroundColor,
-        borderTop: "1px solid #e2e8f0",
+        borderTop: `1px solid ${borderTopColor}`,
         boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.08)",
       }}
     >
@@ -203,7 +207,7 @@ const HiveToolbar: React.FC<HiveToolbarProps> = ({
               alignItems: "center",
               justifyContent: "center",
               textDecoration: "none",
-              color: "#374151",
+              color: textColor,
               padding: sizes.padding,
               borderRadius: "8px",
               transition: "background-color 0.2s, transform 0.2s",
@@ -253,7 +257,7 @@ const HiveToolbar: React.FC<HiveToolbarProps> = ({
                 lineHeight: "1.2",
                 whiteSpace: "normal",
                 wordWrap: "break-word",
-                color: "#4b5563",
+                color: textColor,
                 maxWidth: `${sizes.maxWidth}px`,
                 display: "block",
               }}

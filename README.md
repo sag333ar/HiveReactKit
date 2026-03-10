@@ -111,6 +111,8 @@ import { HiveToolbar } from 'hive-react-kit';
 | `isHsnaps` | `boolean` | `true` | Show/hide HSnaps link |
 | `isHiveFestFacts` | `boolean` | `true` | Show/hide HiveFestFacts link |
 | `backgroundColor` | `string` | `'#ffffff'` | Toolbar background color |
+| `textColor` | `string` | `'#4b5563'` | Text color for all app names |
+| `borderTopColor` | `string` | `'#e2e8f0'` | Top border color of the toolbar |
 
 > **Note:** Vote Witness Sagar, Vote Witness 3Speak, and 3Speak are always visible and cannot be hidden.
 
