@@ -43,3 +43,6 @@ export { default as UserFollowers } from './user/UserFollowers';
 export { default as UserFollowing } from './user/UserFollowing';
 export { default as UserInfo } from './user/UserInfo';
 export { default as UserProfilePage } from './user/UserProfilePage';
+
+// Landing components
+export { default as HiveContributionsLanding } from './landing-page/HiveContributionsLanding';
