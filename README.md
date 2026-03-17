@@ -116,6 +116,40 @@ import { HiveToolbar } from 'hive-react-kit';
 
 > **Note:** Vote Witness Sagar, Vote Witness 3Speak, and 3Speak are always visible and cannot be hidden.
 
+### Landing Component
+
+- **HiveContributionsLanding** – Configurable landing page for Hive contributions: vision/mission, beliefs, delivered/in-dev/planned apps, contributions grid, and contact footer. Reusable across apps with customizable colors and dividers.
+
+#### HiveContributionsLanding Usage
+
+```tsx
+import { HiveContributionsLanding } from 'hive-react-kit';
+
+// Default dark theme
+<HiveContributionsLanding />
+
+// Custom theme
+<HiveContributionsLanding
+  backgroundColor="#020617"
+  textColor="#e5e7eb"
+  cardBackgroundColor="rgba(15,23,42,0.9)"
+  isDividerShow={true}
+  dividerColor="rgba(148,163,184,0.4)"
+/>
+```
+
+#### HiveContributionsLanding Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `backgroundColor` | `string` | `"#020617"` | Page background color |
+| `textColor` | `string` | `"#e5e7eb"` | Main text color |
+| `cardBackgroundColor` | `string` | `"rgba(15,23,42,0.85)"` | Background for all cards |
+| `isDividerShow` | `boolean` | `true` | Show/hide section dividers |
+| `dividerColor` | `string` | `"rgba(148,163,184,0.4)"` | Divider line color |
+
+See [docs/HiveContributionsLanding.md](docs/HiveContributionsLanding.md) for full documentation.
+
 #### Toolbar Items
 
 | Item | URL |
