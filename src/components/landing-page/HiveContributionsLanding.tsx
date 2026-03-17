@@ -37,6 +37,48 @@ const IconCalendar = () => (
 const IconCheckCircle = () => (
   <svg {...svgProps} className="w-6 h-6"><path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm128 192l-160 160-64-64 22.6-22.6 41.4 41.4 137.4-137.4L384 192z"/></svg>
 );
+const IconExternalLink = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+);
+
+interface SupporterItem {
+  title: string;
+  description: string;
+  avatar: string;
+  link: string;
+  buttonText: string;
+}
+
+const DEFAULT_SUPPORTERS: SupporterItem[] = [
+  {
+    title: "Powered by Hive.io",
+    description: "Explore the Hive blockchain",
+    avatar: "https://images.hive.blog/u/hiveio/avatar",
+    link: "https://hive.io/",
+    buttonText: "Visit",
+  },
+  {
+    title: "Cheered by @starkerz",
+    description: "Community supporter",
+    avatar: "https://images.ecency.com/webp/u/starkerz/avatar/medium",
+    link: "https://peakd.com/@starkerz",
+    buttonText: "View",
+  },
+  {
+    title: "Encouraged by @theycallmedan",
+    description: "Hive advocate & supporter",
+    avatar: "https://images.ecency.com/webp/u/theycallmedan/avatar/medium",
+    link: "https://peakd.com/@theycallmedan",
+    buttonText: "View",
+  },
+  {
+    title: "Github",
+    description: "It's all open source",
+    avatar: "https://avatars.githubusercontent.com/u/259840578?s=200&v=4",
+    link: "https://github.com/orgs/TechCoderLabz/repositories",
+    buttonText: "View",
+  },
+];
 
 const BELIEFS = [
   { icon: IconBolt, title: "Simplicity Wins", desc: "Blockchain technology should feel as easy as using any modern mobile app." },
@@ -85,18 +127,21 @@ interface HiveContributionsLandingProps {
   isDividerShow?: boolean;
   dividerColor?: string;
   isExpensesCTA?: boolean;
+  extraSupporters?: SupporterItem[];
 }
 
 const LIGHTEST_RED = "#f87171";
 
 const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
-  backgroundColor = "#020617",      // near-slate-950
-  textColor = "#e5e7eb",            // gray-200
-  cardBackgroundColor = "rgba(15,23,42,0.85)", // translucent slate
+  backgroundColor = "#020617",
+  textColor = "#e5e7eb",
+  cardBackgroundColor = "rgba(15,23,42,0.85)",
   isDividerShow = true,
-  dividerColor = "rgba(148,163,184,0.4)", // slate-400 with opacity
+  dividerColor = "rgba(148,163,184,0.4)",
   isExpensesCTA = false,
+  extraSupporters = []
 }) => {
+  const supporters = [...DEFAULT_SUPPORTERS, ...extraSupporters];
   const cardShadow = "0 18px 45px rgba(0,0,0,0.6)";
   const [showExpenses, setShowExpenses] = useState(false);
 
@@ -462,13 +507,93 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
             />
           </section>
 
+          {/* Divider */}
+          {isDividerShow && (
+            <div className="py-4">
+              <div
+                style={{
+                  height: 1,
+                  width: "100%",
+                  maxWidth: "72rem",
+                  margin: "0 auto",
+                  backgroundColor: dividerColor,
+                  opacity: 0.8,
+                }}
+              />
+            </div>
+          )}
+
+          {/* Supporters */}
+          <section className="py-12">
+            <div className="container mx-auto px-4">
+              <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+                Supporters
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                {supporters.map((s, idx) => (
+                  <div
+                    key={idx}
+                    className="card glass-effect hover-lift p-6 rounded-xl"
+                    style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl" style={{ backgroundColor: dividerColor }}>
+                      <img src={s.avatar} alt={s.title} className="h-full w-full object-cover" />
+                    </div>
+                    <h3 className="mt-3 text-lg font-semibold" style={{ color: textColor }}>{s.title}</h3>
+                    <p className="mt-1 text-sm" style={{ color: textColor, opacity: 0.6 }}>{s.description}</p>
+                    <div className="mt-4">
+                      <a
+                        href={s.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                        style={{ backgroundColor: "#e31337" }}
+                      >
+                        {s.buttonText}
+                        <IconExternalLink />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Contact Support */}
+                <a
+                  href="https://discord.gg/WEKa8JKg7W"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card glass-effect hover-lift flex flex-col p-6 rounded-xl"
+                  style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: dividerColor }}>
+                    <img
+                      src="https://cdn.simpleicons.org/discord/5865F2"
+                      alt="Discord"
+                      className="h-6 w-6"
+                      width={24}
+                      height={24}
+                    />
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold" style={{ color: textColor }}>Contact Support</h3>
+                  <p className="mt-1 text-sm" style={{ color: textColor, opacity: 0.6 }}>Get help on Discord</p>
+                  <div className="mt-4">
+                    <span
+                      className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                      style={{ backgroundColor: "#e31337" }}
+                    >
+                      Join
+                      <IconExternalLink />
+                    </span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </section>
+
           {/* Bottom Spacing */}
           <div className="py-20"></div>
         </>
         </main>
 
-        {/* Contact Footer */}
-        <Contact />
       </div>
     </div>
   );

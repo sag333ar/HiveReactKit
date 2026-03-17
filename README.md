@@ -118,7 +118,7 @@ import { HiveToolbar } from 'hive-react-kit';
 
 ### Landing Component
 
-- **HiveContributionsLanding** – Configurable landing page for Hive contributions: vision/mission, beliefs, delivered/in-dev/planned apps, contributions grid, and contact footer. Reusable across apps with customizable colors and dividers.
+- **HiveContributionsLanding** – Configurable full-page landing for Hive contributions: vision/mission, beliefs, app status lists, contributions grid, supporters & partners section, optional expenses breakdown, and contact footer.
 
 #### HiveContributionsLanding Usage
 
@@ -128,13 +128,23 @@ import { HiveContributionsLanding } from 'hive-react-kit';
 // Default dark theme
 <HiveContributionsLanding />
 
-// Custom theme
+// Custom theme with all features enabled
 <HiveContributionsLanding
   backgroundColor="#020617"
   textColor="#e5e7eb"
   cardBackgroundColor="rgba(15,23,42,0.9)"
   isDividerShow={true}
   dividerColor="rgba(148,163,184,0.4)"
+  isExpensesCTA={true}
+  extraSupporters={[
+    {
+      title: "Inspired by @arcange",
+      description: "Inspired by Arcange's Engage app",
+      avatar: "https://images.ecency.com/webp/u/arcange/avatar/medium",
+      link: "https://peakd.com/@arcange",
+      buttonText: "View",
+    },
+  ]}
 />
 ```
 
@@ -142,13 +152,27 @@ import { HiveContributionsLanding } from 'hive-react-kit';
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `backgroundColor` | `string` | `"#020617"` | Page background color |
-| `textColor` | `string` | `"#e5e7eb"` | Main text color |
-| `cardBackgroundColor` | `string` | `"rgba(15,23,42,0.85)"` | Background for all cards |
-| `isDividerShow` | `boolean` | `true` | Show/hide section dividers |
-| `dividerColor` | `string` | `"rgba(148,163,184,0.4)"` | Divider line color |
+| `backgroundColor` | `string` | `"#020617"` | Page background color. Also applied to the Expenses view when toggled. |
+| `textColor` | `string` | `"#e5e7eb"` | Main text color. |
+| `cardBackgroundColor` | `string` | `"rgba(15,23,42,0.85)"` | Background for all cards. |
+| `isDividerShow` | `boolean` | `true` | Show/hide horizontal dividers between sections. |
+| `dividerColor` | `string` | `"rgba(148,163,184,0.4)"` | Divider line color. |
+| `isExpensesCTA` | `boolean` | `false` | Shows an Expenses CTA card that opens a full transparent expense breakdown view. |
+| `extraSupporters` | `SupporterItem[]` | `[]` | Additional supporter cards appended after the 4 built-in defaults. |
 
-See [docs/HiveContributionsLanding.md](docs/HiveContributionsLanding.md) for full documentation.
+#### SupporterItem type
+
+```ts
+interface SupporterItem {
+  title: string;       // Card heading
+  description: string; // Short subtitle
+  avatar: string;      // Image URL
+  link: string;        // Button href
+  buttonText: string;  // Button label (e.g. "View", "Visit")
+}
+```
+
+See [docs/HiveContributionsLanding.md](docs/HiveContributionsLanding.md) for full documentation including all sections, Expenses view details, and styling guidance.
 
 #### Toolbar Items
 
@@ -195,10 +219,22 @@ npm install react react-dom @tanstack/react-query @hiveio/dhive zustand
 
 ## Styling
 
-This package uses Tailwind CSS. Make sure to include Tailwind CSS in your project:
+This package ships a pre-compiled CSS file. Import it once in your app entry point:
 
-```bash
-npm install tailwindcss
+```tsx
+import 'hive-react-kit/build.css';
+```
+
+**Tailwind users** — add the package to your `content` array instead so your Tailwind build includes the classes:
+
+```js
+// tailwind.config.js
+export default {
+  content: [
+    './src/**/*.{ts,tsx}',
+    './node_modules/hive-react-kit/dist/**/*.js',
+  ],
+};
 ```
 
 ## License
