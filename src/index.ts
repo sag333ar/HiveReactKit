@@ -42,6 +42,9 @@ export { default as UserFollowing } from './components/user/UserFollowing';
 export { default as UserInfo } from './components/user/UserInfo';
 export { default as UserProfilePage } from './components/user/UserProfilePage';
 
+// Landing components
+export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';
+
 // UI components from shadcn/ui (if available)
 // Note: UI components need to be added to the project first
 
