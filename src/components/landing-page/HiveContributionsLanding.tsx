@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import AppsGrid from "./AppsGrid";
 import Contact from "./Contact";
+import ExpensesView from "./ExpensesView";
 import { apps } from "../../data/appsData";
+import { ECENCY_IMAGES } from "../../data/ecencyImageUrls";
 
 // Inline SVGs to avoid react-icons dependency in packaged build (prevents "Objects are not valid as a React child" when consumer has different React instance)
 const svgProps = { viewBox: "0 0 512 512", fill: "currentColor" };
@@ -44,25 +46,25 @@ const BELIEFS = [
 ];
 
 const DELIVERED_APPS = [
-  { name: "Distriator", logo: "/images/distriator_logo.png" },
-  { name: "CheckInWithXYZ", logo: "/images/checkinwithxyz.png" },
-  { name: "hReplier", logo: "/images/logo.png" },
-  { name: "hStats", logo: "/images/stats_logo.png" },
-  { name: "hPolls", logo: "/images/hpolls-logo.png" },
-  { name: "hFestFacts", logo: "/images/hive-fest-fact-logo.png" },
-  { name: "hSnaps", logo: "/images/hsnaps-logo.png" },
+  { name: "Distriator", logo: ECENCY_IMAGES.distriator_logo },
+  { name: "CheckInWithXYZ", logo: ECENCY_IMAGES.checkinwithxyz },
+  { name: "hReplier", logo: ECENCY_IMAGES.hreplier },
+  { name: "hStats", logo: ECENCY_IMAGES.stats_logo },
+  { name: "hPolls", logo: ECENCY_IMAGES.hpolls_logo },
+  { name: "hFestFacts", logo: ECENCY_IMAGES.hive_fest_fact_logo },
+  { name: "hSnaps", logo: ECENCY_IMAGES.template },
 ];
 
 const IN_DEV_APPS = [
   {
     name: "hApprover",
     desc: "Approve Hive transactions from your phone",
-    logo: "/images/happrover-logo.png",
+    logo: ECENCY_IMAGES.happrover_logo,
   },
   {
     name: "hCurators",
     desc: "- Request to curate content on behalf of them for their communities.\n - We have staked Hive Power to curate & reward Hive content creators",
-    logo: "/images/vote_logo.png",
+    logo: ECENCY_IMAGES.vote_logo,
   },
 ];
 
@@ -82,7 +84,10 @@ interface HiveContributionsLandingProps {
   cardBackgroundColor?: string;
   isDividerShow?: boolean;
   dividerColor?: string;
+  isExpensesCTA?: boolean;
 }
+
+const LIGHTEST_RED = "#f87171";
 
 const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
   backgroundColor = "#020617",      // near-slate-950
@@ -90,8 +95,10 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
   cardBackgroundColor = "rgba(15,23,42,0.85)", // translucent slate
   isDividerShow = true,
   dividerColor = "rgba(148,163,184,0.4)", // slate-400 with opacity
+  isExpensesCTA = false,
 }) => {
   const cardShadow = "0 18px 45px rgba(0,0,0,0.6)";
+  const [showExpenses, setShowExpenses] = useState(false);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -116,6 +123,16 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
       {/* Content */}
       <div className="relative z-30" style={{ color: textColor }}>
         <main className="min-h-screen">
+          {showExpenses ? (
+            <ExpensesView
+              onBack={() => setShowExpenses(false)}
+              backgroundColor={backgroundColor}
+              textColor={textColor}
+              cardBackgroundColor={cardBackgroundColor}
+              dividerColor={dividerColor}
+            />
+          ) : (
+            <>
           {/* Divider */}
           {isDividerShow && (
             <div className="py-8">
@@ -199,6 +216,57 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                   </p>
                 </div>
               </div>
+
+              {/* Expenses CTA */}
+              {isExpensesCTA && (
+                <div className="max-w-4xl mx-auto mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowExpenses(true)}
+                  className="w-full text-left"
+                >
+                  <div
+                    className="card glass-effect hover-lift p-6 rounded-xl border-2 transition-colors"
+                    style={{
+                      backgroundColor: cardBackgroundColor,
+                      borderColor: dividerColor,
+                      boxShadow: cardShadow,
+                    }}
+                  >
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: dividerColor }}
+                      >
+                        <span className="text-xl font-bold" style={{ color: LIGHTEST_RED }}>
+                          ₹
+                        </span>
+                      </div>
+                      <div className="text-center sm:text-left flex-1">
+                        <h3 className="text-xl font-bold" style={{ color: LIGHTEST_RED }}>
+                          Running in Heavy Debt — See Our Expenses
+                        </h3>
+                        <p className="text-sm mt-1" style={{ color: textColor }}>
+                          We have spent our own money with zero revenue. No funding,
+                          no ads, no monetization. Open this transparent breakdown
+                          to understand how much it really costs.
+                        </p>
+                      </div>
+                      <span
+                        className="btn btn-outline btn-sm shrink-0"
+                        style={{
+                          color: LIGHTEST_RED,
+                          borderColor: LIGHTEST_RED,
+                          backgroundColor: "rgba(233, 57, 57, 0.26)",
+                        }}
+                      >
+                        View Expenses →
+                      </span>
+                    </div>
+                  </div>
+                </button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -393,6 +461,8 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
 
           {/* Bottom Spacing */}
           <div className="py-20"></div>
+        </>
+          )}
         </main>
 
         {/* Contact Footer */}

@@ -24,6 +24,7 @@ const App = () => (
                   cardBackgroundColor="rgba(15,23,42,0.9)"
                   isDividerShow={true}
                   dividerColor="rgba(148,163,184,0.4)"
+                  isExpensesCTA={true}
                 />
               }
             />

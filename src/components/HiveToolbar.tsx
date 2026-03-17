@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from "react";
-
-import distriatorLogo from "../../public/images/distriator.png";
-import checkinwithxyzLogo from "../../public/images/checkinwithxyz.png";
-import hreplierLogo from "../../public/images/hreplier.png";
-import hpollsLogo from "../../public/images/hpolls.png";
-import hstatsLogo from "../../public/images/stats.png";
-import hsnapsLogo from "../../public/images/hsnaps.png";
-import threespeakLogo from "../../public/images/3speak.png";
-import hivefestfactsLogo from "../../public/images/hivefestfacts.png";
+import { ECENCY_IMAGES } from "../data/ecencyImageUrls";
 
 export interface HiveToolbarProps {
   isDistriator?: boolean;
@@ -47,63 +39,63 @@ const TOOLBAR_ITEMS: ToolbarItem[] = [
     key: "vote-witness-threespeak",
     name: "Vote Witness 3Speak",
     url: "https://vote.hive.uno/@threespeak",
-    logo: threespeakLogo,
+    logo: ECENCY_IMAGES.three_speak_logo,
     alwaysVisible: true,
   },
   {
     key: "distriator",
     name: "Distriator",
     url: "https://distriator.com/",
-    logo: distriatorLogo,
+    logo: ECENCY_IMAGES.distriator_logo,
     visibilityKey: "isDistriator",
   },
   {
     key: "checkinwithxyz",
     name: "CheckinWithXYZ",
     url: "https://checkinwith.xyz/",
-    logo: checkinwithxyzLogo,
+    logo: ECENCY_IMAGES.checkinwithxyz,
     visibilityKey: "isCheckinwithxyz",
   },
   {
     key: "hreplier",
     name: "HReplier",
     url: "https://hreplier.sagarkothari88.one/",
-    logo: hreplierLogo,
+    logo: ECENCY_IMAGES.hreplier,
     visibilityKey: "isHreplier",
   },
   {
     key: "hpolls",
     name: "HPolls",
     url: "https://hpolls.sagarkothari88.one/",
-    logo: hpollsLogo,
+    logo: ECENCY_IMAGES.hpolls_logo,
     visibilityKey: "isHpolls",
   },
   {
     key: "hstats",
     name: "HStats",
     url: "https://hstats.sagarkothari88.one/",
-    logo: hstatsLogo,
+    logo: ECENCY_IMAGES.stats_logo,
     visibilityKey: "isHstats",
   },
   {
     key: "hsnaps",
     name: "HSnaps",
     url: "https://hsnaps.sagarkothari88.one/",
-    logo: hsnapsLogo,
+    logo: ECENCY_IMAGES.template,
     visibilityKey: "isHsnaps",
   },
   {
     key: "3speak",
     name: "3Speak",
     url: "https://3speak.tv/",
-    logo: threespeakLogo,
+    logo: ECENCY_IMAGES.three_speak_logo,
     alwaysVisible: true,
   },
   {
     key: "hivefestfacts",
     name: "HiveFestFacts",
     url: "https://hivefestfacts.sagarkothari88.one/",
-    logo: hivefestfactsLogo,
+    logo: ECENCY_IMAGES.hive_fest_fact_logo,
     visibilityKey: "isHiveFestFacts",
   },
 ];
