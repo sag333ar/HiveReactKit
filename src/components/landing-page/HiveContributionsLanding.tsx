@@ -2,40 +2,45 @@ import React from "react";
 import AppsGrid from "./AppsGrid";
 import Contact from "./Contact";
 import { apps } from "../../data/appsData";
-import {
-  FaEye,
-  FaBullseye,
-  FaStar,
-  FaRocket,
-  FaCode,
-  FaUsers,
-  FaBolt,
-  FaClock,
-  FaCalendarAlt,
-  FaCheckCircle,
-} from "react-icons/fa";
+
+// Inline SVGs to avoid react-icons dependency in packaged build (prevents "Objects are not valid as a React child" when consumer has different React instance)
+const svgProps = { viewBox: "0 0 512 512", fill: "currentColor" };
+const IconEye = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 105c-101.8 0-185 82.2-185 185 0 101.8 82.2 185 185 185s185-82.2 185-185c0-102.8-82.2-185-185-185zm0 323c-76.2 0-138-61.8-138-138s61.8-138 138-138 138 61.8 138 138-61.8 138-138 138zm0-229c-50.2 0-91 40.8-91 91s40.8 91 91 91 91-40.8 91-91-40.8-91-91-91z"/></svg>
+);
+const IconBullseye = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm0 448c-106 0-192-86-192-192S150 64 256 64s192 86 192 192-86 192-192 192zm0-320c-70.7 0-128 57.3-128 128s57.3 128 128 128 128-57.3 128-128-57.3-128-128-128zm0 208c-44.2 0-80-35.8-80-80s35.8-80 80-80 80 35.8 80 80-35.8 80-80 80zm0-112c-17.7 0-32 14.3-32 32s14.3 32 32 32 32-14.3 32-32-14.3-32-32-32z"/></svg>
+);
+const IconStar = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 0l67 136 149 22-108 105 25 147-133-70-133 70 25-147-108-105 149-22z"/></svg>
+);
+const IconBolt = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M288 0l-64 224h96l-64 288 256-320h-96z"/></svg>
+);
+const IconCode = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M156 132l-64 64 64 64 20-20-44-44 44-44zm200 0l-20 20 44 44-44 44 20 20 64-64zm-244 76h288v-32H112z"/></svg>
+);
+const IconRocket = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 0c-32 64-96 128-96 224v128l96 32 96-32V224c0-96-64-160-96-224z"/></svg>
+);
+const IconUsers = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 256c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm-64 64c-70.7 0-128 57.3-128 128v32h256v-32c0-70.7-57.3-128-128-128H192zm256 0c-35.3 0-64-28.7-64-64s28.7-64 64-64 64 28.7 64 64-28.7 64-64 64zm64 64c0-70.7-57.3-128-128-128-35.3 0-64 28.7-64 64s28.7 64 64 64h128v32z"/></svg>
+);
+const IconClock = () => (
+  <svg {...svgProps} className="w-6 h-6" aria-hidden><path d="M256 64C150 64 64 150 64 256s86 192 192 192 192-86 192-192S362 64 256 64zm0 352c-88.2 0-160-71.8-160-160S167.8 96 256 96s160 71.8 160 160-71.8 160-160 160zm16-176h-96v-32h80V128h32v80h-16z"/></svg>
+);
+const IconCalendar = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M128 0h32v64h192V0h32v64h32c35.3 0 64 28.7 64 64v320c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128c0-35.3 28.7-64 64-64h32V0zm288 128H96v320h320V128zm-256 64h64v64h-64v-64zm96 0h64v64h-64v-64zm-96 96h64v64h-64v-64zm96 0h64v64h-64v-64zm96-96h64v64h-64v-64zm0 96h64v64h-64v-64z"/></svg>
+);
+const IconCheckCircle = () => (
+  <svg {...svgProps} className="w-6 h-6"><path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm128 192l-160 160-64-64 22.6-22.6 41.4 41.4 137.4-137.4L384 192z"/></svg>
+);
 
 const BELIEFS = [
-  {
-    icon: FaBolt,
-    title: "Simplicity Wins",
-    desc: "Blockchain technology should feel as easy as using any modern mobile app.",
-  },
-  {
-    icon: FaCode,
-    title: "Open Ecosystem",
-    desc: "All our apps are open source so developers can learn, extend, and build.",
-  },
-  {
-    icon: FaRocket,
-    title: "Build First, Talk Later",
-    desc: "We prefer shipping real products and improving with community feedback.",
-  },
-  {
-    icon: FaUsers,
-    title: "Community Over Ownership",
-    desc: "These are tools built for the entire Hive ecosystem, not closed platforms.",
-  },
+  { icon: IconBolt, title: "Simplicity Wins", desc: "Blockchain technology should feel as easy as using any modern mobile app." },
+  { icon: IconCode, title: "Open Ecosystem", desc: "All our apps are open source so developers can learn, extend, and build." },
+  { icon: IconRocket, title: "Build First, Talk Later", desc: "We prefer shipping real products and improving with community feedback." },
+  { icon: IconUsers, title: "Community Over Ownership", desc: "These are tools built for the entire Hive ecosystem, not closed platforms." },
 ];
 
 const DELIVERED_APPS = [
@@ -140,8 +145,8 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                   style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <FaEye className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                      <IconEye />
                     </div>
                     <h3 className="text-xl font-bold text-base-content">Vision</h3>
                   </div>
@@ -161,8 +166,8 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                   style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <FaBullseye className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                      <IconBullseye />
                     </div>
                     <h3 className="text-xl font-bold text-base-content">Mission</h3>
                   </div>
@@ -177,10 +182,10 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
               </div>
               {/* Goal */}
               <div className="max-w-4xl mx-auto mt-6">
-                <div className="card glass-effect hover-lift p-6 rounded-xl">
+                <div className="card glass-effect hover-lift p-6 rounded-xl" style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <FaStar className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                      <IconStar />
                     </div>
                     <h3 className="text-xl font-bold text-base-content">Goal</h3>
                   </div>
@@ -226,8 +231,8 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                     className="card glass-effect hover-lift p-6 rounded-xl text-center"
                     style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
                   >
-                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                      <Icon className="w-6 h-6 text-primary" />
+                    <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center mx-auto mb-4 text-primary">
+                      <Icon />
                     </div>
                     <h3 className="text-lg font-bold text-base-content mb-2">
                       {title}
@@ -275,7 +280,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                       className="flex items-center gap-3 glass-effect hover-lift px-5 py-4 rounded-xl"
                       style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
                     >
-                      <FaCheckCircle className="w-5 h-5 shrink-0 text-success" />
+                      <span className="shrink-0 text-success [&_svg]:w-5 [&_svg]:h-5 inline-flex text-green-500"><IconCheckCircle /></span>
                       <img
                         src={app.logo}
                         alt={app.name}
@@ -304,7 +309,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <FaClock className="w-5 h-5 shrink-0 text-warning" />
+                          <span className="shrink-0 inline-flex items-center justify-center bg-amber-500/20 p-1.5 rounded-full text-amber-400 [&_svg]:w-5 [&_svg]:h-5 [&_svg]:shrink-0"><IconClock /></span>
                           <img
                             src={app.logo}
                             alt={app.name}
@@ -341,7 +346,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                       className="flex items-center gap-3 glass-effect hover-lift px-5 py-4 rounded-xl"
                       style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
                     >
-                      <FaCalendarAlt className="w-5 h-5 shrink-0 text-info" />
+                      <span className="shrink-0 inline-flex items-center justify-center bg-sky-500/20 p-1.5 rounded-full text-sky-400 [&_svg]:w-5 [&_svg]:h-5 [&_svg]:shrink-0"><IconCalendar /></span>
                       <span className="font-medium text-base-content">
                         {name}
                       </span>
