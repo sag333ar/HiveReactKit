@@ -285,7 +285,7 @@ interface ExpensesViewProps {
 
 const ExpensesView: React.FC<ExpensesViewProps> = ({
   onBack,
-  backgroundColor = "#020617",
+  backgroundColor = "#111827",
   textColor = "#e5e7eb",
   cardBackgroundColor = "rgba(15,23,42,0.85)",
   dividerColor = "rgba(148,163,184,0.4)",
@@ -313,24 +313,14 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Background — same pattern as HiveContributionsLanding */}
+      {/* Background — uses the same backgroundColor prop as HiveContributionsLanding */}
       <div className="fixed inset-0 z-0" style={{ backgroundColor }} />
       <div
         className="fixed inset-0 z-10 backdrop-blur-md"
-        style={{ backgroundColor: ACCENT.blurOverlay }}
+        style={{ backgroundColor, opacity: 0.6 }}
       />
-      <div
-        className="fixed inset-0 z-20"
-        style={{
-          background: `linear-gradient(135deg, ${ACCENT.gradientFrom}, transparent, ${ACCENT.gradientTo})`,
-        }}
-      />
-      <div
-        className="fixed inset-0 z-20"
-        style={{
-          background: `linear-gradient(180deg, ${ACCENT.gradientFrom}, transparent, ${ACCENT.gradientTo})`,
-        }}
-      />
+      <div className="fixed inset-0 z-20 bg-gradient-to-br from-base-100 via-transparent to-base-100/10" />
+      <div className="fixed inset-0 z-20 bg-gradient-to-b from-base-100 via-transparent to-base-100/10" />
 
       {/* Content */}
       <div className="relative z-30" style={{ color: textColor }}>
@@ -345,7 +335,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                 className="inline-flex items-center gap-2 hover:underline font-medium"
                 style={{ color: ACCENT.accent }}
               >
-                <FaArrowLeft className="w-4 h-4" /> 
+                <FaArrowLeft className="w-4 h-4" /> Back to Contributions View
               </button>
             </div>
           </div>
@@ -887,8 +877,6 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <div className="py-20"></div>
         </main>
-
-        <Contact />
       </div>
     </div>
   );

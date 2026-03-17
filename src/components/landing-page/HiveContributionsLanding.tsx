@@ -100,6 +100,18 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
   const cardShadow = "0 18px 45px rgba(0,0,0,0.6)";
   const [showExpenses, setShowExpenses] = useState(false);
 
+  if (showExpenses) {
+    return (
+      <ExpensesView
+        onBack={() => setShowExpenses(false)}
+        backgroundColor={backgroundColor}
+        textColor={textColor}
+        cardBackgroundColor={cardBackgroundColor}
+        dividerColor={dividerColor}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background */}
@@ -123,16 +135,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
       {/* Content */}
       <div className="relative z-30" style={{ color: textColor }}>
         <main className="min-h-screen">
-          {showExpenses ? (
-            <ExpensesView
-              onBack={() => setShowExpenses(false)}
-              backgroundColor={backgroundColor}
-              textColor={textColor}
-              cardBackgroundColor={cardBackgroundColor}
-              dividerColor={dividerColor}
-            />
-          ) : (
-            <>
+          <>
           {/* Divider */}
           {isDividerShow && (
             <div className="py-8">
@@ -462,7 +465,6 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
           {/* Bottom Spacing */}
           <div className="py-20"></div>
         </>
-          )}
         </main>
 
         {/* Contact Footer */}
