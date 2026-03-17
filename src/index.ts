@@ -44,6 +44,7 @@ export { default as UserProfilePage } from './components/user/UserProfilePage';
 
 // Landing components
 export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';
+export { default as ExpensesView } from './components/landing-page/ExpensesView';
 
 // UI components from shadcn/ui (if available)
 // Note: UI components need to be added to the project first

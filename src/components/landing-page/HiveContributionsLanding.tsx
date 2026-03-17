@@ -1,7 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
 import AppsGrid from "./AppsGrid";
-import Contact from "./Contact";
-import ExpensesView from "./ExpensesView";
 import { apps } from "../../data/appsData";
 import { ECENCY_IMAGES } from "../../data/ecencyImageUrls";
 import {
@@ -104,6 +102,7 @@ interface HiveContributionsLandingProps {
   isDividerShow?: boolean;
   dividerColor?: string;
   isExpensesCTA?: boolean;
+  onViewExpenses?: () => void;
   extraSupporters?: SupporterItem[];
 }
 
@@ -116,23 +115,11 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
   isDividerShow = true,
   dividerColor = "rgba(148,163,184,0.4)",
   isExpensesCTA = false,
+  onViewExpenses,
   extraSupporters = []
 }) => {
   const supporters = [...DEFAULT_SUPPORTERS, ...extraSupporters];
   const cardShadow = "0 18px 45px rgba(0,0,0,0.6)";
-  const [showExpenses, setShowExpenses] = useState(false);
-
-  if (showExpenses) {
-    return (
-      <ExpensesView
-        onBack={() => setShowExpenses(false)}
-        backgroundColor={backgroundColor}
-        textColor={textColor}
-        cardBackgroundColor={cardBackgroundColor}
-        dividerColor={dividerColor}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -247,7 +234,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                 <div className="max-w-4xl mx-auto mt-6">
                 <button
                   type="button"
-                  onClick={() => setShowExpenses(true)}
+                  onClick={onViewExpenses}
                   className="w-full text-left"
                 >
                   <div
