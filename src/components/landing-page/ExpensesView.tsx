@@ -416,21 +416,34 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
               </h2>
 
               {/* Desktop table */}
-              <div className="max-w-6xl mx-auto overflow-x-auto hidden md:block">
-                <table className="table table-sm w-full">
+              <div
+                className="max-w-6xl mx-auto hidden md:block rounded-2xl"
+                style={{ backgroundColor: cardBackgroundColor, boxShadow: cardShadow }}
+              >
+                <table className="w-full border-collapse text-xs">
                   <thead>
-                    <tr style={{ color: textColor, opacity: 0.75 }}>
-                      <th className="text-left">Month</th>
-                      <th className="text-right">Salaries</th>
-                      <th className="text-right">Rent</th>
-                      <th className="text-right">Utilities</th>
-                      <th className="text-right hidden lg:table-cell">VPS</th>
-                      <th className="text-right hidden lg:table-cell">Dev&nbsp;Prog</th>
-                      <th className="text-right hidden lg:table-cell">Domains</th>
-                      <th className="text-right hidden xl:table-cell">Infra&nbsp;Dep.</th>
-                      <th className="text-right hidden xl:table-cell">Infra&nbsp;Maint.</th>
-                      <th className="text-right hidden xl:table-cell">Furn.&nbsp;Dep.</th>
-                      <th className="text-right font-bold">Total</th>
+                    <tr style={{ borderBottom: `2px solid ${dividerColor}` }}>
+                      {[
+                        { label: "Month", align: "left", cls: "" },
+                        { label: "Salaries", align: "right", cls: "" },
+                        { label: "Rent", align: "right", cls: "" },
+                        { label: "Utilities", align: "right", cls: "" },
+                        { label: "VPS", align: "right", cls: "hidden lg:table-cell" },
+                        { label: "Dev Prog", align: "right", cls: "hidden lg:table-cell" },
+                        { label: "Domains", align: "right", cls: "hidden lg:table-cell" },
+                        { label: "Infra Dep.", align: "right", cls: "hidden xl:table-cell" },
+                        { label: "Infra Maint.", align: "right", cls: "hidden xl:table-cell" },
+                        { label: "Furn. Dep.", align: "right", cls: "hidden xl:table-cell" },
+                        { label: "Total", align: "right", cls: "" },
+                      ].map(({ label, align, cls }) => (
+                        <th
+                          key={label}
+                          className={`px-3 py-4 font-semibold uppercase tracking-wider whitespace-nowrap ${cls}`}
+                          style={{ textAlign: align as "left" | "right", color: textColor, opacity: 0.5 }}
+                        >
+                          {label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -441,31 +454,36 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                           <tr>
                             <td
                               colSpan={11}
-                              className="font-extrabold text-center py-3 text-lg"
+                              className="px-3 py-3 font-bold text-center tracking-widest uppercase"
                               style={{ backgroundColor: ACCENT.primaryBg, color: ACCENT.primary }}
                             >
                               {year}
                             </td>
                           </tr>
                           {yearRows.map((r) => (
-                            <tr key={r.label} className="hover:opacity-90 transition-opacity">
-                              <td className="font-medium" style={{ color: textColor }}>{r.label}</td>
-                              <td className="text-right" style={{ color: textColor, opacity: 0.85 }}>{fmt(r.salaries)}</td>
-                              <td className="text-right" style={{ color: textColor, opacity: 0.85 }}>{r.rent ? fmt(r.rent) : "—"}</td>
-                              <td className="text-right" style={{ color: textColor, opacity: 0.85 }}>{r.utilities ? fmt(r.utilities) : "—"}</td>
-                              <td className="text-right hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.vps ? fmt(r.vps) : "—"}</td>
-                              <td className="text-right hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.devPrograms ? fmt(r.devPrograms) : "—"}</td>
-                              <td className="text-right hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.domains ? fmt(r.domains) : "—"}</td>
-                              <td className="text-right hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.infraDepreciation ? fmt(r.infraDepreciation) : "—"}</td>
-                              <td className="text-right hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.infraMaintenance ? fmt(r.infraMaintenance) : "—"}</td>
-                              <td className="text-right hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.furnitureDepreciation ? fmt(r.furnitureDepreciation) : "—"}</td>
-                              <td className="text-right font-bold" style={{ color: ACCENT.error }}>{fmt(r.total)}</td>
+                            <tr
+                              key={r.label}
+                              className="transition-colors"
+                              style={{ borderBottom: `1px solid ${dividerColor}` }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.03)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              <td className="px-3 py-3 font-medium whitespace-nowrap" style={{ color: textColor }}>{r.label}</td>
+                              <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap" style={{ color: textColor, opacity: 0.85 }}>{fmt(r.salaries)}</td>
+                              <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap" style={{ color: textColor, opacity: 0.85 }}>{r.rent ? fmt(r.rent) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap" style={{ color: textColor, opacity: 0.85 }}>{r.utilities ? fmt(r.utilities) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.vps ? fmt(r.vps) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.devPrograms ? fmt(r.devPrograms) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden lg:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.domains ? fmt(r.domains) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.infraDepreciation ? fmt(r.infraDepreciation) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.infraMaintenance ? fmt(r.infraMaintenance) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-5 py-3 text-right tabular-nums whitespace-nowrap hidden xl:table-cell" style={{ color: textColor, opacity: 0.85 }}>{r.furnitureDepreciation ? fmt(r.furnitureDepreciation) : <span style={{ opacity: 0.3 }}>—</span>}</td>
+                              <td className="px-3 py-3 text-right font-bold tabular-nums whitespace-nowrap" style={{ color: ACCENT.error }}>{fmt(r.total)}</td>
                             </tr>
                           ))}
-                          <tr style={{ borderTop: `2px solid ${ACCENT.errorBorder}` }}>
-                            <td className="font-extrabold py-4 text-lg" style={{ color: ACCENT.error }}>{year} Total</td>
-                            <td colSpan={9}></td>
-                            <td className="text-right font-extrabold py-4 text-lg" style={{ color: ACCENT.error }}>
+                          <tr style={{ borderTop: `2px solid ${ACCENT.errorBorder}`, backgroundColor: "rgba(248,113,113,0.06)" }}>
+                            <td colSpan={10} className="px-3 py-3.5 font-bold" style={{ color: ACCENT.error }}>{year} Total</td>
+                            <td className="px-3 py-3.5 text-right font-bold tabular-nums whitespace-nowrap" style={{ color: ACCENT.error }}>
                               {fmt(yearlyTotals[year])}
                             </td>
                           </tr>
@@ -473,20 +491,17 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                       );
                     })}
 
-                    <tr style={{ borderTop: `4px solid ${ACCENT.error}`, backgroundColor: ACCENT.errorBg }}>
-                      <td className="font-extrabold text-lg py-4" style={{ color: ACCENT.error }}>GRAND TOTAL (Recurring)</td>
-                      <td colSpan={9}></td>
-                      <td className="text-right font-extrabold text-lg py-4" style={{ color: ACCENT.error }}>{fmt(grandTotal)}</td>
+                    <tr style={{ borderTop: `3px solid ${ACCENT.error}`, backgroundColor: ACCENT.errorBg }}>
+                      <td colSpan={10} className="px-3 py-4 text-2xl font-extrabold" style={{ color: ACCENT.error }}>GRAND TOTAL (Recurring)</td>
+                      <td className="px-3 py-4 text-right text-2xl font-extrabold tabular-nums whitespace-nowrap" style={{ color: ACCENT.error }}>{fmt(grandTotal)}</td>
                     </tr>
-                    <tr style={{ backgroundColor: ACCENT.errorBg }}>
-                      <td className="font-extrabold text-lg py-2" style={{ color: ACCENT.warning }}>+ Capital Investments</td>
-                      <td colSpan={9}></td>
-                      <td className="text-right font-extrabold text-lg py-2" style={{ color: ACCENT.warning }}>{fmt(capitalInvestments)}</td>
+                    <tr style={{ backgroundColor: ACCENT.errorBg, borderTop: `1px solid ${dividerColor}` }}>
+                      <td colSpan={10} className="px-3 py-3 text-2xl font-extrabold" style={{ color: ACCENT.warning }}>+ Capital Investments</td>
+                      <td className="px-3 py-3 text-right text-2xl font-extrabold tabular-nums whitespace-nowrap" style={{ color: ACCENT.warning }}>{fmt(capitalInvestments)}</td>
                     </tr>
-                    <tr style={{ backgroundColor: "rgba(248,113,113,0.18)", borderTop: `2px solid ${ACCENT.error}` }}>
-                      <td className="font-extrabold text-xl py-4" style={{ color: ACCENT.error }}>TOTAL EXPENSES</td>
-                      <td colSpan={9}></td>
-                      <td className="text-right font-extrabold text-xl py-4" style={{ color: ACCENT.error }}>{fmt(totalWithCapital)}</td>
+                    <tr style={{ backgroundColor: "rgba(248,113,113,0.16)", borderTop: `2px solid ${ACCENT.error}` }}>
+                      <td colSpan={10} className="px-3 py-4 text-2xl font-extrabold" style={{ color: ACCENT.error }}>TOTAL EXPENSES</td>
+                      <td className="px-3 py-4 text-right text-2xl font-extrabold tabular-nums whitespace-nowrap" style={{ color: ACCENT.error }}>{fmt(totalWithCapital)}</td>
                     </tr>
                   </tbody>
                 </table>
