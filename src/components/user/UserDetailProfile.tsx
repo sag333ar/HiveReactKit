@@ -1,0 +1,1254 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import {
+  ArrowLeft,
+  User,
+  Users,
+  MessageCircle,
+  FileText,
+  ThumbsUp,
+  Reply,
+  Wallet as WalletIcon,
+  MoreVertical,
+  MapPin,
+  Globe,
+  Calendar,
+  Clock,
+  Zap,
+  Share2,
+  Flag,
+  Ban,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { Wallet } from "../Wallet";
+import { userService } from "@/services/userService";
+import { useIsMobile } from "@/hooks/use-mobile";
+import type { Post } from "@/types/post";
+import type { Follower, Following } from "@/types/user";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface UserDetailProfileProps {
+  username: string;
+  currentUsername?: string;
+  onBack?: () => void;
+  showBackButton?: boolean;
+
+  // Social action callbacks
+  onFollow?: (username: string) => void | Promise<void>;
+  onUnfollow?: (username: string) => void | Promise<void>;
+  onIgnoreAuthor?: (username: string) => void | Promise<void>;
+  onReportUser?: (username: string, reason: string) => void | Promise<void>;
+
+  // Content action callbacks
+  onUpvotePost?: (author: string, permlink: string) => void | Promise<void>;
+  onUpvoteComment?: (author: string, permlink: string) => void | Promise<void>;
+  onReplyComment?: (author: string, permlink: string) => void | Promise<void>;
+
+  // Navigation callbacks
+  onUserClick?: (username: string) => void;
+  onPostClick?: (author: string, permlink: string, title: string) => void;
+  onShare?: (username: string) => void;
+}
+
+interface ProfileData {
+  username: string;
+  name?: string;
+  about?: string;
+  location?: string;
+  website?: string;
+  profileImage?: string;
+  coverImage?: string;
+  followersCount: number;
+  followingCount: number;
+  postsCount: number;
+  reputation: number;
+  isFollowing: boolean;
+  created?: string;
+  lastActivity?: string;
+  hivePower?: number;
+  votingPower?: number;
+}
+
+type TabType = "blogs" | "posts" | "comments" | "replies" | "followers" | "following" | "wallet";
+
+const REPORT_REASONS = [
+  "Spam",
+  "Harassment",
+  "Hate Speech",
+  "Violence",
+  "IP Violation",
+  "Self-harm",
+  "Doxxing",
+  "Minor Safety",
+  "Other",
+];
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
+  return date.toLocaleDateString();
+};
+
+const formatReputation = (rep: number): string => {
+  if (rep === 0) return "25";
+  const neg = rep < 0;
+  let val = neg ? -rep : rep;
+  let out = Math.log10(val);
+  out = Math.max(out - 9, 0);
+  out = (neg ? -1 : 1) * out;
+  out = out * 9 + 25;
+  return Math.round(out).toString();
+};
+
+const formatDate = (dateString: string): string => {
+  try {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return dateString;
+  }
+};
+
+/** Strip HTML, markdown images, markdown links, bare URLs, and leftover brackets to get plain text only */
+const extractPlainText = (body: string): string => {
+  let text = body;
+  // Remove HTML tags
+  text = text.replace(/<[^>]*>/g, "");
+  // Remove markdown images ![alt](url)
+  text = text.replace(/!\[.*?\]\([^\s)]+\)/g, "");
+  // Replace markdown links [text](url) with just text
+  text = text.replace(/\[([^\]]*)\]\([^\s)]+\)/g, "$1");
+  // Remove bare URLs
+  text = text.replace(/https?:\/\/[^\s)>\]]+/g, "");
+  // Remove leftover image alt-text markers like [ihdd] or (url)
+  text = text.replace(/\[.*?\]/g, "");
+  text = text.replace(/\(https?:\/\/[^\s)]*\)/g, "");
+  // Remove markdown formatting characters
+  text = text.replace(/[*_~`#>|]/g, "");
+  // Remove horizontal rules (---, ___, ***)
+  text = text.replace(/^[-_*]{3,}\s*$/gm, "");
+  // Collapse whitespace
+  text = text.replace(/\s+/g, " ").trim();
+  return text;
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
+  username,
+  currentUsername,
+  onBack,
+  showBackButton = false,
+  onFollow,
+  onUnfollow,
+  onIgnoreAuthor,
+  onReportUser,
+  onUpvotePost,
+  onUpvoteComment,
+  onReplyComment,
+  onUserClick,
+  onPostClick,
+  onShare,
+}) => {
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>("blogs");
+
+  // Content states
+  const [blogs, setBlogs] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Post[]>([]);
+  const [replies, setReplies] = useState<Post[]>([]);
+  const [followers, setFollowers] = useState<Follower[]>([]);
+  const [following, setFollowing] = useState<Following[]>([]);
+  const [loadingContent, setLoadingContent] = useState(false);
+
+  // Pagination states
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
+    blogs: true, posts: true, comments: true, replies: true,
+    followers: true, following: true, wallet: false,
+  });
+  const PAGE_SIZE = 20;
+  const FOLLOWER_PAGE_SIZE = 100;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // UI states
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showActionDropdown, setShowActionDropdown] = useState(false);
+  const [showIgnoreConfirm, setShowIgnoreConfirm] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<string | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const isMobile = useIsMobile();
+  const targetUsername = username.replace(/^@/, "").trim();
+
+  // ─── Close dropdown on outside click ─────────────────────────────────────
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowActionDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  // ─── Fetch profile data ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!targetUsername) return;
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [profileResponse, accounts, globalProps] = await Promise.all([
+          userService.getProfile(targetUsername),
+          userService.getAccounts([targetUsername]),
+          userService.getDynamicGlobalProperties(),
+        ]);
+
+        const user = profileResponse?.result;
+        const account = accounts?.[0];
+        if (!user) {
+          setError("User not found");
+          return;
+        }
+
+        // Calculate Hive Power
+        let hivePower: number | undefined;
+        if (globalProps && account?.vesting_shares) {
+          const vestingShares = parseFloat(account.vesting_shares.split(" ")[0]);
+          const totalVestingShares = parseFloat(globalProps.total_vesting_shares.split(" ")[0]);
+          const totalVestingFundHive = parseFloat(globalProps.total_vesting_fund_hive.split(" ")[0]);
+          hivePower = (vestingShares / totalVestingShares) * totalVestingFundHive;
+        }
+
+        // Calculate voting power
+        let votingPower: number | undefined;
+        if (account?.voting_power) {
+          votingPower = (account.voting_power / 10000) * 100;
+        }
+
+        // Check if current user follows target
+        let isFollowing = false;
+        if (currentUsername && currentUsername !== targetUsername) {
+          try {
+            const currentFollowing = await userService.getFollowing(currentUsername);
+            isFollowing = currentFollowing.some((f) => f.following === targetUsername);
+          } catch {
+            // Silently fail - isFollowing stays false
+          }
+        }
+
+        // Parse posting_json_metadata for fallback profile fields
+        let postingProfile: any = null;
+        if (account?.posting_json_metadata) {
+          try {
+            const parsed = JSON.parse(account.posting_json_metadata);
+            postingProfile = parsed?.profile;
+          } catch {
+            // Invalid JSON — ignore
+          }
+        }
+
+        // Also try json_metadata as another fallback
+        let jsonProfile: any = null;
+        if (account?.json_metadata) {
+          try {
+            const parsed = JSON.parse(account.json_metadata);
+            jsonProfile = parsed?.profile;
+          } catch {
+            // Invalid JSON — ignore
+          }
+        }
+
+        // Priority: posting_json_metadata > json_metadata > bridge.get_profile
+        const bridgeProfile = user.metadata?.profile;
+
+        const profileData: ProfileData = {
+          username: user.name,
+          name: postingProfile?.name || jsonProfile?.name || bridgeProfile?.name,
+          about: postingProfile?.about || jsonProfile?.about || bridgeProfile?.about,
+          location: postingProfile?.location || jsonProfile?.location || bridgeProfile?.location,
+          website: postingProfile?.website || jsonProfile?.website || bridgeProfile?.website,
+          profileImage: postingProfile?.profile_image || jsonProfile?.profile_image || bridgeProfile?.profile_image,
+          coverImage: postingProfile?.cover_image || jsonProfile?.cover_image || bridgeProfile?.cover_image,
+          followersCount: user.stats?.followers || 0,
+          followingCount: user.stats?.following || 0,
+          postsCount: user.post_count || 0,
+          reputation: user.reputation || 0,
+          isFollowing,
+          created: user.created,
+          lastActivity: account?.last_post,
+          hivePower,
+          votingPower,
+        };
+
+        setProfile(profileData);
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+        setError("Failed to load user profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [targetUsername, currentUsername]);
+
+  // ─── Reset state on username change ──────────────────────────────────────
+
+  useEffect(() => {
+    setBlogs([]);
+    setPosts([]);
+    setComments([]);
+    setReplies([]);
+    setFollowers([]);
+    setFollowing([]);
+    setActiveTab("blogs");
+    setHasMore({ blogs: true, posts: true, comments: true, replies: true, followers: true, following: true, wallet: false });
+  }, [targetUsername]);
+
+  // ─── Fetch content based on active tab (initial page) ───────────────────
+
+  useEffect(() => {
+    const fetchTabContent = async () => {
+      if (!targetUsername) return;
+      setLoadingContent(true);
+
+      try {
+        switch (activeTab) {
+          case "blogs": {
+            const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE);
+            setBlogs(data);
+            setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
+            break;
+          }
+          case "posts": {
+            const data = await userService.getUserPosts(targetUsername, PAGE_SIZE);
+            setPosts(data);
+            setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
+            break;
+          }
+          case "comments": {
+            const data = await userService.getUserComments(targetUsername, PAGE_SIZE);
+            setComments(data);
+            setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
+            break;
+          }
+          case "replies": {
+            const data = await userService.getUserReplies(targetUsername, PAGE_SIZE);
+            setReplies(data);
+            setHasMore((prev) => ({ ...prev, replies: data.length >= PAGE_SIZE }));
+            break;
+          }
+          case "followers": {
+            const data = await userService.getFollowers(targetUsername, null, FOLLOWER_PAGE_SIZE);
+            setFollowers(data);
+            setHasMore((prev) => ({ ...prev, followers: data.length >= FOLLOWER_PAGE_SIZE }));
+            break;
+          }
+          case "following": {
+            const data = await userService.getFollowing(targetUsername, null, FOLLOWER_PAGE_SIZE);
+            setFollowing(data);
+            setHasMore((prev) => ({ ...prev, following: data.length >= FOLLOWER_PAGE_SIZE }));
+            break;
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching ${activeTab}:`, err);
+      } finally {
+        setLoadingContent(false);
+      }
+    };
+
+    fetchTabContent();
+  }, [targetUsername, activeTab]);
+
+  // ─── Load more (next page) ────────────────────────────────────────────
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore[activeTab] || !targetUsername) return;
+    setLoadingMore(true);
+
+    try {
+      switch (activeTab) {
+        case "blogs": {
+          const last = blogs[blogs.length - 1];
+          if (!last) break;
+          const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
+          // First item is the same as last cursor, skip it
+          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          setBlogs((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, blogs: newItems.length >= PAGE_SIZE - 1 }));
+          break;
+        }
+        case "posts": {
+          const last = posts[posts.length - 1];
+          if (!last) break;
+          const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
+          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          setPosts((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
+          break;
+        }
+        case "comments": {
+          const last = comments[comments.length - 1];
+          if (!last) break;
+          const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
+          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          setComments((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, comments: newItems.length >= PAGE_SIZE - 1 }));
+          break;
+        }
+        case "replies": {
+          const last = replies[replies.length - 1];
+          if (!last) break;
+          const data = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
+          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          setReplies((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, replies: newItems.length >= PAGE_SIZE - 1 }));
+          break;
+        }
+        case "followers": {
+          const last = followers[followers.length - 1];
+          if (!last) break;
+          const data = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
+          // First item matches cursor, skip it
+          const newItems = data.length > 0 && data[0].follower === last.follower ? data.slice(1) : data;
+          setFollowers((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, followers: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+          break;
+        }
+        case "following": {
+          const last = following[following.length - 1];
+          if (!last) break;
+          const data = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
+          const newItems = data.length > 0 && data[0].following === last.following ? data.slice(1) : data;
+          setFollowing((prev) => [...prev, ...newItems]);
+          setHasMore((prev) => ({ ...prev, following: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+          break;
+        }
+      }
+    } catch (err) {
+      console.error(`Error loading more ${activeTab}:`, err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeTab, targetUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following]);
+
+  // ─── IntersectionObserver for infinite scroll ─────────────────────────
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  // ─── Action handlers ─────────────────────────────────────────────────────
+
+  const handleFollowToggle = useCallback(async () => {
+    if (!profile) return;
+    setActionLoading(true);
+    setShowActionDropdown(false);
+
+    try {
+      const wasFollowing = profile.isFollowing;
+      if (wasFollowing && onUnfollow) {
+        await onUnfollow(targetUsername);
+      } else if (!wasFollowing && onFollow) {
+        await onFollow(targetUsername);
+      }
+      // Optimistic update
+      setProfile((prev) => (prev ? { ...prev, isFollowing: !wasFollowing } : prev));
+    } catch (err) {
+      console.error("Follow/Unfollow error:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [profile, targetUsername, onFollow, onUnfollow]);
+
+  const handleIgnore = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      if (onIgnoreAuthor) {
+        await onIgnoreAuthor(targetUsername);
+      }
+      setShowIgnoreConfirm(false);
+      setShowActionDropdown(false);
+    } catch (err) {
+      console.error("Error ignoring user:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [targetUsername, onIgnoreAuthor]);
+
+  const handleReport = useCallback(async () => {
+    if (!selectedReportReason) return;
+    setActionLoading(true);
+    try {
+      if (onReportUser) {
+        await onReportUser(targetUsername, selectedReportReason);
+      }
+      setShowReportModal(false);
+      setSelectedReportReason(null);
+      setShowActionDropdown(false);
+    } catch (err) {
+      console.error("Error reporting user:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [targetUsername, selectedReportReason, onReportUser]);
+
+  const handleShare = useCallback(() => {
+    if (onShare) {
+      onShare(targetUsername);
+    } else {
+      const url = `https://peakd.com/@${targetUsername}`;
+      if (navigator.share) {
+        navigator.share({ title: profile?.name || targetUsername, url });
+      } else {
+        navigator.clipboard.writeText(url);
+      }
+    }
+  }, [targetUsername, profile, onShare]);
+
+  // ─── Render: Loading state ───────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-3" />
+          <p className="text-gray-400">Loading user profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <User className="h-14 w-14 text-gray-500 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-white mb-1">User Not Found</h3>
+          <p className="text-gray-400">{error || "This user does not exist"}</p>
+          {showBackButton && onBack && (
+            <button
+              onClick={onBack}
+              className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Render: Post/Comment item ───────────────────────────────────────────
+
+  const PostImageCarousel: React.FC<{ images: string[] }> = ({ images }) => {
+    const [idx, setIdx] = useState(0);
+    const [preview, setPreview] = useState(false);
+    if (images.length === 0) return null;
+    return (
+      <>
+        <div className="relative w-16 flex-shrink-0 mt-1.5">
+          {/* Thumbnail — click to preview */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreview(true); }}
+            className="block w-16 h-16 rounded-lg overflow-hidden border border-gray-600 hover:border-blue-500 transition-colors cursor-pointer"
+          >
+            <img
+              src={images[idx]}
+              alt=""
+              className="w-full h-full object-cover bg-gray-700"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          </button>
+          {/* Navigation arrows */}
+          {images.length > 1 && (
+            <div className="flex items-center justify-between mt-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev - 1 + images.length) % images.length); }}
+                className="p-0.5 text-gray-400 hover:text-white transition-colors"
+                title="Previous"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <span className="text-[10px] text-gray-500">{idx + 1}/{images.length}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev + 1) % images.length); }}
+                className="p-0.5 text-gray-400 hover:text-white transition-colors"
+                title="Next"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Fullscreen lightbox preview */}
+        {preview && (
+          <div
+            className="fixed inset-0 z-[2000] bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setPreview(false)}
+          >
+            <div
+              className="relative max-w-3xl max-h-[85vh] w-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={images[idx]}
+                alt=""
+                className="max-w-full max-h-[80vh] rounded-lg object-contain"
+              />
+              {/* Close hint */}
+              <button
+                onClick={() => setPreview(false)}
+                className="absolute top-2 right-2 text-white/70 hover:text-white bg-black/50 rounded-full p-1.5 transition-colors"
+                title="Close"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </button>
+              {/* Prev / Next in lightbox */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev - 1 + images.length) % images.length); }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev + 1) % images.length); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
+                    {idx + 1} / {images.length}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderPostItem = (item: Post, type: "blog" | "post" | "comment" | "reply") => {
+    const isComment = type === "comment" || type === "reply";
+    const upvoteCallback = isComment ? onUpvoteComment : onUpvotePost;
+    const hasVoted = currentUsername && item.active_votes?.some((v: any) => v.voter === currentUsername);
+    const postImages = item.json_metadata?.image?.length ? item.json_metadata.image : [];
+    const previewText = item.json_metadata?.description || (item.body ? extractPlainText(item.body) : "");
+
+    return (
+      <div
+        key={`${item.author}/${item.permlink}`}
+        className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
+      >
+        <div className="flex items-start gap-3">
+          {/* Left column: Avatar + image carousel below it */}
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+            <img
+              src={`https://images.hive.blog/u/${item.author}/avatar`}
+              alt={item.author}
+              className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+              }}
+            />
+            <PostImageCarousel images={postImages} />
+          </div>
+
+          {/* Right column: content */}
+          <div className="flex-1 min-w-0">
+            {/* Author & time */}
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                onClick={() => onUserClick?.(item.author)}
+                className="font-medium text-white hover:text-blue-400 text-sm"
+              >
+                @{item.author}
+              </button>
+              <span className="text-xs text-gray-500">
+                {formatTimeAgo(item.created)}
+              </span>
+            </div>
+
+            {/* Title */}
+            {item.title && (
+              <button
+                onClick={() => onPostClick?.(item.author, item.permlink, item.title)}
+                className="text-left text-base font-semibold text-white mb-1 line-clamp-2 hover:text-blue-400"
+              >
+                {item.title}
+              </button>
+            )}
+
+            {/* Body preview — use description from json_metadata, fallback to extracted body text */}
+            {previewText && (
+              <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+                {previewText.substring(0, 200)}
+              </p>
+            )}
+
+            {/* Stats & Actions */}
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              {/* Upvote */}
+              {upvoteCallback ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    upvoteCallback(item.author, item.permlink);
+                  }}
+                  className={`flex items-center gap-1 hover:text-blue-500 transition-colors ${hasVoted ? "text-blue-500" : ""}`}
+                  title="Upvote"
+                >
+                  <ThumbsUp className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`} />
+                  <span>{item.active_votes?.length || item.stats?.total_votes || 0}</span>
+                </button>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <ThumbsUp className="h-4 w-4" />
+                  {item.active_votes?.length || item.stats?.total_votes || 0}
+                </span>
+              )}
+
+              {/* Reply */}
+              {isComment && onReplyComment ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReplyComment(item.author, item.permlink);
+                  }}
+                  className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+                  title="Reply"
+                >
+                  <Reply className="h-4 w-4" />
+                  <span>{item.children || 0}</span>
+                </button>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <MessageCircle className="h-4 w-4" />
+                  {item.children || 0}
+                </span>
+              )}
+
+              {/* Payout */}
+              <span>{item.payout?.toFixed(3) || item.pending_payout_value || "0.000"} $</span>
+            </div>
+
+            {/* Community tag */}
+            {item.community_title && (
+              <span className="inline-block mt-2 text-xs text-blue-400 font-medium">
+                #{item.community_title}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Render: User item (follower/following) ──────────────────────────────
+
+  const renderUserItem = (name: string, index: number) => (
+    <div
+      key={`${name}-${index}`}
+      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <img
+          src={`https://images.hive.blog/u/${name}/avatar`}
+          alt={name}
+          className="w-10 h-10 rounded-full flex-shrink-0 bg-gray-700"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${name}&background=random&size=40`;
+          }}
+        />
+        <button
+          onClick={() => onUserClick?.(name)}
+          className="font-medium text-white hover:text-blue-400"
+        >
+          @{name}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ─── Render: Tab content ─────────────────────────────────────────────────
+
+  const renderTabContent = () => {
+    if (activeTab === "wallet") {
+      return (
+        <div className="max-w-lg mx-auto">
+          <Wallet username={targetUsername} />
+        </div>
+      );
+    }
+
+    if (loadingContent) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">Loading {activeTab}...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Followers tab
+    if (activeTab === "followers") {
+      if (followers.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No followers found</p>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {followers.map((f, i) => renderUserItem(f.follower, i))}
+        </div>
+      );
+    }
+
+    // Following tab
+    if (activeTab === "following") {
+      if (following.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">Not following anyone</p>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {following.map((f, i) => renderUserItem(f.following, i))}
+        </div>
+      );
+    }
+
+    // Content tabs (blogs, posts, comments, replies)
+    const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
+      blogs: { data: blogs, type: "blog", icon: FileText },
+      posts: { data: posts, type: "post", icon: FileText },
+      comments: { data: comments, type: "comment", icon: MessageCircle },
+      replies: { data: replies, type: "reply", icon: Reply },
+    };
+
+    const current = contentMap[activeTab];
+    if (!current) return null;
+
+    if (current.data.length === 0) {
+      const EmptyIcon = current.icon;
+      return (
+        <div className="text-center py-12">
+          <EmptyIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+          <p className="text-gray-400">No {activeTab} found</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {current.data.map((item) => renderPostItem(item, current.type))}
+      </div>
+    );
+  };
+
+  // ─── Render: Tabs ────────────────────────────────────────────────────────
+
+  const tabs: { id: TabType; label: string; icon: any }[] = [
+    { id: "blogs", label: "Blogs", icon: FileText },
+    { id: "posts", label: "Posts", icon: FileText },
+    { id: "comments", label: "Comments", icon: MessageCircle },
+    { id: "replies", label: "Replies", icon: Reply },
+    { id: "followers", label: "Followers", icon: Users },
+    { id: "following", label: "Following", icon: Users },
+    { id: "wallet", label: "Wallet", icon: WalletIcon },
+  ];
+
+  const showActions = currentUsername && currentUsername !== targetUsername;
+
+  // ─── Main render ─────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex flex-col h-full bg-gray-900">
+      <div className="flex flex-col overflow-y-auto h-full">
+
+      {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
+      <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
+        <div className="px-4 py-2 flex items-center gap-2 w-full">
+          {/* Back */}
+          {showBackButton && onBack && (
+            <button
+              onClick={onBack}
+              className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-300" />
+            </button>
+          )}
+
+          {/* Avatar */}
+          <img
+            src={
+              profile.profileImage ||
+              `https://images.hive.blog/u/${targetUsername}/avatar`
+            }
+            alt={targetUsername}
+            className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-700"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+            }}
+          />
+
+          {/* Name + Stats inline */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold text-white truncate">
+                {`@${targetUsername}`}
+              </h1>
+              {profile.reputation > 0 && (
+                <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  {formatReputation(profile.reputation)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-gray-400">
+              <button onClick={() => setActiveTab("followers")} className="hover:text-white transition-colors">
+                <span className="font-semibold text-gray-200">{profile.followersCount.toLocaleString()}</span> Followers
+              </button>
+              <button onClick={() => setActiveTab("following")} className="hover:text-white transition-colors">
+                <span className="font-semibold text-gray-200">{profile.followingCount.toLocaleString()}</span> Following
+              </button>
+              <span>
+                <span className="font-semibold text-gray-200">{profile.postsCount.toLocaleString()}</span> Posts
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={handleShare}
+              className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Share profile"
+            >
+              <Share2 className="h-4 w-4 text-gray-400" />
+            </button>
+            {showActions && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowActionDropdown((prev) => !prev)}
+                  className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+                  title="More actions"
+                >
+                  <MoreVertical className="h-4 w-4 text-gray-400" />
+                </button>
+                {showActionDropdown && (
+                  <div
+                    className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 shadow-xl z-[100]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(onFollow || onUnfollow) && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          handleFollowToggle();
+                        }}
+                        disabled={actionLoading}
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 first:rounded-t-lg"
+                      >
+                        {profile.isFollowing ? "Unfollow" : "Follow"}
+                      </button>
+                    )}
+                    {onIgnoreAuthor && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          setShowIgnoreConfirm(true);
+                        }}
+                        disabled={actionLoading}
+                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-900/20 disabled:opacity-50"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Ban className="h-4 w-4" /> Ignore Author
+                        </span>
+                      </button>
+                    )}
+                    {onReportUser && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          setShowReportModal(true);
+                        }}
+                        disabled={actionLoading}
+                        className="w-full px-4 py-2.5 text-left text-sm text-orange-400 hover:bg-orange-900/20 disabled:opacity-50 last:rounded-b-lg"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Flag className="h-4 w-4" /> Report User
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+        {/* Cover image with profile details overlay */}
+        <div className="relative">
+          {/* Cover image — compact height */}
+          {profile.coverImage ? (
+            <div
+              className="w-full h-24 sm:h-32 bg-cover bg-center"
+              style={{ backgroundImage: `url(${profile.coverImage})` }}
+            />
+          ) : (
+            <div className="w-full h-24 sm:h-32 bg-gradient-to-r from-blue-600 to-purple-700" />
+          )}
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-gray-900/80" />
+
+          {/* Profile details overlaid on cover */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6">
+            <h2 className="text-sm font-semibold text-white truncate">
+              {profile.name || `@${targetUsername}`}
+            </h2>
+            {profile.about && (
+              <p className="text-gray-300 text-xs leading-relaxed mt-1 line-clamp-2">
+                {profile.about}
+              </p>
+            )}
+            {/* Meta info row */}
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-gray-300">
+              {profile.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-rose-400" /> {profile.location}
+                </span>
+              )}
+              {profile.website && (
+                <a
+                  href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-blue-400 hover:underline"
+                >
+                  <Globe className="h-3 w-3 text-blue-400" /> {profile.website}
+                </a>
+              )}
+              {profile.created && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3 text-green-400" /> {formatDate(profile.created)}
+                </span>
+              )}
+              {profile.lastActivity && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-amber-400" /> {formatTimeAgo(profile.lastActivity)}
+                </span>
+              )}
+              {profile.votingPower !== undefined && (
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-yellow-400" /> VP {profile.votingPower.toFixed(1)}%
+                </span>
+              )}
+              {profile.hivePower !== undefined && (
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-orange-400" /> HP {profile.hivePower.toFixed(0)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Tab bar — sticks below header on scroll ── */}
+        <div className="sticky top-[56px] z-20 bg-gray-800 border-b border-gray-700">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                    activeTab === tab.id
+                      ? "text-blue-400 border-blue-400"
+                      : "text-gray-400 border-transparent hover:text-gray-300 hover:border-gray-600"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Tab content ── */}
+        <div className="p-4 flex-1">
+          {renderTabContent()}
+
+          {/* Infinite scroll sentinel — min-h prevents scroll jump during loading */}
+          {activeTab !== "wallet" && hasMore[activeTab] && (
+            <div ref={sentinelRef} className="flex items-center justify-center min-h-[60px] py-4">
+              {loadingMore ? (
+                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading more...
+                </div>
+              ) : (
+                <div className="h-1" />
+              )}
+            </div>
+          )}
+
+          {/* End of list indicator */}
+          {activeTab !== "wallet" && !hasMore[activeTab] && !loadingContent && (
+            <div className="text-center py-4 text-xs text-gray-600">
+              No more {activeTab} to load
+            </div>
+          )}
+        </div>
+
+      {/* ── Ignore Confirmation Modal ── */}
+      {showIgnoreConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
+          onClick={() => setShowIgnoreConfirm(false)}
+        >
+          <div
+            className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-2">
+              Ignore Author
+            </h3>
+            <p className="text-sm text-gray-300 mb-6">
+              Are you sure you want to ignore{" "}
+              <span className="text-red-400 font-medium">@{targetUsername}</span>?
+              Their content will be hidden from your feed.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowIgnoreConfirm(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleIgnore}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading ? "Processing..." : "Confirm Ignore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Report Modal ── */}
+      {showReportModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
+          onClick={() => {
+            setShowReportModal(false);
+            setSelectedReportReason(null);
+          }}
+        >
+          <div
+            className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white mb-1">
+              Report @{targetUsername}
+            </h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Select a reason for reporting this user:
+            </p>
+            <div className="space-y-2 mb-6">
+              {REPORT_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  onClick={() => setSelectedReportReason(reason)}
+                  className={`w-full px-4 py-2.5 text-left text-sm rounded-lg border transition-colors ${
+                    selectedReportReason === reason
+                      ? "border-blue-500 bg-blue-900/20 text-blue-300"
+                      : "border-gray-700 text-gray-300 hover:bg-gray-700"
+                  }`}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowReportModal(false);
+                  setSelectedReportReason(null);
+                }}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={actionLoading || !selectedReportReason}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+              >
+                {actionLoading ? "Submitting..." : "Submit Report"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </div>{/* end scroll container */}
+    </div>
+  );
+};
+
+export default UserDetailProfile;

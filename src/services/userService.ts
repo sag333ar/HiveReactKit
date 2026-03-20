@@ -1,4 +1,5 @@
 import { Follower, Following, UserProfileResponse, Account } from "@/types/user";
+import { Post } from "@/types/post";
 
 class UserService {
   private readonly HIVE_API_URL = 'https://api.hive.blog';
@@ -29,11 +30,11 @@ class UserService {
     return data;
   }
 
-  async getFollowers(username: string): Promise<Follower[]> {
+  async getFollowers(username: string, startFollower: string | null = null, limit = 100): Promise<Follower[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'condenser_api.get_followers',
-      params: [username, null, 'blog'],
+      params: [username, startFollower || '', 'blog', limit],
       id: 1,
     };
 
@@ -53,11 +54,11 @@ class UserService {
     return data.result;
   }
 
-  async getFollowing(username: string): Promise<Following[]> {
+  async getFollowing(username: string, startFollowing: string | null = null, limit = 100): Promise<Following[]> {
     const requestBody = {
         jsonrpc: '2.0',
         method: 'condenser_api.get_following',
-        params: [username, null, 'blog'],
+        params: [username, startFollowing || '', 'blog', limit],
         id: 1,
     };
 
@@ -236,6 +237,74 @@ class UserService {
       console.error('Error calculating vote value:', error);
       return '0.00';
     }
+  }
+
+  async getUserBlogs(username: string, limit = 20, startAuthor?: string, startPermlink?: string): Promise<Post[]> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.get_account_posts',
+      params: { sort: 'blog', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      id: 1,
+    };
+    const response = await fetch(this.HIVE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.result || [];
+  }
+
+  async getUserPosts(username: string, limit = 20, startAuthor?: string, startPermlink?: string): Promise<Post[]> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.get_account_posts',
+      params: { sort: 'posts', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      id: 1,
+    };
+    const response = await fetch(this.HIVE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.result || [];
+  }
+
+  async getUserComments(username: string, limit = 20, startAuthor?: string, startPermlink?: string): Promise<Post[]> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.get_account_posts',
+      params: { sort: 'comments', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      id: 1,
+    };
+    const response = await fetch(this.HIVE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.result || [];
+  }
+
+  async getUserReplies(username: string, limit = 20, startAuthor?: string, startPermlink?: string): Promise<Post[]> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.get_account_posts',
+      params: { sort: 'replies', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      id: 1,
+    };
+    const response = await fetch(this.HIVE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.result || [];
   }
 
   userAvatar(username: string): string {
