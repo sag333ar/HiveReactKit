@@ -9,6 +9,7 @@ import {
   Reply,
   Camera,
   BarChart3,
+  Activity,
   Wallet as WalletIcon,
   MoreVertical,
   MapPin,
@@ -24,6 +25,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
+import ActivityList from "../ActivityList";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -58,6 +60,8 @@ export interface UserDetailProfileProps {
   onPostClick?: (author: string, permlink: string, title: string) => void;
   onSnapClick?: (author: string, permlink: string) => void;
   onPollClick?: (author: string, permlink: string, question: string) => void;
+  onActivityPermlink?: (author: string, permlink: string) => void;
+  onActivitySelect?: (activity: any) => void;
   onShare?: (username: string) => void;
 }
 
@@ -80,7 +84,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "followers" | "following" | "wallet";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "followers" | "following" | "wallet";
 
 const REPORT_REASONS = [
   "Spam",
@@ -174,6 +178,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onPostClick,
   onSnapClick,
   onPollClick,
+  onActivityPermlink,
+  onActivitySelect,
   onShare,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -197,7 +203,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
-    followers: true, following: true, wallet: false,
+    activities: false, followers: true, following: true, wallet: false,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -343,7 +349,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setFollowers([]);
     setFollowing([]);
     setActiveTab("blogs");
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, followers: true, following: true, wallet: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, followers: true, following: true, wallet: false });
   }, [targetUsername]);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
@@ -1018,6 +1024,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    if (activeTab === "activities") {
+      return (
+        <ActivityList
+          username={targetUsername}
+          onClickPermlink={onActivityPermlink}
+          onSelectActivity={onActivitySelect}
+        />
+      );
+    }
+
     if (loadingContent) {
       return (
         <div className="flex items-center justify-center py-12">
@@ -1124,6 +1140,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "polls", label: "Polls", icon: BarChart3 },
     { id: "comments", label: "Comments", icon: MessageCircle },
     { id: "replies", label: "Replies", icon: Reply },
+    { id: "activities", label: "Activities", icon: Activity },
     { id: "followers", label: "Followers", icon: Users },
     { id: "following", label: "Following", icon: Users },
     { id: "wallet", label: "Wallet", icon: WalletIcon },

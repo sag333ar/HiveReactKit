@@ -76,6 +76,13 @@ const UserDetailProfilePage = () => {
           console.log("[Callback] Poll Click:", author, permlink, question);
           alert(`Open poll: ${question}\n@${author}/${permlink}`);
         }}
+        onActivityPermlink={(author, permlink) => {
+          console.log("[Callback] Activity Permlink:", author, permlink);
+          navigate(`/video/${author}/${permlink}`);
+        }}
+        onActivitySelect={(activity) => {
+          console.log("[Callback] Activity Selected:", activity);
+        }}
         onShare={(user) => {
           console.log("[Callback] Share:", user);
           const url = `https://peakd.com/@${user}`;
