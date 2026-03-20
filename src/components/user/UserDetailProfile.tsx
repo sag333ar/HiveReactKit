@@ -8,6 +8,7 @@ import {
   FileText,
   Reply,
   Camera,
+  BarChart3,
   Wallet as WalletIcon,
   MoreVertical,
   MapPin,
@@ -28,6 +29,7 @@ import { userService } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
 import type { Follower, Following } from "@/types/user";
+import type { Poll } from "@/types/poll";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,6 +56,8 @@ export interface UserDetailProfileProps {
   // Navigation callbacks
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title: string) => void;
+  onSnapClick?: (author: string, permlink: string) => void;
+  onPollClick?: (author: string, permlink: string, question: string) => void;
   onShare?: (username: string) => void;
 }
 
@@ -76,7 +80,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "comments" | "replies" | "followers" | "following" | "wallet";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "followers" | "following" | "wallet";
 
 const REPORT_REASONS = [
   "Spam",
@@ -168,6 +172,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onReportPost,
   onUserClick,
   onPostClick,
+  onSnapClick,
+  onPollClick,
   onShare,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -182,6 +188,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [replies, setReplies] = useState<Post[]>([]);
   const [snaps, setSnaps] = useState<Post[]>([]);
   const [snapsNextStartId, setSnapsNextStartId] = useState<number | null>(null);
+  const [polls, setPolls] = useState<Poll[]>([]);
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Following[]>([]);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -189,7 +196,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Pagination states
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
-    blogs: true, posts: true, snaps: true, comments: true, replies: true,
+    blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     followers: true, following: true, wallet: false,
   });
   const PAGE_SIZE = 20;
@@ -330,12 +337,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setPosts([]);
     setSnaps([]);
     setSnapsNextStartId(null);
+    setPolls([]);
     setComments([]);
     setReplies([]);
     setFollowers([]);
     setFollowing([]);
     setActiveTab("blogs");
-    setHasMore({ blogs: true, posts: true, snaps: true, comments: true, replies: true, followers: true, following: true, wallet: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, followers: true, following: true, wallet: false });
   }, [targetUsername]);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
@@ -364,6 +372,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             setSnaps(data);
             setSnapsNextStartId(nextStartId);
             setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
+            break;
+          }
+          case "polls": {
+            const data = await userService.getUserPolls(targetUsername);
+            setPolls(data);
+            setHasMore((prev) => ({ ...prev, polls: false })); // Polls API returns all at once
             break;
           }
           case "comments": {
@@ -695,7 +709,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     );
   };
 
-  const renderPostItem = (item: Post, type: "blog" | "post" | "comment" | "reply") => {
+  const renderPostItem = (item: Post, type: "blog" | "post" | "comment" | "reply", onItemClick?: () => void) => {
     const postImages = item.json_metadata?.image?.length ? item.json_metadata.image : [];
     const previewText = item.json_metadata?.description || (item.body ? extractPlainText(item.body) : "");
 
@@ -759,7 +773,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return (
       <div
         key={`${item.author}/${item.permlink}`}
-        className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
+        className={`border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors ${onItemClick ? "cursor-pointer" : ""}`}
+        onClick={onItemClick}
       >
         {/* Top row: Avatar/images + content side by side */}
         <div className="flex items-start gap-3">
@@ -809,7 +824,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             )}
 
             {/* Desktop: action bar inline below body */}
-            <div className="hidden sm:block mt-2">
+            <div className="hidden sm:block mt-2" onClick={(e) => e.stopPropagation()}>
               <PostActionButton
                 author={item.author}
                 permlink={item.permlink}
@@ -846,7 +861,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* Mobile: full-width action bar below everything */}
-        <div className="sm:hidden mt-3 pt-2 border-t border-gray-700/50">
+        <div className="sm:hidden mt-3 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
           <PostActionButton
             author={item.author}
             permlink={item.permlink}
@@ -868,6 +883,98 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             }}
             onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Render: Poll item ─────────────────────────────────────────────────
+
+  const renderPollItem = (poll: Poll) => {
+    const totalVotes = poll.poll_stats?.total_voting_accounts_num || 0;
+    const isActive = poll.status === "Active";
+    const endDate = new Date(poll.end_time);
+    const now = new Date();
+    const isExpired = endDate < now;
+    const previewText = poll.post_body ? extractPlainText(poll.post_body) : "";
+    const choiceCount = poll.poll_choices?.length || 0;
+
+    return (
+      <div
+        key={`${poll.author}/${poll.permlink}`}
+        className="border border-gray-700 rounded-lg bg-gray-800 hover:bg-gray-700/50 transition-colors cursor-pointer"
+        onClick={() => onPollClick?.(poll.author, poll.permlink, poll.question)}
+      >
+        <div className="p-4">
+          {/* Header: author + status */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <img
+                src={`https://images.hive.blog/u/${poll.author}/avatar`}
+                alt={poll.author}
+                className="w-8 h-8 rounded-full bg-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${poll.author}&background=random&size=32`; }}
+              />
+              <div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onUserClick?.(poll.author); }}
+                  className="text-sm font-medium text-white hover:text-blue-400"
+                >
+                  @{poll.author}
+                </button>
+                <p className="text-[10px] text-gray-500">{formatTimeAgo(poll.created)}</p>
+              </div>
+            </div>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isActive && !isExpired ? "bg-green-500/20 text-green-400" : "bg-gray-600/30 text-gray-400"}`}>
+              {isActive && !isExpired ? "Active" : "Ended"}
+            </span>
+          </div>
+
+          {/* Question */}
+          <h3 className="text-sm font-semibold text-white mb-1">{poll.question}</h3>
+
+          {/* Body preview */}
+          {previewText && (
+            <p className="text-gray-400 text-xs line-clamp-2 mb-2">{previewText.substring(0, 150)}</p>
+          )}
+
+          {/* Stats row */}
+          <div className="flex items-center gap-3 text-[11px] text-gray-500">
+            <span>{totalVotes} voter{totalVotes !== 1 ? "s" : ""}</span>
+            <span>{choiceCount} option{choiceCount !== 1 ? "s" : ""}</span>
+            {poll.poll_stats?.total_hive_hp != null && poll.poll_stats.total_hive_hp > 0 && (
+              <span>{(poll.poll_stats.total_hive_hp / 1000).toFixed(1)}k HP</span>
+            )}
+            {poll.end_time && (
+              <span>{isActive && !isExpired ? `Ends ${formatTimeAgo(poll.end_time)}` : "Ended"}</span>
+            )}
+          </div>
+        </div>
+
+        {/* PostActionButton */}
+        <div className="px-4 pb-3 pt-1 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
+          <PostActionButton
+            author={poll.author}
+            permlink={poll.permlink}
+            currentUser={currentUsername}
+            hiveIconUrl="/images/hive_logo.png"
+            initialVotes={[]}
+            initialCommentsCount={0}
+            onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
+            onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
+            onClickCommentUpvote={onClickCommentUpvote}
+            onReblog={onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
+            onShare={() => {
+              const url = `https://peakd.com/@${poll.author}/${poll.permlink}`;
+              if (navigator.share) {
+                navigator.share({ title: poll.question, url });
+              } else {
+                navigator.clipboard?.writeText(url);
+              }
+            }}
+            onTip={onTip ? () => onTip(poll.author, poll.permlink) : undefined}
+            onReport={onReportPost ? () => onReportPost(poll.author, poll.permlink) : undefined}
           />
         </div>
       </div>
@@ -956,7 +1063,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
-    // Content tabs (blogs, posts, comments, replies)
+    // Polls tab
+    if (activeTab === "polls") {
+      if (polls.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <BarChart3 className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No polls found</p>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-3">
+          {polls.map((poll) => renderPollItem(poll))}
+        </div>
+      );
+    }
+
+    // Content tabs (blogs, posts, snaps, comments, replies)
     const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
       blogs: { data: blogs, type: "blog", icon: FileText },
       posts: { data: posts, type: "post", icon: FileText },
@@ -978,9 +1102,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    const getItemClickHandler = (item: Post) => {
+      if (activeTab === "snaps" && onSnapClick) return () => onSnapClick(item.author, item.permlink);
+      if ((activeTab === "blogs" || activeTab === "posts") && onPostClick) return () => onPostClick(item.author, item.permlink, item.title);
+      return undefined;
+    };
+
     return (
       <div className="space-y-3">
-        {current.data.map((item) => renderPostItem(item, current.type))}
+        {current.data.map((item) => renderPostItem(item, current.type, getItemClickHandler(item)))}
       </div>
     );
   };
@@ -991,6 +1121,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "blogs", label: "Blogs", icon: FileText },
     { id: "posts", label: "Posts", icon: FileText },
     { id: "snaps", label: "Snaps", icon: Camera },
+    { id: "polls", label: "Polls", icon: BarChart3 },
     { id: "comments", label: "Comments", icon: MessageCircle },
     { id: "replies", label: "Replies", icon: Reply },
     { id: "followers", label: "Followers", icon: Users },

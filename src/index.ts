@@ -65,6 +65,7 @@ export * from './types/trending';
 export * from './types/user';
 export * from './types/post';
 export * from './types/video';
+export * from './types/poll';
 // export * from './types/wallet';
 // export * from './types/witness';
 

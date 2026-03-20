@@ -1,5 +1,6 @@
 import { Follower, Following, UserProfileResponse, Account } from "@/types/user";
 import { Post } from "@/types/post";
+import type { Poll } from "@/types/poll";
 
 class UserService {
   private readonly HIVE_API_URL = 'https://api.hive.blog';
@@ -384,6 +385,34 @@ class UserService {
     const nextStartId = refs.length >= 15 ? lastRef.id : null; // PeakD returns ~15 per page
 
     return { snaps, nextStartId };
+  }
+
+  /**
+   * Fetch polls created by a user from the HiveHub polls API.
+   */
+  async getUserPolls(username: string): Promise<Poll[]> {
+    const url = `https://polls.hivehub.dev/rpc/polls?author=eq.${encodeURIComponent(username)}&order=created.desc`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Polls API error: ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Fetch full poll detail (includes poll_voters) by author and permlink.
+   */
+  async getPollDetail(author: string, permlink: string): Promise<Poll | null> {
+    const url = `https://polls.hivehub.dev/rpc/poll?author=eq.${encodeURIComponent(author)}&permlink=eq.${encodeURIComponent(permlink)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`Polls API error: ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data) && data.length > 0 ? data[0] : null;
   }
 
   userAvatar(username: string): string {

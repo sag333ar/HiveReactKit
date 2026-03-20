@@ -68,6 +68,14 @@ const UserDetailProfilePage = () => {
           console.log("[Callback] Post Click:", author, permlink, title);
           navigate(`/video/${author}/${permlink}`);
         }}
+        onSnapClick={(author, permlink) => {
+          console.log("[Callback] Snap Click:", author, permlink);
+          alert(`Open snap @${author}/${permlink}`);
+        }}
+        onPollClick={(author, permlink, question) => {
+          console.log("[Callback] Poll Click:", author, permlink, question);
+          alert(`Open poll: ${question}\n@${author}/${permlink}`);
+        }}
         onShare={(user) => {
           console.log("[Callback] Share:", user);
           const url = `https://peakd.com/@${user}`;
