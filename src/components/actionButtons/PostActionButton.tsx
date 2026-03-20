@@ -25,6 +25,10 @@ export interface PostActionButtonProps {
   hiveIconUrl?: string;
   /** Optional: Tooltip text shown on hover over the payout value (e.g. payout breakdown) */
   payoutTooltip?: string;
+  /** Optional: Pre-loaded active votes array from the Post object. Skips the API call when provided. */
+  initialVotes?: ActiveVote[];
+  /** Optional: Pre-loaded comments count from the Post object (item.children). Skips the API call when provided. */
+  initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
   /** Called when user submits a comment. Frontend handles signing/broadcast. */
@@ -54,6 +58,8 @@ export function PostActionButton({
   hiveValue,
   hiveIconUrl,
   payoutTooltip,
+  initialVotes,
+  initialCommentsCount,
   onUpvote,
   onSubmitComment,
   onComments,
@@ -69,8 +75,8 @@ export function PostActionButton({
       : currentUserProp;
   const isLoggedIn = currentUser != null;
 
-  const [votes, setVotes] = useState<ActiveVote[]>([]);
-  const [commentsCount, setCommentsCount] = useState(0);
+  const [votes, setVotes] = useState<ActiveVote[]>(initialVotes ?? []);
+  const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
@@ -85,20 +91,34 @@ export function PostActionButton({
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
   }, []);
 
+  const hasInitialVotes = initialVotes !== undefined;
+  const hasInitialComments = initialCommentsCount !== undefined;
+
   const fetchVotes = useCallback(async () => {
-    const list = await apiService.getActiveVotes(author, permlink);
-    setVotes(list);
+    try {
+      const list = await apiService.getActiveVotes(author, permlink);
+      setVotes(list);
+    } catch {
+      // Silently fail — keep using initialVotes
+    }
   }, [author, permlink]);
 
+  // Only fetch from API if NO initial data was provided
   useEffect(() => {
-    fetchVotes();
-  }, [fetchVotes]);
+    if (!hasInitialVotes) {
+      fetchVotes();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, permlink, hasInitialVotes]);
 
   useEffect(() => {
-    apiService.getCommentsList(author, permlink).then((list) => {
-      setCommentsCount(list.length);
-    });
-  }, [author, permlink]);
+    if (!hasInitialComments) {
+      apiService.getCommentsList(author, permlink).then((list) => {
+        setCommentsCount(list.length);
+      }).catch(() => { /* silently fail */ });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, permlink, hasInitialComments]);
 
   const hasVoted =
     isLoggedIn &&

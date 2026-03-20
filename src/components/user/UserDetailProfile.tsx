@@ -797,6 +797,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 hiveValue={payoutValue}
                 hiveIconUrl="/images/hive_logo.png"
                 payoutTooltip={payoutTooltip}
+                initialVotes={item.active_votes || []}
+                initialCommentsCount={item.children || 0}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}

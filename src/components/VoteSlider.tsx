@@ -49,14 +49,17 @@ export function VoteSlider({
             <div className="mx-auto w-2 h-2 bg-blue-600 rotate-45 -mt-1"></div>
           </div>
 
-          {/* Slider */}
+          {/* Slider — left side filled with blue */}
           <input
             type="range"
             min={1}
             max={100}
             value={percent}
             onChange={(e) => setPercent(Number(e.target.value))}
-            className="w-full h-2 rounded-lg appearance-none bg-gray-200 dark:bg-gray-700 accent-blue-600 cursor-pointer"
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:h-2 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:-mt-1.5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-progress]:bg-blue-600 [&::-moz-range-progress]:rounded-lg"
+            style={{
+              background: `linear-gradient(to right, #2563eb ${percent}%, #374151 ${percent}%)`,
+            }}
           />
 
           {/* Stop Labels */}
