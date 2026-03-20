@@ -7,6 +7,7 @@ import {
   MessageCircle,
   FileText,
   Reply,
+  Camera,
   Wallet as WalletIcon,
   MoreVertical,
   MapPin,
@@ -75,7 +76,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "comments" | "replies" | "followers" | "following" | "wallet";
+type TabType = "blogs" | "posts" | "snaps" | "comments" | "replies" | "followers" | "following" | "wallet";
 
 const REPORT_REASONS = [
   "Spam",
@@ -179,6 +180,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
+  const [snaps, setSnaps] = useState<Post[]>([]);
+  const [snapsNextStartId, setSnapsNextStartId] = useState<number | null>(null);
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Following[]>([]);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -186,7 +189,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Pagination states
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
-    blogs: true, posts: true, comments: true, replies: true,
+    blogs: true, posts: true, snaps: true, comments: true, replies: true,
     followers: true, following: true, wallet: false,
   });
   const PAGE_SIZE = 20;
@@ -325,12 +328,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   useEffect(() => {
     setBlogs([]);
     setPosts([]);
+    setSnaps([]);
+    setSnapsNextStartId(null);
     setComments([]);
     setReplies([]);
     setFollowers([]);
     setFollowing([]);
     setActiveTab("blogs");
-    setHasMore({ blogs: true, posts: true, comments: true, replies: true, followers: true, following: true, wallet: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, comments: true, replies: true, followers: true, following: true, wallet: false });
   }, [targetUsername]);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
@@ -352,6 +357,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             const data = await userService.getUserPosts(targetUsername, PAGE_SIZE);
             setPosts(data);
             setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
+            break;
+          }
+          case "snaps": {
+            const { snaps: data, nextStartId } = await userService.getUserSnaps(targetUsername, undefined, currentUsername);
+            setSnaps(data);
+            setSnapsNextStartId(nextStartId);
+            setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
             break;
           }
           case "comments": {
@@ -416,6 +428,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
           break;
         }
+        case "snaps": {
+          if (!snapsNextStartId) break;
+          const { snaps: newSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, snapsNextStartId, currentUsername);
+          setSnaps((prev) => [...prev, ...newSnaps]);
+          setSnapsNextStartId(nextStartId);
+          setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
+          break;
+        }
         case "comments": {
           const last = comments[comments.length - 1];
           if (!last) break;
@@ -459,7 +479,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, snaps, snapsNextStartId, comments, replies, followers, following]);
 
   // ─── IntersectionObserver for infinite scroll ─────────────────────────
 
@@ -940,6 +960,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
       blogs: { data: blogs, type: "blog", icon: FileText },
       posts: { data: posts, type: "post", icon: FileText },
+      snaps: { data: snaps, type: "post", icon: Camera },
       comments: { data: comments, type: "comment", icon: MessageCircle },
       replies: { data: replies, type: "reply", icon: Reply },
     };
@@ -969,6 +990,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const tabs: { id: TabType; label: string; icon: any }[] = [
     { id: "blogs", label: "Blogs", icon: FileText },
     { id: "posts", label: "Posts", icon: FileText },
+    { id: "snaps", label: "Snaps", icon: Camera },
     { id: "comments", label: "Comments", icon: MessageCircle },
     { id: "replies", label: "Replies", icon: Reply },
     { id: "followers", label: "Followers", icon: Users },

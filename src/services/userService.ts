@@ -307,6 +307,85 @@ class UserService {
     return data.result || [];
   }
 
+  /**
+   * Fetch snap references for a user from PeakD API.
+   * Returns { id, author, permlink }[] with cursor for pagination.
+   */
+  async getSnapReferences(username: string, startId?: number): Promise<{ id: number; author: string; permlink: string }[]> {
+    // Use Vite proxy in dev (/api/peakd → https://peakd.com/api/public) to avoid CORS
+    // In production, use the direct URL
+    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const baseUrl = isDev ? '/api/peakd' : 'https://peakd.com/api/public';
+    let url = `${baseUrl}/snaps/account?container=peak.snaps&username=${username}`;
+    if (startId !== undefined) {
+      url += `&startId=${startId}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!response.ok) throw new Error(`PeakD API error: ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Fetch full post data for multiple snaps via batch bridge.get_post.
+   * Fetches in batches of 5 to match PeakD's approach.
+   */
+  private async batchGetPosts(refs: { author: string; permlink: string }[], observer: string = ''): Promise<Post[]> {
+    const BATCH_SIZE = 5;
+    const results: Post[] = [];
+
+    for (let i = 0; i < refs.length; i += BATCH_SIZE) {
+      const batch = refs.slice(i, i + BATCH_SIZE);
+      const rpcBatch = batch.map((ref, idx) => ({
+        jsonrpc: '2.0',
+        method: 'bridge.get_post',
+        params: { author: ref.author, permlink: ref.permlink, observer },
+        id: idx + 1,
+      }));
+
+      const response = await fetch(this.HIVE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rpcBatch),
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const batchResults = Array.isArray(data) ? data : [data];
+      for (const item of batchResults) {
+        if (item?.result) {
+          results.push(item.result as Post);
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Fetch snaps for a user using PeakD API + Hive bridge.get_post.
+   * Step 1: Get snap references from PeakD (with pagination via startId)
+   * Step 2: Batch fetch full post data via bridge.get_post
+   */
+  async getUserSnaps(username: string, startId?: number, observer?: string): Promise<{ snaps: Post[]; nextStartId: number | null }> {
+    // Step 1: Get snap references
+    const refs = await this.getSnapReferences(username, startId);
+    if (refs.length === 0) {
+      return { snaps: [], nextStartId: null };
+    }
+
+    // Step 2: Batch fetch full post data
+    const snaps = await this.batchGetPosts(refs, observer || username);
+
+    // Determine next cursor for pagination (last item's id)
+    const lastRef = refs[refs.length - 1];
+    const nextStartId = refs.length >= 15 ? lastRef.id : null; // PeakD returns ~15 per page
+
+    return { snaps, nextStartId };
+  }
+
   userAvatar(username: string): string {
     return `https://images.hive.blog/u/${username}/avatar`;
   }

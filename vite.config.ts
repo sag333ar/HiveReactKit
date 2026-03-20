@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => {
       server: {
         host: "::",
         port: 8080,
+        proxy: {
+          '/api/peakd': {
+            target: 'https://peakd.com',
+            changeOrigin: true,
+            rewrite: (p: string) => p.replace(/^\/api\/peakd/, '/api/public'),
+          },
+        },
       },
       plugins: [react(), tailwindcss()],
       resolve: {
@@ -99,6 +106,13 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      proxy: {
+        '/api/peakd': {
+          target: 'https://peakd.com',
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/api\/peakd/, '/api/public'),
+        },
+      },
     },
     plugins: [react(), tailwindcss()],
     resolve: {
