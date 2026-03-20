@@ -36,17 +36,29 @@ const UserDetailProfilePage = () => {
           console.log("[Callback] Report:", user, reason);
           alert(`Reported @${user} for: ${reason}`);
         }}
-        onUpvotePost={(author, permlink) => {
-          console.log("[Callback] Upvote Post:", author, permlink);
-          alert(`Upvote post @${author}/${permlink}`);
+        onUpvote={(author, permlink, percent) => {
+          console.log("[Callback] Upvote:", author, permlink, `${percent}%`);
+          alert(`Upvote @${author}/${permlink} at ${percent}% — integrate with Aioha/HiveKeychain here`);
         }}
-        onUpvoteComment={(author, permlink) => {
-          console.log("[Callback] Upvote Comment:", author, permlink);
-          alert(`Upvote comment @${author}/${permlink}`);
+        onSubmitComment={(parentAuthor, parentPermlink, body) => {
+          console.log("[Callback] Comment:", parentAuthor, parentPermlink, body);
+          alert(`Comment on @${parentAuthor}/${parentPermlink}: "${body.substring(0, 50)}..."`);
         }}
-        onReplyComment={(author, permlink) => {
-          console.log("[Callback] Reply Comment:", author, permlink);
-          alert(`Reply to @${author}/${permlink}`);
+        onClickCommentUpvote={(author, permlink, percent) => {
+          console.log("[Callback] Comment Upvote:", author, permlink, `${percent}%`);
+          alert(`Upvote comment @${author}/${permlink} at ${percent}%`);
+        }}
+        onReblog={(author, permlink) => {
+          console.log("[Callback] Reblog:", author, permlink);
+          alert(`Reblog @${author}/${permlink}`);
+        }}
+        onTip={(author, permlink) => {
+          console.log("[Callback] Tip:", author, permlink);
+          alert(`Tip @${author}/${permlink}`);
+        }}
+        onReportPost={(author, permlink) => {
+          console.log("[Callback] Report Post:", author, permlink);
+          alert(`Report @${author}/${permlink}`);
         }}
         onUserClick={(user) => {
           console.log("[Callback] User Click:", user);

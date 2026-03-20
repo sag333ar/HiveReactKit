@@ -6,7 +6,6 @@ import {
   Users,
   MessageCircle,
   FileText,
-  ThumbsUp,
   Reply,
   Wallet as WalletIcon,
   MoreVertical,
@@ -23,6 +22,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
+import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
@@ -42,10 +42,13 @@ export interface UserDetailProfileProps {
   onIgnoreAuthor?: (username: string) => void | Promise<void>;
   onReportUser?: (username: string, reason: string) => void | Promise<void>;
 
-  // Content action callbacks
-  onUpvotePost?: (author: string, permlink: string) => void | Promise<void>;
-  onUpvoteComment?: (author: string, permlink: string) => void | Promise<void>;
-  onReplyComment?: (author: string, permlink: string) => void | Promise<void>;
+  // PostActionButton callbacks
+  onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
+  onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
+  onReblog?: (author: string, permlink: string) => void;
+  onTip?: (author: string, permlink: string) => void;
+  onReportPost?: (author: string, permlink: string) => void;
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
@@ -156,9 +159,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onUnfollow,
   onIgnoreAuthor,
   onReportUser,
-  onUpvotePost,
-  onUpvoteComment,
-  onReplyComment,
+  onUpvote,
+  onSubmitComment,
+  onClickCommentUpvote,
+  onReblog,
+  onTip,
+  onReportPost,
   onUserClick,
   onPostClick,
   onShare,
@@ -670,17 +676,72 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   };
 
   const renderPostItem = (item: Post, type: "blog" | "post" | "comment" | "reply") => {
-    const isComment = type === "comment" || type === "reply";
-    const upvoteCallback = isComment ? onUpvoteComment : onUpvotePost;
-    const hasVoted = currentUsername && item.active_votes?.some((v: any) => v.voter === currentUsername);
     const postImages = item.json_metadata?.image?.length ? item.json_metadata.image : [];
     const previewText = item.json_metadata?.description || (item.body ? extractPlainText(item.body) : "");
+
+    // Extract numeric payout value
+    const rawPayout = item.payout
+      ? item.payout.toFixed(3)
+      : item.pending_payout_value
+        ? item.pending_payout_value.replace(/[^\d.]/g, "")
+        : "0.000";
+    const payoutValue = rawPayout;
+
+    // Build payout tooltip matching Hive standard format
+    const tooltipLines: string[] = [];
+
+    // Payout mode line (100% Power Up vs 50%/50%)
+    const hbdPercent = item.percent_hbd ?? 10000;
+    if (hbdPercent === 0) {
+      tooltipLines.push("Hive Rewards Payout 100% Powered Up");
+    } else {
+      tooltipLines.push(`Hive Rewards Payout (${(hbdPercent / 200).toFixed(0)}%/${100 - (hbdPercent / 200)  }%)`);
+    }
+
+    if (item.is_paidout) {
+      // Past payout
+      const authorVal = item.author_payout_value ? item.author_payout_value.replace(/[^\d.]/g, "") : "";
+      tooltipLines.push("Past payouts:");
+      tooltipLines.push(`${rawPayout} Hive Rewards${authorVal ? ` (Author ${authorVal})` : ""}`);
+    } else {
+      // Pending payout with time remaining
+      if (item.payout_at) {
+        const payoutDate = new Date(item.payout_at);
+        const now = new Date();
+        const diffMs = payoutDate.getTime() - now.getTime();
+        if (diffMs > 0) {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffDays = Math.floor(diffHours / 24);
+          const remainHours = diffHours % 24;
+          const timeStr = diffDays > 0
+            ? `in ${diffDays} day${diffDays > 1 ? "s" : ""}${remainHours > 0 ? ` ${remainHours} hour${remainHours > 1 ? "s" : ""}` : ""}`
+            : `in ${diffHours} hour${diffHours > 1 ? "s" : ""}`;
+          tooltipLines.push(`Payout will occur: ${timeStr}`);
+        }
+      }
+      if (hbdPercent === 0) {
+        tooltipLines.push(`${rawPayout} Hive Rewards (100% Powered Up)`);
+      } else {
+        tooltipLines.push(`${rawPayout} Hive Rewards (${(hbdPercent / 200).toFixed(0)}%/${100 - (hbdPercent / 200)}%)`);
+      }
+    }
+
+    // Beneficiaries
+    if (item.beneficiaries?.length > 0) {
+      tooltipLines.push("Beneficiaries:");
+      item.beneficiaries.forEach((b) => {
+        tooltipLines.push(`${b.account}: ${(b.weight / 100).toFixed(0)}%`);
+      });
+    }
+
+    const payoutTooltip = tooltipLines.join("\n");
 
     return (
       <div
         key={`${item.author}/${item.permlink}`}
         className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
       >
+        {/* Top row: Avatar/images + content side by side */}
         <div className="flex items-start gap-3">
           {/* Left column: Avatar + image carousel below it */}
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
@@ -695,7 +756,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <PostImageCarousel images={postImages} />
           </div>
 
-          {/* Right column: content */}
+          {/* Right column: text content */}
           <div className="flex-1 min-w-0">
             {/* Author & time */}
             <div className="flex items-center gap-2 mb-1">
@@ -720,66 +781,72 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </button>
             )}
 
-            {/* Body preview — use description from json_metadata, fallback to extracted body text */}
+            {/* Body preview */}
             {previewText && (
-              <p className="text-gray-400 text-sm line-clamp-2 mb-2">
+              <p className="text-gray-400 text-sm line-clamp-2">
                 {previewText.substring(0, 200)}
               </p>
             )}
 
-            {/* Stats & Actions */}
-            <div className="flex items-center gap-4 text-sm text-gray-400">
-              {/* Upvote */}
-              {upvoteCallback ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    upvoteCallback(item.author, item.permlink);
-                  }}
-                  className={`flex items-center gap-1 hover:text-blue-500 transition-colors ${hasVoted ? "text-blue-500" : ""}`}
-                  title="Upvote"
-                >
-                  <ThumbsUp className={`h-4 w-4 ${hasVoted ? "fill-current" : ""}`} />
-                  <span>{item.active_votes?.length || item.stats?.total_votes || 0}</span>
-                </button>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <ThumbsUp className="h-4 w-4" />
-                  {item.active_votes?.length || item.stats?.total_votes || 0}
-                </span>
-              )}
-
-              {/* Reply */}
-              {isComment && onReplyComment ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReplyComment(item.author, item.permlink);
-                  }}
-                  className="flex items-center gap-1 hover:text-blue-500 transition-colors"
-                  title="Reply"
-                >
-                  <Reply className="h-4 w-4" />
-                  <span>{item.children || 0}</span>
-                </button>
-              ) : (
-                <span className="flex items-center gap-1">
-                  <MessageCircle className="h-4 w-4" />
-                  {item.children || 0}
-                </span>
-              )}
-
-              {/* Payout */}
-              <span>{item.payout?.toFixed(3) || item.pending_payout_value || "0.000"} $</span>
+            {/* Desktop: action bar inline below body */}
+            <div className="hidden sm:block mt-2">
+              <PostActionButton
+                author={item.author}
+                permlink={item.permlink}
+                currentUser={currentUsername}
+                hiveValue={payoutValue}
+                hiveIconUrl="/images/hive_logo.png"
+                payoutTooltip={payoutTooltip}
+                onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
+                onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
+                onClickCommentUpvote={onClickCommentUpvote}
+                onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+                onShare={() => {
+                  const url = `https://peakd.com/@${item.author}/${item.permlink}`;
+                  if (navigator.share) {
+                    navigator.share({ title: item.title || `Post by @${item.author}`, url });
+                  } else {
+                    navigator.clipboard?.writeText(url);
+                  }
+                }}
+                onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
+                onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+              />
             </div>
 
             {/* Community tag */}
             {item.community_title && (
-              <span className="inline-block mt-2 text-xs text-blue-400 font-medium">
+              <span className="inline-block mt-1 text-xs text-blue-400 font-medium">
                 #{item.community_title}
               </span>
             )}
           </div>
+        </div>
+
+        {/* Mobile: full-width action bar below everything */}
+        <div className="sm:hidden mt-3 pt-2 border-t border-gray-700/50">
+          <PostActionButton
+            author={item.author}
+            permlink={item.permlink}
+            currentUser={currentUsername}
+            hiveValue={payoutValue}
+            hiveIconUrl="/images/hive_logo.png"
+            payoutTooltip={payoutTooltip}
+            onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
+            onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
+            onClickCommentUpvote={onClickCommentUpvote}
+            onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+            onShare={() => {
+              const url = `https://peakd.com/@${item.author}/${item.permlink}`;
+              if (navigator.share) {
+                navigator.share({ title: item.title || `Post by @${item.author}`, url });
+              } else {
+                navigator.clipboard?.writeText(url);
+              }
+            }}
+            onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
+            onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+          />
         </div>
       </div>
     );
