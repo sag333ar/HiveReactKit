@@ -74,11 +74,126 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 
 ### User Components
 
+- **UserDetailProfile** - Full-featured user profile with 12 configurable tabs, action callbacks, and infinite scroll
 - **UserAccount** - User account management
 - **UserProfilePage** - User profile page
 - **UserInfo** - User information display
 - **UserFollowers** - User followers list
 - **UserFollowing** - User following list
+
+#### UserDetailProfile Usage
+
+```tsx
+import { UserDetailProfile } from 'hive-react-kit';
+
+// All tabs, default order
+<UserDetailProfile
+  username="sagarkothari88"
+  currentUsername="myaccount"
+  showBackButton
+  onBack={() => navigate(-1)}
+  onFollow={(user) => console.log("Follow:", user)}
+  onUnfollow={(user) => console.log("Unfollow:", user)}
+  onPostClick={(author, permlink, title) => navigate(`/post/${author}/${permlink}`)}
+  onUserClick={(user) => navigate(`/profile/${user}`)}
+/>
+
+// Custom tabs: only show 4 tabs, Wallet first
+<UserDetailProfile
+  username="sagarkothari88"
+  tabShown={["wallet", "blogs", "followers", "following"]}
+  onPostClick={(author, permlink) => console.log(author, permlink)}
+/>
+```
+
+#### UserDetailProfile Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `username` | `string` | *required* | Hive username to display |
+| `currentUsername` | `string` | `undefined` | Logged-in user's username. Enables follow/unfollow and action menu |
+| `showBackButton` | `boolean` | `false` | Show back arrow in header |
+| `onBack` | `() => void` | - | Callback when back button is clicked |
+| `tabShown` | `TabType[]` | all tabs | Controls which tabs are visible and their order. Only listed tabs are shown. First tab is the default active tab. If omitted, all 12 tabs are shown in default order |
+
+**Social Action Callbacks**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onFollow` | `(username: string) => void` | Called when Follow is clicked from the action menu |
+| `onUnfollow` | `(username: string) => void` | Called when Unfollow is clicked from the action menu |
+| `onIgnoreAuthor` | `(username: string) => void` | Called when Ignore Author is confirmed |
+| `onReportUser` | `(username: string, reason: string) => void` | Called when Report is submitted with selected reason |
+
+**Post Action Callbacks (via PostActionButton)**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onUpvote` | `(author: string, permlink: string, percent: number) => void` | Called when a post/comment is upvoted via the vote slider |
+| `onSubmitComment` | `(parentAuthor: string, parentPermlink: string, body: string) => void` | Called when a comment is submitted |
+| `onClickCommentUpvote` | `(author: string, permlink: string, percent: number) => void` | Called when a comment inside the comments modal is upvoted |
+| `onReblog` | `(author: string, permlink: string) => void` | Called when reblog is clicked |
+| `onTip` | `(author: string, permlink: string) => void` | Called when tip is clicked |
+| `onReportPost` | `(author: string, permlink: string) => void` | Called when a post is reported |
+
+**Navigation Callbacks**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onUserClick` | `(username: string) => void` | Called when a user avatar/name is clicked (followers, following, etc.) |
+| `onPostClick` | `(author: string, permlink: string, title: string) => void` | Called when a blog/post/reward row is clicked |
+| `onSnapClick` | `(author: string, permlink: string) => void` | Called when a snap item is clicked |
+| `onPollClick` | `(author: string, permlink: string, question: string) => void` | Called when a poll item is clicked |
+| `onActivityPermlink` | `(author: string, permlink: string) => void` | Called when an activity permlink is clicked |
+| `onActivitySelect` | `(activity: any) => void` | Called when an activity item is selected |
+| `onShare` | `(username: string) => void` | Called when the share button is clicked |
+
+#### TabType Values
+
+The `tabShown` prop accepts an array of these values:
+
+| Value | Tab Label | Description |
+|-------|-----------|-------------|
+| `"blogs"` | Blogs | User's blog posts (reblogs included) |
+| `"posts"` | Posts | User's original posts |
+| `"snaps"` | Snaps | User's snaps from PeakD |
+| `"polls"` | Polls | User's polls from HiveHub |
+| `"comments"` | Comments | User's comments |
+| `"replies"` | Replies | Replies to the user |
+| `"activities"` | Activities | User's activity history |
+| `"authorRewards"` | Author Rewards | Pending author rewards (posts/comments with upcoming payouts) |
+| `"curationRewards"` | Curation Rewards | Pending curation rewards (estimated from vote history) |
+| `"followers"` | Followers | User's followers list |
+| `"following"` | Following | Accounts the user follows |
+| `"wallet"` | Wallet | User's HIVE/HBD/HP balances |
+
+#### tabShown Examples
+
+```tsx
+// Show all tabs (default when tabShown is omitted)
+<UserDetailProfile username="user" />
+
+// Only Blogs and Wallet
+<UserDetailProfile username="user" tabShown={["blogs", "wallet"]} />
+
+// Followers first, then Blogs, then Wallet — no other tabs
+<UserDetailProfile
+  username="user"
+  tabShown={["followers", "following", "blogs", "wallet"]}
+/>
+
+// Everything except Snaps and Polls
+<UserDetailProfile
+  username="user"
+  tabShown={[
+    "blogs", "posts", "comments", "replies",
+    "activities", "authorRewards", "curationRewards",
+    "followers", "following", "wallet"
+  ]}
+/>
+```
+
+See [docs/UserDetailProfile.md](docs/UserDetailProfile.md) for full documentation including all callbacks, tab types, streaming behavior, and styling details.
 
 ### Toolbar Component
 

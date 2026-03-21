@@ -19,6 +19,7 @@ const UserDetailProfilePage = () => {
         username={username}
         currentUsername="sagarkothari88"
         showBackButton
+        // tabShown={["followers", "following", "blogs", "posts", "comments", "replies", "polls", "activities", "authorRewards", "curationRewards", "wallet"]}
         onBack={() => navigate(-1)}
         onFollow={(user) => {
           console.log("[Callback] Follow:", user);
