@@ -19,9 +19,15 @@ interface CommentsModalProps {
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
   /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet) */
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
+  /** Ecency image hosting token — enables image upload in comment composer */
+  ecencyToken?: string;
+  /** 3Speak API key — enables audio/video upload in comment composer */
+  threeSpeakApiKey?: string;
+  /** GIPHY API key — enables GIF search in comment composer */
+  giphyApiKey?: string;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,6 +242,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   onCancel={() => setShowAddComment(false)}
                   currentUser={currentUser}
                   placeholder="Add a comment..."
+                  ecencyToken={ecencyToken}
+                  threeSpeakApiKey={threeSpeakApiKey}
+                  giphyApiKey={giphyApiKey}
                 />
               </div>
             )}
@@ -305,6 +314,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
           onClose={() => setReplyingTo(null)}
           onCommentSubmitted={handleCommentSubmitted}
           currentUser={currentUser}
+          ecencyToken={ecencyToken}
+          threeSpeakApiKey={threeSpeakApiKey}
+          giphyApiKey={giphyApiKey}
         />
       )}
     </>

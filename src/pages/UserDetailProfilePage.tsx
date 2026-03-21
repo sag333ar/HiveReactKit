@@ -20,6 +20,9 @@ const UserDetailProfilePage = () => {
         currentUsername="sagarkothari88"
         showBackButton
         // tabShown={["followers", "following", "blogs", "posts", "comments", "replies", "polls", "activities", "authorRewards", "curationRewards", "wallet"]}
+        ecencyToken="your-ecency-token-here"
+        threeSpeakApiKey="your-3speak-api-key-here"
+        giphyApiKey="your-giphy-api-key-here"
         onBack={() => navigate(-1)}
         onFollow={(user) => {
           console.log("[Callback] Follow:", user);
@@ -35,7 +38,7 @@ const UserDetailProfilePage = () => {
         }}
         onReportUser={(user, reason) => {
           console.log("[Callback] Report:", user, reason);
-          alert(`Reported @${user} for: ${reason}`);
+          // alert(`Reported @${user} for: ${reason}`);
         }}
         onUpvote={(author, permlink, percent) => {
           console.log("[Callback] Upvote:", author, permlink, `${percent}%`);
@@ -51,7 +54,7 @@ const UserDetailProfilePage = () => {
         }}
         onReblog={(author, permlink) => {
           console.log("[Callback] Reblog:", author, permlink);
-          alert(`Reblog @${author}/${permlink}`);
+          // alert(`Reblog @${author}/${permlink}`);
         }}
         onTip={(author, permlink) => {
           console.log("[Callback] Tip:", author, permlink);

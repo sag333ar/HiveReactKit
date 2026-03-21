@@ -86,11 +86,14 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 ```tsx
 import { UserDetailProfile } from 'hive-react-kit';
 
-// All tabs, default order
+// All tabs, default order, with rich comment composer
 <UserDetailProfile
   username="sagarkothari88"
   currentUsername="myaccount"
   showBackButton
+  ecencyToken="your-ecency-token"
+  threeSpeakApiKey="your-3speak-api-key"
+  giphyApiKey="your-giphy-api-key"
   onBack={() => navigate(-1)}
   onFollow={(user) => console.log("Follow:", user)}
   onUnfollow={(user) => console.log("Unfollow:", user)}
@@ -115,6 +118,9 @@ import { UserDetailProfile } from 'hive-react-kit';
 | `showBackButton` | `boolean` | `false` | Show back arrow in header |
 | `onBack` | `() => void` | - | Callback when back button is clicked |
 | `tabShown` | `TabType[]` | all tabs | Controls which tabs are visible and their order. Only listed tabs are shown. First tab is the default active tab. If omitted, all 12 tabs are shown in default order |
+| `ecencyToken` | `string` | `undefined` | Ecency image hosting token. Enables image upload and video thumbnail upload in the comment composer. When not provided, the image upload button is hidden |
+| `threeSpeakApiKey` | `string` | `undefined` | 3Speak API key. Enables audio recording/upload and video upload in the comment composer. When not provided, audio and video buttons are hidden |
+| `giphyApiKey` | `string` | `undefined` | GIPHY API key. Enables GIF search in the comment composer. When not provided, the GIF button is hidden |
 
 **Social Action Callbacks**
 

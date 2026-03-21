@@ -15,6 +15,12 @@ export { default as UserChannel } from './components/UserChannel';
 export { default as HiveToolbar, type HiveToolbarProps } from './components/HiveToolbar';
 export { default as CommentsModal } from './components/comments/CommentsModal';
 export { PostActionButton, type PostActionButtonProps } from './components/actionButtons';
+export { default as AddCommentInput } from './components/comments/AddCommentInput';
+export type { AddCommentInputProps } from './components/comments/AddCommentInput';
+
+// Composer components (Image, Audio, Video uploaders, GIF picker, Emoji picker)
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, EmojiPicker } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, GiphyPickerProps, EmojiPickerProps } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

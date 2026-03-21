@@ -58,7 +58,8 @@ export default defineConfig(({ mode }) => {
             "react-day-picker",
             "@tailwindcss/vite",
             "tailwindcss",
-            "tailwindcss-animate"
+            "tailwindcss-animate",
+            "tus-js-client"
           ],
           output: [
             {

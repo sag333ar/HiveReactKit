@@ -20,7 +20,6 @@ import {
   Share2,
   Flag,
   Ban,
-  Loader2,
   ChevronLeft,
   ChevronRight,
   Award,
@@ -52,6 +51,14 @@ export interface UserDetailProfileProps {
    * Example: `["followers", "following", "blogs", "wallet"]` — only these 4 tabs, in this order.
    */
   tabShown?: TabType[];
+
+  // Composer tokens (threaded to AddCommentInput via PostActionButton → CommentsModal)
+  /** Ecency image hosting token — enables image and video thumbnail upload in comment composer */
+  ecencyToken?: string;
+  /** 3Speak API key — enables audio and video upload in comment composer */
+  threeSpeakApiKey?: string;
+  /** GIPHY API key — enables GIF search in comment composer */
+  giphyApiKey?: string;
 
   // Social action callbacks
   onFollow?: (username: string) => void | Promise<void>;
@@ -177,6 +184,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onBack,
   showBackButton = false,
   tabShown,
+  ecencyToken,
+  threeSpeakApiKey,
+  giphyApiKey,
   onFollow,
   onUnfollow,
   onIgnoreAuthor,
@@ -670,10 +680,59 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-3" />
-          <p className="text-gray-400">Loading user profile...</p>
+      <div className="h-full overflow-y-auto animate-pulse">
+        {/* Header skeleton */}
+        <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center gap-3">
+          {showBackButton && <div className="w-8 h-8 bg-gray-700 rounded-full" />}
+          <div className="w-9 h-9 bg-gray-700 rounded-full" />
+          <div className="flex-1 min-w-0">
+            <div className="h-4 bg-gray-700 rounded w-28 mb-1.5" />
+            <div className="h-3 bg-gray-700 rounded w-36" />
+          </div>
+          <div className="w-8 h-8 bg-gray-700 rounded-full" />
+        </div>
+
+        {/* Cover image skeleton */}
+        <div className="relative">
+          <div className="h-36 sm:h-44 bg-gray-800 w-full" />
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="h-4 bg-gray-700 rounded w-48 mb-2" />
+            <div className="h-3 bg-gray-700 rounded w-64 mb-3" />
+            <div className="flex flex-wrap gap-3">
+              <div className="h-3 bg-gray-700 rounded w-20" />
+              <div className="h-3 bg-gray-700 rounded w-24" />
+              <div className="h-3 bg-gray-700 rounded w-28" />
+            </div>
+          </div>
+        </div>
+
+        {/* Tab bar skeleton */}
+        <div className="border-b border-gray-700 px-2 py-2 flex gap-1 overflow-x-auto">
+          {[80, 64, 72, 96, 80, 64, 72].map((w, i) => (
+            <div key={i} className="h-8 bg-gray-800 rounded-lg flex-shrink-0" style={{ width: w }} />
+          ))}
+        </div>
+
+        {/* Content skeleton */}
+        <div className="p-4 space-y-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3.5 bg-gray-700 rounded w-24 mb-2" />
+                  <div className="h-4 bg-gray-700 rounded w-4/5 mb-2" />
+                  <div className="h-3 bg-gray-700 rounded w-full mb-1.5" />
+                  <div className="h-3 bg-gray-700 rounded w-3/5 mb-3" />
+                  <div className="flex gap-4">
+                    <div className="h-3 bg-gray-700 rounded w-12" />
+                    <div className="h-3 bg-gray-700 rounded w-12" />
+                    <div className="h-3 bg-gray-700 rounded w-16" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -932,6 +991,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 }}
                 onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
                 onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+                ecencyToken={ecencyToken}
+                threeSpeakApiKey={threeSpeakApiKey}
+                giphyApiKey={giphyApiKey}
               />
             </div>
 

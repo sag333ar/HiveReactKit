@@ -20,6 +20,9 @@ import 'hive-react-kit/build.css';
   username="sagarkothari88"
   currentUsername="myaccount"
   showBackButton
+  ecencyToken="your-ecency-token"
+  threeSpeakApiKey="your-3speak-api-key"
+  giphyApiKey="your-giphy-api-key"
   onBack={() => navigate(-1)}
   onFollow={(user) => broadcastFollow(user)}
   onPostClick={(author, permlink, title) => navigate(`/post/${author}/${permlink}`)}
@@ -38,6 +41,20 @@ import 'hive-react-kit/build.css';
 | `showBackButton` | `boolean` | No | `false` | Show back arrow in the sticky header |
 | `onBack` | `() => void` | No | - | Called when back button is clicked |
 | `tabShown` | `TabType[]` | No | all 12 tabs | Controls which tabs are visible and their display order. First tab is the default active tab. If omitted, all tabs are shown in default order |
+
+### Composer Tokens
+
+These tokens enable rich media features in the comment composer toolbar. When a token is not provided, the corresponding toolbar button is automatically hidden.
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ecencyToken` | `string` | No | `undefined` | Ecency image hosting token. Enables **image upload** and **video thumbnail upload**. Without it, the image upload button is hidden |
+| `threeSpeakApiKey` | `string` | No | `undefined` | 3Speak API key. Enables **audio recording/upload** and **video upload** (TUS protocol). Without it, audio and video buttons are hidden |
+| `giphyApiKey` | `string` | No | `undefined` | GIPHY API key. Enables **GIF search**. Without it, the GIF button is hidden |
+
+> **Note:** Bold, Italic, Link, and Emoji toolbar buttons are always available — they don't require any external token.
+
+These tokens are threaded through the full component chain: `UserDetailProfile` → `PostActionButton` → `CommentsModal` / `ReplyModal` → `AddCommentInput`.
 
 ### Social Action Callbacks
 
@@ -149,6 +166,10 @@ const ProfilePage = () => {
           "authorRewards", "curationRewards",
           "followers", "following", "wallet"
         ]}
+        // Composer tokens — omit any to hide that toolbar button
+        ecencyToken="your-ecency-token"
+        threeSpeakApiKey="your-3speak-api-key"
+        giphyApiKey="your-giphy-api-key"
         onBack={() => navigate(-1)}
         onFollow={(user) => {
           // Broadcast follow via HiveKeychain/Aioha
@@ -209,6 +230,8 @@ const ProfilePage = () => {
 - **150ms API throttle** between batch requests to prevent rate limiting
 - **Image carousel** with fullscreen lightbox on post cards
 - **Payout tooltip** with detailed breakdown (author rewards, beneficiaries, payout mode)
+- **Rich comment composer** with markdown toolbar (Bold, Italic, Link), image upload (Ecency), audio record/upload (3Speak), video upload with TUS protocol (3Speak), GIF search (GIPHY), and emoji picker
+- **Token-gated toolbar** — upload buttons auto-hide when the corresponding API token is not provided
 - **Dark mode only** with consistent gray-800/900 color palette
 - **Responsive** — compact layout on mobile, expanded on desktop
 

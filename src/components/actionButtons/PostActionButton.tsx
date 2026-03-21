@@ -49,6 +49,12 @@ export interface PostActionButtonProps {
   onReport?: () => void;
   /** Called when user confirms comment upvote with (author, permlink, percent). Frontend handles signing. Voted comments show icon in blue. */
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
+  /** Ecency image hosting token — enables image upload in comment composer */
+  ecencyToken?: string;
+  /** 3Speak API key — enables audio/video upload in comment composer */
+  threeSpeakApiKey?: string;
+  /** GIPHY API key — enables GIF search in comment composer */
+  giphyApiKey?: string;
 }
 
 export function PostActionButton({
@@ -68,6 +74,9 @@ export function PostActionButton({
   onTip,
   onReport,
   onClickCommentUpvote,
+  ecencyToken,
+  threeSpeakApiKey,
+  giphyApiKey,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -126,7 +135,7 @@ export function PostActionButton({
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
 
   const requireLogin = (action: string, onLoggedIn: () => void) => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn && action !== "Comment") {
       showToast(`Please Login to ${action}`);
       return;
     }
@@ -221,10 +230,10 @@ export function PostActionButton({
     parentPermlink: string,
     body: string
   ) => {
-    if (!isLoggedIn) {
-      showToast("Please Login to comment");
-      return;
-    }
+    // if (!isLoggedIn) {
+    //   showToast("Please Login to comment");
+    //   return;
+    // }
     if (!onSubmitComment) return;
     try {
       await Promise.resolve(
@@ -406,6 +415,9 @@ export function PostActionButton({
           token={undefined}
           onSubmitComment={onSubmitComment ? handleCommentSubmit : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
+          ecencyToken={ecencyToken}
+          threeSpeakApiKey={threeSpeakApiKey}
+          giphyApiKey={giphyApiKey}
         />
       )}
 

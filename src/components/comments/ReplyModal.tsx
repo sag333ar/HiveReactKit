@@ -8,14 +8,20 @@ interface ReplyModalProps {
   onClose: () => void;
   onCommentSubmitted: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
   currentUser?: string;
+  ecencyToken?: string;
+  threeSpeakApiKey?: string;
+  giphyApiKey?: string;
 }
 
-const ReplyModal = ({ 
-  parentAuthor, 
-  parentPermlink, 
-  onClose, 
-  onCommentSubmitted, 
-  currentUser 
+const ReplyModal = ({
+  parentAuthor,
+  parentPermlink,
+  onClose,
+  onCommentSubmitted,
+  currentUser,
+  ecencyToken,
+  threeSpeakApiKey,
+  giphyApiKey,
 }: ReplyModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -79,6 +85,9 @@ const ReplyModal = ({
             parentAuthor={parentAuthor}
             parentPermlink={parentPermlink}
             placeholder={`Reply to @${parentAuthor}...`}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
           />
         </div>
 
