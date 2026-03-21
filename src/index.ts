@@ -41,6 +41,8 @@ export { default as UserFollowers } from './components/user/UserFollowers';
 export { default as UserFollowing } from './components/user/UserFollowing';
 export { default as UserInfo } from './components/user/UserInfo';
 export { default as UserProfilePage } from './components/user/UserProfilePage';
+export { default as UserDetailProfile } from './components/user/UserDetailProfile';
+export type { UserDetailProfileProps } from './components/user/UserDetailProfile';
 
 // Landing components
 export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';
@@ -60,12 +62,17 @@ export * from './hooks/use-toast';
 export * from './types/comment';
 export * from './types/graphql';
 export * from './types/trending';
+export * from './types/user';
+export * from './types/post';
 export * from './types/video';
-export * from './types/wallet';
-export * from './types/witness';
+export * from './types/poll';
+export * from './types/reward';
+// export * from './types/wallet';
+// export * from './types/witness';
 
 // Services
 export * from './services/apiService';
+export * from './services/userService';
 export * from './services/witnessService';
 
 // Store

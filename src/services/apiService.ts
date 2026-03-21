@@ -16,8 +16,9 @@ import { Client } from "@hiveio/dhive";
 // Use dev proxy paths to avoid CORS in development. Vite proxy maps these to real RPC nodes.
 const dhiveClient = new Client([
   "https://api.hive.blog",
-  "https://api.syncad.com",
   "https://api.deathwing.me",
+  "https://api.syncad.com",
+  "https://rpc.mahdiyari.info"
 ]);
 
 class ApiService {

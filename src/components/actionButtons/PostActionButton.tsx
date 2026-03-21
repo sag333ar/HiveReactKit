@@ -19,8 +19,16 @@ export interface PostActionButtonProps {
   permlink: string;
   /** Current logged-in username; null or '' means not logged in */
   currentUser?: string | null;
-  /** Optional: Hive value to display (string so unit is decided by user, e.g. "$8.50", "10 HIVE") */
+  /** Optional: Hive value to display (numeric string, e.g. "8.500") */
   hiveValue?: string;
+  /** Optional: URL to a Hive logo icon shown next to the payout value */
+  hiveIconUrl?: string;
+  /** Optional: Tooltip text shown on hover over the payout value (e.g. payout breakdown) */
+  payoutTooltip?: string;
+  /** Optional: Pre-loaded active votes array from the Post object. Skips the API call when provided. */
+  initialVotes?: ActiveVote[];
+  /** Optional: Pre-loaded comments count from the Post object (item.children). Skips the API call when provided. */
+  initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
   /** Called when user submits a comment. Frontend handles signing/broadcast. */
@@ -48,6 +56,10 @@ export function PostActionButton({
   permlink,
   currentUser: currentUserProp,
   hiveValue,
+  hiveIconUrl,
+  payoutTooltip,
+  initialVotes,
+  initialCommentsCount,
   onUpvote,
   onSubmitComment,
   onComments,
@@ -63,8 +75,8 @@ export function PostActionButton({
       : currentUserProp;
   const isLoggedIn = currentUser != null;
 
-  const [votes, setVotes] = useState<ActiveVote[]>([]);
-  const [commentsCount, setCommentsCount] = useState(0);
+  const [votes, setVotes] = useState<ActiveVote[]>(initialVotes ?? []);
+  const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
@@ -79,20 +91,34 @@ export function PostActionButton({
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
   }, []);
 
+  const hasInitialVotes = initialVotes !== undefined;
+  const hasInitialComments = initialCommentsCount !== undefined;
+
   const fetchVotes = useCallback(async () => {
-    const list = await apiService.getActiveVotes(author, permlink);
-    setVotes(list);
+    try {
+      const list = await apiService.getActiveVotes(author, permlink);
+      setVotes(list);
+    } catch {
+      // Silently fail — keep using initialVotes
+    }
   }, [author, permlink]);
 
+  // Only fetch from API if NO initial data was provided
   useEffect(() => {
-    fetchVotes();
-  }, [fetchVotes]);
+    if (!hasInitialVotes) {
+      fetchVotes();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, permlink, hasInitialVotes]);
 
   useEffect(() => {
-    apiService.getCommentsList(author, permlink).then((list) => {
-      setCommentsCount(list.length);
-    });
-  }, [author, permlink]);
+    if (!hasInitialComments) {
+      apiService.getCommentsList(author, permlink).then((list) => {
+        setCommentsCount(list.length);
+      }).catch(() => { /* silently fail */ });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [author, permlink, hasInitialComments]);
 
   const hasVoted =
     isLoggedIn &&
@@ -123,8 +149,13 @@ export function PostActionButton({
     try {
       await Promise.resolve(onUpvote(percent));
       setShowVoteSlider(false);
-      await fetchVotes();
       showToast("Vote submitted successfully");
+      // Immediately fetch to try to pick up the new vote
+      await fetchVotes();
+      // Hive blockchain may take a few seconds to propagate — re-fetch after 4s
+      setTimeout(() => {
+        fetchVotes();
+      }, 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to upvote";
       showToast(msg);
@@ -212,25 +243,25 @@ export function PostActionButton({
     "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-800 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
 
   return (
-    <div className="flex items-center justify-between gap-4 text-sm w-full">
-      {/* All action buttons centered */}
-      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 shrink-0">
+    <div className="flex items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm w-full">
+      {/* All action buttons */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 shrink-0">
       {/* Upvotes count + Upvote button */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <div className="relative group">
           <span className={tooltipClass}>Upvote</span>
           <button
             type="button"
             onClick={handleUpvoteClick}
             disabled={voteLoading}
-            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="p-0.5 sm:p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
             aria-label="Upvote"
           >
             {voteLoading ? (
-              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-blue-600" />
+              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-blue-600" />
             ) : (
               <ThumbsUp
-                className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                   hasVoted
                     ? "text-blue-600 dark:text-blue-400 fill-current"
                     : "text-gray-600 dark:text-gray-400"
@@ -244,7 +275,7 @@ export function PostActionButton({
           <button
             type="button"
             onClick={handleUpvoteCountClick}
-            className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="flex items-center gap-0.5 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
             aria-label="View upvotes"
           >
             <span>{votes.length}</span>
@@ -258,10 +289,10 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleCommentClick}
-          className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          className="flex items-center gap-0.5 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           aria-label="Comments"
         >
-          <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+          <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>{commentsCount}</span>
         </button>
       </div>
@@ -272,10 +303,10 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleReblogClick}
-          className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Reblog"
         >
-          <Repeat2 className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -285,10 +316,10 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleShareClick}
-          className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Share"
         >
-          <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -298,10 +329,10 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleReportClick}
-          className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Report"
         >
-          <Flag className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
@@ -311,20 +342,32 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleTipClick}
-          className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Tip"
         >
-          <Gift className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
       </div>
 
-      {/* Hive Value at end - spacer keeps icons centered when no value */}
+      {/* Hive Value at end with icon and tooltip */}
       <div className="flex-1 flex justify-end min-w-0 shrink-0">
         {hiveValue != null && hiveValue !== "" && (
-          <span className="font-semibold text-green-600 dark:text-green-400">
-            {hiveValue}
-          </span>
+          <div className="relative group">
+            <div className="flex items-center gap-1 cursor-default">
+              <span className="font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
+                {hiveValue}
+              </span>
+              {hiveIconUrl && (
+                <img src={hiveIconUrl} alt="Hive" className="w-4 h-4 rounded-full" />
+              )}
+            </div>
+            {payoutTooltip && (
+              <div className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2 text-xs text-gray-200 bg-gray-800 dark:bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-pre-line opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 z-[60]">
+                {payoutTooltip}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
