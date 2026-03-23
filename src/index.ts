@@ -19,8 +19,8 @@ export { PostComposer, default as AddCommentInput } from './components/comments/
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
 // Composer components (Image, Audio, Video uploaders, GIF picker, Emoji picker, Template picker)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, EmojiPicker, TemplatePicker } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, GiphyPickerProps, EmojiPickerProps, TemplatePickerProps } from './components/composer';
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, EmojiPicker, TemplatePicker, PollCreator } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, GiphyPickerProps, EmojiPickerProps, TemplatePickerProps, PollCreatorProps, PollData } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

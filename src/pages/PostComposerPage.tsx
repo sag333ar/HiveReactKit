@@ -36,6 +36,11 @@ const PostComposerPage = () => {
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
+          onPollChange={(poll) => {
+            console.log("Poll changed:", poll);
+            if (poll) alert(`Poll attached: ${poll.question} (${poll.choices.length} choices)`);
+            else alert("Poll removed");
+          }}
         />
       </div>
     </div>

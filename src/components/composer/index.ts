@@ -15,3 +15,6 @@ export type { EmojiPickerProps } from './EmojiPicker'
 
 export { default as TemplatePicker } from './TemplatePicker'
 export type { TemplatePickerProps } from './TemplatePicker'
+
+export { default as PollCreator } from './PollCreator'
+export type { PollCreatorProps, PollData } from './PollCreator'

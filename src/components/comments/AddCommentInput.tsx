@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff } from 'lucide-react';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3 } from 'lucide-react';
 import ImageUploader from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
 import VideoUploader from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
 import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
+import PollCreator from '../composer/PollCreator';
+import type { PollData } from '../composer/PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
 import { createHiveRenderer } from '@snapie/renderer';
 
@@ -42,6 +44,10 @@ export interface PostComposerProps {
   hideMention?: boolean;
   hideTemplate?: boolean;
   hidePreview?: boolean;
+  hidePoll?: boolean;
+
+  /** Called when a poll is attached/updated. Receives PollData or null when removed */
+  onPollChange?: (poll: import('../composer/PollCreator').PollData | null) => void;
 
   /** Show cancel button (default true) */
   showCancel?: boolean;
@@ -94,6 +100,8 @@ const PostComposer = ({
   hideMention,
   hideTemplate,
   hidePreview,
+  hidePoll,
+  onPollChange,
   showCancel = true,
   submitLabel = "Post",
   title,
@@ -126,6 +134,8 @@ const PostComposer = ({
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingPaste, setUploadingPaste] = useState(false);
+  const [pollData, setPollData] = useState<PollData | null>(null);
+  const [isPollOpen, setIsPollOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -150,7 +160,9 @@ const PostComposer = ({
     if (textareaRef.current) textareaRef.current.focus();
   }, []);
 
-  // Clear attachments when controlled value is reset to empty (external submit)
+  // Clear media attachments when controlled value is reset to empty (external submit)
+  // Note: pollData is NOT cleared here — polls are independent of text content.
+  // Polls are cleared only on successful internal submit or via the remove button.
   useEffect(() => {
     if (value !== undefined && value === '') {
       setAudioEmbedUrl(null);
@@ -330,6 +342,8 @@ const PostComposer = ({
       setVideoEmbedUrl(null);
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoPreviewUrl(null);
+      setPollData(null);
+      onPollChange?.(null);
     } catch (error) {
       console.error('Failed to submit:', error);
     } finally {
@@ -505,6 +519,37 @@ const PostComposer = ({
         </div>
       )}
 
+      {/* Poll preview */}
+      {pollData && (
+        <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2 mb-1.5">
+              <BarChart3 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+              <span className="flex-1 truncate text-xs font-medium text-white">{pollData.question}</span>
+              <button type="button" onClick={() => setIsPollOpen(true)} className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" title="Edit poll">
+                <Code className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => { setPollData(null); onPollChange?.(null); }}
+                className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                title="Remove poll"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {pollData.choices.map((c, i) => (
+                <span key={i} className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">{c}</span>
+              ))}
+            </div>
+            <div className="mt-1.5 text-[10px] text-gray-500">
+              Ends {new Date(pollData.end_time * 1000).toLocaleDateString()} &middot; Max {pollData.max_choices_voted} choice{pollData.max_choices_voted > 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-700 pb-2">
         {/* Preview toggle */}
@@ -590,6 +635,17 @@ const PostComposer = ({
         {!hideTemplate && templateToken && templates.length > 0 && (
           <button type="button" onClick={() => setIsTemplateOpen(true)} className={toolbarBtnClass} title="Insert template" disabled={isDisabled}>
             <FileText className="h-4 w-4" />
+          </button>
+        )}
+        {!hidePoll && (
+          <button
+            type="button"
+            onClick={() => setIsPollOpen(true)}
+            className={`${toolbarBtnClass} ${pollData ? 'text-blue-400' : ''}`}
+            title={pollData ? 'Edit poll' : 'Create poll'}
+            disabled={isDisabled}
+          >
+            <BarChart3 className="h-4 w-4" />
           </button>
         )}
       </div>
@@ -679,6 +735,12 @@ const PostComposer = ({
         onSelectTemplate={insertText}
         templates={templates}
         authorFromUrl={parentAuthor}
+      />
+      <PollCreator
+        isOpen={isPollOpen}
+        onClose={() => setIsPollOpen(false)}
+        onSave={(poll) => { setPollData(poll); onPollChange?.(poll); }}
+        initialData={pollData}
       />
     </div>
   );
