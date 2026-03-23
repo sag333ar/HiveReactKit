@@ -5,6 +5,7 @@ import VideoDetail from "./components/VideoDetail";
 import NotFound from "./pages/NotFound";
 import UserProfile from "./pages/UserProfile";
 import UserDetailProfilePage from "./pages/UserDetailProfilePage";
+import PostComposerPage from "./pages/PostComposerPage";
 import HiveToolbar from "./components/HiveToolbar";
 import HiveContributionsLanding from "./components/landing-page/HiveContributionsLanding";
 import ExpensesView from "./components/landing-page/ExpensesView";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/video/:author/:permlink" element={<VideoDetail />} />
             <Route path="/user/:username" element={<UserProfile />} />
             <Route path="/profile/:username" element={<UserDetailProfilePage />} />
+            <Route path="/composer" element={<PostComposerPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

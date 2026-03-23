@@ -12,3 +12,6 @@ export type { GiphyPickerProps } from './GiphyPicker'
 
 export { default as EmojiPicker } from './EmojiPicker'
 export type { EmojiPickerProps } from './EmojiPicker'
+
+export { default as TemplatePicker } from './TemplatePicker'
+export type { TemplatePickerProps } from './TemplatePicker'
