@@ -20,9 +20,11 @@ const UserDetailProfilePage = () => {
         currentUsername="sagarkothari88"
         showBackButton
         // tabShown={["followers", "following", "blogs", "posts", "comments", "replies", "polls", "activities", "authorRewards", "curationRewards", "wallet"]}
-        ecencyToken="your-ecency-token-here"
-        threeSpeakApiKey="your-3speak-api-key-here"
-        giphyApiKey="your-giphy-api-key-here"
+        ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
+        threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
+        giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}
+        templateToken={import.meta.env.VITE_TEMPLATE_TOKEN || undefined}
+        templateApiBaseUrl={import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined}
         onBack={() => navigate(-1)}
         onFollow={(user) => {
           console.log("[Callback] Follow:", user);

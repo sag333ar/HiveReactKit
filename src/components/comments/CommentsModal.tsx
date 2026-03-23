@@ -25,9 +25,13 @@ interface CommentsModalProps {
   threeSpeakApiKey?: string;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
+  /** HReplier API token — enables template picker in comment composer */
+  templateToken?: string;
+  /** Custom template API endpoint */
+  templateApiBaseUrl?: string;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,6 +249,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   ecencyToken={ecencyToken}
                   threeSpeakApiKey={threeSpeakApiKey}
                   giphyApiKey={giphyApiKey}
+                  templateToken={templateToken}
+                  templateApiBaseUrl={templateApiBaseUrl}
                 />
               </div>
             )}
@@ -317,6 +323,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
           giphyApiKey={giphyApiKey}
+          templateToken={templateToken}
+          templateApiBaseUrl={templateApiBaseUrl}
         />
       )}
     </>

@@ -65,6 +65,10 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 - **CommunityMembers** - Community members list
 - **CommunityTeam** - Community team members
 
+### Composer Components
+
+- **PostComposer** - Rich markdown composer with live preview (@snapie/renderer), image/audio/video upload, paste & drag-drop, GIF search, emoji picker (500+, 9 categories), template picker, code blocks with copy, and @ mention. See [PostComposer docs](docs/PostComposer.md)
+
 ### Modal Components
 
 - **CommentsModal** - Comments display modal
@@ -94,6 +98,8 @@ import { UserDetailProfile } from 'hive-react-kit';
   ecencyToken="your-ecency-token"
   threeSpeakApiKey="your-3speak-api-key"
   giphyApiKey="your-giphy-api-key"
+  templateToken="your-jwt-token"
+  templateApiBaseUrl="https://your-api.com/data/templates"
   onBack={() => navigate(-1)}
   onFollow={(user) => console.log("Follow:", user)}
   onUnfollow={(user) => console.log("Unfollow:", user)}
@@ -118,9 +124,11 @@ import { UserDetailProfile } from 'hive-react-kit';
 | `showBackButton` | `boolean` | `false` | Show back arrow in header |
 | `onBack` | `() => void` | - | Callback when back button is clicked |
 | `tabShown` | `TabType[]` | all tabs | Controls which tabs are visible and their order. Only listed tabs are shown. First tab is the default active tab. If omitted, all 12 tabs are shown in default order |
-| `ecencyToken` | `string` | `undefined` | Ecency image hosting token. Enables image upload and video thumbnail upload in the comment composer. When not provided, the image upload button is hidden |
-| `threeSpeakApiKey` | `string` | `undefined` | 3Speak API key. Enables audio recording/upload and video upload in the comment composer. When not provided, audio and video buttons are hidden |
-| `giphyApiKey` | `string` | `undefined` | GIPHY API key. Enables GIF search in the comment composer. When not provided, the GIF button is hidden |
+| `ecencyToken` | `string` | `undefined` | Ecency image hosting token. Enables image upload, video thumbnail upload, and paste/drag-drop image upload. Hidden when not provided |
+| `threeSpeakApiKey` | `string` | `undefined` | 3Speak API key. Enables audio recording/upload and video upload (TUS protocol). Hidden when not provided |
+| `giphyApiKey` | `string` | `undefined` | GIPHY API key. Enables GIF search. Hidden when not provided |
+| `templateToken` | `string` | `undefined` | HReplier API JWT token. Enables template picker. Hidden when not provided |
+| `templateApiBaseUrl` | `string` | `https://hreplier-api...` | Custom template API endpoint. Override when self-hosting |
 
 **Social Action Callbacks**
 

@@ -55,6 +55,10 @@ export interface PostActionButtonProps {
   threeSpeakApiKey?: string;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
+  /** HReplier API token — enables template picker in comment composer */
+  templateToken?: string;
+  /** Custom template API endpoint */
+  templateApiBaseUrl?: string;
 }
 
 export function PostActionButton({
@@ -77,6 +81,8 @@ export function PostActionButton({
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
+  templateToken,
+  templateApiBaseUrl,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -418,6 +424,8 @@ export function PostActionButton({
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
           giphyApiKey={giphyApiKey}
+          templateToken={templateToken}
+          templateApiBaseUrl={templateApiBaseUrl}
         />
       )}
 

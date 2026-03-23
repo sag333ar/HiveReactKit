@@ -23,6 +23,8 @@ import 'hive-react-kit/build.css';
   ecencyToken="your-ecency-token"
   threeSpeakApiKey="your-3speak-api-key"
   giphyApiKey="your-giphy-api-key"
+  templateToken="your-jwt-token"
+  templateApiBaseUrl="https://your-api.com/data/templates"
   onBack={() => navigate(-1)}
   onFollow={(user) => broadcastFollow(user)}
   onPostClick={(author, permlink, title) => navigate(`/post/${author}/${permlink}`)}
@@ -48,13 +50,15 @@ These tokens enable rich media features in the comment composer toolbar. When a 
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `ecencyToken` | `string` | No | `undefined` | Ecency image hosting token. Enables **image upload** and **video thumbnail upload**. Without it, the image upload button is hidden |
+| `ecencyToken` | `string` | No | `undefined` | Ecency image hosting token. Enables **image upload**, **video thumbnail upload**, and **paste/drag-drop image upload**. Without it, the image upload button is hidden |
 | `threeSpeakApiKey` | `string` | No | `undefined` | 3Speak API key. Enables **audio recording/upload** and **video upload** (TUS protocol). Without it, audio and video buttons are hidden |
 | `giphyApiKey` | `string` | No | `undefined` | GIPHY API key. Enables **GIF search**. Without it, the GIF button is hidden |
+| `templateToken` | `string` | No | `undefined` | HReplier API JWT token. Enables **template picker** (insert saved reply templates). Without it, the template button is hidden |
+| `templateApiBaseUrl` | `string` | No | `https://hreplier-api.sagarkothari88.one/data/templates` | Custom template API endpoint. Override when self-hosting the template service |
 
-> **Note:** Bold, Italic, Link, and Emoji toolbar buttons are always available — they don't require any external token.
+> **Note:** Bold, Italic, Link, Code, @Mention, and Emoji toolbar buttons are always available — they don't require any external token.
 
-These tokens are threaded through the full component chain: `UserDetailProfile` → `PostActionButton` → `CommentsModal` / `ReplyModal` → `AddCommentInput`.
+These tokens are threaded through the full component chain: `UserDetailProfile` → `PostActionButton` → `CommentsModal` / `ReplyModal` → `PostComposer (AddCommentInput)`.
 
 ### Social Action Callbacks
 
@@ -170,6 +174,8 @@ const ProfilePage = () => {
         ecencyToken="your-ecency-token"
         threeSpeakApiKey="your-3speak-api-key"
         giphyApiKey="your-giphy-api-key"
+        templateToken="your-jwt-token"
+        templateApiBaseUrl="https://your-api.com/data/templates"
         onBack={() => navigate(-1)}
         onFollow={(user) => {
           // Broadcast follow via HiveKeychain/Aioha
@@ -230,8 +236,9 @@ const ProfilePage = () => {
 - **150ms API throttle** between batch requests to prevent rate limiting
 - **Image carousel** with fullscreen lightbox on post cards
 - **Payout tooltip** with detailed breakdown (author rewards, beneficiaries, payout mode)
-- **Rich comment composer** with markdown toolbar (Bold, Italic, Link), image upload (Ecency), audio record/upload (3Speak), video upload with TUS protocol (3Speak), GIF search (GIPHY), and emoji picker
+- **Rich comment composer (PostComposer)** with markdown toolbar (Bold, Italic, Link, Code, @Mention), image upload (Ecency), audio record/upload (3Speak), video upload with TUS protocol (3Speak), GIF search (GIPHY), comprehensive emoji picker (500+ emojis, 9 categories), template picker (HReplier API), paste/drag-drop image upload, and live preview via `@snapie/renderer` (3Speak video/audio embeds, IPFS, Twitter, Instagram)
 - **Token-gated toolbar** — upload buttons auto-hide when the corresponding API token is not provided
+- **PostComposer** also available as standalone component — see [PostComposer docs](./PostComposer.md)
 - **Dark mode only** with consistent gray-800/900 color palette
 - **Responsive** — compact layout on mobile, expanded on desktop
 

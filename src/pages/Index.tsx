@@ -35,6 +35,8 @@ import {
 import ActivityList from "@/components/ActivityList";
 import { HiveDetailPost } from "@/components/HiveDetailPost";
 import { PostActionButton } from "@/components/actionButtons";
+import UserDetailProfile from "@/components/user/UserDetailProfile";
+import { PostComposer } from "@/components/comments/AddCommentInput";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -431,6 +433,49 @@ const Index = () => {
               />
             );
           }`;
+      case "user-detail-profile":
+        return `import { UserDetailProfile } from 'hive-reactkit';
+          function App() {
+            return (
+              <UserDetailProfile
+                username="sagarkothari88"
+                currentUsername="myaccount"
+                showBackButton
+                tabShown={["blogs", "posts", "snaps", "polls", "comments",
+                  "replies", "activities", "authorRewards", "curationRewards",
+                  "followers", "following", "wallet"]}
+                ecencyToken="your-ecency-token"
+                threeSpeakApiKey="your-3speak-key"
+                giphyApiKey="your-giphy-key"
+                templateToken="your-jwt-token"
+                onBack={() => navigate(-1)}
+                onFollow={(user) => console.log("Follow:", user)}
+                onUnfollow={(user) => console.log("Unfollow:", user)}
+                onPostClick={(author, permlink) => console.log("Post:", author, permlink)}
+                onUserClick={(user) => console.log("User:", user)}
+              />
+            );
+          }`;
+      case "post-composer":
+        return `import { PostComposer } from 'hive-reactkit';
+          function App() {
+            return (
+              <PostComposer
+                onSubmit={(body) => console.log("Submitted:", body)}
+                onCancel={() => console.log("Cancelled")}
+                currentUser="sagarkothari88"
+                parentAuthor="shaktimaaan"
+                placeholder="Write in Markdown..."
+                title="Create a Post"
+                submitLabel="Publish"
+                defaultPreviewOn={false}
+                ecencyToken="your-ecency-token"
+                threeSpeakApiKey="your-3speak-key"
+                giphyApiKey="your-giphy-key"
+                templateToken="your-jwt-token"
+              />
+            );
+          }`;
       default:
         return `import { VideoFeed, ApiVideoFeedType } from 'hive-reactkit';
           function App() {
@@ -517,6 +562,8 @@ const Index = () => {
     { id: "following-list", label: "Following List", icon: "👥" },
     { id: "hive-detail-post", label: "Hive Detail Post", icon: "📄" },
     { id: "activity-list", label: "Activity List", icon: "📋" },
+    { id: "user-detail-profile", label: "User Detail Profile", icon: "🧑" },
+    { id: "post-composer", label: "Post Composer", icon: "✍️" },
   ];
 
   return (
@@ -1101,6 +1148,50 @@ const Index = () => {
                       // onClickUpvoteButton={(currentUser, token) => console.log("Upvote clicked:", currentUser, token)}
                       // onClickCommentUpvote={(comment) => console.log("Comment upvote clicked:", comment.author, comment.permlink)}
                       // onClickCommentReply={(comment) => console.log("Comment reply clicked:", comment.author, comment.permlink)}
+                    />
+                  </div>
+                ) : activeTab === "user-detail-profile" ? (
+                  <div className="max-w-4xl mx-auto" style={{ height: 'calc(100vh - 200px)' }}>
+                    <UserDetailProfile
+                      username={usernameQuery || "sagarkothari88"}
+                      currentUsername={mockUser?.username}
+                      showBackButton
+                      ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
+                      threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
+                      giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}
+                      templateToken={import.meta.env.VITE_TEMPLATE_TOKEN || undefined}
+                      templateApiBaseUrl={import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined}
+                      onBack={() => setActiveTab("trending")}
+                      onFollow={(user) => { console.log("Follow:", user); alert(`Follow @${user}`); }}
+                      onUnfollow={(user) => { console.log("Unfollow:", user); alert(`Unfollow @${user}`); }}
+                      onIgnoreAuthor={(user) => { console.log("Ignore:", user); alert(`Ignore @${user}`); }}
+                      onReportUser={(user, reason) => { console.log("Report:", user, reason); alert(`Report @${user}: ${reason}`); }}
+                      onUpvote={(author, permlink, percent) => console.log("Upvote:", author, permlink, percent)}
+                      onSubmitComment={(pa, pp, body) => console.log("Comment:", pa, pp, body)}
+                      onPostClick={(author, permlink, title) => console.log("Post:", author, permlink, title)}
+                      onSnapClick={(author, permlink) => console.log("Snap:", author, permlink)}
+                      onPollClick={(author, permlink, q) => console.log("Poll:", author, permlink, q)}
+                      onUserClick={(user) => console.log("User:", user)}
+                      onShare={(user) => { navigator.clipboard?.writeText(`https://peakd.com/@${user}`); }}
+                    />
+                  </div>
+                ) : activeTab === "post-composer" ? (
+                  <div className="max-w-2xl mx-auto">
+                    <PostComposer
+                      onSubmit={(body) => { console.log("PostComposer submitted:", body); alert(`Submitted:\n\n${body}`); }}
+                      onCancel={() => { console.log("PostComposer cancelled"); alert("Cancelled"); }}
+                      currentUser={mockUser?.username || "sagarkothari88"}
+                      parentAuthor="shaktimaaan"
+                      placeholder="Write something in Markdown..."
+                      title="Create a Post"
+                      submitLabel="Publish"
+                      showCancel={true}
+                      defaultPreviewOn={false}
+                      ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
+                      threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
+                      giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}
+                      templateToken={import.meta.env.VITE_TEMPLATE_TOKEN || undefined}
+                      templateApiBaseUrl={import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined}
                     />
                   </div>
                 ) : feedTabs.find((t) => t.id === activeTab)?.type ? (

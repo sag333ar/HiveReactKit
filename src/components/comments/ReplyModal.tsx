@@ -11,6 +11,8 @@ interface ReplyModalProps {
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
+  templateToken?: string;
+  templateApiBaseUrl?: string;
 }
 
 const ReplyModal = ({
@@ -22,6 +24,8 @@ const ReplyModal = ({
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
+  templateToken,
+  templateApiBaseUrl,
 }: ReplyModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,6 +92,8 @@ const ReplyModal = ({
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
           />
         </div>
 

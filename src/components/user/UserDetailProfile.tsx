@@ -59,6 +59,10 @@ export interface UserDetailProfileProps {
   threeSpeakApiKey?: string;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
+  /** HReplier API token — enables template picker in comment composer */
+  templateToken?: string;
+  /** Custom template API endpoint (defaults to https://hreplier-api.sagarkothari88.one/data/templates) */
+  templateApiBaseUrl?: string;
 
   // Social action callbacks
   onFollow?: (username: string) => void | Promise<void>;
@@ -187,6 +191,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
+  templateToken,
+  templateApiBaseUrl,
   onFollow,
   onUnfollow,
   onIgnoreAuthor,
@@ -994,6 +1000,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}
+                templateToken={templateToken}
+                templateApiBaseUrl={templateApiBaseUrl}
               />
             </div>
 
@@ -1029,6 +1037,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             }}
             onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
           />
         </div>
       </div>
@@ -1121,6 +1134,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             }}
             onTip={onTip ? () => onTip(poll.author, poll.permlink) : undefined}
             onReport={onReportPost ? () => onReportPost(poll.author, poll.permlink) : undefined}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
           />
         </div>
       </div>
