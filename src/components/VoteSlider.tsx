@@ -30,9 +30,9 @@ export function VoteSlider({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-xl flex flex-col">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-xl flex flex-col">
         {/* Header */}
-        <h2 className="text-center text-base sm:text-lg font-semibold text-gray-800 dark:text-white mb-6">
+        <h2 className="text-center text-base sm:text-lg font-semibold text-white mb-6">
           Vote for @{author}
         </h2>
 
@@ -63,7 +63,7 @@ export function VoteSlider({
           />
 
           {/* Stop Labels */}
-          <div className="flex justify-between w-full mt-3 ml-2 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between w-full mt-3 ml-2 text-[10px] sm:text-xs text-gray-400">
             {stops.map((stop) => (
               <button
                 type="button"
@@ -73,7 +73,7 @@ export function VoteSlider({
         ${
           percent === stop
             ? "text-blue-600 font-bold"
-            : "hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-gray-700"
+            : "hover:text-blue-700 hover:bg-gray-700"
         }`}
                 style={{
                   background: "none",
@@ -116,7 +116,7 @@ export function VoteSlider({
             onClick={onCancel}
             disabled={loading} // prevent cancel during vote
             className="flex-1 flex items-center justify-center rounded-full font-semibold text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-3 shadow
-              bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white
+              bg-gray-700 hover:bg-gray-600 text-white
               disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5 mr-1" />

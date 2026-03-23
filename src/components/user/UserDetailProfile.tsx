@@ -628,9 +628,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       } else if (!wasFollowing && onFollow) {
         await onFollow(targetUsername);
       }
-      // Optimistic update
-      setProfile((prev) => (prev ? { ...prev, isFollowing: !wasFollowing } : prev));
+      // Only update after successful broadcast (not on Keychain cancel/reject)
+      setProfile((prev) => prev ? {
+        ...prev,
+        isFollowing: !wasFollowing,
+        followersCount: wasFollowing ? Math.max(0, prev.followersCount - 1) : prev.followersCount + 1,
+      } : prev);
+      // Re-fetch actual counts after a short delay for blockchain propagation
+      setTimeout(async () => {
+        try {
+          const bridgeProfile = await userService.getProfile(targetUsername);
+          if (bridgeProfile?.result?.stats) {
+            setProfile((prev) => prev ? {
+              ...prev,
+              followersCount: bridgeProfile.result.stats.followers ?? prev.followersCount,
+              followingCount: bridgeProfile.result.stats.following ?? prev.followingCount,
+            } : prev);
+          }
+        } catch { /* silently fail */ }
+      }, 3000);
     } catch (err) {
+      // Keychain cancelled/rejected or operation failed — don't update state
       console.error("Follow/Unfollow error:", err);
     } finally {
       setActionLoading(false);
@@ -972,39 +990,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </p>
             )}
 
-            {/* Desktop: action bar inline below body */}
-            <div className="hidden sm:block mt-2" onClick={(e) => e.stopPropagation()}>
-              <PostActionButton
-                author={item.author}
-                permlink={item.permlink}
-                currentUser={currentUsername}
-                hiveValue={payoutValue}
-                hiveIconUrl="/images/hive_logo.png"
-                payoutTooltip={payoutTooltip}
-                initialVotes={item.active_votes || []}
-                initialCommentsCount={item.children || 0}
-                onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
-                onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
-                onClickCommentUpvote={onClickCommentUpvote}
-                onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
-                onShare={() => {
-                  const url = `https://peakd.com/@${item.author}/${item.permlink}`;
-                  if (navigator.share) {
-                    navigator.share({ title: item.title || `Post by @${item.author}`, url });
-                  } else {
-                    navigator.clipboard?.writeText(url);
-                  }
-                }}
-                onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
-                onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
-                ecencyToken={ecencyToken}
-                threeSpeakApiKey={threeSpeakApiKey}
-                giphyApiKey={giphyApiKey}
-                templateToken={templateToken}
-                templateApiBaseUrl={templateApiBaseUrl}
-              />
-            </div>
-
             {/* Community tag */}
             {item.community_title && (
               <span className="inline-block mt-1 text-xs text-blue-400 font-medium">
@@ -1014,8 +999,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           </div>
         </div>
 
-        {/* Mobile: full-width action bar below everything */}
-        <div className="sm:hidden mt-3 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
+        {/* Action bar — always visible */}
+        <div className="mt-3 pt-2 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
           <PostActionButton
             author={item.author}
             permlink={item.permlink}
@@ -1023,6 +1008,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             hiveValue={payoutValue}
             hiveIconUrl="/images/hive_logo.png"
             payoutTooltip={payoutTooltip}
+            initialVotes={item.active_votes || []}
+            initialCommentsCount={item.children || 0}
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
@@ -1722,7 +1709,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // ─── Main render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="dark flex flex-col h-full bg-gray-900">
       <div className="flex flex-col overflow-y-auto h-full">
 
       {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}

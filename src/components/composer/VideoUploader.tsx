@@ -183,7 +183,8 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username
     try {
       const info = await getVideoInfo(file)
       setVideoDuration(info.duration)
-      setVideoAspectRatio(info.width && info.height ? `${info.width}/${info.height}` : '16/9')
+      setVideoAspectRatio(info.width && info.height ? `${info.width}/${info.height}` : '9/16')
+      if (info.width && info.height && info.width > info.height) { setError(`Only portrait (vertical) videos are allowed. Your video is ${info.width}×${info.height} (landscape). Please record or crop in portrait mode.`); return }
       if (info.duration > MAX_DURATION_SECONDS) { setError(`Video is too long (${formatDuration(info.duration)}). Maximum is ${formatDuration(MAX_DURATION_SECONDS)}.`); return }
       const thumb = await generateThumbnail(file)
       setThumbnailDataUrl(thumb.dataUrl); setThumbnailBlob(thumb.blob)

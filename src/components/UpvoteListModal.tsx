@@ -99,9 +99,9 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClic
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4 h-screen"
       onClick={onOverlayClick}
     >
-      <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
-        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center space-x-2">
+      <div className="relative bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
+        <div className="p-4 md:p-6 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center space-x-2">
             <span>Voters ({votes.length})</span>
             {isRefreshing && (
               <span className="inline-flex items-center ml-2">
@@ -130,10 +130,10 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClic
                 }
               }}
               aria-label="Open Vote Slider"
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+              className="p-1 hover:bg-gray-700 rounded"
               type="button"
             >
-              <ThumbsUp className={`w-5 h-5 ${hasAlreadyVoted ? 'text-blue-600 dark:text-blue-400 fill-current' : 'text-gray-600 dark:text-gray-300'}`} />
+              <ThumbsUp className={`w-5 h-5 ${hasAlreadyVoted ? 'text-blue-400 fill-current' : 'text-gray-300'}`} />
             </button>
           )}
         </div>
@@ -153,7 +153,7 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClic
           ) : (
             <ul>
               {votes.map((vote) => (
-                <li key={vote.voter} className="flex items-center p-4 border-b dark:border-gray-700">
+                <li key={vote.voter} className="flex items-center p-4 border-b border-gray-700">
                   <img
                     src={`https://images.hive.blog/u/${vote.voter}/avatar`}
                     alt={vote.voter}
@@ -165,10 +165,10 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClic
                     }}
                   />
                   <div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                    <div className="font-semibold text-white">
                       {vote.voter}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm text-gray-400">
                       {((vote.percent || 0) / 100).toFixed(0)}%
                       {vote.time && ` · ${formatTimeAgo(vote.time + "Z")}`}
                     </div>

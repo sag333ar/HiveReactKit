@@ -65,6 +65,8 @@ export interface PostComposerProps {
   disabled?: boolean;
   /** Hide the built-in submit button and keyboard hint footer (default false). Use when providing external submit buttons */
   hideSubmitArea?: boolean;
+  /** Ref that receives a { submit(), getFinalBody(), clear() } handle. Call submit() from external buttons to trigger the full submit flow. Call getFinalBody() to get body with audio/video URLs appended without submitting. Call clear() to reset all state. */
+  submitRef?: React.MutableRefObject<{ submit: () => Promise<void>; getFinalBody: () => string; clear: () => void } | null>;
   /** Hide the avatar and username header (default false) */
   hideUserHeader?: boolean;
   /** Custom background color for the composer container (e.g. "#262b30", "transparent") */
@@ -110,6 +112,7 @@ const PostComposer = ({
   onChange,
   disabled = false,
   hideSubmitArea = false,
+  submitRef,
   hideUserHeader = false,
   bgColor,
   borderColor,
@@ -350,6 +353,30 @@ const PostComposer = ({
       setIsSubmitting(false);
     }
   };
+
+  // Expose submit, getFinalBody, clear to external buttons via ref
+  useEffect(() => {
+    if (submitRef) submitRef.current = {
+      submit: handleSubmit,
+      getFinalBody: () => {
+        let finalBody = body.trim();
+        if (audioEmbedUrl) finalBody += `\n${audioEmbedUrl}`;
+        if (videoEmbedUrl) finalBody += `\n${videoEmbedUrl}`;
+        return finalBody;
+      },
+      clear: () => {
+        setBody('');
+        setAudioEmbedUrl(null);
+        setAudioDuration(0);
+        setVideoEmbedUrl(null);
+        if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+        setVideoPreviewUrl(null);
+        setPollData(null);
+        onPollChange?.(null);
+      },
+    };
+    return () => { if (submitRef) submitRef.current = null; };
+  });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSubmit(); }

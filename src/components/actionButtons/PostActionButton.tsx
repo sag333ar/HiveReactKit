@@ -255,7 +255,7 @@ export function PostActionButton({
   };
 
   const tooltipClass =
-    "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-800 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
+    "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
 
   return (
     <div className="flex items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm w-full">
@@ -269,7 +269,7 @@ export function PostActionButton({
             type="button"
             onClick={handleUpvoteClick}
             disabled={voteLoading}
-            className="p-0.5 sm:p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="p-0.5 sm:p-1 rounded hover:bg-gray-700 disabled:opacity-50"
             aria-label="Upvote"
           >
             {voteLoading ? (
@@ -278,8 +278,8 @@ export function PostActionButton({
               <ThumbsUp
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                   hasVoted
-                    ? "text-blue-600 dark:text-blue-400 fill-current"
-                    : "text-gray-600 dark:text-gray-400"
+                    ? "text-blue-400 fill-current"
+                    : "text-gray-300"
                 }`}
               />
             )}
@@ -290,7 +290,7 @@ export function PostActionButton({
           <button
             type="button"
             onClick={handleUpvoteCountClick}
-            className="flex items-center gap-0.5 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors"
             aria-label="View upvotes"
           >
             <span>{votes.length}</span>
@@ -304,7 +304,7 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleCommentClick}
-          className="flex items-center gap-0.5 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors"
           aria-label="Comments"
         >
           <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -318,7 +318,7 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleReblogClick}
-          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Reblog"
         >
           <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -331,7 +331,7 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleShareClick}
-          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Share"
         >
           <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -344,7 +344,7 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleReportClick}
-          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-300 hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Report"
         >
           <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -357,7 +357,7 @@ export function PostActionButton({
         <button
           type="button"
           onClick={handleTipClick}
-          className="flex items-center gap-0.5 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
+          className="flex items-center gap-0.5 text-gray-300 hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
           aria-label="Tip"
         >
           <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -370,7 +370,7 @@ export function PostActionButton({
         {hiveValue != null && hiveValue !== "" && (
           <div className="relative group">
             <div className="flex items-center gap-1 cursor-default">
-              <span className="font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
+              <span className="font-semibold text-green-400 text-xs sm:text-sm">
                 {hiveValue}
               </span>
               {hiveIconUrl && (
@@ -378,7 +378,7 @@ export function PostActionButton({
               )}
             </div>
             {payoutTooltip && (
-              <div className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2 text-xs text-gray-200 bg-gray-800 dark:bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-pre-line opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 z-[60]">
+              <div className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2 text-xs text-gray-200 bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-pre-line opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 z-[60]">
                 {payoutTooltip}
               </div>
             )}
@@ -431,7 +431,7 @@ export function PostActionButton({
 
       {/* Toast */}
       {toast.visible && (
-        <div className="fixed bottom-4 right-4 z-[100] max-w-[280px] rounded-lg bg-gray-800 dark:bg-gray-900 text-white px-3 py-2 shadow-lg text-sm">
+        <div className="fixed bottom-4 right-4 z-[100] max-w-[280px] rounded-lg bg-gray-900 text-white px-3 py-2 shadow-lg text-sm">
           {toast.message}
         </div>
       )}

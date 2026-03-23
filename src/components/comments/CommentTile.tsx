@@ -78,7 +78,7 @@ const CommentTile = ({
   const highlightText = (text: string, query: string) => {
     if (!query) return text;
     const regex = new RegExp(`(${query})`, 'gi');
-    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800">$1</mark>');
+    return text.replace(regex, '<mark class="bg-yellow-800">$1</mark>');
   };
 
   const handleOpenVote = () => {
@@ -181,15 +181,15 @@ const CommentTile = ({
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
 
   return (
-    <div className={`${depth > 0 ? 'ml-4 md:ml-8 border-l-2 border-gray-200 dark:border-gray-700 pl-4 md:pl-6' : ''}`}>
-      <div className="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200 p-4 md:p-6">
+    <div className={`${depth > 0 ? 'ml-4 md:ml-8 border-l-2 border-gray-700 pl-4 md:pl-6' : ''}`}>
+      <div className="group hover:bg-gray-800/50 transition-colors duration-200 p-4 md:p-6">
         <div className="flex items-start space-x-3 md:space-x-4">
           {/* Avatar */}
           <div className="flex-shrink-0">
             <img
               src={`https://images.hive.blog/u/${comment.author}/avatar`}
               alt={comment.author}
-              className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700"
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-gray-700"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
               }}
@@ -200,28 +200,28 @@ const CommentTile = ({
             {/* Header */}
             <div className="flex items-center flex-wrap gap-2 mb-2">
               <button
-                className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 text-sm md:text-base"
+                className="font-semibold text-white hover:text-blue-400 transition-colors duration-200 text-sm md:text-base"
                 onClick={() => {
                   // TODO: Navigate to user profile
                 }}
               >
                 @{comment.author}
               </button>
-              <div className="flex items-center text-xs md:text-sm text-gray-500 dark:text-gray-400 space-x-1">
+              <div className="flex items-center text-xs md:text-sm text-gray-400 space-x-1">
                 <Clock className="w-3 h-3 md:w-4 md:h-4" />
                 <span>
                   {formatDistanceToNow(new Date(comment.created + 'Z'), { addSuffix: true })}
                 </span>
               </div>
               {comment.author === currentUser && (
-                <span className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                <span className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded-full">
                   You
                 </span>
               )}
             </div>
 
             {/* Content - left-aligned with header and actions */}
-            <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none mb-3 comment-content text-left text-gray-900 dark:text-gray-100 prose-a:text-blue-600 dark:prose-a:text-blue-400 [&>*]:text-left">
+            <div className="prose prose-sm md:prose-base prose-invert max-w-none mb-3 comment-content text-left text-gray-100 prose-a:text-blue-400 [&>*]:text-left">
               {searchQuery ? (
                 <div className="text-left" dangerouslySetInnerHTML={{ __html: displayBody }} />
               ) : (
@@ -285,11 +285,11 @@ const CommentTile = ({
                   }
                 }}
                 className={`flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium transition-colors duration-200 ${isUpvoted
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                  ? 'text-blue-400'
+                  : 'text-gray-400 hover:text-blue-400'
                   }`}
               >
-                <ThumbsUp className={`w-4 h-4 ${hasAlreadyVoted || isUpvoted ? 'fill-current text-blue-600 dark:text-blue-400' : ''}`} />
+                <ThumbsUp className={`w-4 h-4 ${hasAlreadyVoted || isUpvoted ? 'fill-current text-blue-400' : ''}`} />
                 <span>{voteCount}</span>
               </button>
 
@@ -301,7 +301,7 @@ const CommentTile = ({
                     handleReply();
                   }
                 }}
-                className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium text-gray-400 hover:text-blue-400 transition-colors duration-200"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Reply</span>
@@ -310,7 +310,7 @@ const CommentTile = ({
               {hasReplies && (
                 <button
                   onClick={() => setShowReplies(!showReplies)}
-                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                  className="flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium text-gray-400 hover:text-blue-400 transition-colors duration-200"
                 >
                   <span>{showReplies ? 'Hide' : 'Show'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}</span>
                 </button>
@@ -318,7 +318,7 @@ const CommentTile = ({
 
               <button
                 onClick={() => onClickCommentReply?.(comment)}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-full hover:bg-gray-700 transition-all duration-200"
               >
                 <MoreHorizontal className="w-4 h-4 text-gray-400" />
               </button>
@@ -335,7 +335,7 @@ const CommentTile = ({
               </div>
             )}
             {isRefreshing && (
-              <div className="mt-3 inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
+              <div className="mt-3 inline-flex items-center text-xs text-gray-400">
                 <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></span>
                 Updating votes...
               </div>
@@ -374,13 +374,13 @@ const CommentTile = ({
 
       {/* Max depth reached indicator */}
       {hasReplies && isMaxDepth && (
-        <div className="ml-4 md:ml-8 p-3 text-sm text-gray-500 dark:text-gray-400 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+        <div className="ml-4 md:ml-8 p-3 text-sm text-gray-400 border-l-2 border-gray-700 pl-4">
           <button
             onClick={() => {
               // TODO: Open replies in new modal or expand view
               console.log('Show more replies for:', comment.author, comment.permlink);
             }}
-            className="text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-blue-400 hover:underline"
           >
             View {replies.length} more {replies.length === 1 ? 'reply' : 'replies'}
           </button>

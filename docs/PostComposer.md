@@ -1,6 +1,6 @@
 # PostComposer
 
-A rich markdown composer component with live preview, media upload (image, audio, video), paste/drag-drop image upload, GIF search, emoji picker, template picker, code block support with copy-to-clipboard, and @ mention.
+A rich markdown composer component with live preview, media upload (image, audio, video), paste/drag-drop image upload, GIF search, emoji picker, template picker, poll creator, code block support with copy-to-clipboard, and @ mention.
 
 Formerly `AddCommentInput` — the old name is still available as a deprecated re-export for backward compatibility.
 
@@ -33,16 +33,26 @@ import 'hive-react-kit/build.css';
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `onSubmit` | `(body: string) => void` | Yes | - | Called with the final markdown body (includes audio/video embed URLs appended) |
+| `onSubmit` | `(body: string) => void \| Promise<void>` | Yes | - | Called with the final markdown body (includes audio/video embed URLs appended). **Throw an error** from this callback to prevent the composer from clearing — useful when blockchain posting fails (e.g. Keychain rejection) |
 | `onCancel` | `() => void` | No | - | Called when Cancel button is clicked or Escape is pressed |
 | `currentUser` | `string` | No | `undefined` | Hive username. Shows avatar and `@username` in the header |
 | `placeholder` | `string` | No | `"Write in Markdown..."` | Textarea placeholder text |
-| `parentAuthor` | `string` | No | `undefined` | Shows "Replying to @author" in header. Used by @ mention button |
+| `parentAuthor` | `string` | No | `undefined` | Shows "Replying to @author" in header. Used by @ mention button and template `{{author}}` substitution |
 | `parentPermlink` | `string` | No | `undefined` | Parent permlink for context |
 | `title` | `string` | No | `undefined` | Optional title displayed above the composer |
 | `submitLabel` | `string` | No | `"Post"` | Label for the submit button |
 | `showCancel` | `boolean` | No | `true` | Show/hide the Cancel button |
 | `defaultPreviewOn` | `boolean` | No | `false` | Whether the live preview is visible by default |
+
+### Controlled Mode
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `value` | `string` | No | `undefined` | External body value. When provided, PostComposer becomes a controlled component |
+| `onChange` | `(value: string) => void` | No | `undefined` | Called on every text change. Use with `value` for controlled mode |
+| `disabled` | `boolean` | No | `false` | Disable the entire composer (all toolbar buttons, textarea, and submit) |
+
+> **Note:** When `value` is reset to `""` externally (e.g. after a successful submit by a parent component), audio/video attachments are automatically cleared. Polls are NOT cleared on text reset — they are independent and only cleared on successful submit or explicit remove.
 
 ### API Tokens
 
@@ -74,19 +84,37 @@ All toolbar features can be individually hidden regardless of token availability
 | `hideGif` | `boolean` | `false` | GIF picker button |
 | `hideTemplate` | `boolean` | `false` | Template picker button |
 | `hidePreview` | `boolean` | `false` | Preview toggle button |
+| `hidePoll` | `boolean` | `false` | Poll creator button |
+
+### Poll
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `hidePoll` | `boolean` | No | `false` | Hide the poll button in the toolbar |
+| `onPollChange` | `(poll: PollData \| null) => void` | No | - | Called when a poll is attached, edited, or removed. Receives `PollData` on attach/edit, `null` on remove. Use this to include poll data in your post metadata |
+
+### Appearance
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `hideUserHeader` | `boolean` | No | `false` | Hide the avatar + username + "Replying to" header |
+| `hideSubmitArea` | `boolean` | No | `false` | Hide the built-in submit button and "Cmd+Enter to post" hint. Use when providing external submit buttons |
+| `bgColor` | `string` | No | `"#111827"` | Custom background color for the composer container (CSS color value) |
+| `borderColor` | `string` | No | `"#374151"` | Custom border color for the composer container (CSS color value) |
 
 ## Layout
 
 The component renders in this order (top to bottom):
 
 1. **Title** (optional)
-2. **User header** — avatar + username + "Replying to" line
-3. **Live preview** — rendered markdown via `@snapie/renderer` (toggleable)
-4. **Audio attachment preview** — with remove button (shown after upload)
-5. **Video attachment preview** — with remove button (shown after upload)
-6. **Toolbar** — formatting, upload, emoji, GIF, template buttons
-7. **Textarea** — with paste/drag-drop support
-8. **Actions** — keyboard hint, Cancel, Submit
+2. **User header** — avatar + username + "Replying to" line (hideable via `hideUserHeader`)
+3. **Live preview** — rendered markdown via `@snapie/renderer` (toggleable, max 300px, scrolls internally)
+4. **Audio attachment preview** — embedded player with remove button (shown after upload)
+5. **Video attachment preview** — video player with remove button (shown after upload)
+6. **Poll preview** — question, choices chips, end date, edit/remove buttons (shown after poll creation)
+7. **Toolbar** — Preview, Bold, Italic, Link, Code, @Mention, Image, Audio, Video, Emoji, GIF, Template, Poll
+8. **Textarea** — with paste/drag-drop support
+9. **Actions** — keyboard hint, Cancel, Submit (hideable via `hideSubmitArea`)
 
 ## Features
 
@@ -128,6 +156,16 @@ All three methods require `ecencyToken`.
 - Only one video attachment allowed at a time — button disabled while attached
 - Remove to re-enable upload
 
+### Poll Creator
+
+- Click the BarChart3 icon in the toolbar to open the poll creation modal
+- Configure: question, 2-10 choices, end date/time, max choices per voter, allow vote changes, minimum account age, hide results until voted
+- Poll preview card appears above the toolbar showing question, choice chips, end date
+- Edit button reopens the modal with current data; remove button clears the poll
+- `onPollChange` callback fires on every attach/edit/remove — use it to include poll data in your post metadata
+- Polls persist when textarea text is cleared — only cleared on successful submit or explicit remove
+- Hidden in reply mode via `hidePoll={true}`
+
 ### Code Blocks
 
 - **Fenced code block**: Select multi-line text (or empty) → click Code icon → wraps in ` ``` `
@@ -159,38 +197,98 @@ All three methods require `ecencyToken`.
 - **Cmd/Ctrl + Enter**: Submit
 - **Escape**: Cancel (if `onCancel` provided)
 
+## Error Handling
+
+When `onSubmit` **throws an error**, PostComposer catches it and preserves all state (body text, audio/video attachments, poll). This is important for blockchain posting workflows:
+
+```tsx
+<PostComposer
+  onSubmit={async (body) => {
+    try {
+      await broadcastToHive(body);  // e.g. via Keychain/Aioha
+    } catch (e) {
+      toast.error(e.message);       // Show the error to user
+      throw e;                       // Re-throw so PostComposer doesn't clear
+    }
+  }}
+/>
+```
+
+If `onSubmit` resolves successfully (no throw), PostComposer clears the body, audio, video, poll, and fires `onPollChange(null)`.
+
 ## Full Example
 
 ```tsx
 import { PostComposer } from 'hive-react-kit';
+import type { PollData } from 'hive-react-kit';
 
-const ComposerPage = () => (
-  <div className="max-w-2xl mx-auto p-4 bg-black min-h-screen">
-    <PostComposer
-      onSubmit={(body) => {
-        console.log("Body:", body);
-        // Broadcast comment via HiveKeychain/Aioha
-      }}
-      onCancel={() => console.log("Cancelled")}
-      currentUser="sagarkothari88"
-      parentAuthor="shaktimaaan"
-      placeholder="Write something in Markdown..."
-      title="Create a Post"
-      submitLabel="Publish"
-      showCancel={true}
-      defaultPreviewOn={false}
-      // API tokens — omit any to hide that toolbar button
-      ecencyToken={process.env.ECENCY_TOKEN}
-      threeSpeakApiKey={process.env.THREE_SPEAK_API_KEY}
-      giphyApiKey={process.env.GIPHY_API_KEY}
-      templateToken={process.env.TEMPLATE_TOKEN}
-      templateApiBaseUrl="https://my-api.com/data/templates"
-      // Hide specific toolbar buttons
-      hideAudio={true}
-      hideVideo={true}
-    />
-  </div>
-);
+const ComposerPage = () => {
+  const [pollData, setPollData] = useState<PollData | null>(null);
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 bg-black min-h-screen">
+      <PostComposer
+        onSubmit={async (body) => {
+          // body includes audio/video embed URLs appended
+          console.log("Body:", body);
+          console.log("Poll:", pollData);
+          // Broadcast to Hive — throw on failure to preserve state
+          await broadcastComment(body, pollData);
+        }}
+        onCancel={() => console.log("Cancelled")}
+        currentUser="sagarkothari88"
+        parentAuthor="shaktimaaan"
+        placeholder="Write something in Markdown..."
+        title="Create a Post"
+        submitLabel="Publish"
+        showCancel={true}
+        defaultPreviewOn={false}
+        // API tokens — omit any to hide that toolbar button
+        ecencyToken={process.env.ECENCY_TOKEN}
+        threeSpeakApiKey={process.env.THREE_SPEAK_API_KEY}
+        giphyApiKey={process.env.GIPHY_API_KEY}
+        templateToken={process.env.TEMPLATE_TOKEN}
+        templateApiBaseUrl="https://my-api.com/data/templates"
+        // Poll callback
+        onPollChange={(poll) => setPollData(poll)}
+        // Hide specific toolbar buttons
+        hideCode
+        hideMention
+        // Appearance
+        hideUserHeader={false}
+        bgColor="#262b30"
+        borderColor="#3a424a"
+      />
+    </div>
+  );
+};
+```
+
+## Controlled Mode Example
+
+Use `value`, `onChange`, `hideSubmitArea`, and external buttons:
+
+```tsx
+const [body, setBody] = useState('');
+
+const handleReply = async () => {
+  try {
+    await broadcastComment(body);
+    setBody('');  // Clears textarea + audio/video (not poll)
+  } catch (e) {
+    toast.error(e.message);
+    // Body preserved — user can retry
+  }
+};
+
+<PostComposer
+  value={body}
+  onChange={setBody}
+  onSubmit={handleReply}
+  hideSubmitArea
+  currentUser="myaccount"
+/>
+<button onClick={handleReply} disabled={!body.trim()}>Reply</button>
 ```
 
 ## Env Variables (Vite)
@@ -231,10 +329,43 @@ import { PostComposer } from 'hive-react-kit';
 ## TypeScript
 
 ```tsx
-import type { PostComposerProps } from 'hive-react-kit';
+import type { PostComposerProps, PollData } from 'hive-react-kit';
 
 // Deprecated alias — still available
 import type { AddCommentInputProps } from 'hive-react-kit';
+```
+
+## PollCreator (Standalone)
+
+The poll creation modal is also exported for standalone use:
+
+```tsx
+import { PollCreator } from 'hive-react-kit';
+import type { PollData, PollCreatorProps } from 'hive-react-kit';
+
+<PollCreator
+  isOpen={isPollOpen}
+  onClose={() => setIsPollOpen(false)}
+  onSave={(poll: PollData) => {
+    console.log("Poll created:", poll);
+    // poll.question, poll.choices, poll.end_time, etc.
+  }}
+  initialData={existingPoll}  // Pre-fill for editing
+/>
+```
+
+### PollData Interface
+
+```typescript
+interface PollData {
+  question: string;
+  choices: string[];
+  end_time: number;              // Unix timestamp (seconds)
+  max_choices_voted: number;     // 1 to choices.length
+  allow_vote_changes: boolean;
+  filters: { account_age: number }; // Min account age in days
+  ui_hide_res_until_voted: boolean;
+}
 ```
 
 ## Template Service
