@@ -51,6 +51,20 @@ export interface PostComposerProps {
   title?: string;
   /** Enable preview by default (default false) */
   defaultPreviewOn?: boolean;
+  /** Controlled mode: external value */
+  value?: string;
+  /** Controlled mode: called when body changes */
+  onChange?: (value: string) => void;
+  /** Disable the entire composer */
+  disabled?: boolean;
+  /** Hide the built-in submit button and keyboard hint footer (default false). Use when providing external submit buttons */
+  hideSubmitArea?: boolean;
+  /** Hide the avatar and username header (default false) */
+  hideUserHeader?: boolean;
+  /** Custom background color for the composer container (e.g. "#262b30", "transparent") */
+  bgColor?: string;
+  /** Custom border color for the composer container (e.g. "#3a424a", "transparent") */
+  borderColor?: string;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -84,9 +98,22 @@ const PostComposer = ({
   submitLabel = "Post",
   title,
   defaultPreviewOn = false,
+  value,
+  onChange,
+  disabled = false,
+  hideSubmitArea = false,
+  hideUserHeader = false,
+  bgColor,
+  borderColor,
 }: PostComposerProps) => {
-  const [body, setBody] = useState('');
+  const [internalBody, setInternalBody] = useState('');
+  const body = value !== undefined ? value : internalBody;
+  const setBody = (v: string) => {
+    if (onChange) onChange(v);
+    else setInternalBody(v);
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDisabled = disabled || isSubmitting;
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
@@ -122,6 +149,17 @@ const PostComposer = ({
   useEffect(() => {
     if (textareaRef.current) textareaRef.current.focus();
   }, []);
+
+  // Clear attachments when controlled value is reset to empty (external submit)
+  useEffect(() => {
+    if (value !== undefined && value === '') {
+      setAudioEmbedUrl(null);
+      setAudioDuration(0);
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoEmbedUrl(null);
+      setVideoPreviewUrl(null);
+    }
+  }, [value]);
 
   // Fetch templates when templateToken is provided
   useEffect(() => {
@@ -279,7 +317,7 @@ const PostComposer = ({
   }, [ecencyToken, uploadImageToEcency, insertText]);
 
   const handleSubmit = async () => {
-    if (!body.trim() || isSubmitting) return;
+    if (!body.trim() || isDisabled) return;
     setIsSubmitting(true);
     try {
       let finalBody = body.trim();
@@ -367,7 +405,11 @@ const PostComposer = ({
 
   return (
     <div
-      className={`p-4 md:p-6 space-y-3 bg-gray-900 rounded-xl border transition-colors ${isDragging ? 'border-blue-500 bg-blue-900/10' : 'border-gray-700'}`}
+      className={`p-4 md:p-6 space-y-3 rounded-xl border transition-colors ${isDragging ? 'border-blue-500 bg-blue-900/10' : ''}`}
+      style={{
+        backgroundColor: isDragging ? undefined : (bgColor || '#111827'),
+        borderColor: isDragging ? undefined : (borderColor || '#374151'),
+      }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -377,26 +419,28 @@ const PostComposer = ({
       {title && <h3 className="text-white font-semibold text-base">{title}</h3>}
 
       {/* Header with user info */}
-      <div className="flex items-center justify-start space-x-3 text-left">
-        <div className="flex-shrink-0">
-          {currentUser ? (
-            <img
-              src={`https://images.hive.blog/u/${currentUser}/avatar`}
-              alt={currentUser}
-              className="w-10 h-10 rounded-full object-cover border-2 border-gray-600"
-              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`; }}
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-              <User className="w-6 h-6 text-gray-400" />
-            </div>
-          )}
+      {!hideUserHeader && (
+        <div className="flex items-center justify-start space-x-3 text-left">
+          <div className="flex-shrink-0">
+            {currentUser ? (
+              <img
+                src={`https://images.hive.blog/u/${currentUser}/avatar`}
+                alt={currentUser}
+                className="w-10 h-10 rounded-full object-cover border-2 border-gray-600"
+                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`; }}
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                <User className="w-6 h-6 text-gray-400" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="text-sm text-white font-medium">{currentUser ? `@${currentUser}` : 'Anonymous'}</div>
+            {parentAuthor && <div className="text-xs text-gray-400">Replying to @{parentAuthor}</div>}
+          </div>
         </div>
-        <div className="flex-1 min-w-0 text-left">
-          <div className="text-sm text-white font-medium">{currentUser ? `@${currentUser}` : 'Anonymous'}</div>
-          {parentAuthor && <div className="text-xs text-gray-400">Replying to @{parentAuthor}</div>}
-        </div>
-      </div>
+      )}
 
       {/* Hive Content Renderer Preview — above everything */}
       {showPreview && body.trim() && (
@@ -470,7 +514,7 @@ const PostComposer = ({
             onClick={() => setShowPreview(v => !v)}
             className={`${toolbarBtnClass} ${showPreview ? 'bg-gray-700 text-blue-400' : ''}`}
             title={showPreview ? 'Hide preview' : 'Show preview'}
-            disabled={isSubmitting}
+            disabled={isDisabled}
           >
             {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -479,27 +523,27 @@ const PostComposer = ({
         <div className="w-px h-5 bg-gray-700 mx-1" />
 
         {!hideBold && (
-          <button type="button" onClick={() => insertAtCursor('**', '**')} className={toolbarBtnClass} title="Bold" disabled={isSubmitting}>
+          <button type="button" onClick={() => insertAtCursor('**', '**')} className={toolbarBtnClass} title="Bold" disabled={isDisabled}>
             <Bold className="h-4 w-4" />
           </button>
         )}
         {!hideItalic && (
-          <button type="button" onClick={() => insertAtCursor('*', '*')} className={toolbarBtnClass} title="Italic" disabled={isSubmitting}>
+          <button type="button" onClick={() => insertAtCursor('*', '*')} className={toolbarBtnClass} title="Italic" disabled={isDisabled}>
             <Italic className="h-4 w-4" />
           </button>
         )}
         {!hideLink && (
-          <button type="button" onClick={() => insertAtCursor('[', '](url)')} className={toolbarBtnClass} title="Link" disabled={isSubmitting}>
+          <button type="button" onClick={() => insertAtCursor('[', '](url)')} className={toolbarBtnClass} title="Link" disabled={isDisabled}>
             <Link className="h-4 w-4" />
           </button>
         )}
         {!hideCode && (
-          <button type="button" onClick={insertCodeBlock} className={toolbarBtnClass} title="Code block" disabled={isSubmitting}>
+          <button type="button" onClick={insertCodeBlock} className={toolbarBtnClass} title="Code block" disabled={isDisabled}>
             <Code className="h-4 w-4" />
           </button>
         )}
         {!hideMention && (
-          <button type="button" onClick={insertMention} className={toolbarBtnClass} title={parentAuthor ? `Mention @${parentAuthor}` : 'Mention'} disabled={isSubmitting}>
+          <button type="button" onClick={insertMention} className={toolbarBtnClass} title={parentAuthor ? `Mention @${parentAuthor}` : 'Mention'} disabled={isDisabled}>
             <AtSign className="h-4 w-4" />
           </button>
         )}
@@ -510,7 +554,7 @@ const PostComposer = ({
           <ImageUploader
             onImageUploaded={(url) => insertText(`![Image](${url})`)}
             ecencyToken={ecencyToken}
-            disabled={isSubmitting}
+            disabled={isDisabled}
           />
         )}
         {!hideAudio && threeSpeakApiKey && (
@@ -534,17 +578,17 @@ const PostComposer = ({
           />
         )}
         {!hideEmoji && (
-          <button type="button" onClick={() => setIsEmojiOpen(true)} className={toolbarBtnClass} title="Emoji" disabled={isSubmitting}>
+          <button type="button" onClick={() => setIsEmojiOpen(true)} className={toolbarBtnClass} title="Emoji" disabled={isDisabled}>
             <Smile className="h-4 w-4" />
           </button>
         )}
         {!hideGif && giphyApiKey && (
-          <button type="button" onClick={() => setIsGiphyOpen(true)} className={`${toolbarBtnClass} text-xs font-bold px-2`} title="GIF" disabled={isSubmitting}>
+          <button type="button" onClick={() => setIsGiphyOpen(true)} className={`${toolbarBtnClass} text-xs font-bold px-2`} title="GIF" disabled={isDisabled}>
             GIF
           </button>
         )}
         {!hideTemplate && templateToken && templates.length > 0 && (
-          <button type="button" onClick={() => setIsTemplateOpen(true)} className={toolbarBtnClass} title="Insert template" disabled={isSubmitting}>
+          <button type="button" onClick={() => setIsTemplateOpen(true)} className={toolbarBtnClass} title="Insert template" disabled={isDisabled}>
             <FileText className="h-4 w-4" />
           </button>
         )}
@@ -572,7 +616,7 @@ const PostComposer = ({
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder={ecencyToken ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
-          disabled={isSubmitting}
+          disabled={isDisabled}
           rows={4}
           className="w-full min-h-[100px] max-h-[300px] p-3 border border-gray-700 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-800 text-white placeholder-gray-500 transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
           onInput={(e) => {
@@ -584,36 +628,38 @@ const PostComposer = ({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-between pt-1">
-        <div className="text-xs text-gray-500">
-          {navigator.platform?.includes('Mac') ? 'Cmd' : 'Ctrl'}+Enter to post
-          {ecencyToken && <span className="ml-2">| Paste/drop images</span>}
-        </div>
-        <div className="flex items-center space-x-3">
-          {showCancel && onCancel && (
-            <button onClick={onCancel} disabled={isSubmitting} className="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50">
-              Cancel
-            </button>
-          )}
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !body.trim()}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 flex items-center space-x-2"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Posting...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                <span>{submitLabel}</span>
-              </>
+      {!hideSubmitArea && (
+        <div className="flex items-center justify-between pt-1">
+          <div className="text-xs text-gray-500">
+            {navigator.platform?.includes('Mac') ? 'Cmd' : 'Ctrl'}+Enter to post
+            {ecencyToken && <span className="ml-2">| Paste/drop images</span>}
+          </div>
+          <div className="flex items-center space-x-3">
+            {showCancel && onCancel && (
+              <button onClick={onCancel} disabled={isDisabled} className="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50">
+                Cancel
+              </button>
             )}
-          </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isDisabled || !body.trim()}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 flex items-center space-x-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Posting...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>{submitLabel}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Modals */}
       <GiphyPicker
