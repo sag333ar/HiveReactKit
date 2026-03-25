@@ -26,6 +26,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
+import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
@@ -64,6 +65,12 @@ export interface UserDetailProfileProps {
   /** Custom template API endpoint (defaults to https://hreplier-api.sagarkothari88.one/data/templates) */
   templateApiBaseUrl?: string;
 
+  // Filter lists — posts/authors already reported by the consumer app
+  /** List of reported posts to exclude from feed. Each entry has { author, permlink }. */
+  reportedPosts?: { author: string; permlink: string }[];
+  /** List of reported/ignored author usernames to exclude from feed. */
+  reportedAuthors?: string[];
+
   // Social action callbacks
   onFollow?: (username: string) => void | Promise<void>;
   onUnfollow?: (username: string) => void | Promise<void>;
@@ -76,7 +83,7 @@ export interface UserDetailProfileProps {
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
-  onReportPost?: (author: string, permlink: string) => void;
+  onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
@@ -86,6 +93,7 @@ export interface UserDetailProfileProps {
   onActivityPermlink?: (author: string, permlink: string) => void;
   onActivitySelect?: (activity: any) => void;
   onShare?: (username: string) => void;
+  onSharePost?: (author: string, permlink: string) => void;
 }
 
 interface ProfileData {
@@ -109,17 +117,6 @@ interface ProfileData {
 
 type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet";
 
-const REPORT_REASONS = [
-  "Spam",
-  "Harassment",
-  "Hate Speech",
-  "Violence",
-  "IP Violation",
-  "Self-harm",
-  "Doxxing",
-  "Minor Safety",
-  "Other",
-];
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -193,6 +190,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  reportedPosts = [],
+  reportedAuthors = [],
   onFollow,
   onUnfollow,
   onIgnoreAuthor,
@@ -210,6 +209,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onActivityPermlink,
   onActivitySelect,
   onShare,
+  onSharePost,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -248,11 +248,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [showActionDropdown, setShowActionDropdown] = useState(false);
   const [showIgnoreConfirm, setShowIgnoreConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [selectedReportReason, setSelectedReportReason] = useState<string | null>(null);
+  const [reportPostTarget, setReportPostTarget] = useState<{ author: string; permlink: string } | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useIsMobile();
   const targetUsername = username.replace(/^@/, "").trim();
+  const isOwnProfile = currentUsername === targetUsername;
+
+  // Build sets for O(1) lookup when filtering feed content
+  const reportedPostKeys = new Set(reportedPosts.map((p) => `${p.author}/${p.permlink}`));
+  const reportedAuthorSet = new Set(reportedAuthors);
+  const filterPost = useCallback(
+    <T extends { author: string; permlink: string }>(items: T[]): T[] =>
+      items.filter(
+        (item) =>
+          !reportedAuthorSet.has(item.author) &&
+          !reportedPostKeys.has(`${item.author}/${item.permlink}`)
+      ),
+    [reportedPostKeys, reportedAuthorSet]
+  );
 
   // ─── Close dropdown on outside click ─────────────────────────────────────
 
@@ -416,38 +430,38 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       try {
         switch (activeTab) {
           case "blogs": {
-            const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+            const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
             setBlogs(data);
             setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
             break;
           }
           case "posts": {
-            const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+            const data = filterPost(await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal));
             setPosts(data);
             setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
             break;
           }
           case "snaps": {
-            const { snaps: data, nextStartId } = await userService.getUserSnaps(targetUsername, undefined, currentUsername, signal);
-            setSnaps(data);
+            const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, undefined, currentUsername, signal);
+            setSnaps(filterPost(rawSnaps));
             setSnapsNextStartId(nextStartId);
             setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
             break;
           }
           case "polls": {
-            const data = await userService.getUserPolls(targetUsername, signal);
+            const data = filterPost(await userService.getUserPolls(targetUsername, signal));
             setPolls(data);
             setHasMore((prev) => ({ ...prev, polls: false }));
             break;
           }
           case "comments": {
-            const data = await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+            const data = filterPost(await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal));
             setComments(data);
             setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
             break;
           }
           case "replies": {
-            const data = await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+            const data = filterPost(await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal));
             setReplies(data);
             setHasMore((prev) => ({ ...prev, replies: data.length >= PAGE_SIZE }));
             break;
@@ -527,8 +541,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           const last = blogs[blogs.length - 1];
           if (!last) break;
           const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          // First item is the same as last cursor, skip it
-          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
           setBlogs((prev) => [...prev, ...newItems]);
           setHasMore((prev) => ({ ...prev, blogs: newItems.length >= PAGE_SIZE - 1 }));
           break;
@@ -537,15 +550,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           const last = posts[posts.length - 1];
           if (!last) break;
           const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
           setPosts((prev) => [...prev, ...newItems]);
           setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
           break;
         }
         case "snaps": {
           if (!snapsNextStartId) break;
-          const { snaps: newSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, snapsNextStartId, currentUsername);
-          setSnaps((prev) => [...prev, ...newSnaps]);
+          const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, snapsNextStartId, currentUsername);
+          setSnaps((prev) => [...prev, ...filterPost(rawSnaps)]);
           setSnapsNextStartId(nextStartId);
           setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
           break;
@@ -554,7 +567,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           const last = comments[comments.length - 1];
           if (!last) break;
           const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
           setComments((prev) => [...prev, ...newItems]);
           setHasMore((prev) => ({ ...prev, comments: newItems.length >= PAGE_SIZE - 1 }));
           break;
@@ -563,7 +576,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           const last = replies[replies.length - 1];
           if (!last) break;
           const data = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data;
+          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
           setReplies((prev) => [...prev, ...newItems]);
           setHasMore((prev) => ({ ...prev, replies: newItems.length >= PAGE_SIZE - 1 }));
           break;
@@ -670,35 +683,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
   }, [targetUsername, onIgnoreAuthor]);
 
-  const handleReport = useCallback(async () => {
-    if (!selectedReportReason) return;
+  const handleReport = useCallback(async (reason: string) => {
     setActionLoading(true);
     try {
       if (onReportUser) {
-        await onReportUser(targetUsername, selectedReportReason);
+        await onReportUser(targetUsername, reason);
       }
       setShowReportModal(false);
-      setSelectedReportReason(null);
       setShowActionDropdown(false);
     } catch (err) {
       console.error("Error reporting user:", err);
     } finally {
       setActionLoading(false);
     }
-  }, [targetUsername, selectedReportReason, onReportUser]);
+  }, [targetUsername, onReportUser]);
 
   const handleShare = useCallback(() => {
-    if (onShare) {
-      onShare(targetUsername);
-    } else {
-      const url = `https://peakd.com/@${targetUsername}`;
-      if (navigator.share) {
-        navigator.share({ title: profile?.name || targetUsername, url });
-      } else {
-        navigator.clipboard.writeText(url);
-      }
-    }
-  }, [targetUsername, profile, onShare]);
+    onShare?.(targetUsername);
+  }, [targetUsername, onShare]);
 
   // ─── Render: Loading state ───────────────────────────────────────────────
 
@@ -963,7 +965,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             {/* Author & time */}
             <div className="flex items-center gap-2 mb-1">
               <button
-                onClick={() => onUserClick?.(item.author)}
+                onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
                 className="font-medium text-white hover:text-blue-400 text-sm"
               >
                 @{item.author}
@@ -1013,17 +1015,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
-            onShare={() => {
-              const url = `https://peakd.com/@${item.author}/${item.permlink}`;
-              if (navigator.share) {
-                navigator.share({ title: item.title || `Post by @${item.author}`, url });
-              } else {
-                navigator.clipboard?.writeText(url);
-              }
-            }}
-            onTip={onTip ? () => onTip(item.author, item.permlink) : undefined}
-            onReport={onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
+            onReblog={!isOwnProfile && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+            onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
+            onTip={!isOwnProfile && onTip ? () => onTip(item.author, item.permlink) : undefined}
+            onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
@@ -1110,17 +1105,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
-            onShare={() => {
-              const url = `https://peakd.com/@${poll.author}/${poll.permlink}`;
-              if (navigator.share) {
-                navigator.share({ title: poll.question, url });
-              } else {
-                navigator.clipboard?.writeText(url);
-              }
-            }}
-            onTip={onTip ? () => onTip(poll.author, poll.permlink) : undefined}
-            onReport={onReportPost ? () => onReportPost(poll.author, poll.permlink) : undefined}
+            onReblog={!isOwnProfile && onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
+            onShare={onSharePost ? () => onSharePost(poll.author, poll.permlink) : undefined}
+            onTip={!isOwnProfile && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
+            onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: poll.author, permlink: poll.permlink }) : undefined}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
@@ -2007,62 +1995,37 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
       )}
 
-      {/* ── Report Modal ── */}
-      {showReportModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
-          onClick={() => {
-            setShowReportModal(false);
-            setSelectedReportReason(null);
-          }}
-        >
-          <div
-            className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-white mb-1">
-              Report @{targetUsername}
-            </h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Select a reason for reporting this user:
-            </p>
-            <div className="space-y-2 mb-6">
-              {REPORT_REASONS.map((reason) => (
-                <button
-                  key={reason}
-                  onClick={() => setSelectedReportReason(reason)}
-                  className={`w-full px-4 py-2.5 text-left text-sm rounded-lg border transition-colors ${
-                    selectedReportReason === reason
-                      ? "border-blue-500 bg-blue-900/20 text-blue-300"
-                      : "border-gray-700 text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  {reason}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowReportModal(false);
-                  setSelectedReportReason(null);
-                }}
-                disabled={actionLoading}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleReport}
-                disabled={actionLoading || !selectedReportReason}
-                className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
-              >
-                {actionLoading ? "Submitting..." : "Submit Report"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Report User Modal ── */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        onReport={handleReport}
+        reportType="user"
+        targetUsername={targetUsername}
+      />
+
+      {/* ── Report Post Modal ── */}
+      <ReportModal
+        isOpen={!!reportPostTarget}
+        onClose={() => setReportPostTarget(null)}
+        onReport={async (reason) => {
+          if (reportPostTarget && onReportPost) {
+            await onReportPost(reportPostTarget.author, reportPostTarget.permlink, reason);
+            const match = (p: { author: string; permlink: string }) =>
+              p.author === reportPostTarget.author && p.permlink === reportPostTarget.permlink;
+            setBlogs((prev) => prev.filter((p) => !match(p)));
+            setPosts((prev) => prev.filter((p) => !match(p)));
+            setSnaps((prev) => prev.filter((p) => !match(p)));
+            setComments((prev) => prev.filter((p) => !match(p)));
+            setReplies((prev) => prev.filter((p) => !match(p)));
+            setPolls((prev) => prev.filter((p) => !match(p)));
+          }
+          setReportPostTarget(null);
+        }}
+        reportType="post"
+        targetUsername={reportPostTarget?.author || ""}
+        targetPermlink={reportPostTarget?.permlink}
+      />
 
       </div>{/* end scroll container */}
     </div>
