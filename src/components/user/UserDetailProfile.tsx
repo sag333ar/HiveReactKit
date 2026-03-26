@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   ArrowLeft,
   User,
@@ -255,9 +255,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const targetUsername = username.replace(/^@/, "").trim();
   const isOwnProfile = currentUsername === targetUsername;
 
-  // Build sets for O(1) lookup when filtering feed content
-  const reportedPostKeys = new Set(reportedPosts.map((p) => `${p.author}/${p.permlink}`));
-  const reportedAuthorSet = new Set(reportedAuthors);
+  // Build memoized sets for O(1) lookup when filtering feed content
+  const reportedPostKeys = useMemo(
+    () => new Set(reportedPosts.map((p) => `${p.author}/${p.permlink}`)),
+    [reportedPosts]
+  );
+  const reportedAuthorSet = useMemo(
+    () => new Set(reportedAuthors),
+    [reportedAuthors]
+  );
   const filterPost = useCallback(
     <T extends { author: string; permlink: string }>(items: T[]): T[] =>
       items.filter(
@@ -528,6 +534,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       abortController.abort();
     };
   }, [targetUsername, activeTab]);
+
+  // Filtered data for rendering — always reflects latest filter props
+  const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
+  const filteredPosts = useMemo(() => filterPost(posts), [posts, filterPost]);
+  const filteredSnaps = useMemo(() => filterPost(snaps), [snaps, filterPost]);
+  const filteredComments = useMemo(() => filterPost(comments), [comments, filterPost]);
+  const filteredReplies = useMemo(() => filterPost(replies), [replies, filterPost]);
+  const filteredPolls = useMemo(() => filterPost(polls), [polls, filterPost]);
 
   // ─── Load more (next page) ────────────────────────────────────────────
 
@@ -1617,7 +1631,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     // Polls tab
     if (activeTab === "polls") {
-      if (polls.length === 0) {
+      if (filteredPolls.length === 0) {
         return (
           <div className="text-center py-12">
             <BarChart3 className="h-12 w-12 text-gray-500 mx-auto mb-3" />
@@ -1627,18 +1641,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       }
       return (
         <div className="space-y-3">
-          {polls.map((poll) => renderPollItem(poll))}
+          {filteredPolls.map((poll) => renderPollItem(poll))}
         </div>
       );
     }
 
     // Content tabs (blogs, posts, snaps, comments, replies)
     const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
-      blogs: { data: blogs, type: "blog", icon: FileText },
-      posts: { data: posts, type: "post", icon: FileText },
-      snaps: { data: snaps, type: "post", icon: Camera },
-      comments: { data: comments, type: "comment", icon: MessageCircle },
-      replies: { data: replies, type: "reply", icon: Reply },
+      blogs: { data: filteredBlogs, type: "blog", icon: FileText },
+      posts: { data: filteredPosts, type: "post", icon: FileText },
+      snaps: { data: filteredSnaps, type: "post", icon: Camera },
+      comments: { data: filteredComments, type: "comment", icon: MessageCircle },
+      replies: { data: filteredReplies, type: "reply", icon: Reply },
     };
 
     const current = contentMap[activeTab];
