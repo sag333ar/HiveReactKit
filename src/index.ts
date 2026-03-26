@@ -73,7 +73,7 @@ export * from './types/post';
 export * from './types/video';
 export * from './types/poll';
 export * from './types/reward';
-// export * from './types/wallet';
+export * from './types/wallet';
 // export * from './types/witness';
 
 // Services

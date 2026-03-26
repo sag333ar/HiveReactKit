@@ -36,6 +36,8 @@ export default defineConfig(({ mode }) => {
           external: [
             "react",
             "react-dom",
+            "react/jsx-runtime",
+            "react/jsx-dev-runtime",
             "react-router-dom",
             "@tanstack/react-query",
             "@hiveio/dhive",

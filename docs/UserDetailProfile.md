@@ -1,6 +1,6 @@
 # UserDetailProfile
 
-A comprehensive, dark-mode user profile component with 12 configurable tabs, callback-based architecture, infinite scroll pagination, and skeleton loading.
+A comprehensive, dark-mode user profile component with 15 configurable tabs, callback-based architecture, infinite scroll pagination, and skeleton loading.
 
 ## Installation
 
@@ -42,7 +42,7 @@ import 'hive-react-kit/build.css';
 | `currentUsername` | `string` | No | `undefined` | Logged-in user. Enables follow/unfollow menu and vote actions |
 | `showBackButton` | `boolean` | No | `false` | Show back arrow in the sticky header |
 | `onBack` | `() => void` | No | - | Called when back button is clicked |
-| `tabShown` | `TabType[]` | No | all 12 tabs | Controls which tabs are visible and their display order. First tab is the default active tab. If omitted, all tabs are shown in default order |
+| `tabShown` | `TabType[]` | No | all 15 tabs | Controls which tabs are visible and their display order. First tab is the default active tab. If omitted, all tabs are shown in default order |
 
 ### Composer Tokens
 
@@ -110,17 +110,30 @@ These fire from the `PostActionButton` component rendered on each post/comment/s
 | `"followers"` | Followers | `condenser_api.get_followers` | Cursor-based, infinite scroll |
 | `"following"` | Following | `condenser_api.get_following` | Cursor-based, infinite scroll |
 | `"wallet"` | Wallet | Wallet component (internal) | N/A |
+| `"votingPower"` | Voting Power | `getAccounts` + `rc_api.find_rc_accounts` + `get_reward_fund` + `get_feed_history` | N/A |
+| `"badges"` | Badges | `condenser_api.get_followers` (filtered by `badge-` prefix) | N/A |
+| `"witnessVotes"` | Witness Votes | `getAccounts` → `witness_votes` field | N/A |
 
 ## tabShown Examples
 
 ```tsx
-// Default: all 12 tabs in default order
+// Default: all 15 tabs in default order
 <UserDetailProfile username="user" />
 
 // Only 3 tabs — Wallet opens first
 <UserDetailProfile
   username="user"
   tabShown={["wallet", "blogs", "followers"]}
+/>
+
+// Stats-focused: voting power, wallet, badges, witnesses (no login required)
+<UserDetailProfile
+  username="user"
+  tabShown={[
+    "votingPower", "wallet", "activities",
+    "followers", "following", "badges", "witnessVotes",
+    "authorRewards", "curationRewards"
+  ]}
 />
 
 // Social-focused: followers and following first
@@ -141,7 +154,8 @@ These fire from the `PostActionButton` component rendered on each post/comment/s
   tabShown={[
     "blogs", "posts", "comments", "replies",
     "activities", "authorRewards", "curationRewards",
-    "followers", "following", "wallet"
+    "followers", "following", "wallet",
+    "votingPower", "badges", "witnessVotes"
   ]}
 />
 ```
@@ -168,7 +182,8 @@ const ProfilePage = () => {
           "blogs", "posts", "snaps", "polls",
           "comments", "replies", "activities",
           "authorRewards", "curationRewards",
-          "followers", "following", "wallet"
+          "followers", "following", "wallet",
+          "votingPower", "badges", "witnessVotes"
         ]}
         // Composer tokens — omit any to hide that toolbar button
         ecencyToken="your-ecency-token"
@@ -239,8 +254,13 @@ const ProfilePage = () => {
 - **Rich comment composer (PostComposer)** with markdown toolbar (Bold, Italic, Link, Code, @Mention), image upload (Ecency), audio record/upload (3Speak), video upload with TUS protocol (3Speak), GIF search (GIPHY), comprehensive emoji picker (500+ emojis, 9 categories), template picker (HReplier API), paste/drag-drop image upload, and live preview via `@snapie/renderer` (3Speak video/audio embeds, IPFS, Twitter, Instagram)
 - **Token-gated toolbar** — upload buttons auto-hide when the corresponding API token is not provided
 - **PostComposer** also available as standalone component — see [PostComposer docs](./PostComposer.md)
+- **Vote value slider** with real-time HIVE/HBD calculation, 5% step increments, and low mana warning
+- **Voting Power tab** with progress bars for upvote power, downvote power, and resource credits
+- **Badges tab** showing followers with `badge-` prefix in responsive grid (1/3/4 columns)
+- **Witness Votes tab** showing voted witnesses in the same responsive grid layout
+- **Wallet with transaction history** showing sent/received transfers with direction icons, avatars, and color-coded amounts
 - **Dark mode only** with consistent gray-800/900 color palette
-- **Responsive** — compact layout on mobile, expanded on desktop
+- **Responsive** — compact layout on mobile, expanded on desktop (follower/following/badges/witness grids: 1 col mobile, 3 col tablet, 4 col desktop)
 
 ## TypeScript
 
@@ -249,4 +269,27 @@ import type { UserDetailProfileProps } from 'hive-react-kit';
 
 // TabType is not exported directly, but you can use it via the tabShown prop type:
 type TabType = NonNullable<UserDetailProfileProps['tabShown']>[number];
+// "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" |
+// "activities" | "authorRewards" | "curationRewards" | "followers" |
+// "following" | "wallet" | "votingPower" | "badges" | "witnessVotes"
 ```
+
+## Voting Power Tab Details
+
+The Voting Power tab displays:
+
+### Vote Value Slider
+- Range input from 0% to 100% with **5% step** increments
+- Real-time calculation of vote value in both **HBD** and **HIVE**
+- Shows "low mana" warning when voting power is insufficient for the selected weight
+- Formula (based on [hivelytics](https://github.com/mrtats/hivelytics)):
+  - `rshares = maxMana * 0.02 * (weight / 10000)`
+  - `hiveValue = (rshares / recentClaims) * rewardBalance`
+  - `hbdValue = hiveValue * feedPrice`
+
+### Progress Bars
+| Bar | Color | Source |
+|-----|-------|--------|
+| Voting Power | Green (#10b981) | Regenerated from `voting_manabar` over 5-day cycle |
+| Downvote Power | Amber (#f59e0b) | Regenerated from `downvote_manabar` (1/4 of max mana) |
+| Resource Credits | Blue (#3b82f6) | Fetched via `rc_api.find_rc_accounts` |

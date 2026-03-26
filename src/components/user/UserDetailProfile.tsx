@@ -24,6 +24,8 @@ import {
   ChevronRight,
   Award,
   TrendingUp,
+  Shield,
+  Gauge,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -115,7 +117,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -231,6 +233,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [rewardsStillLoading, setRewardsStillLoading] = useState(false);
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Following[]>([]);
+  const [badges, setBadges] = useState<string[]>([]);
+  const [witnessVotes, setWitnessVotes] = useState<string[]>([]);
+  const [votingPowerData, setVotingPowerData] = useState<{
+    upvotePower: number; downvotePower: number; resourceCredits: number;
+    maxMana: number; rewardBalance: number; recentClaims: number; feedPrice: number;
+  } | null>(null);
+  const [voteWeight, setVoteWeight] = useState(100);
   const [loadingContent, setLoadingContent] = useState(false);
 
   // Pagination states
@@ -238,6 +247,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false,
+    votingPower: false, badges: false, witnessVotes: false,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -409,7 +419,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     // First tab in tabShown is the default; if no tabShown, default to "blogs"
     const firstTab = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
     setActiveTab(firstTab);
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false });
+    setBadges([]);
+    setWitnessVotes([]);
+    setVotingPowerData(null);
+    setVoteWeight(100);
   }, [targetUsername]);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
@@ -516,6 +530,125 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             setCurationRewards(data.rows);
             setCurationRewardsTotals({ totalHp: data.totalHp, totalHbd: data.totalHbd });
             setRewardsStillLoading(false);
+            break;
+          }
+          case "votingPower": {
+            const [accounts, , feedHistory] = await Promise.all([
+              userService.getAccounts([targetUsername], signal),
+              userService.getDynamicGlobalProperties(signal),
+              userService.getFeedHistory(signal),
+            ]);
+            const account = accounts?.[0];
+            if (account) {
+              const HIVE_VOTING_MANA_REGENERATION_SECONDS = 5 * 60 * 60 * 24;
+              const parseAsset = (v: any) => parseFloat(String(v).split(" ")[0]) || 0;
+
+              // Effective vesting shares
+              const effectiveVests =
+                parseAsset(account.vesting_shares) +
+                parseAsset(account.received_vesting_shares) -
+                parseAsset(account.delegated_vesting_shares);
+              const maxMana = effectiveVests * 1000000;
+
+              // Upvote power — regenerate from voting_manabar
+              const elapsedUp = Math.floor(Date.now() / 1000) - account.voting_manabar.last_update_time;
+              let currentManaUp = parseFloat(String(account.voting_manabar.current_mana)) +
+                (elapsedUp * maxMana) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
+              if (currentManaUp > maxMana) currentManaUp = maxMana;
+              const upvotePower = maxMana > 0 ? (currentManaUp / maxMana) * 100 : 0;
+
+              // Downvote power — regenerate from downvote_manabar
+              const maxManaDown = maxMana / 4;
+              const elapsedDown = Math.floor(Date.now() / 1000) - account.downvote_manabar.last_update_time;
+              let currentManaDown = parseFloat(String(account.downvote_manabar.current_mana)) +
+                (elapsedDown * maxManaDown) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
+              if (currentManaDown > maxManaDown) currentManaDown = maxManaDown;
+              const downvotePower = maxManaDown > 0 ? (currentManaDown / maxManaDown) * 100 : 0;
+
+              // Resource credits
+              let resourceCredits = 0;
+              try {
+                const rcResp = await fetch("https://api.hive.blog/", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ jsonrpc: "2.0", method: "rc_api.find_rc_accounts", params: { accounts: [targetUsername] }, id: 1 }),
+                  signal,
+                });
+                const rcData = await rcResp.json();
+                const rcAccount = rcData?.result?.rc_accounts?.[0];
+                if (rcAccount) {
+                  const rcCurrent = parseFloat(rcAccount.rc_manabar.current_mana);
+                  const rcMax = parseFloat(rcAccount.max_rc);
+                  if (rcMax > 0) resourceCredits = (rcCurrent / rcMax) * 100;
+                }
+              } catch {
+                // RC fetch failed — leave at 0
+              }
+
+              // Reward fund & price feed for vote value slider
+              let rewardBalance = 0;
+              let recentClaims = 0;
+              let feedPrice = 0;
+              try {
+                const rfResp = await fetch("https://api.hive.blog/", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_reward_fund", params: ["post"], id: 1 }),
+                  signal,
+                });
+                const rfData = await rfResp.json();
+                const rf = rfData?.result;
+                if (rf) {
+                  rewardBalance = parseAsset(rf.reward_balance);
+                  recentClaims = parseFloat(rf.recent_claims) || 0;
+                }
+              } catch {
+                // Reward fund fetch failed
+              }
+              if (feedHistory?.current_median_history) {
+                const base = parseAsset(feedHistory.current_median_history.base);
+                const quote = parseAsset(feedHistory.current_median_history.quote) || 1;
+                feedPrice = base / quote;
+              }
+
+              setVotingPowerData({
+                upvotePower: Math.min(upvotePower, 100),
+                downvotePower: Math.min(downvotePower, 100),
+                resourceCredits: Math.min(resourceCredits, 100),
+                maxMana,
+                rewardBalance,
+                recentClaims,
+                feedPrice,
+              });
+            }
+            break;
+          }
+          case "badges": {
+            // Badges are followers whose username starts with "badge-"
+            let allFollowers: Follower[] = [];
+            let startFollower: string | null = null;
+            let hasMoreFollowers = true;
+            while (hasMoreFollowers) {
+              const batch = await userService.getFollowers(targetUsername, startFollower, 1000, signal);
+              allFollowers = [...allFollowers, ...batch];
+              if (batch.length < 1000) {
+                hasMoreFollowers = false;
+              } else {
+                startFollower = batch[batch.length - 1].follower;
+              }
+            }
+            const badgeNames = allFollowers
+              .map((f) => f.follower)
+              .filter((name) => name.startsWith("badge-"));
+            setBadges(badgeNames);
+            break;
+          }
+          case "witnessVotes": {
+            const accounts = await userService.getAccounts([targetUsername], signal);
+            const account = accounts?.[0];
+            if (account?.witness_votes) {
+              setWitnessVotes(account.witness_votes);
+            }
             break;
           }
         }
@@ -720,7 +853,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   if (loading) {
     return (
-      <div className="h-full overflow-y-auto animate-pulse">
+      <div className="dark h-full overflow-y-auto animate-pulse bg-gray-900">
         {/* Header skeleton */}
         <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center gap-3">
           {showBackButton && <div className="w-8 h-8 bg-gray-700 rounded-full" />}
@@ -780,7 +913,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   if (error || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="dark flex items-center justify-center min-h-[400px] bg-gray-900">
         <div className="text-center">
           <User className="h-14 w-14 text-gray-500 mx-auto mb-3" />
           <h3 className="text-lg font-medium text-white mb-1">User Not Found</h3>
@@ -1201,7 +1334,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   /** Follower/following user grid skeleton */
   const renderUserSkeleton = (count = 8) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-pulse">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-pulse">
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="border border-gray-700 rounded-lg p-4 bg-gray-800">
           <div className="flex items-center gap-3">
@@ -1294,6 +1427,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return renderPostSkeleton();
       case "followers":
       case "following":
+      case "badges":
+      case "witnessVotes":
         return renderUserSkeleton();
       case "polls":
         return renderPollSkeleton();
@@ -1591,6 +1726,148 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       return renderCurationRewardsTab();
     }
 
+    // Voting Power tab
+    if (activeTab === "votingPower") {
+      if (loadingContent) {
+        return (
+          <div className="max-w-lg mx-auto space-y-6 animate-pulse">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 bg-gray-700 rounded w-32" />
+                <div className="h-4 bg-gray-700 rounded-full w-full" />
+              </div>
+            ))}
+            <div className="mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700">
+              <div className="h-4 bg-gray-700 rounded w-40 mb-3" />
+              <div className="h-3 bg-gray-700 rounded-full w-full" />
+            </div>
+          </div>
+        );
+      }
+      if (!votingPowerData) {
+        return (
+          <div className="text-center py-12">
+            <Gauge className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">Voting power data unavailable</p>
+          </div>
+        );
+      }
+
+      // Vote value calculation (hivelytics formula)
+      const { maxMana, rewardBalance, recentClaims, feedPrice } = votingPowerData;
+      const weight = voteWeight * 100; // percentage → basis points
+      const rshares = maxMana * 0.02 * (weight / 10000);
+      const hiveValue = recentClaims > 0 ? (rshares / recentClaims) * rewardBalance : 0;
+      const hbdValue = hiveValue * feedPrice;
+      const lowMana = votingPowerData.upvotePower < (voteWeight * 2) / 100;
+
+      const formatVal = (n: number, d = 3) =>
+        isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+
+      const bars = [
+        { label: "Voting Power", value: votingPowerData.upvotePower, color: "#10b981" },
+        { label: "Downvote Power", value: votingPowerData.downvotePower, color: "#f59e0b" },
+        { label: "Resource Credits", value: votingPowerData.resourceCredits, color: "#3b82f6" },
+      ];
+      return (
+        <div className="max-w-lg mx-auto space-y-6">
+          {/* Vote value slider — above bars */}
+          <div className="p-4 rounded-xl bg-gray-800 border border-gray-700">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-gray-200">Vote Value</span>
+              <span className="text-xs font-bold text-blue-400">{voteWeight}%</span>
+            </div>
+            <div className="text-[13px] text-gray-400 mb-3">
+              {recentClaims > 0 ? (
+                <>
+                  <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
+                  <span className="mx-1.5">·</span>
+                  <span className="text-gray-300">~{formatVal(hiveValue)} HIVE</span>
+                  {lowMana && (
+                    <span className="ml-2 text-amber-400 text-xs">⚠ low mana</span>
+                  )}
+                </>
+              ) : (
+                <span>Vote @{voteWeight}% · —</span>
+              )}
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={voteWeight}
+              onChange={(e) => setVoteWeight(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${voteWeight}%, #374151 ${voteWeight}%, #374151 100%)`,
+                accentColor: '#3b82f6',
+              }}
+            />
+            <div className="flex justify-between text-[11px] text-gray-500 mt-1">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          {/* Progress bars */}
+          {bars.map((bar) => (
+            <div key={bar.label} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-300">{bar.label}</span>
+                <span className="text-sm font-bold text-white">{bar.value.toFixed(2)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3">
+                <div
+                  className="h-3 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${Math.min(bar.value, 100)}%`, backgroundColor: bar.color }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Badges tab
+    if (activeTab === "badges") {
+      if (loadingContent) return renderUserSkeleton();
+      if (badges.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Award className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No badges found</p>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {badges.map((name, i) => renderUserItem(name, i))}
+        </div>
+      );
+    }
+
+    // Witness Votes tab
+    if (activeTab === "witnessVotes") {
+      if (loadingContent) return renderUserSkeleton();
+      if (witnessVotes.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Shield className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No witness votes found</p>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {witnessVotes.map((name, i) => renderUserItem(name, i))}
+        </div>
+      );
+    }
+
     if (loadingContent) {
       return renderSkeletonForTab();
     }
@@ -1606,7 +1883,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         );
       }
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {followers.map((f, i) => renderUserItem(f.follower, i))}
         </div>
       );
@@ -1623,7 +1900,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         );
       }
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {following.map((f, i) => renderUserItem(f.following, i))}
         </div>
       );
@@ -1696,6 +1973,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "followers", label: "Followers", icon: Users },
     { id: "following", label: "Following", icon: Users },
     { id: "wallet", label: "Wallet", icon: WalletIcon },
+    { id: "votingPower", label: "Voting Power", icon: Gauge },
+    { id: "badges", label: "Badges", icon: Award },
+    { id: "witnessVotes", label: "Witness Votes", icon: Shield },
   ];
 
   // If tabShown is provided, only show those tabs in that exact order.
@@ -1934,7 +2214,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               {loadingMore ? (
                 <div className="animate-pulse space-y-3">
                   {(activeTab === "followers" || activeTab === "following") ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {[1, 2].map(i => (
                         <div key={i} className="border border-gray-700 rounded-lg p-4 bg-gray-800">
                           <div className="flex items-center gap-3">
