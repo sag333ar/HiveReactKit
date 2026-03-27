@@ -228,6 +228,14 @@ import { HiveDetailPost } from 'hive-react-kit';
   onSubmitComment={(pAuthor, pPermlink, body) => console.log("Comment:", body)}
 />
 
+// Custom gradient background
+<HiveDetailPost
+  author="sagarkothari88"
+  permlink="my-first-post"
+  backgroundColor={["#0f172a", "#1e293b", "#0f3460"]}
+  onUpvote={(percent) => console.log("Upvote:", percent)}
+/>
+
 // Full usage with all callbacks
 <HiveDetailPost
   author="sagarkothari88"
@@ -256,6 +264,7 @@ import { HiveDetailPost } from 'hive-react-kit';
 | `author` | `string` | *required* | Hive account name of the post author |
 | `permlink` | `string` | *required* | Permlink of the post |
 | `currentUser` | `string` | `undefined` | Logged-in username. Required for upvote/comment/reblog |
+| `backgroundColor` | `string \| string[]` | `undefined` (gray-900) | Single color for solid bg, or array of colors for gradient |
 | `onBack` | `() => void` | `undefined` | Back button callback. Hidden when not provided |
 | `onUserClick` | `(username: string) => void` | `undefined` | Called when author avatar/name is clicked |
 

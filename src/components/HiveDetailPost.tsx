@@ -44,6 +44,10 @@ export interface HiveDetailPostProps {
   templateToken?: string;
   templateApiBaseUrl?: string;
 
+  // Theming
+  /** Background color for the component. Pass a single color string for a solid background, or an array of colors for a gradient (e.g. `["#0f172a", "#1e293b"]` or `["#1a1a2e", "#16213e", "#0f3460"]`). Defaults to gray-900. */
+  backgroundColor?: string | string[];
+
   // Navigation
   onBack?: () => void;
   onUserClick?: (username: string) => void;
@@ -92,9 +96,31 @@ export function HiveDetailPost({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  backgroundColor,
   onBack,
   onUserClick,
 }: HiveDetailPostProps) {
+  // Compute background style from prop
+  const bgStyle = useMemo<React.CSSProperties>(() => {
+    if (!backgroundColor) return {};
+    if (Array.isArray(backgroundColor)) {
+      if (backgroundColor.length === 0) return {};
+      if (backgroundColor.length === 1) return { background: backgroundColor[0] };
+      return { background: `linear-gradient(to bottom, ${backgroundColor.join(', ')})` };
+    }
+    return { background: backgroundColor };
+  }, [backgroundColor]);
+
+  // Slightly darkened variant for the sticky header
+  const headerBgStyle = useMemo<React.CSSProperties>(() => {
+    if (!backgroundColor) return {};
+    if (Array.isArray(backgroundColor)) {
+      // Use the first color with opacity for the header
+      return { backgroundColor: backgroundColor[0], opacity: 0.97 };
+    }
+    return { backgroundColor };
+  }, [backgroundColor]);
+
   const [post, setPost] = useState<Post | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -254,9 +280,9 @@ export function HiveDetailPost({
 
   if (loading) {
     return (
-      <div className="dark flex flex-col h-full bg-gray-900 animate-pulse">
+      <div className="dark flex flex-col h-full bg-gray-900 animate-pulse" style={bgStyle}>
         {/* Header skeleton */}
-        <div className="sticky top-0 z-30 h-[56px] bg-gray-800 border-b border-gray-700 flex items-center">
+        <div className="sticky top-0 z-30 h-[56px] bg-gray-800 border-b border-gray-700 flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {onBack && <div className="w-8 h-8 bg-gray-700 rounded-lg flex-shrink-0" />}
             <div className="w-8 h-8 bg-gray-700 rounded-full flex-shrink-0" />
@@ -353,7 +379,7 @@ export function HiveDetailPost({
 
   if (error || !post) {
     return (
-      <div className="dark flex justify-center items-center min-h-screen bg-gray-900 p-8">
+      <div className="dark flex justify-center items-center min-h-screen bg-gray-900 p-8" style={bgStyle}>
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-white mb-1">Failed to load post</h3>
@@ -372,11 +398,11 @@ export function HiveDetailPost({
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="dark flex flex-col h-full bg-gray-900">
+    <div className="dark flex flex-col h-full bg-gray-900" style={bgStyle}>
       <div className="flex flex-col overflow-y-auto h-full">
 
         {/* ── Compact Header: Back + Avatar + Name + Stats (same pattern as UserDetailProfile) ── */}
-        <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
+        <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {/* Back */}
             {onBack && (

@@ -147,6 +147,7 @@ export default function HiveDetailPostPage() {
 | `author` | `string` | *required* | Hive account name of the post author |
 | `permlink` | `string` | *required* | Permlink of the post |
 | `currentUser` | `string` | `undefined` | Currently logged-in username. Required for upvote/comment/reblog actions |
+| `backgroundColor` | `string \| string[]` | `undefined` (gray-900) | Background color. Pass a single color for solid, or an array for gradient (top to bottom). See examples below |
 | `onUpvote` | `(percent: number) => void \| Promise<void>` | `undefined` | Called when user confirms upvote with vote weight (1-100). Frontend handles signing/broadcast |
 | `onSubmitComment` | `(parentAuthor: string, parentPermlink: string, body: string) => void \| Promise<void>` | `undefined` | Called when user submits a comment. Frontend handles signing/broadcast |
 | `onClickCommentUpvote` | `(author: string, permlink: string, percent: number) => void \| Promise<void>` | `undefined` | Called when user upvotes a comment inside the comments modal |
@@ -161,6 +162,31 @@ export default function HiveDetailPostPage() {
 | `giphyApiKey` | `string` | `undefined` | GIPHY API key — enables GIF search in comment composer |
 | `templateToken` | `string` | `undefined` | HReplier API token — enables template picker in comment composer |
 | `templateApiBaseUrl` | `string` | `undefined` | Custom template API endpoint |
+
+## Background Color Examples
+
+```tsx
+// Default (dark gray-900)
+<HiveDetailPost author="user" permlink="post" />
+
+// Solid color
+<HiveDetailPost author="user" permlink="post" backgroundColor="#1a1a2e" />
+
+// Two-color gradient (top to bottom)
+<HiveDetailPost author="user" permlink="post" backgroundColor={["#0f172a", "#1e293b"]} />
+
+// Three-color gradient
+<HiveDetailPost author="user" permlink="post" backgroundColor={["#1a1a2e", "#16213e", "#0f3460"]} />
+
+// Dark green theme
+<HiveDetailPost author="user" permlink="post" backgroundColor={["#0a1f0a", "#1a3a1a"]} />
+```
+
+When `backgroundColor` is provided:
+- **Single string** → applied as a solid `background` to the container
+- **Array with 1 color** → solid background using that color
+- **Array with 2+ colors** → `linear-gradient(to bottom, color1, color2, ...)` applied to the container
+- The sticky header uses the first color (or the single color) for a consistent look
 
 ## Component Layout
 
