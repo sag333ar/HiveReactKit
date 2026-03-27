@@ -279,6 +279,19 @@ import { HiveDetailPost } from 'hive-react-kit';
 | `onShare` | `() => void` | Called when share is clicked. Falls back to Web Share API / clipboard |
 | `onTip` | `() => void` | Called when tip is clicked |
 | `onReport` | `() => void` | Called when report is clicked |
+| `onVotePoll` | `(author: string, permlink: string, choiceNums: number[]) => void \| Promise<void>` | Called when user votes on a poll. `choiceNums` is an array of 1-based choice numbers |
+
+**Poll Voting Behaviour**
+
+When a post has `json_metadata.content_type === "poll"` the component renders a built-in poll widget:
+
+| Scenario | Behaviour |
+|----------|-----------|
+| Single-choice poll (`max_choices_voted === 1`) | Clicking a choice immediately calls `onVotePoll` |
+| Multi-choice poll (`max_choices_voted > 1`) | Checkboxes shown; selection capped at `max_choices_voted`; **Submit Vote** button appears once ≥ 1 option is selected |
+| Poll ended | Choices shown read-only with vote percentages; voting UI hidden |
+| Already voted (current session or via API) | Voted choices highlighted in green; "✓ Voted" shown in footer; voting UI hidden |
+| `onVotePoll` not provided | Poll results rendered read-only regardless of poll status |
 
 **Comment Composer Tokens**
 

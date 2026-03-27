@@ -30,7 +30,11 @@ export interface Post {
   created: string;
   curator_payout_value: string;
   depth: number;
+  parent_author?: string;
+  parent_permlink?: string;
   is_paidout: boolean;
+  // Bridge API returns json_metadata as an object; condenser_api returns it as a JSON string.
+  // Use getPostMetadata() to safely read fields regardless of format.
   json_metadata: {
     app?: string;
     description?: string;
@@ -38,7 +42,16 @@ export interface Post {
     image?: string[];
     tags?: string[];
     users?: string[];
+    content_type?: string;
+    question?: string;
+    choices?: string[];
+    max_choices_voted?: number;
+    end_time?: number;
+    preferred_interpretation?: string;
+    allow_vote_changes?: boolean;
+    ui_hide_res_until_voted?: boolean;
   };
+  total_payout_value?: string;
   max_accepted_payout: string;
   net_rshares: number;
   payout: number;

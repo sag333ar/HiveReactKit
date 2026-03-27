@@ -2,11 +2,16 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
+import { Poll } from '@/types/poll';
 import {
   AlertCircle,
   ArrowLeft,
   Tag,
   Clock,
+  BarChart2,
+  CheckCircle2,
+  Circle,
+  Send,
 } from 'lucide-react';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -36,6 +41,14 @@ export interface HiveDetailPostProps {
   onShare?: () => void;
   onTip?: () => void;
   onReport?: () => void;
+
+  /**
+   * Called when the user submits a poll vote.
+   * @param author - post author
+   * @param permlink - post permlink
+   * @param choiceNums - 1-based choice numbers selected by the user
+   */
+  onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | Promise<void>;
 
   // Composer tokens
   ecencyToken?: string;
@@ -102,6 +115,7 @@ export function HiveDetailPost({
   backgroundColor,
   onBack,
   onUserClick,
+  onVotePoll,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -128,6 +142,11 @@ export function HiveDetailPost({
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [poll, setPoll] = useState<Poll | null>(null);
+  const [pollLoading, setPollLoading] = useState(false);
+  const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+  const [votedChoices, setVotedChoices] = useState<number[]>([]);
 
   // Hive content renderer using @snapie/renderer (supports YouTube, 3Speak, IPFS, X.com)
   const renderMarkdown = useMemo(() => {
@@ -173,6 +192,17 @@ export function HiveDetailPost({
     }
   }, [post?.body, renderMarkdown]);
 
+  // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
+  // Cast via unknown so the runtime string check works despite the Post type saying object.
+  const parsedMetadata = useMemo(() => {
+    const raw = post?.json_metadata as unknown;
+    if (!raw) return {} as Record<string, any>;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw) as Record<string, any>; } catch { return {} as Record<string, any>; }
+    }
+    return raw as Record<string, any>;
+  }, [post?.json_metadata]);
+
   const fetchPostContent = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -194,6 +224,16 @@ export function HiveDetailPost({
   useEffect(() => {
     fetchPostContent();
   }, [fetchPostContent]);
+
+  // Fetch poll data when post has content_type === 'poll'
+  useEffect(() => {
+    if (!post || parsedMetadata?.content_type !== 'poll') return;
+    setPollLoading(true);
+    userService.getPollDetail(post.author, post.permlink)
+      .then((data) => setPoll(data))
+      .catch(() => setPoll(null))
+      .finally(() => setPollLoading(false));
+  }, [post?.author, post?.permlink, parsedMetadata?.content_type]);
 
   // Fetch author profile (lightweight — only what the header needs)
   useEffect(() => {
@@ -241,7 +281,11 @@ export function HiveDetailPost({
     const pending = parseHiveValue(post.pending_payout_value);
     if (pending > 0) return `${pending.toFixed(3)}`;
 
-    // 3. For paid-out posts, sum author + curator payouts
+    // 3. condenser_api returns total_payout_value for paid-out posts
+    const totalPay = parseHiveValue((post as any).total_payout_value);
+    if (totalPay > 0) return `${totalPay.toFixed(3)}`;
+
+    // 4. Sum author + curator payouts
     const authorPay = parseHiveValue(post.author_payout_value);
     const curatorPay = parseHiveValue(post.curator_payout_value);
     const total = authorPay + curatorPay;
@@ -539,14 +583,181 @@ export function HiveDetailPost({
               )}
             </div>
 
+            {/* ── Poll Widget ── */}
+            {parsedMetadata?.content_type === 'poll' && (() => {
+              const maxChoices: number = poll?.max_choices_voted ?? parsedMetadata?.max_choices_voted ?? 1;
+              const isMulti = maxChoices > 1;
+              const endTs = poll?.end_time
+                ? new Date(poll.end_time).getTime()
+                : (parsedMetadata?.end_time ?? 0) * 1000;
+              const pollEnded = endTs > 0 && Date.now() > endTs;
+              const hasVoted = votedChoices.length > 0;
+              // Check if currentUser already voted (from API data).
+              // poll_voters may have .choices[] (multi) or .choice_num (single) — handle both.
+              const apiVoter = currentUser
+                ? poll?.poll_voters?.find(v => v.name === currentUser)
+                : undefined;
+              const apiVotedChoices: number[] = apiVoter?.choices?.length
+                ? apiVoter.choices
+                : apiVoter?.choice_num != null
+                  ? [apiVoter.choice_num]
+                  : [];
+              const alreadyVoted = hasVoted || apiVotedChoices.length > 0;
+              const displayVoted = hasVoted ? votedChoices : apiVotedChoices;
+              // Show vote UI only for: logged-in user + active poll + not yet voted + callback provided
+              const showVoteUI = !!currentUser && !pollEnded && !alreadyVoted && !!onVotePoll;
+              const choices = poll?.poll_choices ?? (parsedMetadata?.choices ?? []).map((text: string, i: number) => ({ choice_num: i + 1, choice_text: text, votes: null }));
+              const totalVotes = choices.reduce((sum: number, c: any) => sum + (c.votes?.total_votes ?? 0), 0);
+
+              const handleChoiceClick = async (choiceNum: number) => {
+                if (!showVoteUI || isSubmittingVote) return;
+                if (!isMulti) {
+                  // Single choice — vote immediately
+                  setIsSubmittingVote(true);
+                  try {
+                    await onVotePoll?.(post!.author, post!.permlink, [choiceNum]);
+                    setVotedChoices([choiceNum]);
+                  } finally {
+                    setIsSubmittingVote(false);
+                  }
+                } else {
+                  // Multi choice — toggle selection
+                  setSelectedChoices(prev => {
+                    if (prev.includes(choiceNum)) return prev.filter(n => n !== choiceNum);
+                    if (prev.length >= maxChoices) return prev; // cap at max
+                    return [...prev, choiceNum];
+                  });
+                }
+              };
+
+              const handleSubmit = async () => {
+                if (!showVoteUI || isSubmittingVote || selectedChoices.length === 0) return;
+                setIsSubmittingVote(true);
+                try {
+                  await onVotePoll?.(post!.author, post!.permlink, selectedChoices);
+                  setVotedChoices(selectedChoices);
+                  setSelectedChoices([]);
+                } finally {
+                  setIsSubmittingVote(false);
+                }
+              };
+
+              return (
+                <div className="mb-6 rounded-xl border border-gray-700 bg-gray-800/60 overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                    <BarChart2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                    <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Poll</span>
+                    <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium ${pollEnded ? 'bg-gray-700 text-gray-400' : 'bg-green-900/50 text-green-400'}`}>
+                      {pollEnded ? 'Ended' : `Ends in ${Math.ceil((endTs - Date.now()) / (1000 * 60 * 60 * 24))}d`}
+                    </span>
+                  </div>
+
+                  {/* Question */}
+                  <p className="px-4 pb-3 text-sm font-semibold text-white">
+                    {poll?.question ?? parsedMetadata?.question}
+                  </p>
+
+                  {/* Multi-select hint */}
+                  {showVoteUI && isMulti && (
+                    <p className="px-4 pb-2 text-[11px] text-gray-400">
+                      Select up to {maxChoices} options
+                      {selectedChoices.length > 0 && (
+                        <span className="ml-1 text-blue-400">· {selectedChoices.length} selected</span>
+                      )}
+                    </p>
+                  )}
+
+                  {/* Choices */}
+                  <div className="px-4 pb-4 space-y-2">
+                    {pollLoading ? (
+                      [1, 2, 3].map(i => (
+                        <div key={i} className="h-9 bg-gray-700/50 rounded-lg animate-pulse" />
+                      ))
+                    ) : choices.map((choice: { choice_num: number; choice_text: string; votes?: { total_votes: number } | null }) => {
+                      const votes = choice.votes?.total_votes ?? 0;
+                      const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                      const isVoted = displayVoted.includes(choice.choice_num);
+                      const isSelected = selectedChoices.includes(choice.choice_num);
+                      const isMaxed = isMulti && selectedChoices.length >= maxChoices && !isSelected;
+                      const isClickable = showVoteUI && !isMaxed;
+
+                      let borderColor = 'border-gray-700';
+                      let iconEl = <Circle className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />;
+                      let fillColor = 'bg-blue-600/20';
+
+                      if (isVoted) {
+                        borderColor = 'border-green-600/60';
+                        iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />;
+                        fillColor = 'bg-green-600/20';
+                      } else if (isSelected) {
+                        borderColor = 'border-blue-500/60';
+                        iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+                      }
+
+                      return (
+                        <div
+                          key={choice.choice_num}
+                          className={`relative rounded-lg overflow-hidden border ${borderColor} bg-gray-900/50 transition-colors ${isClickable ? 'cursor-pointer hover:border-blue-500/40' : isMaxed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          onClick={() => handleChoiceClick(choice.choice_num)}
+                        >
+                          {pct > 0 && (
+                            <div
+                              className={`absolute inset-y-0 left-0 ${fillColor} transition-all duration-500`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          )}
+                          <div className="relative flex items-center justify-between px-3 py-2.5 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {iconEl}
+                              <span className={`text-sm truncate ${isVoted ? 'text-green-300 font-medium' : isSelected ? 'text-blue-300 font-medium' : 'text-gray-200'}`}>
+                                {choice.choice_text}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-gray-400">
+                              <span>{pct}%</span>
+                              <span className="text-gray-600">·</span>
+                              <span>{votes} vote{votes !== 1 ? 's' : ''}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Multi-select submit button */}
+                  {showVoteUI && isMulti && (
+                    <div className="px-4 pb-4">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={selectedChoices.length === 0 || isSubmittingVote}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {isSubmittingVote ? 'Submitting…' : `Submit Vote${selectedChoices.length > 1 ? 's' : ''}`}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="px-4 pb-3 text-[11px] text-gray-500 border-t border-gray-700/50 pt-2 flex items-center gap-2">
+                    <span>{poll?.poll_stats?.total_voting_accounts_num ?? 0} voter{(poll?.poll_stats?.total_voting_accounts_num ?? 0) !== 1 ? 's' : ''} total</span>
+                    {alreadyVoted && (
+                      <span className="text-green-500 ml-auto">✓ Voted</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Tags */}
-            {post.json_metadata?.tags && post.json_metadata.tags.length > 0 && (
+            {parsedMetadata?.tags && parsedMetadata.tags.length > 0 && (
               <div className="border-t border-gray-700/50 pt-4 pb-4">
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                   <Tag className="w-3.5 h-3.5" /> Tags
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {post.json_metadata.tags.map((tag, index) => (
+                  {parsedMetadata.tags.map((tag: string, index: number) => (
                     <span
                       key={index}
                       className="px-2.5 py-0.5 bg-blue-900/50 text-blue-300 text-[11px] rounded-full"

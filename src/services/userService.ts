@@ -286,9 +286,7 @@ class UserService {
    * Returns { id, author, permlink }[] with cursor for pagination.
    */
   async getSnapReferences(username: string, startId?: number, signal?: AbortSignal): Promise<{ id: number; author: string; permlink: string }[]> {
-    const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    const baseUrl = isDev ? '/api/peakd' : 'https://peakd.com/api/public';
-    let url = `${baseUrl}/snaps/account?container=peak.snaps&username=${username}`;
+    let url = `https://peakd.com/api/public/snaps/account?container=peak.snaps&username=${username}`;
     if (startId !== undefined) {
       url += `&startId=${startId}`;
     }

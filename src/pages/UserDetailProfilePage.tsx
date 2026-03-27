@@ -76,11 +76,11 @@ const UserDetailProfilePage = () => {
         }}
         onSnapClick={(author, permlink) => {
           console.log("[Callback] Snap Click:", author, permlink);
-          alert(`Open snap @${author}/${permlink}`);
+          navigate(`/${author}/${permlink}`);
         }}
         onPollClick={(author, permlink, question) => {
           console.log("[Callback] Poll Click:", author, permlink, question);
-          alert(`Open poll: ${question}\n@${author}/${permlink}`);
+          navigate(`/${author}/${permlink}`);
         }}
         onActivityPermlink={(author, permlink) => {
           console.log("[Callback] Activity Permlink:", author, permlink);
