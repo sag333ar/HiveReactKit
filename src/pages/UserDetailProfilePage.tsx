@@ -72,7 +72,7 @@ const UserDetailProfilePage = () => {
         }}
         onPostClick={(author, permlink, title) => {
           console.log("[Callback] Post Click:", author, permlink, title);
-          navigate(`/video/${author}/${permlink}`);
+          navigate(`/${author}/${permlink}`);
         }}
         onSnapClick={(author, permlink) => {
           console.log("[Callback] Snap Click:", author, permlink);
@@ -84,7 +84,7 @@ const UserDetailProfilePage = () => {
         }}
         onActivityPermlink={(author, permlink) => {
           console.log("[Callback] Activity Permlink:", author, permlink);
-          navigate(`/video/${author}/${permlink}`);
+          navigate(`/${author}/${permlink}`);
         }}
         onActivitySelect={(activity) => {
           console.log("[Callback] Activity Selected:", activity);

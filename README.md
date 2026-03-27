@@ -56,6 +56,7 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 - **VideoDetail** - Detailed video view
 - **VideoInfo** - Video information display
 - **Wallet** - Hive wallet integration
+- **HiveDetailPost** - Full-screen post detail view with content rendering, action buttons, and author header
 
 ### Community Components
 
@@ -208,6 +209,79 @@ The `tabShown` prop accepts an array of these values:
 ```
 
 See [docs/UserDetailProfile.md](docs/UserDetailProfile.md) for full documentation including all callbacks, tab types, streaming behavior, and styling details.
+
+### HiveDetailPost
+
+A full-screen, single-column post detail view. Renders Hive post content using `@hiveio/content-renderer` with a compact author header (avatar, username, reputation, follower/following/posts stats), `PostActionButton` for all interactions, image captions from alt text, tags, and payout info.
+
+#### HiveDetailPost Usage
+
+```tsx
+import { HiveDetailPost } from 'hive-react-kit';
+
+// Basic
+<HiveDetailPost
+  author="sagarkothari88"
+  permlink="my-first-post"
+  currentUser="myusername"
+  onUpvote={(percent) => console.log("Upvote:", percent)}
+  onSubmitComment={(pAuthor, pPermlink, body) => console.log("Comment:", body)}
+/>
+
+// Full usage with all callbacks
+<HiveDetailPost
+  author="sagarkothari88"
+  permlink="my-first-post"
+  currentUser="myusername"
+  onBack={() => navigate(-1)}
+  onUserClick={(user) => navigate(`/profile/${user}`)}
+  onUpvote={(percent) => console.log("Upvote:", percent)}
+  onSubmitComment={(pAuthor, pPermlink, body) => console.log("Comment:", body)}
+  onClickCommentUpvote={(a, p, pct) => console.log("Comment upvote:", a, p, pct)}
+  onReblog={() => console.log("Reblog")}
+  onShare={() => navigator.clipboard.writeText(`https://peakd.com/@${author}/${permlink}`)}
+  onTip={() => console.log("Tip")}
+  onReport={() => console.log("Report")}
+  ecencyToken="your-ecency-token"
+  threeSpeakApiKey="your-3speak-key"
+  giphyApiKey="your-giphy-key"
+  templateToken="your-template-token"
+/>
+```
+
+#### HiveDetailPost Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `author` | `string` | *required* | Hive account name of the post author |
+| `permlink` | `string` | *required* | Permlink of the post |
+| `currentUser` | `string` | `undefined` | Logged-in username. Required for upvote/comment/reblog |
+| `onBack` | `() => void` | `undefined` | Back button callback. Hidden when not provided |
+| `onUserClick` | `(username: string) => void` | `undefined` | Called when author avatar/name is clicked |
+
+**Post Action Callbacks (via PostActionButton)**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onUpvote` | `(percent: number) => void \| Promise<void>` | Called when user confirms upvote with vote weight (1-100) |
+| `onSubmitComment` | `(parentAuthor, parentPermlink, body) => void \| Promise<void>` | Called when a comment is submitted |
+| `onClickCommentUpvote` | `(author, permlink, percent) => void \| Promise<void>` | Called when a comment is upvoted inside the comments modal |
+| `onReblog` | `() => void` | Called when reblog is clicked |
+| `onShare` | `() => void` | Called when share is clicked. Falls back to Web Share API / clipboard |
+| `onTip` | `() => void` | Called when tip is clicked |
+| `onReport` | `() => void` | Called when report is clicked |
+
+**Comment Composer Tokens**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `ecencyToken` | `string` | Ecency image hosting token — enables image upload |
+| `threeSpeakApiKey` | `string` | 3Speak API key — enables audio/video upload |
+| `giphyApiKey` | `string` | GIPHY API key — enables GIF search |
+| `templateToken` | `string` | HReplier API token — enables template picker |
+| `templateApiBaseUrl` | `string` | Custom template API endpoint |
+
+See [docs/HiveDetailPost.md](docs/HiveDetailPost.md) for full documentation including layout diagram, content rendering details, skeleton loading, and CSS requirements.
 
 ### Toolbar Component
 

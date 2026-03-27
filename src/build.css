@@ -18,3 +18,183 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   }
 }
+
+/* ─── Hive Post Body — scoped styles for @hiveio/content-renderer output ─── */
+.hive-post-body {
+  color: #e5e7eb;
+  font-size: 1rem;
+  line-height: 1.75;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.hive-post-body h1,
+.hive-post-body h2,
+.hive-post-body h3,
+.hive-post-body h4,
+.hive-post-body h5,
+.hive-post-body h6 {
+  color: #fff;
+  font-weight: 700;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+.hive-post-body h1 { font-size: 1.875rem; }
+.hive-post-body h2 { font-size: 1.5rem; }
+.hive-post-body h3 { font-size: 1.25rem; }
+.hive-post-body h4 { font-size: 1.125rem; }
+.hive-post-body p {
+  color: #d1d5db;
+  margin-bottom: 1em;
+  line-height: 1.75;
+}
+.hive-post-body a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.hive-post-body a:hover {
+  color: #93bbfd;
+  text-decoration: underline;
+}
+.hive-post-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1rem auto;
+  display: block;
+}
+.hive-post-body blockquote {
+  border-left: 4px solid #3b82f680;
+  background: #1f293780;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #d1d5db;
+  font-style: italic;
+}
+.hive-post-body blockquote p { margin-bottom: 0.25em; }
+.hive-post-body ul,
+.hive-post-body ol {
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+  color: #d1d5db;
+}
+.hive-post-body ul { list-style: disc; }
+.hive-post-body ol { list-style: decimal; }
+.hive-post-body li {
+  margin-bottom: 0.25em;
+  line-height: 1.65;
+}
+.hive-post-body li > ul,
+.hive-post-body li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+.hive-post-body code {
+  color: #f472b6;
+  background: #1f2937;
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.hive-post-body pre {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.hive-post-body pre code {
+  color: #e5e7eb;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+.hive-post-body hr {
+  border: none;
+  border-top: 1px solid #374151;
+  margin: 1.5rem 0;
+}
+.hive-post-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+.hive-post-body th {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #374151;
+}
+.hive-post-body td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #1f2937;
+  color: #d1d5db;
+}
+.hive-post-body tr:hover td { background: #1f293740; }
+.hive-post-body strong,
+.hive-post-body b { color: #fff; font-weight: 700; }
+.hive-post-body em,
+.hive-post-body i { color: #d1d5db; }
+.hive-post-body iframe {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+}
+.hive-post-body .videoWrapper,
+.hive-post-body .embed-responsive {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+}
+.hive-post-body .videoWrapper iframe,
+.hive-post-body .embed-responsive iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+  margin: 0;
+}
+.hive-post-body > :first-child { margin-top: 0; }
+.hive-post-body > :last-child { margin-bottom: 0; }
+.hive-post-body center,
+.hive-post-body .text-center { text-align: center; }
+.hive-post-body center img { margin-left: auto; margin-right: auto; }
+.hive-post-body .hive-img-figure {
+  margin: 1.25rem 0;
+  text-align: center;
+}
+.hive-post-body .hive-img-figure img {
+  margin-bottom: 0.375rem;
+}
+.hive-post-body .hive-img-figure figcaption {
+  color: #9ca3af;
+  font-size: 0.8125rem;
+  font-style: italic;
+  line-height: 1.4;
+  padding: 0 1rem;
+}
+@media (max-width: 640px) {
+  .hive-post-body { font-size: 0.9375rem; line-height: 1.65; }
+  .hive-post-body h1 { font-size: 1.5rem; }
+  .hive-post-body h2 { font-size: 1.25rem; }
+  .hive-post-body h3 { font-size: 1.125rem; }
+  .hive-post-body pre { padding: 0.75rem; font-size: 0.8125rem; }
+}

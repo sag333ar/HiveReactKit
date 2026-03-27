@@ -9,7 +9,7 @@ export { default as ProposalsList } from './ProposalsList';
 export { default as FollowersList } from './FollowersList';
 export { default as FollowingList } from './FollowingList';
 export { default as ActivityList } from './ActivityList';
-export { HiveDetailPost } from './HiveDetailPost';
+export { HiveDetailPost, type HiveDetailPostProps } from './HiveDetailPost';
 export { default as HiveToolbar, type HiveToolbarProps } from './HiveToolbar';
 
 // Common components

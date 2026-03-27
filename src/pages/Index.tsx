@@ -427,9 +427,9 @@ const Index = () => {
               <HiveDetailPost
                 author="shaktimaaan"
                 permlink="fyiytkhbkz"
-                currentUser="your_username"
-                token="your_token"
-                onClickUpvoteButton={(currentUser, token) => console.log("Upvote clicked:", currentUser, token)}
+                currentUser="sagarkothari88"
+                onUpvote={(percent) => console.log("Upvote:", percent)}
+                onSubmitComment={(pAuthor, pPermlink, body) => console.log("Comment:", pAuthor, pPermlink, body)}
               />
             );
           }`;
@@ -1139,15 +1139,47 @@ const Index = () => {
                     />
                   </div>
                 ) : activeTab === "hive-detail-post" ? (
-                  <div className="max-w-4xl mx-auto">
+                  <div className="max-w-4xl mx-auto" style={{ height: 'calc(100vh - 200px)' }}>
                     <HiveDetailPost
                       author="sagarkothari88"
                       permlink="hivereactkit--hive-mobile-app-a-buzzing-double-update"
                       currentUser={mockUser?.username}
-                      token={mockUser?.token}
-                      // onClickUpvoteButton={(currentUser, token) => console.log("Upvote clicked:", currentUser, token)}
-                      // onClickCommentUpvote={(comment) => console.log("Comment upvote clicked:", comment.author, comment.permlink)}
-                      // onClickCommentReply={(comment) => console.log("Comment reply clicked:", comment.author, comment.permlink)}
+                      onBack={() => setActiveTab("trending")}
+                      onUserClick={(user) => console.log("User Click:", user)}
+                      onUpvote={(percent) => {
+                        console.log("[Callback] Upvote:", percent);
+                        alert(`Upvote at ${percent}% — integrate with Aioha/HiveKeychain here`);
+                      }}
+                      onSubmitComment={(pAuthor, pPermlink, body) => {
+                        console.log("[Callback] Comment:", pAuthor, pPermlink, body);
+                        alert(`Comment on @${pAuthor}/${pPermlink}: "${body.substring(0, 50)}..."`);
+                      }}
+                      onClickCommentUpvote={(cAuthor, cPermlink, percent) => {
+                        console.log("[Callback] Comment Upvote:", cAuthor, cPermlink, `${percent}%`);
+                        alert(`Upvote comment @${cAuthor}/${cPermlink} at ${percent}%`);
+                      }}
+                      onReblog={() => {
+                        console.log("[Callback] Reblog");
+                        alert("Reblog — integrate with Aioha/HiveKeychain here");
+                      }}
+                      onShare={() => {
+                        const url = "https://peakd.com/@sagarkothari88/hivereactkit--hive-mobile-app-a-buzzing-double-update";
+                        navigator.clipboard.writeText(url);
+                        alert(`Post link copied: ${url}`);
+                      }}
+                      onTip={() => {
+                        console.log("[Callback] Tip");
+                        alert("Tip — integrate with transfer here");
+                      }}
+                      onReport={() => {
+                        console.log("[Callback] Report");
+                        alert("Report post");
+                      }}
+                      ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
+                      threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
+                      giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}
+                      templateToken={import.meta.env.VITE_TEMPLATE_TOKEN || undefined}
+                      templateApiBaseUrl={import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined}
                     />
                   </div>
                 ) : activeTab === "user-detail-profile" ? (

@@ -13,6 +13,7 @@ export { default as ListOfWitnesses } from './components/ListOfWitnesses';
 export { default as TransactionHistory } from './components/TransactionHistory';
 export { default as UserChannel } from './components/UserChannel';
 export { default as HiveToolbar, type HiveToolbarProps } from './components/HiveToolbar';
+export { HiveDetailPost, type HiveDetailPostProps } from './components/HiveDetailPost';
 export { default as CommentsModal } from './components/comments/CommentsModal';
 export { PostActionButton, type PostActionButtonProps } from './components/actionButtons';
 export { PostComposer, default as AddCommentInput } from './components/comments/AddCommentInput';
