@@ -9,7 +9,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { PostActionButton } from './actionButtons/PostActionButton';
-import { DefaultRenderer } from '@hiveio/content-renderer';
+import { createHiveRenderer } from '@snapie/renderer';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +45,8 @@ export interface HiveDetailPostProps {
   templateApiBaseUrl?: string;
 
   // Theming
+  /** URL to a Hive logo icon shown next to the payout value. Defaults to "/images/hive_logo.png". */
+  hiveIconUrl?: string;
   /** Background color for the component. Pass a single color string for a solid background, or an array of colors for a gradient (e.g. `["#0f172a", "#1e293b"]` or `["#1a1a2e", "#16213e", "#0f3460"]`). Defaults to gray-900. */
   backgroundColor?: string | string[];
 
@@ -96,6 +98,7 @@ export function HiveDetailPost({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  hiveIconUrl = '/images/hive_logo.png',
   backgroundColor,
   onBack,
   onUserClick,
@@ -126,33 +129,40 @@ export function HiveDetailPost({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Hive content renderer using @hiveio/content-renderer
-  const hiveRenderer = useMemo(() => new DefaultRenderer({
-    baseUrl: 'https://hreplier.sagarkothari88.one/',
-    breaks: true,
-    skipSanitization: false,
-    allowInsecureScriptTags: false,
-    addNofollowToLinks: true,
-    addTargetBlankToLinks: true,
-    doNotShowImages: false,
-    assetsWidth: 640,
-    assetsHeight: 480,
-    imageProxyFn: (url: string) => url,
-    usertagUrlFn: (account: string) => `https://hreplier.sagarkothari88.one/#/@${account}`,
-    hashtagUrlFn: (hashtag: string) => `https://peakd.com/created/${hashtag}`,
-    isLinkSafeFn: () => true,
-    addExternalCssClassToMatchingLinksFn: () => false,
-    ipfsPrefix: 'https://ipfs.io/ipfs/',
-  }), []);
+  // Hive content renderer using @snapie/renderer (supports YouTube, 3Speak, IPFS, X.com)
+  const renderMarkdown = useMemo(() => {
+    try {
+      return createHiveRenderer({
+        baseUrl: 'https://hreplier.sagarkothari88.one/',
+        ipfsGateway: 'https://ipfs.3speak.tv',
+        assetsWidth: 640,
+        assetsHeight: 480,
+        usertagUrlFn: (user: string) => `https://hreplier.sagarkothari88.one/#/@${user}`,
+        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        convertHiveUrls: true,
+      });
+    } catch {
+      return null;
+    }
+  }, []);
 
   const renderedBody = useMemo(() => {
-    if (!post?.body) return '';
+    if (!post?.body || !renderMarkdown) return '';
     try {
-      let html = hiveRenderer.render(post.body);
+      let html = renderMarkdown(post.body);
+
+      // Upgrade 3Speak embed URLs to play.3speak.tv with portrait-friendly params
+      // (matches hive-snaps ThreeSpeakPlayer: play.3speak.tv/embed?v=...&mode=iframe&noscroll=1)
+      html = html.replace(
+        /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
+        (_m: string, v: string) =>
+          `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
+      );
+
       // Wrap <img> tags that have a non-empty alt attribute in <figure>/<figcaption>
       html = html.replace(
         /<img\s([^>]*?)alt="([^"]+)"([^>]*?)\/?\s*>/gi,
-        (_match, before, alt, after) => {
+        (_match: string, before: string, alt: string, after: string) => {
           const imgTag = `<img ${before}alt="${alt}"${after}>`;
           return `<figure class="hive-img-figure">${imgTag}<figcaption>${alt}</figcaption></figure>`;
         }
@@ -161,7 +171,7 @@ export function HiveDetailPost({
     } catch {
       return '';
     }
-  }, [post?.body, hiveRenderer]);
+  }, [post?.body, renderMarkdown]);
 
   const fetchPostContent = useCallback(async () => {
     setLoading(true);
@@ -211,26 +221,43 @@ export function HiveDetailPost({
     fetchProfile();
   }, [author]);
 
-  // Payout display — same logic as UserDetailProfile
+  // Helper: parse numeric value from a Hive value string like "1.234 HBD"
+  // Also handles dhive Asset objects which stringify to e.g. "0.247 HBD"
+  const parseHiveValue = (val?: unknown): number => {
+    if (!val) return 0;
+    const str = typeof val === 'string' ? val : String(val);
+    const num = parseFloat(str.replace(/[^\d.]/g, ''));
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Payout display — compute total from all payout fields
   const payoutValue = useMemo(() => {
     if (!post) return '';
-    const raw = post.payout
-      ? post.payout.toFixed(3)
-      : post.pending_payout_value
-        ? post.pending_payout_value.replace(/[^\d.]/g, '')
-        : '0.000';
-    return `$${raw}`;
+
+    // 1. bridge API sets `payout` as a number
+    if (post.payout && post.payout > 0) return `${post.payout.toFixed(3)}`;
+
+    // 2. For pending posts, use pending_payout_value
+    const pending = parseHiveValue(post.pending_payout_value);
+    if (pending > 0) return `${pending.toFixed(3)}`;
+
+    // 3. For paid-out posts, sum author + curator payouts
+    const authorPay = parseHiveValue(post.author_payout_value);
+    const curatorPay = parseHiveValue(post.curator_payout_value);
+    const total = authorPay + curatorPay;
+    if (total > 0) return `${total.toFixed(3)}`;
+
+    return '0.000';
   }, [post]);
 
   const payoutTooltip = useMemo(() => {
     if (!post) return '';
     const lines: string[] = [];
 
-    const rawPayout = post.payout
-      ? post.payout.toFixed(3)
-      : post.pending_payout_value
-        ? post.pending_payout_value.replace(/[^\d.]/g, '')
-        : '0.000';
+    const pending = parseHiveValue(post.pending_payout_value);
+    const authorPay = parseHiveValue(post.author_payout_value);
+    const curatorPay = parseHiveValue(post.curator_payout_value);
+    const total = post.payout && post.payout > 0 ? post.payout : (pending > 0 ? pending : authorPay + curatorPay);
 
     // Payout mode
     const hbdPercent = post.percent_hbd ?? 10000;
@@ -241,9 +268,10 @@ export function HiveDetailPost({
     }
 
     if (post.is_paidout) {
-      const authorVal = post.author_payout_value ? post.author_payout_value.replace(/[^\d.]/g, '') : '';
       lines.push('Past payouts:');
-      lines.push(`${rawPayout} Hive Rewards${authorVal ? ` (Author ${authorVal})` : ''}`);
+      if (authorPay > 0) lines.push(`Author: $${authorPay.toFixed(3)}`);
+      if (curatorPay > 0) lines.push(`Curator: $${curatorPay.toFixed(3)}`);
+      lines.push(`Total: $${total.toFixed(3)}`);
     } else {
       // Time remaining
       if (post.payout_at) {
@@ -258,11 +286,7 @@ export function HiveDetailPost({
           lines.push(`Payout will occur: ${timeStr}`);
         }
       }
-      if (hbdPercent === 0) {
-        lines.push(`${rawPayout} Hive Rewards (100% Powered Up)`);
-      } else {
-        lines.push(`${rawPayout} Hive Rewards (${(hbdPercent / 200).toFixed(0)}%/${100 - hbdPercent / 200}%)`);
-      }
+      lines.push(`Pending: $${pending.toFixed(3)}`);
     }
 
     // Beneficiaries
@@ -484,7 +508,7 @@ export function HiveDetailPost({
                 permlink={post.permlink}
                 currentUser={currentUser}
                 hiveValue={payoutValue}
-                hiveIconUrl="/images/hive_logo.png"
+                hiveIconUrl={hiveIconUrl}
                 payoutTooltip={payoutTooltip}
                 initialVotes={post.active_votes || []}
                 initialCommentsCount={post.children || 0}
@@ -541,7 +565,7 @@ export function HiveDetailPost({
                 permlink={post.permlink}
                 currentUser={currentUser}
                 hiveValue={payoutValue}
-                hiveIconUrl="/images/hive_logo.png"
+                hiveIconUrl={hiveIconUrl}
                 payoutTooltip={payoutTooltip}
                 initialVotes={post.active_votes || []}
                 initialCommentsCount={post.children || 0}
