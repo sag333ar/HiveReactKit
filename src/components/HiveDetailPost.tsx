@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
@@ -6,6 +6,7 @@ import { Poll } from '@/types/poll';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowUpRight,
   Tag,
   Clock,
   BarChart2,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
+import InlineCommentSection from './inlineComments/InlineCommentSection';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,12 @@ export interface HiveDetailPostProps {
   templateToken?: string;
   templateApiBaseUrl?: string;
 
+  // Content moderation
+  /** Array of usernames whose comments should be hidden from the current user's view. */
+  reportedAuthors?: string[];
+  /** Array of {author, permlink} posts/comments to hide from the current user's view. */
+  reportedPosts?: { author: string; permlink: string }[];
+
   // Theming
   /** URL to a Hive logo icon shown next to the payout value. Defaults to "/images/hive_logo.png". */
   hiveIconUrl?: string;
@@ -66,6 +74,8 @@ export interface HiveDetailPostProps {
   // Navigation
   onBack?: () => void;
   onUserClick?: (username: string) => void;
+  /** Called when user clicks "View parent post" — navigate to the parent post. */
+  onNavigateToPost?: (author: string, permlink: string) => void;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -111,10 +121,13 @@ export function HiveDetailPost({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  reportedAuthors,
+  reportedPosts,
   hiveIconUrl = '/images/hive_logo.png',
   backgroundColor,
   onBack,
   onUserClick,
+  onNavigateToPost,
   onVotePoll,
 }: HiveDetailPostProps) {
   // Compute background style from prop
@@ -144,6 +157,7 @@ export function HiveDetailPost({
   const [error, setError] = useState<string | null>(null);
   const [poll, setPoll] = useState<Poll | null>(null);
   const [pollLoading, setPollLoading] = useState(false);
+  const commentsSectionRef = useRef<HTMLDivElement>(null);
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [votedChoices, setVotedChoices] = useState<number[]>([]);
@@ -529,6 +543,20 @@ export function HiveDetailPost({
         <div className="flex-1">
           <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
 
+            {/* View Parent — shown when this post is a reply (depth > 0) */}
+            {post.depth > 0 && post.parent_author && post.parent_permlink && (
+              <button
+                onClick={() => onNavigateToPost?.(post.parent_author!, post.parent_permlink!)}
+                className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 transition-colors text-sm text-blue-400 hover:text-blue-300"
+              >
+                <ArrowUpRight className="w-4 h-4" />
+                <span>View parent post</span>
+                <span className="text-gray-500 text-xs truncate max-w-[250px]">
+                  @{post.parent_author}/{post.parent_permlink}
+                </span>
+              </button>
+            )}
+
             {/* Post title + meta */}
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
               {post.title}
@@ -543,32 +571,6 @@ export function HiveDetailPost({
                   in <span className="text-blue-400">{post.community_title}</span>
                 </span>
               )}
-            </div>
-
-            {/* Action bar */}
-            <div className="py-2.5 border-y border-gray-700/50 mb-4">
-              <PostActionButton
-                author={post.author}
-                permlink={post.permlink}
-                currentUser={currentUser}
-                hiveValue={payoutValue}
-                hiveIconUrl={hiveIconUrl}
-                payoutTooltip={payoutTooltip}
-                initialVotes={post.active_votes || []}
-                initialCommentsCount={post.children || 0}
-                onUpvote={onUpvote}
-                onSubmitComment={onSubmitComment}
-                onClickCommentUpvote={onClickCommentUpvote}
-                onReblog={onReblog}
-                onShare={onShare}
-                onTip={onTip}
-                onReport={onReport}
-                ecencyToken={ecencyToken}
-                threeSpeakApiKey={threeSpeakApiKey}
-                giphyApiKey={giphyApiKey}
-                templateToken={templateToken}
-                templateApiBaseUrl={templateApiBaseUrl}
-              />
             </div>
 
             {/* Rendered body — full width */}
@@ -603,16 +605,22 @@ export function HiveDetailPost({
                   ? [apiVoter.choice_num]
                   : [];
               const alreadyVoted = hasVoted || apiVotedChoices.length > 0;
+              const allowVoteChanges = poll?.allow_vote_changes ?? parsedMetadata?.allow_vote_changes ?? false;
               const displayVoted = hasVoted ? votedChoices : apiVotedChoices;
-              // Show vote UI only for: logged-in user + active poll + not yet voted + callback provided
-              const showVoteUI = !!currentUser && !pollEnded && !alreadyVoted && !!onVotePoll;
+              // Show vote UI for: logged-in user + active poll + callback provided + (not yet voted OR vote changes allowed)
+              const showVoteUI = !!currentUser && !pollEnded && !!onVotePoll && (!alreadyVoted || allowVoteChanges);
+              // Track whether user is changing their vote (already voted + allowed to change)
+              const isChangingVote = alreadyVoted && allowVoteChanges && !hasVoted;
               const choices = poll?.poll_choices ?? (parsedMetadata?.choices ?? []).map((text: string, i: number) => ({ choice_num: i + 1, choice_text: text, votes: null }));
               const totalVotes = choices.reduce((sum: number, c: any) => sum + (c.votes?.total_votes ?? 0), 0);
 
+              // When changing vote: use submit button flow (even for single choice)
+              const needsSubmitButton = isMulti || isChangingVote;
+
               const handleChoiceClick = async (choiceNum: number) => {
                 if (!showVoteUI || isSubmittingVote) return;
-                if (!isMulti) {
-                  // Single choice — vote immediately
+                if (!needsSubmitButton) {
+                  // Single choice, first vote — vote immediately
                   setIsSubmittingVote(true);
                   try {
                     await onVotePoll?.(post!.author, post!.permlink, [choiceNum]);
@@ -621,7 +629,7 @@ export function HiveDetailPost({
                     setIsSubmittingVote(false);
                   }
                 } else {
-                  // Multi choice — toggle selection
+                  // Multi choice or changing vote — toggle selection
                   setSelectedChoices(prev => {
                     if (prev.includes(choiceNum)) return prev.filter(n => n !== choiceNum);
                     if (prev.length >= maxChoices) return prev; // cap at max
@@ -658,10 +666,10 @@ export function HiveDetailPost({
                     {poll?.question ?? parsedMetadata?.question}
                   </p>
 
-                  {/* Multi-select hint */}
-                  {showVoteUI && isMulti && (
+                  {/* Selection hint */}
+                  {showVoteUI && needsSubmitButton && (
                     <p className="px-4 pb-2 text-[11px] text-gray-400">
-                      Select up to {maxChoices} options
+                      {isChangingVote ? 'Change your vote — ' : ''}Select up to {maxChoices} option{maxChoices > 1 ? 's' : ''}
                       {selectedChoices.length > 0 && (
                         <span className="ml-1 text-blue-400">· {selectedChoices.length} selected</span>
                       )}
@@ -679,20 +687,27 @@ export function HiveDetailPost({
                       const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                       const isVoted = displayVoted.includes(choice.choice_num);
                       const isSelected = selectedChoices.includes(choice.choice_num);
-                      const isMaxed = isMulti && selectedChoices.length >= maxChoices && !isSelected;
+                      const isMaxed = needsSubmitButton && selectedChoices.length >= maxChoices && !isSelected;
                       const isClickable = showVoteUI && !isMaxed;
 
                       let borderColor = 'border-gray-700';
                       let iconEl = <Circle className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />;
                       let fillColor = 'bg-blue-600/20';
 
-                      if (isVoted) {
+                      if (isSelected) {
+                        // Currently selected (new selection)
+                        borderColor = 'border-blue-500/60';
+                        iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+                      } else if (isVoted && !isChangingVote) {
+                        // Previously voted and not in change mode — solid green
                         borderColor = 'border-green-600/60';
                         iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />;
                         fillColor = 'bg-green-600/20';
-                      } else if (isSelected) {
-                        borderColor = 'border-blue-500/60';
-                        iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />;
+                      } else if (isVoted && isChangingVote) {
+                        // Previously voted but in change mode — dimmed green (old vote)
+                        borderColor = 'border-green-800/40';
+                        iconEl = <CheckCircle2 className="w-3.5 h-3.5 text-green-700 flex-shrink-0" />;
+                        fillColor = 'bg-green-900/10';
                       }
 
                       return (
@@ -710,7 +725,7 @@ export function HiveDetailPost({
                           <div className="relative flex items-center justify-between px-3 py-2.5 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               {iconEl}
-                              <span className={`text-sm truncate ${isVoted ? 'text-green-300 font-medium' : isSelected ? 'text-blue-300 font-medium' : 'text-gray-200'}`}>
+                              <span className={`text-sm truncate ${isSelected ? 'text-blue-300 font-medium' : isVoted && !isChangingVote ? 'text-green-300 font-medium' : isVoted && isChangingVote ? 'text-green-700' : 'text-gray-200'}`}>
                                 {choice.choice_text}
                               </span>
                             </div>
@@ -725,8 +740,8 @@ export function HiveDetailPost({
                     })}
                   </div>
 
-                  {/* Multi-select submit button */}
-                  {showVoteUI && isMulti && (
+                  {/* Submit / Change vote button */}
+                  {showVoteUI && needsSubmitButton && (
                     <div className="px-4 pb-4">
                       <button
                         onClick={handleSubmit}
@@ -734,7 +749,7 @@ export function HiveDetailPost({
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        {isSubmittingVote ? 'Submitting…' : `Submit Vote${selectedChoices.length > 1 ? 's' : ''}`}
+                        {isSubmittingVote ? 'Submitting…' : isChangingVote ? 'Change Vote' : `Submit Vote${selectedChoices.length > 1 ? 's' : ''}`}
                       </button>
                     </div>
                   )}
@@ -743,7 +758,9 @@ export function HiveDetailPost({
                   <div className="px-4 pb-3 text-[11px] text-gray-500 border-t border-gray-700/50 pt-2 flex items-center gap-2">
                     <span>{poll?.poll_stats?.total_voting_accounts_num ?? 0} voter{(poll?.poll_stats?.total_voting_accounts_num ?? 0) !== 1 ? 's' : ''} total</span>
                     {alreadyVoted && (
-                      <span className="text-green-500 ml-auto">✓ Voted</span>
+                      <span className="text-green-500 ml-auto">
+                        ✓ Voted{allowVoteChanges ? ' · Vote changes allowed' : ''}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -792,6 +809,26 @@ export function HiveDetailPost({
                 giphyApiKey={giphyApiKey}
                 templateToken={templateToken}
                 templateApiBaseUrl={templateApiBaseUrl}
+                disableCommentsModal
+                onComments={() => commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              />
+            </div>
+
+            {/* Inline comments section */}
+            <div ref={commentsSectionRef}>
+              <InlineCommentSection
+                author={post.author}
+                permlink={post.permlink}
+                currentUser={currentUser}
+                onSubmitComment={onSubmitComment}
+                onClickCommentUpvote={onClickCommentUpvote}
+                ecencyToken={ecencyToken}
+                threeSpeakApiKey={threeSpeakApiKey}
+                giphyApiKey={giphyApiKey}
+                templateToken={templateToken}
+                templateApiBaseUrl={templateApiBaseUrl}
+                reportedAuthors={reportedAuthors}
+                reportedPosts={reportedPosts}
               />
             </div>
           </div>

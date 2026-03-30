@@ -51,7 +51,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
     setError(null);
 
     try {
-      const fetchedComments = await apiService.getCommentsList(author, permlink);
+      const fetchedComments = await apiService.getCommentsList(author, permlink, currentUser ?? '');
       setComments(fetchedComments);
       setFilteredComments(fetchedComments);
     } catch (err) {

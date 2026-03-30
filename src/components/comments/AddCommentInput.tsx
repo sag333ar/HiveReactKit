@@ -73,6 +73,8 @@ export interface PostComposerProps {
   bgColor?: string;
   /** Custom border color for the composer container (e.g. "#3a424a", "transparent") */
   borderColor?: string;
+  /** Disable auto-focus on mount (default false). Use when the composer is always visible and shouldn't steal scroll. */
+  disableAutoFocus?: boolean;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -116,6 +118,7 @@ const PostComposer = ({
   hideUserHeader = false,
   bgColor,
   borderColor,
+  disableAutoFocus = false,
 }: PostComposerProps) => {
   const [internalBody, setInternalBody] = useState('');
   const body = value !== undefined ? value : internalBody;
@@ -160,8 +163,8 @@ const PostComposer = ({
   }, []);
 
   useEffect(() => {
-    if (textareaRef.current) textareaRef.current.focus();
-  }, []);
+    if (!disableAutoFocus && textareaRef.current) textareaRef.current.focus();
+  }, [disableAutoFocus]);
 
   // Clear media attachments when controlled value is reset to empty (external submit)
   // Note: pollData is NOT cleared here — polls are independent of text content.

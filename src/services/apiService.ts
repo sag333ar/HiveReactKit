@@ -463,13 +463,14 @@ class ApiService {
 
   async getCommentsList(
     author: string,
-    permlink: string
+    permlink: string,
+    observer: string = ''
   ): Promise<Discussion[]> {
     try {
       const rawResult: unknown = await dhiveClient.call(
         "bridge",
         "get_discussion",
-        [author, permlink]
+        { author, permlink, observer }
       );
 
       // The bridge API may return either an array of discussions or

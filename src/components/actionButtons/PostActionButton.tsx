@@ -59,6 +59,8 @@ export interface PostActionButtonProps {
   templateToken?: string;
   /** Custom template API endpoint */
   templateApiBaseUrl?: string;
+  /** When true, clicking the comment icon calls onComments instead of opening the CommentsModal popup */
+  disableCommentsModal?: boolean;
 }
 
 export function PostActionButton({
@@ -83,6 +85,7 @@ export function PostActionButton({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  disableCommentsModal,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -191,6 +194,10 @@ export function PostActionButton({
   };
 
   const handleCommentClick = () => {
+    if (disableCommentsModal) {
+      onComments?.();
+      return;
+    }
     requireLogin("Comment", () => {
       onComments?.();
       setShowCommentsModal(true);

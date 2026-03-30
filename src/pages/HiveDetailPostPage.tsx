@@ -20,6 +20,7 @@ const HiveDetailPostPage = () => {
         permlink={permlink}
         currentUser="sagarkothari88"
         onBack={() => navigate(-1)}
+        onNavigateToPost={(a, p) => navigate(`/${a}/${p}`)}
         onUserClick={(user) => {
           console.log("[Callback] User Click:", user);
           navigate(`/profile/${user}`);
@@ -53,6 +54,10 @@ const HiveDetailPostPage = () => {
         onReport={() => {
           console.log("[Callback] Report:", author, permlink);
           alert(`Report @${author}/${permlink}`);
+        }}
+        onVotePoll={(pollAuthor, pollPermlink, choiceNums) => {
+          console.log("[Callback] Poll Vote:", pollAuthor, pollPermlink, choiceNums);
+          alert(`Vote on poll @${pollAuthor}/${pollPermlink} — choices: ${choiceNums.join(', ')}`);
         }}
         ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
         threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
