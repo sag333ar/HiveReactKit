@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -359,69 +360,75 @@ export default function InlineCommentItem({
               </div>
             )}
 
-            {/* Inline reply composer — fixed bottom sheet on mobile, inline on desktop */}
+            {/* Inline reply composer — portal bottom sheet on mobile, inline on desktop */}
             {isReplyTarget && currentUser && (
               <>
-                {/* Mobile: fixed bottom overlay */}
-                <div className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-gray-700 bg-gray-900 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] max-h-[70vh] overflow-y-auto">
-                  {/* Composer header */}
-                  <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/95 sticky top-0 z-10">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                        alt={currentUser}
-                        className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
-                        }}
-                      />
-                      <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
-                      {currentUser === comment.author ? (
-                        <span className="text-gray-500 text-[11px]">replying to your comment</span>
-                      ) : (
-                        <>
-                          <span className="text-gray-500 text-[11px]">to</span>
+                {/* Mobile: portal to document.body so it escapes overflow containers */}
+                {createPortal(
+                  <div className="md:hidden">
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 bg-black/40 z-[9998]" onClick={onCancelReply} />
+                    {/* Bottom sheet */}
+                    <div className="fixed inset-x-0 bottom-0 z-[9999] border-t border-gray-700 bg-gray-900 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] max-h-[70vh] overflow-y-auto">
+                      {/* Composer header */}
+                      <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/95 sticky top-0 z-10">
+                        <div className="flex items-center gap-2">
                           <img
-                            src={`https://images.hive.blog/u/${comment.author}/avatar`}
-                            alt={comment.author}
+                            src={`https://images.hive.blog/u/${currentUser}/avatar`}
+                            alt={currentUser}
                             className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
                             }}
                           />
-                          <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}</span>
-                        </>
-                      )}
-                      <div className="flex-1" />
-                      <button
-                        onClick={onCancelReply}
-                        className="p-1.5 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
-                        title="Cancel reply"
-                      >
-                        <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                      </button>
+                          <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
+                          {currentUser === comment.author ? (
+                            <span className="text-gray-500 text-[11px]">replying to your comment</span>
+                          ) : (
+                            <>
+                              <span className="text-gray-500 text-[11px]">to</span>
+                              <img
+                                src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                                alt={comment.author}
+                                className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                                }}
+                              />
+                              <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}</span>
+                            </>
+                          )}
+                          <div className="flex-1" />
+                          <button
+                            onClick={onCancelReply}
+                            className="p-1.5 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
+                            title="Cancel reply"
+                          >
+                            <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                          </button>
+                        </div>
+                      </div>
+                      <PostComposer
+                        onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
+                        onCancel={onCancelReply}
+                        currentUser={currentUser}
+                        parentAuthor={comment.author}
+                        parentPermlink={comment.permlink}
+                        placeholder={`Reply to @${comment.author}...`}
+                        value={replyBody}
+                        onChange={setReplyBody}
+                        ecencyToken={ecencyToken}
+                        threeSpeakApiKey={threeSpeakApiKey}
+                        giphyApiKey={giphyApiKey}
+                        templateToken={templateToken}
+                        templateApiBaseUrl={templateApiBaseUrl}
+                        hideUserHeader
+                        showCancel
+                      />
                     </div>
-                  </div>
-                  <PostComposer
-                    onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
-                    onCancel={onCancelReply}
-                    currentUser={currentUser}
-                    parentAuthor={comment.author}
-                    parentPermlink={comment.permlink}
-                    placeholder={`Reply to @${comment.author}...`}
-                    value={replyBody}
-                    onChange={setReplyBody}
-                    ecencyToken={ecencyToken}
-                    threeSpeakApiKey={threeSpeakApiKey}
-                    giphyApiKey={giphyApiKey}
-                    templateToken={templateToken}
-                    templateApiBaseUrl={templateApiBaseUrl}
-                    hideUserHeader
-                    showCancel
-                  />
-                </div>
-                {/* Mobile backdrop */}
-                <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={onCancelReply} />
+                  </div>,
+                  document.body
+                )}
 
                 {/* Desktop: inline composer */}
                 <div className="hidden md:block mt-3 ml-9 border border-gray-700 rounded-xl overflow-hidden bg-gray-800/50">
