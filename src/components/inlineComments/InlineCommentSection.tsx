@@ -21,6 +21,10 @@ interface InlineCommentSectionProps {
   reportedAuthors?: string[];
   /** Specific posts/comments to hide for the current logged-in user. */
   reportedPosts?: { author: string; permlink: string }[];
+  hiveIconUrl?: string;
+  onShareComment?: (author: string, permlink: string) => void;
+  onTipComment?: (author: string, permlink: string) => void;
+  onReportComment?: (author: string, permlink: string) => void;
 }
 
 export default function InlineCommentSection({
@@ -37,6 +41,10 @@ export default function InlineCommentSection({
   templateApiBaseUrl,
   reportedAuthors,
   reportedPosts,
+  hiveIconUrl,
+  onShareComment,
+  onTipComment,
+  onReportComment,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -287,6 +295,10 @@ export default function InlineCommentSection({
               giphyApiKey={giphyApiKey}
               templateToken={templateToken}
               templateApiBaseUrl={templateApiBaseUrl}
+              hiveIconUrl={hiveIconUrl}
+              onShareComment={onShareComment}
+              onTipComment={onTipComment}
+              onReportComment={onReportComment}
             />
           ))}
         </div>

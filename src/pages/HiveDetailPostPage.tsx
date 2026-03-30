@@ -59,6 +59,22 @@ const HiveDetailPostPage = () => {
           console.log("[Callback] Poll Vote:", pollAuthor, pollPermlink, choiceNums);
           alert(`Vote on poll @${pollAuthor}/${pollPermlink} — choices: ${choiceNums.join(', ')}`);
         }}
+        onShareComment={(cAuthor, cPermlink) => {
+          const url = `https://peakd.com/@${cAuthor}/${cPermlink}`;
+          navigator.clipboard.writeText(url);
+          console.log("[Callback] Share Comment:", url);
+          alert(`Comment link copied: ${url}`);
+        }}
+        onTipComment={(cAuthor, cPermlink) => {
+          console.log("[Callback] Tip Comment:", cAuthor, cPermlink);
+          alert(`Tip @${cAuthor} for comment ${cPermlink} — integrate with transfer here`);
+        }}
+        onReportComment={(cAuthor, cPermlink) => {
+          console.log("[Callback] Report Comment:", cAuthor, cPermlink);
+          alert(`Report comment @${cAuthor}/${cPermlink}`);
+        }}
+        reportedAuthors={[]}
+        reportedPosts={[]}
         ecencyToken={import.meta.env.VITE_ECENCY_TOKEN || undefined}
         threeSpeakApiKey={import.meta.env.VITE_THREE_SPEAK_API_KEY || undefined}
         giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}

@@ -44,6 +44,11 @@ export interface HiveDetailPostProps {
   onTip?: () => void;
   onReport?: () => void;
 
+  // Comment-level action callbacks (receive author/permlink of the specific comment)
+  onShareComment?: (author: string, permlink: string) => void;
+  onTipComment?: (author: string, permlink: string) => void;
+  onReportComment?: (author: string, permlink: string) => void;
+
   /**
    * Called when the user submits a poll vote.
    * @param author - post author
@@ -116,6 +121,9 @@ export function HiveDetailPost({
   onShare,
   onTip,
   onReport,
+  onShareComment,
+  onTipComment,
+  onReportComment,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -829,6 +837,10 @@ export function HiveDetailPost({
                 templateApiBaseUrl={templateApiBaseUrl}
                 reportedAuthors={reportedAuthors}
                 reportedPosts={reportedPosts}
+                hiveIconUrl={hiveIconUrl}
+                onShareComment={onShareComment}
+                onTipComment={onTipComment}
+                onReportComment={onReportComment}
               />
             </div>
           </div>

@@ -86,6 +86,16 @@ function PostPage() {
         }}
         onTip={() => console.log("Tip")}
         onReport={() => console.log("Report")}
+        onShareComment={(cAuthor, cPermlink) => {
+          navigator.clipboard.writeText(`https://peakd.com/@${cAuthor}/${cPermlink}`);
+          console.log("Share comment:", cAuthor, cPermlink);
+        }}
+        onTipComment={(cAuthor, cPermlink) => {
+          console.log("Tip comment author:", cAuthor, cPermlink);
+        }}
+        onReportComment={(cAuthor, cPermlink) => {
+          console.log("Report comment:", cAuthor, cPermlink);
+        }}
         ecencyToken="your-ecency-token"
         threeSpeakApiKey="your-3speak-key"
         giphyApiKey="your-giphy-key"
@@ -185,6 +195,9 @@ export default function HiveDetailPostPage() {
 | `onShare` | `() => void` | Called when share is clicked. Falls back to Web Share API / clipboard copy if not provided. |
 | `onTip` | `() => void` | Called when tip button is clicked. |
 | `onReport` | `() => void` | Called when report button is clicked. |
+| `onShareComment` | `(author: string, permlink: string) => void` | Called when share is clicked on an inline comment. |
+| `onTipComment` | `(author: string, permlink: string) => void` | Called when tip is clicked on an inline comment. |
+| `onReportComment` | `(author: string, permlink: string) => void` | Called when report is clicked on an inline comment. |
 
 ### Navigation
 
@@ -226,14 +239,17 @@ Comments are rendered inline below the post content using `InlineCommentSection`
 
 - **Always-visible composer** at top of comments section for replying to the post
 - **Inline reply composers** open directly below the target comment when Reply is clicked — the top composer stays visible
+- **Mobile reply composer**: On mobile, the inline reply composer renders as a fixed bottom sheet overlay instead of being nested inline (prevents overflow at deep nesting levels)
 - **Composer header** shows both avatars: `@currentUser replying to @targetAuthor/permlink`
 - **Self-reply detection**: When replying to your own post/comment, your avatar shows only once with "commenting on your post" or "replying to your comment"
 - **@ mention button** auto-inserts `@targetAuthor ` when clicked inside a reply composer (uses `parentAuthor` prop)
-- **Collapsible comments**: Chevron toggle to minimize long content (shows truncated preview when collapsed)
+- **Collapsible comments**: Chevron toggle to minimize long content — collapsed preview shows **plain text** (HTML tags and markdown syntax stripped)
+- **Comment action buttons**: Each comment shows Share, Report, Tip icons and Hive payout value alongside Upvote and Reply. Report/Tip only visible for other users' comments (not your own).
 - **Nested replies** up to depth 4, with clickable "View X more replies" button to expand deeper threads
 - **Search bar** to filter comments by body text or author name
 - **Hive Content Renderer**: Comment bodies rendered with `createHiveRenderer` from `@snapie/renderer`
 - **No auto-focus**: The top-level composer does not auto-focus on mount, preventing scroll jump on page navigation
+- **Mobile responsive**: Reduced nesting indentation, wrapping action buttons, hidden timestamps on small screens, smaller avatars
 
 ### Comment Composer Behavior
 
@@ -368,21 +384,52 @@ When `backgroundColor` is provided:
 |                                                  |
 |  [avatar] @user1              2 hours ago    [v] |  <- Comment (collapsible)
 |     Comment body rendered with Hive renderer...  |
-|     [Upvote 3] [Reply] [Show 2 replies]          |
+|     [Up 3] [Reply] [Share] [Report] [Tip]        |
+|     [2 replies]                        $0.039 H  |  <- Actions wrap on mobile
 |     +------------------------------------------+ |  <- Inline reply composer
-|     | @you replying to @user1/permlink    [x]  | |     (when Reply clicked)
-|     | [textarea] [toolbar] [Post]              | |
+|     | @you replying to @user1/permlink    [x]  | |     (desktop: inline)
+|     | [textarea] [toolbar] [Post]              | |     (mobile: fixed bottom sheet)
 |     +------------------------------------------+ |
 |        [avatar] @user2  (nested reply, depth 1)  |
 |           Reply body...                          |
-|           [Upvote] [Reply] [Hide 1 reply]        |
+|           [Up] [Reply] [Share] [Tip] $0.010 H    |
 |              [avatar] @user3  (depth 2)          |
 |                 ...                              |
 |                                                  |
 |  [avatar] @user4              5 hours ago    [v] |  <- Another top-level comment
 |     ...                                          |
+|                                                  |
+|  [v] @user5  nice post about hive...             |  <- Collapsed (plain text preview)
 +--------------------------------------------------+
 ```
+
+## Mobile Responsiveness
+
+The inline comments system is fully responsive for mobile devices:
+
+| Element | Mobile (< md) | Desktop (>= md) |
+|---------|--------------|-----------------|
+| Nesting indentation | `ml-2 pl-2` per depth | `ml-6 pl-4` per depth |
+| Avatar size | `w-6 h-6` | `w-7 h-7` |
+| Username | `text-xs`, truncated | `text-sm` |
+| Timestamp | Hidden | Visible |
+| Action buttons | Wrap into multiple rows via `flex-wrap` | Single row |
+| "Show/Hide" text | Hidden (only count shown, e.g. "2 replies") | Full text ("Show 2 replies") |
+| Body/action left margin | `ml-7` | `ml-9` |
+| Reply composer | Fixed bottom sheet overlay (`max-h-[70vh]`, dark backdrop) | Inline below the comment |
+| Payout value | Smaller text (`text-[11px]`), `w-3 h-3` icon | Standard size |
+| Collapsed preview | Plain text, truncated to 120 chars | Same |
+
+### Collapsed Comment Preview
+
+When a comment is collapsed, the preview strips all HTML tags and markdown syntax to show clean plain text:
+- HTML tags (`<p>`, `<img>`, `<a>`, etc.) are removed
+- Markdown images (`![alt](url)`) are removed
+- Markdown links show only the link text
+- Formatting characters (`#`, `*`, `_`, `~`, `` ` ``, `>`) are stripped
+- Whitespace is collapsed
+
+Example: `<p>nice post!</p>` shows as `nice post!`
 
 ## Content Rendering
 

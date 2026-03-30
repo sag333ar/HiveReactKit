@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from 'react';
-import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X } from 'lucide-react';
+import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
 import { Discussion } from '@/types/comment';
@@ -27,6 +27,10 @@ interface InlineCommentItemProps {
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
+  hiveIconUrl?: string;
+  onShareComment?: (author: string, permlink: string) => void;
+  onTipComment?: (author: string, permlink: string) => void;
+  onReportComment?: (author: string, permlink: string) => void;
 }
 
 const MAX_DEPTH = 4;
@@ -48,6 +52,10 @@ export default function InlineCommentItem({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  hiveIconUrl,
+  onShareComment,
+  onTipComment,
+  onReportComment,
 }: InlineCommentItemProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -143,6 +151,18 @@ export default function InlineCommentItem({
 
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
 
+  // Compute payout value
+  const payoutValue = useMemo(() => {
+    if (comment.payout && comment.payout > 0) return comment.payout.toFixed(3);
+    const pending = parseFloat(String(comment.pending_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    if (pending > 0) return pending.toFixed(3);
+    const authorPay = parseFloat(String(comment.author_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    const curatorPay = parseFloat(String(comment.curator_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    const total = authorPay + curatorPay;
+    if (total > 0) return total.toFixed(3);
+    return '';
+  }, [comment.payout, comment.pending_payout_value, comment.author_payout_value, comment.curator_payout_value]);
+
   const handlePerformUpvote = async (percent: number) => {
     if (onClickCommentUpvote) {
       try {
@@ -194,23 +214,23 @@ export default function InlineCommentItem({
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
   return (
-    <div className={`${depth > 0 ? 'ml-3 md:ml-6 border-l-2 border-gray-700/50 pl-3 md:pl-4' : ''}`}>
-      <div className="py-3 px-2 md:px-3">
+    <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
+      <div className="py-2 px-1.5 md:py-3 md:px-3">
         {/* Header row */}
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-1.5 md:gap-2 mb-1 min-w-0">
           <img
             src={`https://images.hive.blog/u/${comment.author}/avatar`}
             alt={comment.author}
-            className="w-7 h-7 rounded-full flex-shrink-0 bg-gray-700"
+            className="w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700"
             onError={(e) => {
               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
             }}
           />
-          <span className="text-sm font-semibold text-white">@{comment.author}</span>
+          <span className="text-xs md:text-sm font-semibold text-white truncate">@{comment.author}</span>
           {comment.author === currentUser && (
-            <span className="px-1.5 py-0.5 text-[10px] bg-blue-900 text-blue-200 rounded-full">You</span>
+            <span className="px-1 py-0.5 text-[9px] md:text-[10px] bg-blue-900 text-blue-200 rounded-full flex-shrink-0">You</span>
           )}
-          <span className="flex items-center gap-1 text-xs text-gray-500">
+          <span className="hidden sm:flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
             <Clock className="w-3 h-3" />
             {comment.created
               ? formatDistanceToNow(new Date(comment.created + 'Z'), { addSuffix: true })
@@ -219,7 +239,7 @@ export default function InlineCommentItem({
           <div className="flex-1" />
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1 rounded hover:bg-gray-700/60 transition-colors text-gray-400 hover:text-white"
+            className="p-1 rounded hover:bg-gray-700/60 transition-colors text-gray-400 hover:text-white flex-shrink-0"
             title={collapsed ? 'Expand comment' : 'Minimize comment'}
           >
             {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -230,7 +250,7 @@ export default function InlineCommentItem({
         {!collapsed && (
           <>
             {/* Rendered body */}
-            <div className="prose prose-sm prose-invert max-w-none mb-2 text-gray-200 text-left prose-a:text-blue-400 [&>*]:text-left ml-9">
+            <div className="prose prose-sm prose-invert max-w-none mb-2 text-gray-200 text-left prose-a:text-blue-400 [&>*]:text-left ml-7 md:ml-9">
               {renderedBody ? (
                 <div className="hive-post-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
               ) : (
@@ -240,7 +260,7 @@ export default function InlineCommentItem({
 
             {/* Metadata images */}
             {!hasMarkdownImagesInBody && metadataImages.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 ml-9">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 ml-7 md:ml-9">
                 {metadataImages.map((src, idx) => (
                   <img
                     key={src + idx}
@@ -253,40 +273,83 @@ export default function InlineCommentItem({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center gap-4 ml-9 text-xs">
-              <button
-                onClick={handleUpvoteClick}
-                className={`flex items-center gap-1 font-medium transition-colors ${
-                  hasAlreadyVoted || isUpvoted ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'
-                }`}
-              >
-                <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
-                <span>{voteCount}</span>
-              </button>
-
-              <button
-                onClick={handleReplyClick}
-                className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Reply</span>
-              </button>
-
-              {hasReplies && (
+            {/* Actions — wraps into two rows on mobile */}
+            <div className="ml-7 md:ml-9 text-xs">
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-1.5">
+                {/* Primary: upvote, reply */}
                 <button
-                  onClick={() => setShowReplies(!showReplies)}
+                  onClick={handleUpvoteClick}
+                  className={`flex items-center gap-1 font-medium transition-colors ${
+                    hasAlreadyVoted || isUpvoted ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'
+                  }`}
+                >
+                  <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
+                  <span>{voteCount}</span>
+                </button>
+
+                <button
+                  onClick={handleReplyClick}
                   className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors"
                 >
-                  {showReplies ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  <span>{showReplies ? 'Hide' : 'Show'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}</span>
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Reply</span>
                 </button>
-              )}
+
+                {/* Secondary: share, report, tip — icons only on mobile */}
+                {onShareComment && (
+                  <button
+                    onClick={() => onShareComment(comment.author, comment.permlink)}
+                    className="text-gray-400 hover:text-blue-400 transition-colors p-0.5"
+                    title="Share"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {onReportComment && currentUser && comment.author !== currentUser && (
+                  <button
+                    onClick={() => onReportComment(comment.author, comment.permlink)}
+                    className="text-gray-400 hover:text-red-400 transition-colors p-0.5"
+                    title="Report"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {onTipComment && currentUser && comment.author !== currentUser && (
+                  <button
+                    onClick={() => onTipComment(comment.author, comment.permlink)}
+                    className="text-gray-400 hover:text-green-400 transition-colors p-0.5"
+                    title="Tip"
+                  >
+                    <Gift className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {hasReplies && (
+                  <button
+                    onClick={() => setShowReplies(!showReplies)}
+                    className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors"
+                  >
+                    {showReplies ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{showReplies ? 'Hide' : 'Show'} </span>
+                    <span>{replies.length} {replies.length === 1 ? 'reply' : 'replies'}</span>
+                  </button>
+                )}
+
+                {/* Hive payout value — pushed to end */}
+                {payoutValue && (
+                  <div className="flex items-center gap-1 ml-auto">
+                    <span className="font-semibold text-green-400 text-[11px]">{payoutValue}</span>
+                    {hiveIconUrl && <img src={hiveIconUrl} alt="Hive" className="w-3 h-3 rounded-full" />}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Vote slider */}
             {showVoteSlider && !hasAlreadyVoted && (
-              <div className="mt-2 ml-9">
+              <div className="mt-2 ml-7 md:ml-9">
                 <VoteSlider
                   author={comment.author}
                   permlink={comment.permlink}
@@ -296,81 +359,145 @@ export default function InlineCommentItem({
               </div>
             )}
 
-            {/* Inline reply composer — shown below this comment when it is the reply target */}
+            {/* Inline reply composer — fixed bottom sheet on mobile, inline on desktop */}
             {isReplyTarget && currentUser && (
-              <div className="mt-3 ml-9 border border-gray-700 rounded-xl overflow-hidden bg-gray-800/50">
-                {/* Composer header: current user → replying to target */}
-                <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/50">
-                  <div className="flex items-center gap-2.5">
-                    {/* Current user */}
-                    <img
-                      src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                      alt={currentUser}
-                      className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
-                      }}
-                    />
-                    <div className="flex flex-col min-w-0">
+              <>
+                {/* Mobile: fixed bottom overlay */}
+                <div className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-gray-700 bg-gray-900 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] max-h-[70vh] overflow-y-auto">
+                  {/* Composer header */}
+                  <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/95 sticky top-0 z-10">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={`https://images.hive.blog/u/${currentUser}/avatar`}
+                        alt={currentUser}
+                        className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
+                        }}
+                      />
                       <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
+                      {currentUser === comment.author ? (
+                        <span className="text-gray-500 text-[11px]">replying to your comment</span>
+                      ) : (
+                        <>
+                          <span className="text-gray-500 text-[11px]">to</span>
+                          <img
+                            src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                            alt={comment.author}
+                            className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                            }}
+                          />
+                          <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}</span>
+                        </>
+                      )}
+                      <div className="flex-1" />
+                      <button
+                        onClick={onCancelReply}
+                        className="p-1.5 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
+                        title="Cancel reply"
+                      >
+                        <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                      </button>
                     </div>
-                    {currentUser === comment.author ? (
-                      <span className="text-gray-500 text-[11px]">replying to your comment</span>
-                    ) : (
-                      <>
-                        <span className="text-gray-500 text-[11px]">replying to</span>
-                        {/* Target comment author */}
-                        <img
-                          src={`https://images.hive.blog/u/${comment.author}/avatar`}
-                          alt={comment.author}
-                          className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
-                          }}
-                        />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}/{comment.permlink}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex-1" />
-                    <button
-                      onClick={onCancelReply}
-                      className="p-1 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
-                      title="Cancel reply"
-                    >
-                      <X className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-                    </button>
                   </div>
+                  <PostComposer
+                    onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
+                    onCancel={onCancelReply}
+                    currentUser={currentUser}
+                    parentAuthor={comment.author}
+                    parentPermlink={comment.permlink}
+                    placeholder={`Reply to @${comment.author}...`}
+                    value={replyBody}
+                    onChange={setReplyBody}
+                    ecencyToken={ecencyToken}
+                    threeSpeakApiKey={threeSpeakApiKey}
+                    giphyApiKey={giphyApiKey}
+                    templateToken={templateToken}
+                    templateApiBaseUrl={templateApiBaseUrl}
+                    hideUserHeader
+                    showCancel
+                  />
                 </div>
-                <PostComposer
-                  onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
-                  onCancel={onCancelReply}
-                  currentUser={currentUser}
-                  parentAuthor={comment.author}
-                  parentPermlink={comment.permlink}
-                  placeholder={`Reply to @${comment.author}...`}
-                  value={replyBody}
-                  onChange={setReplyBody}
-                  ecencyToken={ecencyToken}
-                  threeSpeakApiKey={threeSpeakApiKey}
-                  giphyApiKey={giphyApiKey}
-                  templateToken={templateToken}
-                  templateApiBaseUrl={templateApiBaseUrl}
-                  hideUserHeader
-                  showCancel
-                />
-              </div>
+                {/* Mobile backdrop */}
+                <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={onCancelReply} />
+
+                {/* Desktop: inline composer */}
+                <div className="hidden md:block mt-3 ml-9 border border-gray-700 rounded-xl overflow-hidden bg-gray-800/50">
+                  <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/50">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={`https://images.hive.blog/u/${currentUser}/avatar`}
+                        alt={currentUser}
+                        className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
+                        }}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
+                      </div>
+                      {currentUser === comment.author ? (
+                        <span className="text-gray-500 text-[11px]">replying to your comment</span>
+                      ) : (
+                        <>
+                          <span className="text-gray-500 text-[11px]">replying to</span>
+                          <img
+                            src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                            alt={comment.author}
+                            className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                            }}
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}/{comment.permlink}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex-1" />
+                      <button
+                        onClick={onCancelReply}
+                        className="p-1 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
+                        title="Cancel reply"
+                      >
+                        <X className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                      </button>
+                    </div>
+                  </div>
+                  <PostComposer
+                    onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
+                    onCancel={onCancelReply}
+                    currentUser={currentUser}
+                    parentAuthor={comment.author}
+                    parentPermlink={comment.permlink}
+                    placeholder={`Reply to @${comment.author}...`}
+                    value={replyBody}
+                    onChange={setReplyBody}
+                    ecencyToken={ecencyToken}
+                    threeSpeakApiKey={threeSpeakApiKey}
+                    giphyApiKey={giphyApiKey}
+                    templateToken={templateToken}
+                    templateApiBaseUrl={templateApiBaseUrl}
+                    hideUserHeader
+                    showCancel
+                  />
+                </div>
+              </>
             )}
           </>
         )}
 
-        {/* Collapsed summary */}
-        {collapsed && (
-          <p className="text-xs text-gray-500 ml-9 truncate">
-            {sanitizedBody.slice(0, 120)}{sanitizedBody.length > 120 ? '…' : ''}
-          </p>
-        )}
+        {/* Collapsed summary — strip HTML/markdown tags for plain text preview */}
+        {collapsed && (() => {
+          const plainText = sanitizedBody.replace(/<[^>]*>/g, '').replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[#*_~`>]/g, '').replace(/\s+/g, ' ').trim();
+          return (
+            <p className="text-xs text-gray-500 ml-7 md:ml-9 truncate">
+              {plainText.slice(0, 120)}{plainText.length > 120 ? '…' : ''}
+            </p>
+          );
+        })()}
       </div>
 
       {/* Nested replies */}
@@ -395,6 +522,10 @@ export default function InlineCommentItem({
               giphyApiKey={giphyApiKey}
               templateToken={templateToken}
               templateApiBaseUrl={templateApiBaseUrl}
+              hiveIconUrl={hiveIconUrl}
+              onShareComment={onShareComment}
+              onTipComment={onTipComment}
+              onReportComment={onReportComment}
             />
           ))}
         </div>

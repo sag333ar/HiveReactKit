@@ -96,6 +96,8 @@ export interface UserDetailProfileProps {
   onActivitySelect?: (activity: any) => void;
   onShare?: (username: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
+  /** When provided, clicking the comment icon navigates to the post detail instead of opening the comments modal. */
+  onCommentClick?: (author: string, permlink: string) => void;
 }
 
 interface ProfileData {
@@ -212,6 +214,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onActivitySelect,
   onShare,
   onSharePost,
+  onCommentClick,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1166,6 +1169,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
             onTip={!isOwnProfile && onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
+            disableCommentsModal={!!onCommentClick}
+            onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
@@ -1256,6 +1261,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onShare={onSharePost ? () => onSharePost(poll.author, poll.permlink) : undefined}
             onTip={!isOwnProfile && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
             onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: poll.author, permlink: poll.permlink }) : undefined}
+            disableCommentsModal={!!onCommentClick}
+            onComments={onCommentClick ? () => onCommentClick(poll.author, poll.permlink) : undefined}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
