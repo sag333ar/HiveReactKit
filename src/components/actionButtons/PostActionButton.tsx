@@ -320,6 +320,7 @@ export function PostActionButton({
       </div>
 
       {/* Reblog */}
+      {onReblog && (
       <div className="relative group">
         <span className={tooltipClass}>Reblog</span>
         <button
@@ -331,6 +332,7 @@ export function PostActionButton({
           <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
+      )}
 
       {/* Share */}
       <div className="relative group">
@@ -346,6 +348,7 @@ export function PostActionButton({
       </div>
 
       {/* Report */}
+      {onReport && (
       <div className="relative group">
         <span className={tooltipClass}>Report</span>
         <button
@@ -357,8 +360,10 @@ export function PostActionButton({
           <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
+      )}
 
       {/* Tip */}
+      {onTip && (
       <div className="relative group">
         <span className={tooltipClass}>Tip</span>
         <button
@@ -370,6 +375,7 @@ export function PostActionButton({
           <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
+      )}
       </div>
 
       {/* Hive Value at end with icon and tooltip */}

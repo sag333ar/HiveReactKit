@@ -1165,10 +1165,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={!isOwnProfile && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+            onReblog={item.author !== currentUsername && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
-            onTip={!isOwnProfile && onTip ? () => onTip(item.author, item.permlink) : undefined}
-            onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
+            onTip={item.author !== currentUsername && onTip ? () => onTip(item.author, item.permlink) : undefined}
+            onReport={item.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
             disableCommentsModal={!!onCommentClick}
             onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
             ecencyToken={ecencyToken}
@@ -1257,10 +1257,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={!isOwnProfile && onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
+            onReblog={poll.author !== currentUsername && onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
             onShare={onSharePost ? () => onSharePost(poll.author, poll.permlink) : undefined}
-            onTip={!isOwnProfile && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
-            onReport={!isOwnProfile && onReportPost ? () => setReportPostTarget({ author: poll.author, permlink: poll.permlink }) : undefined}
+            onTip={poll.author !== currentUsername && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
+            onReport={poll.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: poll.author, permlink: poll.permlink }) : undefined}
             disableCommentsModal={!!onCommentClick}
             onComments={onCommentClick ? () => onCommentClick(poll.author, poll.permlink) : undefined}
             ecencyToken={ecencyToken}
