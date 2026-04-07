@@ -26,6 +26,7 @@ import {
   TrendingUp,
   Shield,
   Gauge,
+  Heart,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -98,6 +99,10 @@ export interface UserDetailProfileProps {
   onSharePost?: (author: string, permlink: string) => void;
   /** When provided, clicking the comment icon navigates to the post detail instead of opening the comments modal. */
   onCommentClick?: (author: string, permlink: string) => void;
+
+  // Favourite callback
+  onFavourite?: (username: string) => void | Promise<void>;
+  isFavVisible?: boolean;
 }
 
 interface ProfileData {
@@ -215,6 +220,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onShare,
   onSharePost,
   onCommentClick,
+  onFavourite,
+  isFavVisible = false,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -851,6 +858,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const handleShare = useCallback(() => {
     onShare?.(targetUsername);
   }, [targetUsername, onShare]);
+
+  const handleFavourite = useCallback(async () => {
+    if (onFavourite) {
+      await onFavourite(targetUsername);
+    }
+  }, [targetUsername, onFavourite]);
 
   // ─── Render: Loading state ───────────────────────────────────────────────
 
@@ -2054,6 +2067,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
+            {isFavVisible && (
+              <button
+                onClick={handleFavourite}
+                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+                title="Favourite user"
+              >
+                <Heart className="h-4 w-4 text-gray-400" />
+              </button>
+            )}
             <button
               onClick={handleShare}
               className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
