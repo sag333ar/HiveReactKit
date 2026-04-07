@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserDetailProfile from "@/components/user/UserDetailProfile";
 
 const UserDetailProfilePage = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
+  const [isFavourited, setIsFavourited] = useState(false);
 
   if (!username) {
     return (
@@ -101,9 +103,9 @@ const UserDetailProfilePage = () => {
         }}
         onAddToFavourite={(user) => {
           console.log("[Callback] Add to Favourite:", user);
-          alert(`Added @${user} to favourites`);
+          setIsFavourited(prev => !prev);
         }}
-        isFavourited={false}
+        isFavourited={isFavourited}
         favouriteCount={5}
       />
     </div>

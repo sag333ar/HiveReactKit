@@ -2083,7 +2083,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors relative"
                 title="Favourite list"
               >
-                <Heart className="h-4 w-4 text-gray-400" />
+                <Heart className={`h-4 w-4 ${isFavourited ? 'text-red-500' : 'text-gray-400'}`} fill={isFavourited ? 'currentColor' : 'none'} />
                 {favouriteCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                     {favouriteCount > 99 ? '99+' : favouriteCount}
@@ -2193,7 +2193,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-2 flex-shrink-0"
                   title={isFavourited ? "Remove from favourites" : "Add to favourites"}
                 >
-                  <Heart className={`h-5 w-5 ${isFavourited ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+                  <Heart className={`h-5 w-5 ${isFavourited ? 'text-red-500' : 'text-white'}`} fill={isFavourited ? 'currentColor' : 'none'} />
                 </button>
               )}
             </div>
