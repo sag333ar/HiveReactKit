@@ -200,6 +200,24 @@ export function HiveDetailPost({
           `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
       );
 
+      // Wrap 3Speak video iframes in .threeSpeakWrapper for portrait (9:16) aspect ratio
+      html = html.replace(
+        /(<iframe\s[^>]*src="https:\/\/play\.3speak\.tv\/embed[^"]*"[^>]*><\/iframe>)/gi,
+        '<div class="threeSpeakWrapper">$1</div>',
+      );
+
+      // Wrap 3Speak audio iframes in .audioWrapper — crop to just the player controls
+      html = html.replace(
+        /<iframe\s[^>]*src="(https:\/\/audio\.3speak\.tv\/play\?[^"]*)"[^>]*>(?:<\/iframe>)?/gi,
+        (_m: string, url: string) => {
+          // Ensure mode=minimal and iframe=1 are present
+          let cleanUrl = url;
+          if (!cleanUrl.includes('mode=minimal')) cleanUrl += '&mode=minimal';
+          if (!cleanUrl.includes('iframe=1')) cleanUrl += '&iframe=1';
+          return `<div class="audioWrapper"><iframe src="${cleanUrl}" scrolling="no" frameborder="0" allow="autoplay"></iframe></div>`;
+        },
+      );
+
       // Wrap <img> tags that have a non-empty alt attribute in <figure>/<figcaption>
       html = html.replace(
         /<img\s([^>]*?)alt="([^"]+)"([^>]*?)\/?\s*>/gi,

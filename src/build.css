@@ -195,9 +195,27 @@
   display: block;
   width: 100%;
   height: 100%;
+  aspect-ratio: auto;
   border: none;
   border-radius: 0.75rem;
   margin: 0;
+}
+/* Audio embeds — show only the player bar, clip everything else */
+.hive-post-body .audioWrapper {
+  max-width: 500px;
+  height: 64px;
+  margin: 1rem auto;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+.hive-post-body .audioWrapper iframe {
+  display: block;
+  width: 100%;
+  height: 120px;
+  border: none;
+  margin: 0;
+  aspect-ratio: auto;
 }
 .hive-post-body > :first-child { margin-top: 0; }
 .hive-post-body > :last-child { margin-bottom: 0; }
