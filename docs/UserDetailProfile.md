@@ -29,6 +29,11 @@ import 'hive-react-kit/build.css';
   onFollow={(user) => broadcastFollow(user)}
   onPostClick={(author, permlink, title) => navigate(`/post/${author}/${permlink}`)}
   onUserClick={(user) => navigate(`/profile/${user}`)}
+  // Favourite functionality
+  onFavouriteList={() => navigate('/favourites')}
+  favouriteCount={5}
+  onAddToFavourite={(user) => addToFavourites(user)}
+  isFavourited={false}
 />
 ```
 
@@ -93,6 +98,46 @@ These fire from the `PostActionButton` component rendered on each post/comment/s
 | `onActivityPermlink` | `(author: string, permlink: string) => void` | Activity permlink clicked |
 | `onActivitySelect` | `(activity: any) => void` | Activity item selected |
 | `onShare` | `(username: string) => void` | Share button clicked in the header |
+| `onFavouriteList` | `() => void \| Promise<void>` | Favourite list icon clicked in the header (shows count badge if `favouriteCount > 0`) |
+| `onAddToFavourite` | `(username: string) => void \| Promise<void>` | Add to favourite icon clicked in profile details overlay |
+| `isFavourited` | `boolean` | Controls heart icon fill state in profile details (red when `true`) |
+| `favouriteCount` | `number` | Count displayed as badge on favourite list icon in header |
+
+## Favourite Functionality
+
+The component includes two favourite-related features that appear automatically when their respective callbacks are provided:
+
+### Favourite List Icon (Header)
+- **Location**: Top-right navbar actions area
+- **Visibility**: Shows only when `onFavouriteList` callback is provided
+- **Features**: 
+  - Heart icon with red badge showing `favouriteCount`
+  - Badge shows "99+" for counts over 99
+  - Click triggers `onFavouriteList` callback
+
+### Add to Favourite Icon (Profile Details)
+- **Location**: Profile details overlay on cover image (right side)
+- **Visibility**: Shows only when `onAddToFavourite` callback is provided
+- **Features**:
+  - Heart icon that changes appearance based on `isFavourited` state
+  - White outline when not favourited (`isFavourited = false`)
+  - Red filled when favourited (`isFavourited = true`)
+  - Click triggers `onAddToFavourite` with the username
+
+```tsx
+<UserDetailProfile
+  username="sagarkothari88"
+  // Favourite list in header with count badge
+  onFavouriteList={() => navigate('/favourites')}
+  favouriteCount={5}
+  
+  // Add to favourite in profile details
+  onAddToFavourite={(user) => addToFavourites(user)}
+  isFavourited={true} // Shows red filled heart
+  
+  // ... other props
+/>
+```
 
 ## TabType Reference
 
@@ -233,6 +278,11 @@ const ProfilePage = () => {
         onShare={(user) => {
           navigator.clipboard.writeText(`https://peakd.com/@${user}`);
         }}
+        // Favourite functionality
+        onFavouriteList={() => navigate('/favourites')}
+        favouriteCount={5}
+        onAddToFavourite={(user) => addToFavourites(user)}
+        isFavourited={false}
       />
     </div>
   );

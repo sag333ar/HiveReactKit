@@ -95,6 +95,16 @@ const UserDetailProfilePage = () => {
           navigator.clipboard.writeText(url);
           alert(`Profile link copied: ${url}`);
         }}
+        onFavouriteList={() => {
+          console.log("[Callback] Favourite List");
+          alert("Open Favourite List");
+        }}
+        onAddToFavourite={(user) => {
+          console.log("[Callback] Add to Favourite:", user);
+          alert(`Added @${user} to favourites`);
+        }}
+        isFavourited={false}
+        favouriteCount={5}
       />
     </div>
   );

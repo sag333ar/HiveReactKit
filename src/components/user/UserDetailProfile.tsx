@@ -100,9 +100,11 @@ export interface UserDetailProfileProps {
   /** When provided, clicking the comment icon navigates to the post detail instead of opening the comments modal. */
   onCommentClick?: (author: string, permlink: string) => void;
 
-  // Favourite callback
-  onFavourite?: (username: string) => void | Promise<void>;
-  isFavVisible?: boolean;
+  // Favourite callbacks
+  onFavouriteList?: () => void | Promise<void>;
+  onAddToFavourite?: (username: string) => void | Promise<void>;
+  isFavourited?: boolean;
+  favouriteCount?: number;
 }
 
 interface ProfileData {
@@ -220,8 +222,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onShare,
   onSharePost,
   onCommentClick,
-  onFavourite,
-  isFavVisible = false,
+  onFavouriteList,
+  onAddToFavourite,
+  isFavourited = false,
+  favouriteCount = 0,
 }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -859,11 +863,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     onShare?.(targetUsername);
   }, [targetUsername, onShare]);
 
-  const handleFavourite = useCallback(async () => {
-    if (onFavourite) {
-      await onFavourite(targetUsername);
+  const handleFavouriteList = useCallback(async () => {
+    if (onFavouriteList) {
+      await onFavouriteList();
     }
-  }, [targetUsername, onFavourite]);
+  }, [onFavouriteList]);
+
+  const handleAddToFavourite = useCallback(async () => {
+    if (onAddToFavourite) {
+      await onAddToFavourite(targetUsername);
+    }
+  }, [targetUsername, onAddToFavourite]);
 
   // ─── Render: Loading state ───────────────────────────────────────────────
 
@@ -2067,13 +2077,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
-            {isFavVisible && (
+            {onFavouriteList && (
               <button
-                onClick={handleFavourite}
-                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Favourite user"
+                onClick={handleFavouriteList}
+                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors relative"
+                title="Favourite list"
               >
                 <Heart className="h-4 w-4 text-gray-400" />
+                {favouriteCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                    {favouriteCount > 99 ? '99+' : favouriteCount}
+                  </span>
+                )}
               </button>
             )}
             <button
@@ -2161,14 +2176,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
           {/* Profile details overlaid on cover */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6">
-            <h2 className="text-sm font-semibold text-white truncate">
-              {profile.name || `@${targetUsername}`}
-            </h2>
-            {profile.about && (
-              <p className="text-gray-300 text-xs leading-relaxed mt-1 line-clamp-2">
-                {profile.about}
-              </p>
-            )}
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-semibold text-white truncate">
+                  {profile.name || `@${targetUsername}`}
+                </h2>
+                {profile.about && (
+                  <p className="text-gray-300 text-xs leading-relaxed mt-1 line-clamp-2">
+                    {profile.about}
+                  </p>
+                )}
+              </div>
+              {onAddToFavourite && (
+                <button
+                  onClick={handleAddToFavourite}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-2 flex-shrink-0"
+                  title={isFavourited ? "Remove from favourites" : "Add to favourites"}
+                >
+                  <Heart className={`h-5 w-5 ${isFavourited ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+                </button>
+              )}
+            </div>
             {/* Meta info row */}
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-gray-300">
               {profile.location && (
