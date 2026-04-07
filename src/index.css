@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Hide scrollbar but keep scroll functional */
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ─── Hive Post Body — scoped styles for @hiveio/content-renderer output ─── */
 .hive-post-body {
   color: #e5e7eb;

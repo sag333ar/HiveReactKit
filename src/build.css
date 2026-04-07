@@ -11,6 +11,14 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility hover-lift {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   &:hover {

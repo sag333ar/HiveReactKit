@@ -275,6 +275,35 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [reportPostTarget, setReportPostTarget] = useState<{ author: string; permlink: string } | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const tabScrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateTabScrollArrows = useCallback(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    updateTabScrollArrows();
+    el.addEventListener("scroll", updateTabScrollArrows);
+    const ro = new ResizeObserver(updateTabScrollArrows);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateTabScrollArrows);
+      ro.disconnect();
+    };
+  }, [updateTabScrollArrows]);
+
+  const scrollTabs = useCallback((direction: "left" | "right") => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === "left" ? -150 : 150, behavior: "smooth" });
+  }, []);
   const isMobile = useIsMobile();
   const targetUsername = username.replace(/^@/, "").trim();
   const isOwnProfile = currentUsername === targetUsername;
@@ -2022,7 +2051,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   return (
     <div className="dark flex flex-col h-full bg-gray-900">
-      <div className="flex flex-col overflow-y-auto h-full">
+      <div className="flex flex-col overflow-y-auto h-full scrollbar-hide">
 
       {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
       <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
@@ -2239,8 +2268,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* ── Tab bar — sticks below header on scroll ── */}
-        <div className="sticky top-[56px] z-20 bg-gray-800 border-b border-gray-700">
-          <div className="flex overflow-x-auto scrollbar-hide">
+        <div className="sticky top-[56px] z-20 bg-gray-800 border-b border-gray-700 relative flex items-center">
+          {canScrollLeft && (
+            <button
+              onClick={() => scrollTabs("left")}
+              className="absolute left-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4 text-white" />
+            </button>
+          )}
+          <div ref={tabScrollRef} className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -2259,6 +2296,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               );
             })}
           </div>
+          {canScrollRight && (
+            <button
+              onClick={() => scrollTabs("right")}
+              className="absolute right-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-colors"
+            >
+              <ChevronRight className="h-4 w-4 text-white" />
+            </button>
+          )}
         </div>
 
         {/* ── Tab content ── */}
