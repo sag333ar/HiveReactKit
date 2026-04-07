@@ -15,6 +15,7 @@ export const ECENCY_IMAGES = {
   ecency_logo: `${BASE}/DQmNsuCkexmEKoWB9ywdR5UkzRQ4Xu6CAgHjRTATCB23znc/ecency_logo.png`,
   gifts: `${BASE}/DQmX8ywkhcAuYp7yoR3rqXmB8jiCx4STm2NHSGTzwP2ByED/gifts.png`,
   happrover_logo: `${BASE}/DQmcy4sHYiMkUJYLhu4jgrvVbvk9vxeSvXHn21ZpVLXK6Jf/happrover_logo.png`,
+  hsurvey_logo: `${BASE}/DQmPNP9TDXFFG9ckvUWiD4qbFxmyTSDN3fM4tbmEVvG7U7h/hsurvey.png`,
   hifind_logo: `${BASE}/DQmZajxWFjBLBbhg5484jxPGkbFD36un3Cw4uK82tkXY4Yf/hifind_logo.png`,
   hive_keychain_logo: `${BASE}/DQmXiH7T1X9Cx9XbNzX2ZJ8gHeyskz6bv5mWGhpxGoYnyvE/hive_keychain_logo.png`,
   hive_logo: `${BASE}/DQma5YQXrk1WZ7oxgLqdPjbVdShmVGzeL7yZ6BCQGjMF6G3/hive_logo.png`,

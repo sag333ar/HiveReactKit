@@ -70,6 +70,7 @@ const DELIVERED_APPS = [
   { name: "hPolls", logo: ECENCY_IMAGES.hpolls_logo },
   { name: "hFestFacts", logo: ECENCY_IMAGES.hive_fest_fact_logo },
   { name: "hSnaps", logo: ECENCY_IMAGES.template },
+  { name: "hCurators",logo: ECENCY_IMAGES.vote_logo },
 ];
 
 const IN_DEV_APPS = [
@@ -79,14 +80,14 @@ const IN_DEV_APPS = [
     logo: ECENCY_IMAGES.happrover_logo,
   },
   {
-    name: "hCurators",
-    desc: "- Request to curate content on behalf of them for their communities.\n - We have staked Hive Power to curate & reward Hive content creators",
-    logo: ECENCY_IMAGES.vote_logo,
-  },
+    name: "hSurvey",
+    desc: "Create and participate in surveys on Hive",
+    logo: ECENCY_IMAGES.hsurvey_logo,
+  }
+
 ];
 
 const PLANNED_APPS = [
-  "hSurvey",
   "hChat",
   "hShorts",
   "hVideos",

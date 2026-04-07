@@ -7,7 +7,6 @@ import UserProfile from "./pages/UserProfile";
 import UserDetailProfilePage from "./pages/UserDetailProfilePage";
 import PostComposerPage from "./pages/PostComposerPage";
 import HiveDetailPostPage from "./pages/HiveDetailPostPage";
-import HiveToolbar from "./components/HiveToolbar";
 import HiveContributionsLanding from "./components/landing-page/HiveContributionsLanding";
 import ExpensesView from "./components/landing-page/ExpensesView";
 

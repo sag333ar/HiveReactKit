@@ -1,6 +1,6 @@
 import React from 'react';
-import { FaTwitter, FaGithub, FaEnvelope, FaDiscord } from 'react-icons/fa';
-import { launchUrl, launchEmail } from '../../utils/actions';
+import { FaTwitter, FaDiscord } from 'react-icons/fa';
+import { launchUrl } from '../../utils/actions';
 
 const Contact: React.FC = () => {
   const socialLinks = [
