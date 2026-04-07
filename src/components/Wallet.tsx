@@ -1,4 +1,4 @@
-import React, { useEffect, type JSX } from "react";
+import React, { useEffect, useState, useRef, type JSX } from "react";
 import {
   FaWallet,
   FaMoneyBill,
@@ -8,8 +8,9 @@ import {
   FaExclamationTriangle,
   FaArrowUp,
   FaArrowDown,
+  FaChevronDown,
 } from "react-icons/fa";
-import { useWalletStore } from "../store/walletStore";
+import { useWalletStore, SUPPORTED_CURRENCIES } from "../store/walletStore";
 import type { Transaction } from "../types/wallet";
 
 interface WalletProps {
@@ -88,6 +89,85 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
   );
 };
 
+const CurrencyDropdown: React.FC = () => {
+  const { selectedCurrency, localCurrency, setSelectedCurrency, exchangeRates } = useWalletStore();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Build ordered currency list: USD first, local currency second, then rest
+  const orderedCurrencies = React.useMemo(() => {
+    const usd = SUPPORTED_CURRENCIES.find((c) => c.code === "USD")!;
+    const local = localCurrency !== "USD" ? SUPPORTED_CURRENCIES.find((c) => c.code === localCurrency) : null;
+    const rest = SUPPORTED_CURRENCIES.filter(
+      (c) => c.code !== "USD" && c.code !== localCurrency && exchangeRates[c.code]
+    );
+    return [usd, ...(local ? [local] : []), ...rest];
+  }, [localCurrency, exchangeRates]);
+
+  const getCurrencySymbol = (code: string): string => {
+    try {
+      const parts = new Intl.NumberFormat("en", { style: "currency", currency: code }).formatToParts(0);
+      return parts.find((p) => p.type === "currency")?.value || code;
+    } catch {
+      return code;
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative inline-block">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 transition-colors text-white text-xs font-medium border border-white/20"
+      >
+        <span>{getCurrencySymbol(selectedCurrency)}</span>
+        <span>{selectedCurrency}</span>
+        <FaChevronDown size={8} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full mt-1 right-0 w-56 max-h-64 overflow-y-auto rounded-lg bg-gray-800 border border-gray-600 shadow-xl z-50 scrollbar-hide">
+          {orderedCurrencies.map((currency, index) => (
+            <React.Fragment key={currency.code}>
+              {/* Divider after local currency */}
+              {index === (localCurrency !== "USD" ? 2 : 1) && (
+                <div className="border-t border-gray-600 my-1" />
+              )}
+              <button
+                onClick={() => {
+                  setSelectedCurrency(currency.code);
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-700 ${
+                  selectedCurrency === currency.code
+                    ? "bg-blue-500/20 text-blue-300"
+                    : "text-gray-300"
+                }`}
+              >
+                <span className="w-6 text-center font-medium text-gray-400">
+                  {getCurrencySymbol(currency.code)}
+                </span>
+                <span className="font-medium">{currency.code}</span>
+                <span className="text-xs text-gray-500 truncate">{currency.name}</span>
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
   const { walletData, fetchWalletData, isLoading, error, transactions, fetchTransactions, isLoadingTransactions, transactionError } = useWalletStore();
 
@@ -139,9 +219,12 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
         </div>
 
         {/* Estimated Value Card */}
-        <div className="text-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-5 mb-5 transition-all duration-300 hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-500/10">
-          <div className="text-xs font-semibold text-blue-100/80">Estimated Value</div>
-          <div className="text-2xl font-bold mt-1.5 text-white">
+        <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-5 mb-5 transition-all duration-300 hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-500/10">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-xs font-semibold text-blue-100/80">Estimated Value</div>
+            <CurrencyDropdown />
+          </div>
+          <div className="text-2xl font-bold text-white text-center">
             {isLoading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

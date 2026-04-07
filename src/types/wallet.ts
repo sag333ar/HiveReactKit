@@ -5,6 +5,7 @@ export interface WalletData {
   savings_hbd_balance: string;
   hive_power: string;
   estimated_value: string;
+  estimated_value_usd: number;
   error?: string;
 }
 
@@ -26,9 +27,14 @@ export interface WalletStore {
   transactions: Transaction[];
   isLoadingTransactions: boolean;
   transactionError: string | null;
+  selectedCurrency: string;
+  localCurrency: string;
+  exchangeRates: Record<string, number>;
 
   setWalletData: (data: WalletData | null) => void;
   clearWalletData: () => void;
   fetchWalletData: (username: string) => Promise<WalletData>;
   fetchTransactions: (username: string, limit?: number) => Promise<Transaction[]>;
+  setSelectedCurrency: (currency: string) => void;
+  getFormattedEstimatedValue: () => string;
 }
