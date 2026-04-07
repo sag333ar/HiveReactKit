@@ -8,6 +8,7 @@ import { Discussion } from '@/types/comment';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import { PostComposer } from '../comments/AddCommentInput';
+import { toast } from '@/index';
 
 interface InlineCommentItemProps {
   comment: Discussion;
@@ -175,7 +176,8 @@ export default function InlineCommentItem({
           showToast('Vote submitted successfully!');
         }, 3000);
       } catch (err: unknown) {
-        alert(err instanceof Error ? err.message : 'Failed to upvote');
+        const message = err instanceof Error ? err.message : 'Failed to upvote';
+        toast({ title: 'Error', description: message });  
       }
       return;
     }
@@ -197,7 +199,8 @@ export default function InlineCommentItem({
         showToast('Vote submitted successfully!');
       }, 3000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to upvote');
+      const message = err instanceof Error ? err.message : 'Failed to upvote';
+      toast({ title: 'Error', description: message });
     }
   };
 

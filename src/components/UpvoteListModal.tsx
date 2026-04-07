@@ -3,6 +3,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { ThumbsUp } from "lucide-react";
 import { VoteSlider } from "./VoteSlider"
+import { toast } from "@/hooks";
 
 interface UpvoteListModalProps {
   author: string;
@@ -91,7 +92,8 @@ const UpvoteListModal = ({ author, permlink, onClose, currentUser, token, onClic
       }, 3000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to upvote";
-      alert(message);
+      toast({ title: "Error", description: message });
+      setIsRefreshing(false);
     }
   };
 

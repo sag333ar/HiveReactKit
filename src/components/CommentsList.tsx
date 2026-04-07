@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
-import { MessageCircle, Loader2, AlertCircle, RefreshCw, MessageCirclePlus } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, MessageCirclePlus } from 'lucide-react';
 import CommentTile from './comments/CommentTile';
 import AddCommentInput from './comments/AddCommentInput';
+import { toast } from '@/hooks';
 
 interface CommentsListProps {
   author: string;
@@ -77,7 +78,8 @@ export function CommentsList({
       }, 3000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to post comment';
-      alert(message);
+      toast({ title: 'Error', description: message });
+      setIsRefreshing(false)
     }
   };
 

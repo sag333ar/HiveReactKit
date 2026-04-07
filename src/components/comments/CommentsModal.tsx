@@ -6,6 +6,7 @@ import CommentTile from './CommentTile';
 import ReplyModal from './ReplyModal';
 import CommentSearchBar from './CommentSearchBar';
 import AddCommentInput from './AddCommentInput';
+import { toast } from '@/hooks';
 
 interface CommentsModalProps {
   author: string;
@@ -102,7 +103,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
         }, 3000);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to post comment';
-        alert(message);
+        toast({ title: 'Error', description: message });
+        setIsRefreshing(false);
       }
       return;
     }
@@ -125,7 +127,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
       }, 3000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to post comment';
-      alert(message);
+      toast({ title: 'Error', description: message });
+      setIsRefreshing(false);
     }
   };
 

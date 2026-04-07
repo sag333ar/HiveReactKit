@@ -4,6 +4,7 @@ import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
 import InlineCommentItem from './InlineCommentItem';
 import { PostComposer } from '../comments/AddCommentInput';
+import { toast } from '@/hooks';
 
 interface InlineCommentSectionProps {
   author: string;
@@ -127,7 +128,8 @@ export default function InlineCommentSection({
         setIsRefreshing(true);
         setTimeout(async () => { await fetchComments(true); }, 3000);
       } catch (err: unknown) {
-        alert(err instanceof Error ? err.message : 'Failed to post comment');
+        toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to post comment' });
+        setIsRefreshing(false);
       }
       return;
     }
@@ -138,7 +140,8 @@ export default function InlineCommentSection({
       setIsRefreshing(true);
       setTimeout(async () => { await fetchComments(true); }, 3000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to post comment');
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to post comment' });
+      setIsRefreshing(false);
     }
   };
 

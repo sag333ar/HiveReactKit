@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { DefaultRenderer } from '@hiveio/content-renderer';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
+import { toast } from '@/index';
 
 interface CommentTileProps {
   comment: Discussion;
@@ -98,7 +99,7 @@ const CommentTile = ({
         }, 3000);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to upvote';
-        alert(message);
+        toast({ title: 'Error', description: message });
       }
       return;
     }
@@ -125,7 +126,8 @@ const CommentTile = ({
       }, 3000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to upvote';
-      alert(message);
+      toast({ title: 'Error', description: message });
+      setIsRefreshing(false);
     }
   };
 
