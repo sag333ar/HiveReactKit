@@ -31,12 +31,13 @@ export interface PostActionButtonProps {
   initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
-  /** Called when user submits a comment. Frontend handles signing/broadcast. */
+  /** Called when user submits a comment. Frontend handles signing/broadcast.
+   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved. */
   onSubmitComment?: (
     parentAuthor: string,
     parentPermlink: string,
     body: string
-  ) => void | Promise<void>;
+  ) => void | boolean | Promise<void | boolean>;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when reblog is clicked (when logged in). */
@@ -249,9 +250,11 @@ export function PostActionButton({
     // }
     if (!onSubmitComment) return;
     try {
-      await Promise.resolve(
+      const result = await Promise.resolve(
         onSubmitComment(parentAuthor, parentPermlink, body)
       );
+      // If callback returns false, the operation was cancelled — don't show success toast
+      if (result === false) return false;
       showToast("Comment posted");
     } catch (err) {
       const msg =

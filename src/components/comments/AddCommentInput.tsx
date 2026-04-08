@@ -13,7 +13,7 @@ import { TemplateModel, templateService } from '../../services/templateService';
 import { createHiveRenderer } from '@snapie/renderer';
 
 export interface PostComposerProps {
-  onSubmit: (body: string) => void;
+  onSubmit: (body: string) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
   currentUser?: string;
   placeholder?: string;
@@ -341,7 +341,9 @@ const PostComposer = ({
       let finalBody = body.trim();
       if (audioEmbedUrl) finalBody += `\n${audioEmbedUrl}`;
       if (videoEmbedUrl) finalBody += `\n${videoEmbedUrl}`;
-      await onSubmit(finalBody);
+      const result = await Promise.resolve(onSubmit(finalBody));
+      // If onSubmit returns false, the operation was cancelled — preserve text and attachments
+      if (result === false) return;
       setBody('');
       setAudioEmbedUrl(null);
       setAudioDuration(0);

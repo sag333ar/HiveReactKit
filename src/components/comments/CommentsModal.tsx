@@ -18,8 +18,9 @@ interface CommentsModalProps {
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
-  /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet) */
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
+  /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet).
+   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved. */
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void | boolean>;
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -94,7 +95,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
     // When callback is provided: use only the callback. No token, no apiService. (Same pattern as CommentTile onClickCommentUpvote.)
     if (onSubmitComment) {
       try {
-        await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        // If callback returns false, the operation was cancelled — preserve composer text
+        if (result === false) return;
         setShowAddComment(false);
         setIsRefreshing(true);
         setTimeout(async () => {

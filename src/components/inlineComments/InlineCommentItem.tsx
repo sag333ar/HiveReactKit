@@ -15,7 +15,7 @@ interface InlineCommentItemProps {
   allComments: Discussion[];
   onReply: (author: string, permlink: string) => void;
   onCancelReply: () => void;
-  onCommentSubmit: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
+  onCommentSubmit: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void | boolean>;
   /** "author/permlink" key of the comment currently being replied to (null = none) */
   activeReplyKey: string | null;
   currentUser?: string;

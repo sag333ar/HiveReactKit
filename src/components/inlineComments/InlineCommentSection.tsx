@@ -11,7 +11,7 @@ interface InlineCommentSectionProps {
   permlink: string;
   currentUser?: string;
   token?: string;
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
@@ -123,7 +123,9 @@ export default function InlineCommentSection({
   const handleCommentSubmit = async (parentAuthor: string, parentPermlink: string, body: string) => {
     if (onSubmitComment) {
       try {
-        await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        // If callback returns false, the operation was cancelled (e.g. keychain denied) — preserve text
+        if (result === false) return false;
         setActiveReplyKey(null);
         setIsRefreshing(true);
         setTimeout(async () => { await fetchComments(true); }, 3000);

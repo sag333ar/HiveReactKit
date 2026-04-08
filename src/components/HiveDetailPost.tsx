@@ -37,7 +37,12 @@ export interface HiveDetailPostProps {
 
   // PostActionButton callbacks
   onUpvote?: (percent: number) => void | Promise<void>;
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
+  /**
+   * Called when the user submits a comment.
+   * Return `false` to indicate the operation was cancelled (e.g. keychain request denied)
+   * — the composed text will be preserved and no refresh will occur.
+   */
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   onShare?: () => void;
@@ -55,7 +60,12 @@ export interface HiveDetailPostProps {
    * @param permlink - post permlink
    * @param choiceNums - 1-based choice numbers selected by the user
    */
-  onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | Promise<void>;
+  /**
+   * Called when the user submits a poll vote.
+   * Return `false` to indicate the operation was cancelled (e.g. keychain request denied)
+   * — the vote UI will not be updated.
+   */
+  onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | boolean | Promise<void | boolean>;
 
   // Composer tokens
   ecencyToken?: string;
@@ -166,6 +176,7 @@ export function HiveDetailPost({
   const [poll, setPoll] = useState<Poll | null>(null);
   const [pollLoading, setPollLoading] = useState(false);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
+  const postBodyRef = useRef<HTMLDivElement>(null);
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [votedChoices, setVotedChoices] = useState<number[]>([]);
@@ -231,6 +242,41 @@ export function HiveDetailPost({
       return '';
     }
   }, [post?.body, renderMarkdown]);
+
+  // Fallback for broken images: strip proxy/gateway prefix and retry with the original URL
+  useEffect(() => {
+    const container = postBodyRef.current;
+    if (!container) return;
+    const handleError = (e: Event) => {
+      const img = e.target as HTMLImageElement;
+      if (img.tagName !== 'IMG' || img.dataset.fallbackAttempted) return;
+      img.dataset.fallbackAttempted = 'true';
+      const src = img.getAttribute('src') || '';
+      // Try stripping known proxy/gateway prefixes to get the original URL
+      const proxyPatterns = [
+        /^https:\/\/images\.hive\.blog\/\d+x\d+\//,
+        /^https:\/\/images\.hive\.blog\/DQm[^/]*\//,
+        /^https:\/\/images\.ecency\.com\/\d+x\d+\//,
+        /^https:\/\/ipfs\.io\/ipfs\//,
+        /^https:\/\/ipfs\.3speak\.tv\/ipfs\//,
+      ];
+      for (const pattern of proxyPatterns) {
+        if (pattern.test(src)) {
+          const original = src.replace(pattern, '');
+          if (original.startsWith('http')) {
+            img.src = original;
+            return;
+          }
+        }
+      }
+      // If src is already a direct URL or no proxy matched, hide the broken image
+      img.style.display = 'none';
+      const figcaption = img.closest('figure')?.querySelector('figcaption');
+      if (figcaption) figcaption.style.display = 'none';
+    };
+    container.addEventListener('error', handleError, true);
+    return () => container.removeEventListener('error', handleError, true);
+  }, [renderedBody]);
 
   // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
   // Cast via unknown so the runtime string check works despite the Post type saying object.
@@ -585,6 +631,7 @@ export function HiveDetailPost({
             <div className="pb-6">
               {renderedBody ? (
                 <div
+                  ref={postBodyRef}
                   className="hive-post-body"
                   dangerouslySetInnerHTML={{ __html: renderedBody }}
                 />
@@ -631,7 +678,8 @@ export function HiveDetailPost({
                   // Single choice, first vote — vote immediately
                   setIsSubmittingVote(true);
                   try {
-                    await onVotePoll?.(post!.author, post!.permlink, [choiceNum]);
+                    const result = await Promise.resolve(onVotePoll?.(post!.author, post!.permlink, [choiceNum]));
+                    if (result === false) return; // cancelled — don't update UI
                     setVotedChoices([choiceNum]);
                   } finally {
                     setIsSubmittingVote(false);
@@ -650,7 +698,8 @@ export function HiveDetailPost({
                 if (!showVoteUI || isSubmittingVote || selectedChoices.length === 0) return;
                 setIsSubmittingVote(true);
                 try {
-                  await onVotePoll?.(post!.author, post!.permlink, selectedChoices);
+                  const result = await Promise.resolve(onVotePoll?.(post!.author, post!.permlink, selectedChoices));
+                  if (result === false) return; // cancelled — keep selections, don't mark as voted
                   setVotedChoices(selectedChoices);
                   setSelectedChoices([]);
                 } finally {
