@@ -1913,7 +1913,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               type="range"
               min={0}
               max={100}
-              step={5}
+              step={1}
               value={voteWeight}
               onChange={(e) => setVoteWeight(Number(e.target.value))}
               className="w-full h-2 rounded-full appearance-none cursor-pointer"
