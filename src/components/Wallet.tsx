@@ -11,7 +11,7 @@ import {
   FaChevronDown,
 } from "react-icons/fa";
 import { useWalletStore, SUPPORTED_CURRENCIES } from "../store/walletStore";
-import type { Transaction } from "../types/wallet";
+import type { Transaction, WalletData } from "../types/wallet";
 
 interface WalletProps {
   username?: string;
@@ -105,14 +105,16 @@ const CurrencyDropdown: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Build ordered currency list: USD first, local currency second, then rest
+  // Build ordered currency list: USD first, local currency second, GTQ third, then rest
+  const pinnedCodes = ["USD", localCurrency, "GTQ"];
   const orderedCurrencies = React.useMemo(() => {
     const usd = SUPPORTED_CURRENCIES.find((c) => c.code === "USD")!;
     const local = localCurrency !== "USD" ? SUPPORTED_CURRENCIES.find((c) => c.code === localCurrency) : null;
+    const gtq = localCurrency !== "GTQ" ? SUPPORTED_CURRENCIES.find((c) => c.code === "GTQ") : null;
     const rest = SUPPORTED_CURRENCIES.filter(
-      (c) => c.code !== "USD" && c.code !== localCurrency && exchangeRates[c.code]
+      (c) => !pinnedCodes.includes(c.code) && exchangeRates[c.code]
     );
-    return [usd, ...(local ? [local] : []), ...rest];
+    return [usd, ...(local ? [local] : []), ...(gtq ? [gtq] : []), ...rest];
   }, [localCurrency, exchangeRates]);
 
   const getCurrencySymbol = (code: string): string => {
@@ -139,8 +141,8 @@ const CurrencyDropdown: React.FC = () => {
         <div className="absolute top-full mt-1 right-0 w-56 max-h-64 overflow-y-auto rounded-lg bg-gray-800 border border-gray-600 shadow-xl z-50 scrollbar-hide">
           {orderedCurrencies.map((currency, index) => (
             <React.Fragment key={currency.code}>
-              {/* Divider after local currency */}
-              {index === (localCurrency !== "USD" ? 2 : 1) && (
+              {/* Divider after pinned currencies */}
+              {index === (localCurrency !== "USD" ? 3 : 2) && (
                 <div className="border-t border-gray-600 my-1" />
               )}
               <button
@@ -162,6 +164,65 @@ const CurrencyDropdown: React.FC = () => {
               </button>
             </React.Fragment>
           ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ExpandableBalances: React.FC<{ walletData: WalletData | null }> = ({ walletData }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600"
+      >
+        <span className="font-semibold text-sm text-gray-300">All Balances</span>
+        <FaChevronDown
+          size={12}
+          className={`text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+        />
+      </button>
+      {isExpanded && (
+        <div className="ml-2 border-l-2 border-gray-700 pl-2 space-y-0">
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full flex items-center justify-center bg-blue-500/15 text-blue-400">
+                <FaWallet />
+              </div>
+              <span className="font-semibold text-sm text-gray-300">Balance</span>
+            </div>
+            <span className="font-medium text-sm text-blue-300">{walletData?.balance ?? "-"}</span>
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full flex items-center justify-center bg-amber-500/15 text-amber-400">
+                <FaPiggyBank />
+              </div>
+              <span className="font-semibold text-sm text-gray-300">Savings Balance</span>
+            </div>
+            <span className="font-medium text-sm text-amber-300">{walletData?.savings_balance ?? "-"}</span>
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-400">
+                <FaCoins />
+              </div>
+              <span className="font-semibold text-sm text-gray-300">Savings HBD</span>
+            </div>
+            <span className="font-medium text-sm text-purple-300">{walletData?.savings_hbd_balance ?? "-"}</span>
+          </div>
+          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full flex items-center justify-center bg-orange-500/15 text-orange-400">
+                <FaBolt />
+              </div>
+              <span className="font-semibold text-sm text-gray-300">Hive Power</span>
+            </div>
+            <span className="font-medium text-sm text-orange-300">{walletData?.hive_power ?? "-"}</span>
+          </div>
         </div>
       )}
     </div>
@@ -244,14 +305,6 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
         )}
 
         <WalletTile
-          label="Balance"
-          value={walletData?.balance}
-          icon={<FaWallet />}
-          iconBgClass="bg-blue-500/15"
-          iconTextClass="text-blue-400"
-          valueClass="text-blue-300"
-        />
-        <WalletTile
           label="HBD Balance"
           value={walletData?.hbd_balance}
           icon={<FaMoneyBill />}
@@ -259,29 +312,10 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
           iconTextClass="text-emerald-400"
           valueClass="text-emerald-300"
         />
-        <WalletTile
-          label="Savings Balance"
-          value={walletData?.savings_balance}
-          icon={<FaPiggyBank />}
-          iconBgClass="bg-amber-500/15"
-          iconTextClass="text-amber-400"
-          valueClass="text-amber-300"
-        />
-        <WalletTile
-          label="Savings HBD"
-          value={walletData?.savings_hbd_balance}
-          icon={<FaCoins />}
-          iconBgClass="bg-purple-500/15"
-          iconTextClass="text-purple-400"
-          valueClass="text-purple-300"
-        />
-        <WalletTile
-          label="Hive Power"
-          value={walletData?.hive_power}
-          icon={<FaBolt />}
-          iconBgClass="bg-orange-500/15"
-          iconTextClass="text-orange-400"
-          valueClass="text-orange-300"
+
+        {/* Expandable All Balances */}
+        <ExpandableBalances
+          walletData={walletData}
         />
 
         {/* Transaction History */}

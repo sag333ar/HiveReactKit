@@ -34,17 +34,36 @@ const convertVestingSharesToHiveData = async (vestingShares: string) => {
   }
 };
 
+const getFeedHistory = async () => {
+  const feedHistory = await dhiveClient.database.call("get_feed_history", []);
+  const currentMedian = feedHistory.current_median_history;
+  // base: "0.059 HBD", quote: "1.000 HIVE" → 1 HBD = quote/base = 1.000/0.059 ≈ 16.95 HIVE
+  const baseAmount = parseFloat(currentMedian.base.split(" ")[0]);
+  const quoteAmount = parseFloat(currentMedian.quote.split(" ")[0]);
+  return { baseAmount, quoteAmount };
+};
+
 const convertHivetoUSDData = async (hiveAmount: string | number) => {
   try {
-    const feedHistory = await dhiveClient.database.call("get_feed_history", []);
-    const currentMedian = feedHistory.current_median_history;
-    const baseAmount = parseFloat(currentMedian.base.split(" ")[0]);
+    const { baseAmount } = await getFeedHistory();
     const hiveAmountFloat =
       typeof hiveAmount === "string" ? parseFloat(hiveAmount) : hiveAmount;
     return (baseAmount * hiveAmountFloat).toFixed(2);
   } catch (error) {
     console.error("Error in convertHivetoUSDData:", error);
     return "0";
+  }
+};
+
+// Convert HBD to HIVE using feed price: 1 HBD = quote / base HIVE
+const convertHBDtoHive = async (hbdAmount: number): Promise<number> => {
+  try {
+    const { baseAmount, quoteAmount } = await getFeedHistory();
+    if (baseAmount === 0) return 0;
+    return (hbdAmount * quoteAmount) / baseAmount;
+  } catch (error) {
+    console.error("Error in convertHBDtoHive:", error);
+    return 0;
   }
 };
 
@@ -161,6 +180,7 @@ const SUPPORTED_CURRENCIES: { code: string; name: string }[] = [
   { code: "VND", name: "Vietnamese Dong" },
   { code: "PKR", name: "Pakistani Rupee" },
   { code: "BDT", name: "Bangladeshi Taka" },
+  { code: "GTQ", name: "Guatemalan Quetzal" },
   { code: "NGN", name: "Nigerian Naira" },
   { code: "EGP", name: "Egyptian Pound" },
   { code: "KES", name: "Kenyan Shilling" },
@@ -326,7 +346,15 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const liquidHive = parseFloat(balance.split(" ")[0] || "0");
       const stakedHive = parseFloat(hivePower);
-      const totalHive = (liquidHive + stakedHive).toFixed(3);
+
+      // Convert HBD balances to HIVE using feed price
+      const liquidHBD = parseFloat(hbdBalance.split(" ")[0] || "0");
+      const savingsHBD = parseFloat(savingsHbdBalance.split(" ")[0] || "0");
+      const totalHBD = liquidHBD + savingsHBD;
+      const hbdAsHive = await convertHBDtoHive(totalHBD);
+
+      // Total HIVE = liquid + staked + HBD converted to HIVE
+      const totalHive = (liquidHive + stakedHive + hbdAsHive).toFixed(3);
 
       const estimatedHiveUSD = await convertHivetoUSDData(totalHive);
       const usdValue = parseFloat(estimatedHiveUSD);
