@@ -27,6 +27,8 @@ import {
   Shield,
   Gauge,
   Heart,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -188,6 +190,9 @@ const extractPlainText = (body: string): string => {
   return text;
 };
 
+// ─── Module-level cache (persists across mount/unmount) ──────────────────────
+const profileStateCache: Record<string, { tab: TabType; scrollTop: number; tabScrollLeft: number }> = {};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
@@ -231,6 +236,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("blogs"); // will be corrected in useEffect
+  const prevUsernameRef = useRef<string>("");
+  const activeTabRef = useRef<TabType>(activeTab);
+  activeTabRef.current = activeTab;
+  const mainScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Content states
   const [blogs, setBlogs] = useState<Post[]>([]);
@@ -287,17 +296,32 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   }, []);
 
   useEffect(() => {
-    const el = tabScrollRef.current;
-    if (!el) return;
-    updateTabScrollArrows();
-    el.addEventListener("scroll", updateTabScrollArrows);
-    const ro = new ResizeObserver(updateTabScrollArrows);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", updateTabScrollArrows);
-      ro.disconnect();
+    // Retry until tabScrollRef is available (tab bar may render after cover image)
+    let retryTimer: ReturnType<typeof setTimeout>;
+    const trySetup = () => {
+      const el = tabScrollRef.current;
+      if (!el) {
+        retryTimer = setTimeout(trySetup, 100);
+        return;
+      }
+      updateTabScrollArrows();
+      el.addEventListener("scroll", updateTabScrollArrows);
+      window.addEventListener("resize", updateTabScrollArrows);
+      const ro = new ResizeObserver(updateTabScrollArrows);
+      ro.observe(el);
+      cleanupRef.current = () => {
+        el.removeEventListener("scroll", updateTabScrollArrows);
+        window.removeEventListener("resize", updateTabScrollArrows);
+        ro.disconnect();
+      };
     };
-  }, [updateTabScrollArrows]);
+    const cleanupRef = { current: () => {} };
+    trySetup();
+    return () => {
+      clearTimeout(retryTimer);
+      cleanupRef.current();
+    };
+  }, [updateTabScrollArrows, tabShown, activeTab]);
 
   const scrollTabs = useCallback((direction: "left" | "right") => {
     const el = tabScrollRef.current;
@@ -459,15 +483,50 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setReplies([]);
     setFollowers([]);
     setFollowing([]);
-    // First tab in tabShown is the default; if no tabShown, default to "blogs"
+    // Save previous profile's tab + scroll state
+    if (prevUsernameRef.current && prevUsernameRef.current !== targetUsername) {
+      profileStateCache[prevUsernameRef.current] = {
+        tab: activeTab,
+        scrollTop: mainScrollRef.current?.scrollTop || 0,
+        tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
+      };
+    }
+    prevUsernameRef.current = targetUsername;
+
+    // Restore if visited before, otherwise default to first tab
+    const cached = profileStateCache[targetUsername];
     const firstTab = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
-    setActiveTab(firstTab);
+    setActiveTab(cached?.tab || firstTab);
+    // Restore scroll positions after render
+    requestAnimationFrame(() => {
+      if (cached) {
+        mainScrollRef.current?.scrollTo({ top: cached.scrollTop });
+        tabScrollRef.current?.scrollTo({ left: cached.tabScrollLeft });
+      } else {
+        mainScrollRef.current?.scrollTo({ top: 0 });
+        tabScrollRef.current?.scrollTo({ left: 0 });
+      }
+    });
     setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false });
     setBadges([]);
     setWitnessVotes([]);
     setVotingPowerData(null);
     setVoteWeight(100);
   }, [targetUsername]);
+
+  // Save state on unmount (e.g. navigating to HiveDetailPost)
+  useEffect(() => {
+    return () => {
+      const user = prevUsernameRef.current;
+      if (user) {
+        profileStateCache[user] = {
+          tab: activeTabRef.current,
+          scrollTop: mainScrollRef.current?.scrollTop || 0,
+          tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
+        };
+      }
+    };
+  }, []);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
 
@@ -1100,7 +1159,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (hbdPercent === 0) {
       tooltipLines.push("Hive Rewards Payout 100% Powered Up");
     } else {
-      tooltipLines.push(`Hive Rewards Payout (${(hbdPercent / 200).toFixed(0)}%/${100 - (hbdPercent / 200)  }%)`);
+      tooltipLines.push(`Hive Rewards Payout (${(hbdPercent / 200).toFixed(0)}%/${100 - (hbdPercent / 200)}%)`);
     }
 
     if (item.is_paidout) {
@@ -1180,7 +1239,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             {/* Title */}
             {item.title && (
               <button
-                onClick={() => onPostClick?.(item.author, item.permlink, item.title)}
+                onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
                 className="text-left text-base font-semibold text-white mb-1 line-clamp-2 hover:text-blue-400"
               >
                 {item.title}
@@ -2041,8 +2100,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // If not provided, show all tabs in default order.
   const tabs = tabShown && tabShown.length > 0
     ? tabShown
-        .map((id) => allTabs.find((t) => t.id === id))
-        .filter((t): t is { id: TabType; label: string; icon: any } => t !== undefined)
+      .map((id) => allTabs.find((t) => t.id === id))
+      .filter((t): t is { id: TabType; label: string; icon: any } => t !== undefined)
     : allTabs;
 
   const showActions = currentUsername && currentUsername !== targetUsername;
@@ -2051,233 +2110,245 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   return (
     <div className="dark flex flex-col h-full bg-gray-900">
-      <div className="flex flex-col overflow-y-auto h-full scrollbar-hide">
+      <div ref={mainScrollRef} className="flex flex-col overflow-y-auto h-full scrollbar-hide">
 
-      {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
-      <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
-        <div className="px-4 py-2 flex items-center gap-2 w-full">
-          {/* Back */}
-          {showBackButton && onBack && (
-            <button
-              onClick={onBack}
-              className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-300" />
-            </button>
-          )}
-
-          {/* Avatar */}
-          <img
-            src={
-              profile.profileImage ||
-              `https://images.hive.blog/u/${targetUsername}/avatar`
-            }
-            alt={targetUsername}
-            className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-700"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
-            }}
-          />
-
-          {/* Name + Stats inline */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-semibold text-white truncate">
-                {`@${targetUsername}`}
-              </h1>
-              {profile.reputation > 0 && (
-                <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                  {formatReputation(profile.reputation)}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-[11px] text-gray-400">
-              <button onClick={() => setActiveTab("followers")} className="hover:text-white transition-colors">
-                <span className="font-semibold text-gray-200">{profile.followersCount.toLocaleString()}</span> Followers
-              </button>
-              <button onClick={() => setActiveTab("following")} className="hover:text-white transition-colors">
-                <span className="font-semibold text-gray-200">{profile.followingCount.toLocaleString()}</span> Following
-              </button>
-              <span>
-                <span className="font-semibold text-gray-200">{profile.postsCount.toLocaleString()}</span> Posts
-              </span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {onFavouriteList && (
+        {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
+        <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
+          <div className="px-4 py-2 flex items-center gap-2 w-full">
+            {/* Back */}
+            {showBackButton && onBack && (
               <button
-                onClick={handleFavouriteList}
-                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors relative"
-                title="Favourite list"
+                onClick={onBack}
+                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
               >
-                <Heart className={`h-4 w-4 ${isFavourited ? 'text-red-500' : 'text-gray-400'}`} fill={isFavourited ? 'currentColor' : 'none'} />
-                {favouriteCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                    {favouriteCount > 99 ? '99+' : favouriteCount}
-                  </span>
-                )}
+                <ArrowLeft className="h-5 w-5 text-gray-300" />
               </button>
             )}
-            <button
-              onClick={handleShare}
-              className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Share profile"
-            >
-              <Share2 className="h-4 w-4 text-gray-400" />
-            </button>
-            {showActions && (
+
+            {/* Avatar */}
+            <img
+              src={
+                profile.profileImage ||
+                `https://images.hive.blog/u/${targetUsername}/avatar`
+              }
+              alt={targetUsername}
+              className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-700 object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+              }}
+            />
+
+            {/* Name inline */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold text-white truncate">
+                  {`@${targetUsername}`}
+                </h1>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {onFavouriteList && (
+                <button
+                  onClick={handleFavouriteList}
+                  className="p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors relative"
+                  title="Favourite list"
+                >
+                  <Heart className={`h-4 w-4 ${isFavourited ? 'text-red-500' : 'text-white'}`} fill={isFavourited ? 'currentColor' : 'none'} />
+                  {favouriteCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                      {favouriteCount > 99 ? '99+' : favouriteCount}
+                    </span>
+                  )}
+                </button>
+              )}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowActionDropdown((prev) => !prev)}
-                  className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors"
+                  className="p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors"
                   title="More actions"
                 >
-                  <MoreVertical className="h-4 w-4 text-gray-400" />
+                  <MoreVertical className="h-4 w-4 text-white" />
                 </button>
                 {showActionDropdown && (
                   <div
                     className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 shadow-xl z-[100]"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {(onFollow || onUnfollow) && (
+                    {showActions && (onFollow || onUnfollow) && (
                       <button
                         onClick={() => {
                           setShowActionDropdown(false);
                           handleFollowToggle();
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50 first:rounded-t-lg"
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
                       >
-                        {profile.isFollowing ? "Unfollow" : "Follow"}
+                        <span className="flex items-center gap-2">
+                          {profile.isFollowing ? <UserMinus className="h-4 w-4 text-red-400" /> : <UserPlus className="h-4 w-4 text-green-400" />}
+                          {profile.isFollowing ? "Unfollow" : "Follow"}
+                        </span>
                       </button>
                     )}
-                    {onIgnoreAuthor && (
+                    {showActions && onIgnoreAuthor && (
                       <button
                         onClick={() => {
                           setShowActionDropdown(false);
                           setShowIgnoreConfirm(true);
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-900/20 disabled:opacity-50"
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50"
                       >
                         <span className="flex items-center gap-2">
-                          <Ban className="h-4 w-4" /> Ignore Author
+                          <Ban className="h-4 w-4 text-red-400" /> Ignore Author
                         </span>
                       </button>
                     )}
-                    {onReportUser && (
+                    {showActions && onReportUser && (
                       <button
                         onClick={() => {
                           setShowActionDropdown(false);
                           setShowReportModal(true);
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-orange-400 hover:bg-orange-900/20 disabled:opacity-50 last:rounded-b-lg"
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50 last:rounded-b-lg"
                       >
                         <span className="flex items-center gap-2">
-                          <Flag className="h-4 w-4" /> Report User
+                          <Flag className="h-4 w-4 text-orange-400" /> Report User
                         </span>
                       </button>
                     )}
+                    <button
+                      onClick={() => {
+                        setShowActionDropdown(false);
+                        handleShare();
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 first:rounded-t-lg"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Share2 className="h-4 w-4 text-blue-400" /> Share Profile
+                      </span>
+                    </button>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
-      </div>
 
-        {/* Cover image with profile details overlay */}
+        {/* Cover image with profile details overlaid */}
         <div className="relative">
-          {/* Cover image — compact height */}
+          {/* Cover image */}
           {profile.coverImage ? (
             <div
-              className="w-full h-24 sm:h-32 bg-cover bg-center"
+              className={`w-full bg-cover bg-center sm:h-52 md:h-60 ${(profile.about?.length ?? 0) > 50 ? "h-52" : "h-44"}`}
               style={{ backgroundImage: `url(${profile.coverImage})` }}
             />
           ) : (
-            <div className="w-full h-24 sm:h-32 bg-gradient-to-r from-blue-600 to-purple-700" />
+            <div className={`w-full bg-gradient-to-r from-blue-600 to-purple-700 sm:h-52 md:h-60 ${(profile.about?.length ?? 0) > 50 ? "h-52" : "h-44"}`} />
           )}
           {/* Dark overlay for readability */}
-          <div className="absolute inset-0 bg-gray-900/80" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
+
+          {/* Favourite button on cover */}
+          {onAddToFavourite && (
+            <button
+              onClick={handleAddToFavourite}
+              className="absolute top-3 right-3 p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors z-10"
+              title={isFavourited ? "Remove from favourites" : "Add to favourites"}
+            >
+              <Heart className={`h-5 w-5 ${isFavourited ? 'text-red-500' : 'text-white'}`} fill={isFavourited ? 'currentColor' : 'none'} />
+            </button>
+          )}
 
           {/* Profile details overlaid on cover */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-sm font-semibold text-white truncate">
-                  {profile.name || `@${targetUsername}`}
+          <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4">
+            <div className="flex items-end gap-3 sm:gap-4">
+              {/* Avatar */}
+              <img
+                src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
+                alt={targetUsername}
+                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover flex-shrink-0"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                }}
+              />
+              {/* Name + details */}
+              <div className="flex-1 min-w-0 pb-0.5">
+                <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate drop-shadow-md">
+                  {profile.name || targetUsername}
+                  <span className="text-xs sm:text-sm text-gray-300 drop-shadow-md"> (@{targetUsername})</span>
                 </h2>
                 {profile.about && (
-                  <p className="text-gray-300 text-xs leading-relaxed mt-1 line-clamp-2">
+                  <p className="text-gray-200 text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
                     {profile.about}
                   </p>
                 )}
+                {profile.location && (
+                  <span className="flex items-center gap-1 text-gray-300 text-xs mt-1 drop-shadow-md whitespace-nowrap">
+                    <MapPin className="h-3 w-3 text-rose-400 flex-shrink-0" /> {profile.location.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()}
+                  </span>
+                )}
               </div>
-              {onAddToFavourite && (
-                <button
-                  onClick={handleAddToFavourite}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-2 flex-shrink-0"
-                  title={isFavourited ? "Remove from favourites" : "Add to favourites"}
-                >
-                  <Heart className={`h-5 w-5 ${isFavourited ? 'text-red-500' : 'text-white'}`} fill={isFavourited ? 'currentColor' : 'none'} />
-                </button>
-              )}
             </div>
             {/* Meta info row */}
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-gray-300">
-              {profile.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-rose-400" /> {profile.location}
-                </span>
-              )}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-gray-200">
               {profile.website && (
                 <a
                   href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-400 hover:underline"
+                  className="flex items-center gap-1 text-blue-300 hover:underline drop-shadow-md"
                 >
                   <Globe className="h-3 w-3 text-blue-400" /> {profile.website}
                 </a>
               )}
               {profile.created && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 drop-shadow-md">
                   <Calendar className="h-3 w-3 text-green-400" /> {formatDate(profile.created)}
                 </span>
               )}
               {profile.lastActivity && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 drop-shadow-md">
                   <Clock className="h-3 w-3 text-amber-400" /> {formatTimeAgo(profile.lastActivity)}
                 </span>
               )}
               {profile.votingPower !== undefined && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 drop-shadow-md">
                   <Zap className="h-3 w-3 text-yellow-400" /> VP {profile.votingPower.toFixed(1)}%
                 </span>
               )}
               {profile.hivePower !== undefined && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 drop-shadow-md">
                   <Zap className="h-3 w-3 text-orange-400" /> HP {profile.hivePower.toFixed(0)}
                 </span>
               )}
+            </div>
+            {/* Followers / Following / Posts */}
+            <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-gray-200">
+              <button onClick={() => setActiveTab("followers")} className="hover:text-white transition-colors drop-shadow-md">
+                <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> Followers
+              </button>
+              <button onClick={() => setActiveTab("following")} className="hover:text-white transition-colors drop-shadow-md">
+                <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> Following
+              </button>
+              <span className="drop-shadow-md">
+                <span className="font-semibold">{profile.postsCount.toLocaleString()}</span> Posts
+              </span>
             </div>
           </div>
         </div>
 
         {/* ── Tab bar — sticks below header on scroll ── */}
         <div className="sticky top-[56px] z-20 bg-gray-800 border-b border-gray-700 relative flex items-center">
-          {canScrollLeft && (
-            <button
-              onClick={() => scrollTabs("left")}
-              className="absolute left-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4 text-white" />
-            </button>
-          )}
-          <div ref={tabScrollRef} className="flex overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => scrollTabs("left")}
+            className={`absolute left-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-all ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+          >
+            <ChevronLeft className="h-4 w-4 text-white" />
+          </button>
+          <div ref={tabScrollRef} className="flex overflow-x-auto scrollbar-hide px-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -2296,14 +2367,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               );
             })}
           </div>
-          {canScrollRight && (
-            <button
-              onClick={() => scrollTabs("right")}
-              className="absolute right-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-colors"
-            >
-              <ChevronRight className="h-4 w-4 text-white" />
-            </button>
-          )}
+          <button
+            onClick={() => scrollTabs("right")}
+            className={`absolute right-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-all ${canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+          >
+            <ChevronRight className="h-4 w-4 text-white" />
+          </button>
         </div>
 
         {/* ── Tab content ── */}
@@ -2344,84 +2413,77 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               )}
             </div>
           )}
-
-          {/* End of list indicator */}
-          {activeTab !== "wallet" && !hasMore[activeTab] && !loadingContent && (
-            <div className="text-center py-4 text-xs text-gray-600">
-              No more {activeTab} to load
-            </div>
-          )}
         </div>
 
-      {/* ── Ignore Confirmation Modal ── */}
-      {showIgnoreConfirm && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
-          onClick={() => setShowIgnoreConfirm(false)}
-        >
+        {/* ── Ignore Confirmation Modal ── */}
+        {showIgnoreConfirm && (
           <div
-            className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4"
+            onClick={() => setShowIgnoreConfirm(false)}
           >
-            <h3 className="text-lg font-semibold text-white mb-2">
-              Ignore Author
-            </h3>
-            <p className="text-sm text-gray-300 mb-6">
-              Are you sure you want to ignore{" "}
-              <span className="text-red-400 font-medium">@{targetUsername}</span>?
-              Their content will be hidden from your feed.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowIgnoreConfirm(false)}
-                disabled={actionLoading}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleIgnore}
-                disabled={actionLoading}
-                className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-              >
-                {actionLoading ? "Processing..." : "Confirm Ignore"}
-              </button>
+            <div
+              className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Ignore Author
+              </h3>
+              <p className="text-sm text-gray-300 mb-6">
+                Are you sure you want to ignore{" "}
+                <span className="text-red-400 font-medium">@{targetUsername}</span>?
+                Their content will be hidden from your feed.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowIgnoreConfirm(false)}
+                  disabled={actionLoading}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleIgnore}
+                  disabled={actionLoading}
+                  className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {actionLoading ? "Processing..." : "Confirm Ignore"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Report User Modal ── */}
-      <ReportModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        onReport={handleReport}
-        reportType="user"
-        targetUsername={targetUsername}
-      />
+        {/* ── Report User Modal ── */}
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          onReport={handleReport}
+          reportType="user"
+          targetUsername={targetUsername}
+        />
 
-      {/* ── Report Post Modal ── */}
-      <ReportModal
-        isOpen={!!reportPostTarget}
-        onClose={() => setReportPostTarget(null)}
-        onReport={async (reason) => {
-          if (reportPostTarget && onReportPost) {
-            await onReportPost(reportPostTarget.author, reportPostTarget.permlink, reason);
-            const match = (p: { author: string; permlink: string }) =>
-              p.author === reportPostTarget.author && p.permlink === reportPostTarget.permlink;
-            setBlogs((prev) => prev.filter((p) => !match(p)));
-            setPosts((prev) => prev.filter((p) => !match(p)));
-            setSnaps((prev) => prev.filter((p) => !match(p)));
-            setComments((prev) => prev.filter((p) => !match(p)));
-            setReplies((prev) => prev.filter((p) => !match(p)));
-            setPolls((prev) => prev.filter((p) => !match(p)));
-          }
-          setReportPostTarget(null);
-        }}
-        reportType="post"
-        targetUsername={reportPostTarget?.author || ""}
-        targetPermlink={reportPostTarget?.permlink}
-      />
+        {/* ── Report Post Modal ── */}
+        <ReportModal
+          isOpen={!!reportPostTarget}
+          onClose={() => setReportPostTarget(null)}
+          onReport={async (reason) => {
+            if (reportPostTarget && onReportPost) {
+              await onReportPost(reportPostTarget.author, reportPostTarget.permlink, reason);
+              const match = (p: { author: string; permlink: string }) =>
+                p.author === reportPostTarget.author && p.permlink === reportPostTarget.permlink;
+              setBlogs((prev) => prev.filter((p) => !match(p)));
+              setPosts((prev) => prev.filter((p) => !match(p)));
+              setSnaps((prev) => prev.filter((p) => !match(p)));
+              setComments((prev) => prev.filter((p) => !match(p)));
+              setReplies((prev) => prev.filter((p) => !match(p)));
+              setPolls((prev) => prev.filter((p) => !match(p)));
+            }
+            setReportPostTarget(null);
+          }}
+          reportType="post"
+          targetUsername={reportPostTarget?.author || ""}
+          targetPermlink={reportPostTarget?.permlink}
+        />
 
       </div>{/* end scroll container */}
     </div>

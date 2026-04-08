@@ -97,16 +97,16 @@ const UserDetailProfilePage = () => {
           navigator.clipboard.writeText(url);
           alert(`Profile link copied: ${url}`);
         }}
-        onFavouriteList={() => {
-          console.log("[Callback] Favourite List");
-          alert("Open Favourite List");
-        }}
-        onAddToFavourite={(user) => {
-          console.log("[Callback] Add to Favourite:", user);
-          setIsFavourited(prev => !prev);
-        }}
-        isFavourited={isFavourited}
-        favouriteCount={5}
+        // onFavouriteList={() => {
+        //   console.log("[Callback] Favourite List");
+        //   alert("Open Favourite List");
+        // }}
+        // onAddToFavourite={(user) => {
+        //   console.log("[Callback] Add to Favourite:", user);
+        //   setIsFavourited(prev => !prev);
+        // }}
+        // isFavourited={isFavourited}
+        // favouriteCount={5}
       />
     </div>
   );

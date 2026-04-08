@@ -526,7 +526,7 @@ export function HiveDetailPost({
             <img
               src={profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`}
               alt={post.author}
-              className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-700 cursor-pointer"
+              className="w-10 h-10 rounded-full flex-shrink-0 bg-gray-700 object-cover cursor-pointer"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
               }}
@@ -542,25 +542,7 @@ export function HiveDetailPost({
                 >
                   @{post.author}
                 </button>
-                {profile && profile.reputation > 0 && (
-                  <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                    {formatReputation(profile.reputation)}
-                  </span>
-                )}
               </div>
-              {profile && (
-                <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                  <span>
-                    <span className="font-semibold text-gray-200">{profile.followersCount.toLocaleString()}</span> Followers
-                  </span>
-                  <span>
-                    <span className="font-semibold text-gray-200">{profile.followingCount.toLocaleString()}</span> Following
-                  </span>
-                  <span>
-                    <span className="font-semibold text-gray-200">{profile.postsCount.toLocaleString()}</span> Posts
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>
