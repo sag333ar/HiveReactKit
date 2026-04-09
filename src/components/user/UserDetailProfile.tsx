@@ -713,8 +713,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 feedPrice = base / quote;
               }
 
+              const clampedUpvotePower = Math.min(upvotePower, 100);
               setVotingPowerData({
-                upvotePower: Math.min(upvotePower, 100),
+                upvotePower: clampedUpvotePower,
                 downvotePower: Math.min(downvotePower, 100),
                 resourceCredits: Math.min(resourceCredits, 100),
                 maxMana,
@@ -722,6 +723,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 recentClaims,
                 feedPrice,
               });
+              // Set slider to user's current voting power
+              setVoteWeight(parseFloat(clampedUpvotePower.toFixed(2)));
             }
             break;
           }
@@ -1871,15 +1874,32 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         );
       }
 
-      // Vote value calculation (hivelytics formula)
+      // Vote value calculation
       const { maxMana, rewardBalance, recentClaims, feedPrice } = votingPowerData;
-      const weight = voteWeight * 100; // percentage → basis points
-      const rshares = maxMana * 0.02 * (weight / 10000);
+
+      // Slider represents mana level — default to user's current VP
+      const sliderPower = voteWeight; // reusing voteWeight state as the mana slider value
+      const REGEN_SECONDS = 5 * 60 * 60 * 24; // 432000s = 5 days
+
+      // Calculate vote value at current slider power (full-weight 100% vote at this mana level)
+      const rshares = maxMana * (sliderPower / 100) * 0.02;
       const hiveValue = recentClaims > 0 ? (rshares / recentClaims) * rewardBalance : 0;
       const hbdValue = hiveValue * feedPrice;
-      const lowMana = votingPowerData.upvotePower < (voteWeight * 2) / 100;
 
-      const formatVal = (n: number, d = 3) =>
+      // Recharge time from slider position to 100%
+      const rechargeSeconds = ((100 - sliderPower) / 100) * REGEN_SECONDS;
+
+      const formatRechargeTime = (totalSeconds: number): string => {
+        if (totalSeconds <= 0) return "Fully charged";
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        if (days > 0) return `Full in ${days} day${days > 1 ? "s" : ""} ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+        if (hours > 0) return `Full in ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+        return `Full in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+      };
+
+      const formatVal = (n: number, d = 2) =>
         isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
       const bars = [
@@ -1889,46 +1909,43 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       ];
       return (
         <div className="max-w-lg mx-auto space-y-6">
-          {/* Vote value slider — above bars */}
-          <div className="p-4 rounded-xl bg-gray-800 border border-gray-700">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-semibold text-gray-200">Vote Value</span>
-              <span className="text-xs font-bold text-blue-400">{voteWeight}%</span>
+          {/* Vote Value + Mana Slider (PeakD-style) */}
+          <div className="p-5 rounded-xl bg-gray-800 border border-gray-700 flex flex-col items-center">
+            {/* Vote value badge */}
+            <div className="inline-flex flex-col items-center px-5 py-2.5 rounded-full bg-blue-600/20 border border-blue-500/40 mb-5">
+              <span className="text-sm sm:text-base font-bold text-white tracking-wide">
+                VOTE VALUE: <span className="text-blue-400">${formatVal(hbdValue)}</span>
+                <span className="text-gray-400 ml-1.5">({sliderPower.toFixed(2)}%)</span>
+              </span>
+              <span className="text-xs text-gray-400 mt-1">
+                <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
+                <span className="mx-1.5">·</span>
+                <span className="text-gray-300">~{formatVal(hiveValue, 3)} HIVE</span>
+              </span>
             </div>
-            <div className="text-[13px] text-gray-400 mb-3">
-              {recentClaims > 0 ? (
-                <>
-                  <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
-                  <span className="mx-1.5">·</span>
-                  <span className="text-gray-300">~{formatVal(hiveValue)} HIVE</span>
-                  {lowMana && (
-                    <span className="ml-2 text-amber-400 text-xs">⚠ low mana</span>
-                  )}
-                </>
-              ) : (
-                <span>Vote @{voteWeight}% · —</span>
-              )}
+
+            {/* Mana slider */}
+            <div className="w-full flex items-center gap-3">
+              <span className="text-xs font-medium text-gray-400 whitespace-nowrap">0%</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={0.01}
+                value={sliderPower}
+                onChange={(e) => setVoteWeight(Number(e.target.value))}
+                className="flex-1 h-2.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                style={{
+                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${sliderPower}%, #374151 ${sliderPower}%, #374151 100%)`,
+                }}
+              />
+              <span className="text-xs font-medium text-gray-400 whitespace-nowrap">100%</span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={voteWeight}
-              onChange={(e) => setVoteWeight(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer"
-              style={{
-                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${voteWeight}%, #374151 ${voteWeight}%, #374151 100%)`,
-                accentColor: '#3b82f6',
-              }}
-            />
-            <div className="flex justify-between text-[11px] text-gray-500 mt-1">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>100%</span>
-            </div>
+
+            {/* Recharge time */}
+            <p className="mt-3 text-sm text-gray-400">
+              {formatRechargeTime(rechargeSeconds)}
+            </p>
           </div>
 
           {/* Progress bars */}
