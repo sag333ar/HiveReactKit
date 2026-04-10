@@ -7,6 +7,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { Discussion } from '@/types/comment';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
+import UpvoteListModal from '../UpvoteListModal';
 import { PostComposer } from '../comments/AddCommentInput';
 import { toast } from '@/index';
 
@@ -62,6 +63,7 @@ export default function InlineCommentItem({
   const [collapsed, setCollapsed] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
+  const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
   const [isUpvoted, setIsUpvoted] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -112,9 +114,17 @@ export default function InlineCommentItem({
   const metadata = (comment as any).json_metadata_parsed ||
     (() => { try { return comment.json_metadata ? JSON.parse(comment.json_metadata) : undefined; } catch { return undefined; } })();
 
+  // Show first tag next to username only when developer is sagarkothari88
+  const developerTag = metadata?.developer === 'sagarkothari88' && Array.isArray(metadata?.tags) && metadata.tags.length > 0
+    ? (metadata.tags[0] as string)
+    : null;
+
   // Sanitize body
   const rawBody = comment.body || '';
-  const sanitizedBody = rawBody.replace(/^(\s*(?:#[\p{L}\p{N}_-]+\s*(?:,\s*)?)+\s*)$/gimu, '').trim();
+  const sanitizedBody = rawBody
+    .replace(/<br\s*\/?>\s*\n?\s*<sub>\[via Apps from\]\(https:\/\/linktr\.ee\/sagarkothari88\)<\/sub>/gi, '')
+    .replace(/^(\s*(?:#[\p{L}\p{N}_-]+\s*(?:,\s*)?)+\s*)$/gimu, '')
+    .trim();
 
   const hasMarkdownImagesInBody = /!\[[^\]]*\]\([^)]+\)/.test(sanitizedBody) || /<img\s/i.test(sanitizedBody);
   const metadataImages: string[] = Array.isArray(metadata?.image) ? metadata.image : [];
@@ -234,6 +244,11 @@ export default function InlineCommentItem({
           {comment.author === currentUser && (
             <span className="px-1 py-0.5 text-[9px] md:text-[10px] bg-blue-900 text-blue-200 rounded-full flex-shrink-0">You</span>
           )}
+          {developerTag && (
+            <span className="px-1.5 py-0.5 text-[9px] md:text-[10px] bg-purple-900/60 text-purple-200 border border-purple-700/60 rounded-full flex-shrink-0">
+              #{developerTag}
+            </span>
+          )}
           <span className="hidden sm:flex items-center gap-1 text-xs text-gray-500 flex-shrink-0">
             <Clock className="w-3 h-3" />
             {comment.created
@@ -286,8 +301,15 @@ export default function InlineCommentItem({
                   className={`flex items-center gap-1 font-medium transition-colors ${
                     hasAlreadyVoted || isUpvoted ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'
                   }`}
+                  title="Upvote"
                 >
                   <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setShowUpvoteListModal(true)}
+                  className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors -ml-2"
+                  title="View upvotes"
+                >
                   <span>{voteCount}</span>
                 </button>
 
@@ -350,6 +372,21 @@ export default function InlineCommentItem({
                 )}
               </div>
             </div>
+
+            {/* Upvote list modal */}
+            {showUpvoteListModal && (
+              <UpvoteListModal
+                author={comment.author}
+                permlink={comment.permlink}
+                onClose={() => setShowUpvoteListModal(false)}
+                currentUser={currentUser}
+                token={token}
+                onClickUpvoteButton={() => {
+                  setShowUpvoteListModal(false);
+                  handleUpvoteClick();
+                }}
+              />
+            )}
 
             {/* Vote slider */}
             {showVoteSlider && !hasAlreadyVoted && (
