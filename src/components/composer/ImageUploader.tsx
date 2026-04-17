@@ -94,7 +94,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     if (!ecencyToken) throw new Error("Ecency token not provided");
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch("https://images.ecency.com/hss/" + ecencyToken, {
+    const response = await fetch("https://images.ecency.com/hs/" + ecencyToken, {
       method: "POST",
       headers: {
         accept: "application/json, text/plain, */*",
