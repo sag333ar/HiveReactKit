@@ -61,6 +61,7 @@ export { default as ExpensesView } from './components/landing-page/ExpensesView'
 // Hooks
 export * from './hooks/use-mobile';
 export * from './hooks/use-toast';
+export * from './hooks/useHiveImageSign';
 
 // Utils
 // Note: Add utils when available

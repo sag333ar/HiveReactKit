@@ -2,6 +2,35 @@ import React, { useRef, useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { uploadToHiveImages, type PostingSignMessageFn } from "../../services/hiveImageUpload";
 
+/** Dig a human-readable message out of whatever an upload helper (or provider SDK) might throw. */
+function extractUploadErrorMessage(err: unknown): string {
+  if (err == null) return "Failed to upload image";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) {
+    if (err.message && err.message !== "[object Object]") return err.message;
+    // Error whose message was built from an object — peek at common fields or stringify the cause.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyErr = err as any;
+    if (anyErr.cause) return extractUploadErrorMessage(anyErr.cause);
+    if (typeof anyErr.error === "string") return anyErr.error;
+    if (anyErr.error && typeof anyErr.error === "object") return extractUploadErrorMessage(anyErr.error);
+  }
+  if (typeof err === "object") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyErr = err as any;
+    if (typeof anyErr.message === "string" && anyErr.message !== "[object Object]") return anyErr.message;
+    if (typeof anyErr.error === "string") return anyErr.error;
+    if (anyErr.cmd === "sign_nack" || anyErr.cmd === "auth_nack") return "Request rejected in wallet";
+    if (anyErr.cmd === "sign_err" || anyErr.cmd === "auth_err") return typeof anyErr.error === "string" ? anyErr.error : "Wallet error";
+    if (anyErr.data && typeof anyErr.data.msg === "string") return anyErr.data.msg;
+    try {
+      const str = JSON.stringify(err);
+      if (str && str !== "{}") return str;
+    } catch { /* fallthrough */ }
+  }
+  return "Failed to upload image";
+}
+
 export interface ImageUploaderProps {
   /** Called with the uploaded image URL */
   onImageUploaded: (imageUrl: string) => void;
@@ -11,18 +40,43 @@ export interface ImageUploaderProps {
   onSignMessage?: PostingSignMessageFn;
   /** Hive username used for the signed images.hive.blog fallback upload. */
   signingUsername?: string;
+  /** Fires true while the caller's wallet signer is running (wallet approval window). */
+  onSigningStateChange?: (isSigning: boolean) => void;
+  /** Text shown in blinking amber while waiting for wallet approval during the hive image fallback. */
+  walletApprovalLabel?: string;
   disabled?: boolean;
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyToken, onSignMessage, signingUsername, disabled = false }) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({
+  onImageUploaded,
+  ecencyToken,
+  onSignMessage,
+  signingUsername,
+  onSigningStateChange,
+  walletApprovalLabel = 'Open Keychain App & Approve',
+  disabled = false,
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
+
+  const cancelInFlight = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsAwaitingApproval(false);
+    onSigningStateChange?.(false);
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    // Abort any prior in-flight upload before starting a new one.
+    cancelInFlight();
     if (!file.type.startsWith("image/")) {
       setError("Please select an image file");
       return;
@@ -36,11 +90,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
     uploadImage(file);
   };
 
-  const uploadToEcency = async (file: File): Promise<string> => {
+  const uploadToEcency = async (file: File, signal: AbortSignal): Promise<string> => {
     if (!ecencyToken) throw new Error("Ecency token not provided");
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch("https://images.ecency.com/hs/" + ecencyToken, {
+    const response = await fetch("https://images.ecency.com/hss/" + ecencyToken, {
       method: "POST",
       headers: {
         accept: "application/json, text/plain, */*",
@@ -48,6 +102,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
         referer: "https://ecency.com/",
       },
       body: formData,
+      signal,
     });
     if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
     const data = await response.json();
@@ -56,6 +111,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
   };
 
   const uploadImage = async (file: File) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const signal = controller.signal;
     setIsUploading(true);
     setError(null);
     try {
@@ -66,28 +124,34 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
 
       let url: string;
       try {
-        url = await uploadToEcency(file);
+        url = await uploadToEcency(file, signal);
       } catch (ecencyErr) {
+        if (signal.aborted) return;
         if (!canHiveFallback) throw ecencyErr;
-        try {
-          url = await uploadToHiveImages(onSignMessage!, signingUsername!, file);
-        } catch (hiveErr) {
-          const ecencyMsg = ecencyErr instanceof Error ? ecencyErr.message : String(ecencyErr);
-          const hiveMsg = hiveErr instanceof Error ? hiveErr.message : String(hiveErr);
-          throw new Error(`Both upload methods failed. Ecency: ${ecencyMsg}. Hive: ${hiveMsg}`);
-        }
+        url = await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
+          onSignStart: () => { if (!signal.aborted) { setIsAwaitingApproval(true); onSigningStateChange?.(true); } },
+          onSignEnd: () => { setIsAwaitingApproval(false); onSigningStateChange?.(false); },
+          signal,
+        });
       }
+      if (signal.aborted) return;
       onImageUploaded(url);
       setPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload image");
+      if (signal.aborted) return;
+      // eslint-disable-next-line no-console
+      console.error('[ImageUploader] upload error:', err);
+      setError(extractUploadErrorMessage(err));
     } finally {
-      setIsUploading(false);
+      if (abortRef.current === controller) abortRef.current = null;
+      if (!signal.aborted) setIsUploading(false);
     }
   };
 
   const clearPreview = () => {
+    cancelInFlight();
+    setIsUploading(false);
     setPreviewUrl(null);
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -131,12 +195,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
               ) : previewUrl ? (
                 <div className="space-y-4">
                   <img src={previewUrl} alt="Preview" className="w-full max-h-64 object-contain rounded" />
-                  {isUploading && (
+                  {isAwaitingApproval ? (
+                    <div className="text-center">
+                      <p className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</p>
+                    </div>
+                  ) : isUploading ? (
                     <div className="text-center">
                       <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-400" />
                       <p className="text-sm text-gray-400">Uploading image...</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
             </div>

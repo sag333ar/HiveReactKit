@@ -27,16 +27,33 @@ async function buildSigningMessage(file: Blob): Promise<string> {
   return JSON.stringify({ type: 'Buffer', data: Array.from(combined) })
 }
 
+export interface UploadToHiveImagesOptions {
+  /** Fires immediately before the caller's signMessage runs (wallet approval begins). */
+  onSignStart?: () => void
+  /** Fires after signMessage resolves/rejects (wallet approval ended). */
+  onSignEnd?: () => void
+  /** Abort signal — aborts the upload fetch (the wallet sign step itself can't be cancelled). */
+  signal?: AbortSignal
+}
+
 export async function uploadToHiveImages(
   signMessage: PostingSignMessageFn,
   username: string,
   file: Blob,
   filename?: string,
+  options?: UploadToHiveImagesOptions,
 ): Promise<string> {
   if (!username) throw new Error('Hive username is required for image upload')
 
   const message = await buildSigningMessage(file)
-  const signature = await signMessage(message)
+
+  options?.onSignStart?.()
+  let signature: string
+  try {
+    signature = await signMessage(message)
+  } finally {
+    options?.onSignEnd?.()
+  }
   if (!signature) throw new Error('Image signing returned empty signature')
 
   const formData = new FormData()
@@ -46,6 +63,7 @@ export async function uploadToHiveImages(
   const response = await fetch(`https://images.hive.blog/${username}/${signature}`, {
     method: 'POST',
     body: formData,
+    signal: options?.signal,
   })
   if (!response.ok) {
     throw new Error(`Hive image upload failed: ${response.statusText}`)

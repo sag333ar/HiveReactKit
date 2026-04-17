@@ -80,6 +80,10 @@ export interface PostComposerProps {
   borderColor?: string;
   /** Disable auto-focus on mount (default false). Use when the composer is always visible and shouldn't steal scroll. */
   disableAutoFocus?: boolean;
+  /** Text shown in blinking amber while waiting for wallet approval during the hive image fallback. */
+  walletApprovalLabel?: string;
+  /** When true, force the blinking wallet-approval banner on (e.g. during a post/reply broadcast). */
+  awaitingWalletApproval?: boolean;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -126,6 +130,8 @@ const PostComposer = ({
   bgColor,
   borderColor,
   disableAutoFocus = false,
+  walletApprovalLabel = 'Open Keychain App & Approve',
+  awaitingWalletApproval = false,
 }: PostComposerProps) => {
   const [internalBody, setInternalBody] = useState('');
   const body = value !== undefined ? value : internalBody;
@@ -147,6 +153,8 @@ const PostComposer = ({
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingPaste, setUploadingPaste] = useState(false);
+  const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
+  const pasteAbortRef = useRef<AbortController | null>(null);
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [isPollOpen, setIsPollOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -264,6 +272,10 @@ const PostComposer = ({
       return null;
     }
 
+    const controller = new AbortController();
+    pasteAbortRef.current = controller;
+    const signal = controller.signal;
+
     const tryEcency = async (): Promise<string> => {
       if (!ecencyToken) throw new Error('Ecency token not provided');
       const formData = new FormData();
@@ -271,6 +283,7 @@ const PostComposer = ({
       const response = await fetch(`https://images.ecency.com/hs/${ecencyToken}`, {
         method: 'POST',
         body: formData,
+        signal,
       });
       if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
       const data = await response.json();
@@ -279,20 +292,39 @@ const PostComposer = ({
     };
 
     try {
-      return await tryEcency();
-    } catch (ecencyErr) {
-      if (!canHiveFallback) {
-        console.error('Image upload failed:', ecencyErr);
-        return null;
-      }
       try {
-        return await uploadToHiveImages(onSignMessage!, signingUsername!, file);
-      } catch (hiveErr) {
-        console.error('Image upload failed (ecency + hive):', ecencyErr, hiveErr);
-        return null;
+        return await tryEcency();
+      } catch (ecencyErr) {
+        if (signal.aborted) return null;
+        if (!canHiveFallback) {
+          console.error('Image upload failed:', ecencyErr);
+          return null;
+        }
+        try {
+          return await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
+            onSignStart: () => { if (!signal.aborted) setIsAwaitingApproval(true); },
+            onSignEnd: () => setIsAwaitingApproval(false),
+            signal,
+          });
+        } catch (hiveErr) {
+          if (signal.aborted) return null;
+          console.error('Image upload failed (hive fallback):', hiveErr);
+          return null;
+        }
       }
+    } finally {
+      if (pasteAbortRef.current === controller) pasteAbortRef.current = null;
     }
   }, [ecencyToken, canHiveFallback, onSignMessage, signingUsername]);
+
+  const cancelPasteUpload = useCallback(() => {
+    if (pasteAbortRef.current) {
+      pasteAbortRef.current.abort();
+      pasteAbortRef.current = null;
+    }
+    setIsAwaitingApproval(false);
+    setUploadingPaste(false);
+  }, []);
 
   // Handle paste with image
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -657,6 +689,8 @@ const PostComposer = ({
             ecencyToken={ecencyToken}
             onSignMessage={onSignMessage}
             signingUsername={signingUsername}
+            onSigningStateChange={setIsAwaitingApproval}
+            walletApprovalLabel={walletApprovalLabel}
             disabled={isDisabled}
           />
         )}
@@ -709,6 +743,13 @@ const PostComposer = ({
         )}
       </div>
 
+      {/* Wallet approval indicator (blinking amber) — shown during image signing OR broadcast. */}
+      {(isAwaitingApproval || awaitingWalletApproval) && (
+        <div className="px-1 py-0.5">
+          <span className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</span>
+        </div>
+      )}
+
       {/* Textarea with drag-drop overlay */}
       <div className="relative">
         {isDragging && (
@@ -717,11 +758,22 @@ const PostComposer = ({
           </div>
         )}
         {uploadingPaste && (
-          <div className="absolute inset-0 z-10 bg-gray-900/80 rounded-lg flex items-center justify-center">
-            <div className="flex items-center gap-2 text-blue-400 text-sm">
-              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-              Uploading image...
-            </div>
+          <div className="absolute inset-0 z-10 bg-gray-900/80 rounded-lg flex flex-col items-center justify-center gap-3 p-4 text-center">
+            {isAwaitingApproval ? (
+              <span className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</span>
+            ) : (
+              <div className="flex items-center gap-2 text-blue-400 text-sm">
+                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                Uploading image...
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={cancelPasteUpload}
+              className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs"
+            >
+              Cancel
+            </button>
           </div>
         )}
         <textarea
