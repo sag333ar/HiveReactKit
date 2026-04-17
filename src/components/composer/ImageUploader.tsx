@@ -1,15 +1,20 @@
 import React, { useRef, useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
+import { uploadToHiveImages, type PostingSignMessageFn } from "../../services/hiveImageUpload";
 
 export interface ImageUploaderProps {
   /** Called with the uploaded image URL */
   onImageUploaded: (imageUrl: string) => void;
   /** Ecency image hosting token for upload authentication */
   ecencyToken?: string;
+  /** Optional signer used when the Ecency upload fails. Signs a posting-key message. */
+  onSignMessage?: PostingSignMessageFn;
+  /** Hive username used for the signed images.hive.blog fallback upload. */
+  signingUsername?: string;
   disabled?: boolean;
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyToken, disabled = false }) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyToken, onSignMessage, signingUsername, disabled = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,33 +36,50 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, ecencyTo
     uploadImage(file);
   };
 
+  const uploadToEcency = async (file: File): Promise<string> => {
+    if (!ecencyToken) throw new Error("Ecency token not provided");
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch("https://images.ecency.com/hs/" + ecencyToken, {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/plain, */*",
+        origin: "https://ecency.com",
+        referer: "https://ecency.com/",
+      },
+      body: formData,
+    });
+    if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
+    const data = await response.json();
+    if (!data.url) throw new Error("No URL returned from upload");
+    return data.url as string;
+  };
+
   const uploadImage = async (file: File) => {
     setIsUploading(true);
     setError(null);
     try {
-      if (!ecencyToken) {
-        throw new Error("Upload token not provided. Please pass ecencyToken prop.");
+      const canHiveFallback = Boolean(onSignMessage && signingUsername);
+      if (!ecencyToken && !canHiveFallback) {
+        throw new Error("No upload method configured");
       }
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("https://images.ecency.com/hs/" + ecencyToken, {
-        method: "POST",
-        headers: {
-          accept: "application/json, text/plain, */*",
-          origin: "https://ecency.com",
-          referer: "https://ecency.com/",
-        },
-        body: formData,
-      });
-      if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
-      const data = await response.json();
-      if (data.url) {
-        onImageUploaded(data.url);
-        setPreviewUrl(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      } else {
-        throw new Error("No URL returned from upload");
+
+      let url: string;
+      try {
+        url = await uploadToEcency(file);
+      } catch (ecencyErr) {
+        if (!canHiveFallback) throw ecencyErr;
+        try {
+          url = await uploadToHiveImages(onSignMessage!, signingUsername!, file);
+        } catch (hiveErr) {
+          const ecencyMsg = ecencyErr instanceof Error ? ecencyErr.message : String(ecencyErr);
+          const hiveMsg = hiveErr instanceof Error ? hiveErr.message : String(hiveErr);
+          throw new Error(`Both upload methods failed. Ecency: ${ecencyMsg}. Hive: ${hiveMsg}`);
+        }
       }
+      onImageUploaded(url);
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upload image");
     } finally {

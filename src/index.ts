@@ -82,6 +82,7 @@ export * from './services/apiService';
 export * from './services/userService';
 export * from './services/witnessService';
 export * from './services/templateService';
+export { uploadToHiveImages, type PostingSignMessageFn } from './services/hiveImageUpload';
 
 // Store
 export * from './store/walletStore';

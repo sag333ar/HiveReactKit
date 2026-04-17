@@ -10,6 +10,7 @@ import TemplatePicker from '../composer/TemplatePicker';
 import PollCreator from '../composer/PollCreator';
 import type { PollData } from '../composer/PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
+import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 import { createHiveRenderer } from '@snapie/renderer';
 
 export interface PostComposerProps {
@@ -22,6 +23,10 @@ export interface PostComposerProps {
 
   /** Ecency image hosting token — enables image/video thumbnail upload and paste/drag upload */
   ecencyToken?: string;
+  /** Optional signer used when Ecency image uploads fail. Signs a posting-key message for images.hive.blog. */
+  onSignMessage?: PostingSignMessageFn;
+  /** Hive username used for the signed images.hive.blog fallback upload. */
+  signingUsername?: string;
   /** 3Speak API key — enables audio and video upload */
   threeSpeakApiKey?: string;
   /** GIPHY API key — enables GIF search */
@@ -88,6 +93,8 @@ const PostComposer = ({
   parentAuthor,
   parentPermlink,
   ecencyToken,
+  onSignMessage,
+  signingUsername,
   threeSpeakApiKey,
   giphyApiKey,
   templateToken,
@@ -246,15 +253,19 @@ const PostComposer = ({
     });
   }, []);
 
-  // Upload image to Ecency
-  const uploadImageToEcency = useCallback(async (file: File): Promise<string | null> => {
-    if (!ecencyToken) return null;
+  const canHiveFallback = Boolean(onSignMessage && signingUsername);
+  const canUploadImages = Boolean(ecencyToken) || canHiveFallback;
+
+  // Try Ecency first, then signed images.hive.blog fallback if configured.
+  const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     if (!file.type.startsWith('image/')) return null;
     if (file.size > 10 * 1024 * 1024) {
       console.error('Image too large (max 10MB)');
       return null;
     }
-    try {
+
+    const tryEcency = async (): Promise<string> => {
+      if (!ecencyToken) throw new Error('Ecency token not provided');
       const formData = new FormData();
       formData.append('file', file);
       const response = await fetch(`https://images.ecency.com/hs/${ecencyToken}`, {
@@ -263,16 +274,29 @@ const PostComposer = ({
       });
       if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
       const data = await response.json();
-      return data.url || null;
-    } catch (err) {
-      console.error('Image upload failed:', err);
-      return null;
+      if (!data.url) throw new Error('No URL from ecency');
+      return data.url as string;
+    };
+
+    try {
+      return await tryEcency();
+    } catch (ecencyErr) {
+      if (!canHiveFallback) {
+        console.error('Image upload failed:', ecencyErr);
+        return null;
+      }
+      try {
+        return await uploadToHiveImages(onSignMessage!, signingUsername!, file);
+      } catch (hiveErr) {
+        console.error('Image upload failed (ecency + hive):', ecencyErr, hiveErr);
+        return null;
+      }
     }
-  }, [ecencyToken]);
+  }, [ecencyToken, canHiveFallback, onSignMessage, signingUsername]);
 
   // Handle paste with image
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
-    if (!ecencyToken) return;
+    if (!canUploadImages) return;
     const items = e.clipboardData?.items;
     if (!items) return;
 
@@ -282,24 +306,24 @@ const PostComposer = ({
         const file = items[i].getAsFile();
         if (!file) continue;
         setUploadingPaste(true);
-        const url = await uploadImageToEcency(file);
+        const url = await uploadImage(file);
         setUploadingPaste(false);
         if (url) insertText(`![Image](${url})\n`);
         return;
       }
     }
-  }, [ecencyToken, uploadImageToEcency, insertText]);
+  }, [canUploadImages, uploadImage, insertText]);
 
   // Drag and drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
-    if (!ecencyToken) return;
+    if (!canUploadImages) return;
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current++;
     if (e.dataTransfer.types.includes('Files')) {
       setIsDragging(true);
     }
-  }, [ecencyToken]);
+  }, [canUploadImages]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -318,7 +342,7 @@ const PostComposer = ({
     e.stopPropagation();
     setIsDragging(false);
     dragCounterRef.current = 0;
-    if (!ecencyToken) return;
+    if (!canUploadImages) return;
 
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
@@ -327,12 +351,12 @@ const PostComposer = ({
       const file = files[i];
       if (file.type.startsWith('image/')) {
         setUploadingPaste(true);
-        const url = await uploadImageToEcency(file);
+        const url = await uploadImage(file);
         setUploadingPaste(false);
         if (url) insertText(`![Image](${url})\n`);
       }
     }
-  }, [ecencyToken, uploadImageToEcency, insertText]);
+  }, [canUploadImages, uploadImage, insertText]);
 
   const handleSubmit = async () => {
     if (!body.trim() || isDisabled) return;
@@ -627,10 +651,12 @@ const PostComposer = ({
 
         <div className="w-px h-5 bg-gray-700 mx-1" />
 
-        {!hideImage && ecencyToken && (
+        {!hideImage && canUploadImages && (
           <ImageUploader
             onImageUploaded={(url) => insertText(`![Image](${url})`)}
             ecencyToken={ecencyToken}
+            onSignMessage={onSignMessage}
+            signingUsername={signingUsername}
             disabled={isDisabled}
           />
         )}
@@ -650,6 +676,7 @@ const PostComposer = ({
             }}
             username={currentUser}
             ecencyToken={ecencyToken}
+            onSignMessage={onSignMessage}
             threeSpeakApiKey={threeSpeakApiKey}
             disabled={isSubmitting || !!videoEmbedUrl}
           />
@@ -703,7 +730,7 @@ const PostComposer = ({
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={ecencyToken ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
+          placeholder={canUploadImages ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
           disabled={isDisabled}
           rows={4}
           className="w-full min-h-[100px] max-h-[300px] p-3 border border-gray-700 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-800 text-white placeholder-gray-500 transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
@@ -720,7 +747,7 @@ const PostComposer = ({
         <div className="flex items-center justify-between pt-1">
           <div className="text-xs text-gray-500">
             {navigator.platform?.includes('Mac') ? 'Cmd' : 'Ctrl'}+Enter to post
-            {ecencyToken && <span className="ml-2">| Paste/drop images</span>}
+            {canUploadImages && <span className="ml-2">| Paste/drop images</span>}
           </div>
           <div className="flex items-center space-x-3">
             {showCancel && onCancel && (

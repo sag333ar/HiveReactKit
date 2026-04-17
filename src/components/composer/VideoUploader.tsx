@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Video, X, Loader2, Play, Trash2 } from 'lucide-react'
+import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload'
 
 export interface VideoUploaderProps {
   /** Called with embed URL, upload URL, aspect ratio, and optional local file for preview */
@@ -8,6 +9,8 @@ export interface VideoUploaderProps {
   username?: string
   /** Ecency image hosting token for thumbnail upload */
   ecencyToken?: string
+  /** Optional signer used when the Ecency thumbnail upload fails. */
+  onSignMessage?: PostingSignMessageFn
   /** 3Speak API key. Falls back to demo key if not provided. */
   threeSpeakApiKey?: string
   disabled?: boolean
@@ -141,7 +144,7 @@ async function uploadVideoToThreeSpeak(
   })
 }
 
-const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username, ecencyToken, threeSpeakApiKey, disabled = false }) => {
+const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username, ecencyToken, onSignMessage, threeSpeakApiKey, disabled = false }) => {
   const apiKey = threeSpeakApiKey || DEFAULT_API_KEY
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadControllerRef = useRef<AbortController | null>(null)
@@ -199,8 +202,17 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username
 
     try {
       let thumbnailUrlPromise: Promise<string | null> = Promise.resolve(null)
-      if (thumbnailBlob && ecencyToken) {
-        thumbnailUrlPromise = uploadThumbnailToEcency(thumbnailBlob, ecencyToken).catch(() => null)
+      if (thumbnailBlob) {
+        const filename = `video-thumbnail-${Date.now()}.jpg`
+        thumbnailUrlPromise = (async () => {
+          if (ecencyToken) {
+            try { return await uploadThumbnailToEcency(thumbnailBlob, ecencyToken) } catch { /* fallthrough */ }
+          }
+          if (onSignMessage && username) {
+            try { return await uploadToHiveImages(onSignMessage, username, thumbnailBlob, filename) } catch { /* fallthrough */ }
+          }
+          return null
+        })()
       }
       const result = await uploadVideoToThreeSpeak(selectedFile, username, videoDuration, apiKey, (p) => setUploadProgress(p), controller.signal)
       const thumbnailUrl = await thumbnailUrlPromise
