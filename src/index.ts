@@ -65,6 +65,12 @@ export * from './hooks/useHiveImageSign';
 
 // Utils
 export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
+export {
+  buildCommentOptions,
+  REWARD_OPTIONS,
+  REWARD_OPTION_LABELS,
+  type RewardOption,
+} from './utils/commentOptions';
 
 // Types
 export * from './types/comment';

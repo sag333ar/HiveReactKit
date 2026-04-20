@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock } from 'lucide-react';
+import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
 import ImageUploader from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
 import VideoUploader from '../composer/VideoUploader';
@@ -53,6 +55,31 @@ export interface PostComposerProps {
 
   /** Called when a poll is attached/updated. Receives PollData or null when removed */
   onPollChange?: (poll: import('../composer/PollCreator').PollData | null) => void;
+
+  /**
+   * Locked default tags. Shown in the tag manager with a lock icon and
+   * cannot be edited or removed. Forwarded on every `onTagsChange` call as
+   * the leading entries in the merged list. Capped at 10 total.
+   */
+  defaultTags?: string[];
+  /** Max total tags including defaults (default 10). */
+  maxTags?: number;
+  /** Called whenever the user-added tags change. Receives the full merged list (defaults first). */
+  onTagsChange?: (tags: string[]) => void;
+  /** Hide the tag manager toolbar button. */
+  hideTags?: boolean;
+
+  /**
+   * Reward routing selection (default `'default'` = 50% HBD / 50% HP).
+   * Controlled or uncontrolled — if omitted, the composer manages its own state.
+   */
+  reward?: RewardOption;
+  /** Initial reward option when uncontrolled (default `'default'`). */
+  defaultReward?: RewardOption;
+  /** Called when the reward routing changes. Pair with `buildCommentOptions(...)` at broadcast time. */
+  onRewardChange?: (reward: RewardOption) => void;
+  /** Hide the reward routing toolbar button. */
+  hideReward?: boolean;
 
   /** Show cancel button (default true) */
   showCancel?: boolean;
@@ -117,6 +144,14 @@ const PostComposer = ({
   hidePreview,
   hidePoll,
   onPollChange,
+  defaultTags,
+  maxTags = 10,
+  onTagsChange,
+  hideTags,
+  reward,
+  defaultReward = 'default',
+  onRewardChange,
+  hideReward,
   showCancel = true,
   submitLabel = "Post",
   title,
@@ -159,6 +194,104 @@ const PostComposer = ({
   const [isPollOpen, setIsPollOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
+
+  // Tag manager — default tags are locked, user-added tags are editable.
+  const lockedTags = useMemo(
+    () => (defaultTags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean),
+    [defaultTags],
+  );
+  const [userTags, setUserTags] = useState<string[]>([]);
+  const [isTagsOpen, setIsTagsOpen] = useState(false);
+  const [tagDraft, setTagDraft] = useState('');
+  const mergedTags = useMemo(() => [...lockedTags, ...userTags], [lockedTags, userTags]);
+  const remainingTagSlots = Math.max(0, maxTags - mergedTags.length);
+  // Notify parent whenever the merged list changes.
+  useEffect(() => {
+    onTagsChange?.(mergedTags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergedTags.join('|')]);
+
+  const addUserTag = useCallback(
+    (raw: string) => {
+      const tag = raw.trim().toLowerCase().replace(/^#+/, '').replace(/\s+/g, '-');
+      if (!tag) return;
+      if (mergedTags.includes(tag)) return;
+      if (mergedTags.length >= maxTags) return;
+      setUserTags((prev) => [...prev, tag]);
+    },
+    [mergedTags, maxTags],
+  );
+  const removeUserTag = useCallback((tag: string) => {
+    setUserTags((prev) => prev.filter((t) => t !== tag));
+  }, []);
+
+  // Reward routing — controlled or uncontrolled.
+  const [internalReward, setInternalReward] = useState<RewardOption>(defaultReward);
+  const currentReward = reward ?? internalReward;
+  const [isRewardOpen, setIsRewardOpen] = useState(false);
+  const selectReward = useCallback(
+    (next: RewardOption) => {
+      if (reward === undefined) setInternalReward(next);
+      onRewardChange?.(next);
+      setIsRewardOpen(false);
+    },
+    [reward, onRewardChange],
+  );
+
+  // Popover anchoring — render through a portal so ancestor `overflow-hidden`
+  // (e.g. modals wrapping the composer) cannot clip the dropdowns.
+  const tagsBtnRef = useRef<HTMLButtonElement>(null);
+  const rewardBtnRef = useRef<HTMLButtonElement>(null);
+  const tagsPopoverRef = useRef<HTMLDivElement>(null);
+  const rewardPopoverRef = useRef<HTMLDivElement>(null);
+  const [tagsAnchor, setTagsAnchor] = useState<{ top: number; right: number } | null>(null);
+  const [rewardAnchor, setRewardAnchor] = useState<{ top: number; right: number } | null>(null);
+
+  const readAnchor = (btn: HTMLButtonElement | null) => {
+    if (!btn) return null;
+    const r = btn.getBoundingClientRect();
+    return { top: r.bottom + 4, right: window.innerWidth - r.right };
+  };
+
+  const toggleTagsOpen = useCallback(() => {
+    setIsRewardOpen(false);
+    setIsTagsOpen((prev) => {
+      const next = !prev;
+      setTagsAnchor(next ? readAnchor(tagsBtnRef.current) : null);
+      return next;
+    });
+  }, []);
+  const toggleRewardOpen = useCallback(() => {
+    setIsTagsOpen(false);
+    setIsRewardOpen((prev) => {
+      const next = !prev;
+      setRewardAnchor(next ? readAnchor(rewardBtnRef.current) : null);
+      return next;
+    });
+  }, []);
+
+  // Close either popover on outside click and on window resize/scroll.
+  useEffect(() => {
+    if (!isTagsOpen && !isRewardOpen) return;
+    const closeAll = () => { setIsTagsOpen(false); setIsRewardOpen(false); };
+    const onMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      const inTagsBtn = tagsBtnRef.current?.contains(t);
+      const inRewardBtn = rewardBtnRef.current?.contains(t);
+      const inTagsPop = tagsPopoverRef.current?.contains(t);
+      const inRewardPop = rewardPopoverRef.current?.contains(t);
+      if (inTagsBtn || inRewardBtn || inTagsPop || inRewardPop) return;
+      closeAll();
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('resize', closeAll);
+    window.addEventListener('scroll', closeAll, true);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('resize', closeAll);
+      window.removeEventListener('scroll', closeAll, true);
+    };
+  }, [isTagsOpen, isRewardOpen]);
 
   // Hive content renderer using @snapie/renderer
   const renderMarkdown = useMemo(() => {
@@ -741,6 +874,32 @@ const PostComposer = ({
             <BarChart3 className="h-4 w-4" />
           </button>
         )}
+
+        {!hideTags && (
+          <button
+            ref={tagsBtnRef}
+            type="button"
+            onClick={toggleTagsOpen}
+            className={`${toolbarBtnClass} ${userTags.length > 0 ? 'text-blue-400' : ''}`}
+            title={`Tags (${mergedTags.length}/${maxTags})`}
+            disabled={isDisabled}
+          >
+            <Tag className="h-4 w-4" />
+          </button>
+        )}
+
+        {!hideReward && (
+          <button
+            ref={rewardBtnRef}
+            type="button"
+            onClick={toggleRewardOpen}
+            className={`${toolbarBtnClass} ${currentReward !== 'default' ? 'text-blue-400' : ''}`}
+            title={`Rewards: ${REWARD_OPTION_LABELS[currentReward]}`}
+            disabled={isDisabled}
+          >
+            <Coins className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Wallet approval indicator (blinking amber) — shown during image signing OR broadcast. */}
@@ -792,6 +951,40 @@ const PostComposer = ({
             target.style.height = target.scrollHeight + 'px';
           }}
         />
+
+        {/* Tag strip — mirrors the tag manager; tap the Tag toolbar icon to add/remove. */}
+        {!hideTags && mergedTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 px-0.5">
+            {lockedTags.map((t) => (
+              <span
+                key={`strip-locked-${t}`}
+                className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-[11px] text-gray-200"
+                title="Default tag — cannot be removed"
+              >
+                <Lock className="h-2.5 w-2.5 text-gray-400" />
+                {t}
+              </span>
+            ))}
+            {userTags.map((t) => (
+              <span
+                key={`strip-user-${t}`}
+                className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-[11px] text-blue-200"
+              >
+                {t}
+                <button
+                  type="button"
+                  onClick={() => removeUserTag(t)}
+                  className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white disabled:opacity-50"
+                  title={`Remove ${t}`}
+                  disabled={isDisabled}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+            <span className="ml-auto text-[10px] text-gray-500">{mergedTags.length}/{maxTags}</span>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -853,6 +1046,99 @@ const PostComposer = ({
         onSave={(poll) => { setPollData(poll); onPollChange?.(poll); }}
         initialData={pollData}
       />
+
+      {/* Tags popover — portalled so ancestor overflow:hidden cannot clip it. */}
+      {isTagsOpen && tagsAnchor && createPortal(
+        <div
+          ref={tagsPopoverRef}
+          style={{ position: 'fixed', top: tagsAnchor.top, right: tagsAnchor.right }}
+          className="z-[9999] w-72 max-w-[calc(100vw-1rem)] rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tags</span>
+            <span className="text-[10px] text-gray-500">{mergedTags.length} / {maxTags}</span>
+          </div>
+          <div className="mb-2 flex flex-wrap gap-1">
+            {lockedTags.map((t) => (
+              <span
+                key={`locked-${t}`}
+                className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-xs text-gray-200"
+                title="Default tag — cannot be removed"
+              >
+                <Lock className="h-3 w-3 text-gray-400" />
+                {t}
+              </span>
+            ))}
+            {userTags.map((t) => (
+              <span
+                key={`user-${t}`}
+                className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-xs text-blue-200"
+              >
+                {t}
+                <button
+                  type="button"
+                  onClick={() => removeUserTag(t)}
+                  className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white"
+                  title={`Remove ${t}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+            {mergedTags.length === 0 && (
+              <span className="text-xs text-gray-500">No tags yet</span>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  addUserTag(tagDraft);
+                  setTagDraft('');
+                }
+              }}
+              placeholder={remainingTagSlots > 0 ? 'Add a tag' : 'Max tags reached'}
+              disabled={remainingTagSlots === 0}
+              className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 placeholder-gray-500 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={() => { addUserTag(tagDraft); setTagDraft(''); }}
+              disabled={remainingTagSlots === 0 || !tagDraft.trim()}
+              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Add
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* Reward popover — portalled. */}
+      {isRewardOpen && rewardAnchor && createPortal(
+        <div
+          ref={rewardPopoverRef}
+          style={{ position: 'fixed', top: rewardAnchor.top, right: rewardAnchor.right }}
+          className="z-[9999] w-56 max-w-[calc(100vw-1rem)] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+        >
+          {REWARD_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => selectReward(opt)}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
+            >
+              <span>{REWARD_OPTION_LABELS[opt]}</span>
+              {currentReward === opt && <Check className="h-4 w-4 text-blue-400" />}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };
