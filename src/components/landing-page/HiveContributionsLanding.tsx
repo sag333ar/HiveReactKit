@@ -94,6 +94,7 @@ const PLANNED_APPS = [
   "hGovernance",
   "hFind",
   "hMarketPlace",
+  "hEvents",
 ];
 
 interface HiveContributionsLandingProps {
