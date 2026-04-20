@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Index from "./pages/Index";
 import VideoDetail from "./components/VideoDetail";
 import NotFound from "./pages/NotFound";
@@ -42,7 +42,7 @@ const ExpensesPage = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <HashRouter>
         <div style={{ paddingBottom: "70px" }}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -50,15 +50,18 @@ const App = () => (
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/video/:author/:permlink" element={<VideoDetail />} />
             <Route path="/user/:username" element={<UserProfile />} />
-            <Route path="/profile/:username" element={<UserDetailProfilePage />} />
+            {/* <Route path="/profile/:username" element={<UserDetailProfilePage />} /> */}
             <Route path="/composer" element={<PostComposerPage />} />
+            {/* React Router v6+ only parses `:param` when preceded by `/`, so the `@`
+                lives inside the param value. The page components strip a leading `@`. */}
             <Route path="/:author/:permlink" element={<HiveDetailPostPage />} />
+            <Route path="/:username" element={<UserDetailProfilePage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
         {/* <HiveToolbar /> */}
-      </BrowserRouter>
+      </HashRouter>
   </QueryClientProvider>
 );
 

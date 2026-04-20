@@ -64,7 +64,7 @@ export * from './hooks/use-toast';
 export * from './hooks/useHiveImageSign';
 
 // Utils
-// Note: Add utils when available
+export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
 
 // Types
 export * from './types/comment';

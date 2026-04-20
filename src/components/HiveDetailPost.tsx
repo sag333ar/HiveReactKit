@@ -17,6 +17,7 @@ import {
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
+import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -277,6 +278,31 @@ export function HiveDetailPost({
     container.addEventListener('error', handleError, true);
     return () => container.removeEventListener('error', handleError, true);
   }, [renderedBody]);
+
+  // Intercept Hive-frontend links (peakd, hive.blog, ecency) in the rendered body
+  // so they route in-app via the provided callbacks instead of opening externally.
+  useEffect(() => {
+    const container = postBodyRef.current;
+    if (!container) return;
+    const handleClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement | null)?.closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+      const target = parseHiveFrontendUrl(href);
+      if (!target) return;
+      if (target.kind === 'post' && onNavigateToPost) {
+        e.preventDefault();
+        onNavigateToPost(target.author, target.permlink);
+      } else if (target.kind === 'user' && onUserClick) {
+        e.preventDefault();
+        onUserClick(target.author);
+      }
+    };
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [renderedBody, onNavigateToPost, onUserClick]);
 
   // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
   // Cast via unknown so the runtime string check works despite the Post type saying object.
@@ -890,6 +916,8 @@ export function HiveDetailPost({
                 onShareComment={onShareComment}
                 onTipComment={onTipComment}
                 onReportComment={onReportComment}
+                onNavigateToPost={onNavigateToPost}
+                onUserClick={onUserClick}
               />
             </div>
           </div>

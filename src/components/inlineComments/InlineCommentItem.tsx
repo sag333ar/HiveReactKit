@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,6 +10,7 @@ import { VoteSlider } from '../VoteSlider';
 import UpvoteListModal from '../UpvoteListModal';
 import { PostComposer } from '../comments/AddCommentInput';
 import { toast } from '@/index';
+import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 
 interface InlineCommentItemProps {
   comment: Discussion;
@@ -34,6 +35,10 @@ interface InlineCommentItemProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Called when an intra-body link points at a Hive post (peakd/hive.blog/ecency/inleo). */
+  onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Called when an intra-body link points at a Hive user profile. */
+  onUserClick?: (username: string) => void;
 }
 
 const MAX_DEPTH = 4;
@@ -59,7 +64,10 @@ export default function InlineCommentItem({
   onShareComment,
   onTipComment,
   onReportComment,
+  onNavigateToPost,
+  onUserClick,
 }: InlineCommentItemProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -109,6 +117,31 @@ export default function InlineCommentItem({
       setReplyBody('');
     }
   }, [isReplyTarget]);
+
+  // Intercept Hive-frontend links (peakd/hive.blog/ecency/inleo) in the rendered
+  // comment body so they route in-app via the provided callbacks.
+  useEffect(() => {
+    const container = bodyRef.current;
+    if (!container) return;
+    const handleClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement | null)?.closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+      const target = parseHiveFrontendUrl(href);
+      if (!target) return;
+      if (target.kind === 'post' && onNavigateToPost) {
+        e.preventDefault();
+        onNavigateToPost(target.author, target.permlink);
+      } else if (target.kind === 'user' && onUserClick) {
+        e.preventDefault();
+        onUserClick(target.author);
+      }
+    };
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [onNavigateToPost, onUserClick]);
 
   // Parse metadata
   const metadata = (comment as any).json_metadata_parsed ||
@@ -271,7 +304,7 @@ export default function InlineCommentItem({
             {/* Rendered body */}
             <div className="prose prose-sm prose-invert max-w-none mb-2 text-gray-200 text-left prose-a:text-blue-400 [&>*]:text-left ml-7 md:ml-9">
               {renderedBody ? (
-                <div className="hive-post-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
+                <div ref={bodyRef} className="hive-post-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
               ) : (
                 <p className="text-gray-400 text-sm italic">No content available.</p>
               )}
@@ -573,6 +606,8 @@ export default function InlineCommentItem({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onNavigateToPost={onNavigateToPost}
+              onUserClick={onUserClick}
             />
           ))}
         </div>

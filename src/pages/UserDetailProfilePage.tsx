@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import UserDetailProfile from "@/components/user/UserDetailProfile";
 
 const UserDetailProfilePage = () => {
-  const { username } = useParams<{ username: string }>();
+  const params = useParams<{ username: string }>();
+  const rawUsername = params.username ?? "";
+  const username = rawUsername.startsWith("@") ? rawUsername.slice(1) : rawUsername;
   const navigate = useNavigate();
   const [isFavourited, setIsFavourited] = useState(false);
 
@@ -70,23 +72,23 @@ const UserDetailProfilePage = () => {
         }}
         onUserClick={(user) => {
           console.log("[Callback] User Click:", user);
-          navigate(`/profile/${user}`);
+          navigate(`/@${user}`);
         }}
         onPostClick={(author, permlink, title) => {
           console.log("[Callback] Post Click:", author, permlink, title);
-          navigate(`/${author}/${permlink}`);
+          navigate(`/@${author}/${permlink}`);
         }}
         onSnapClick={(author, permlink) => {
           console.log("[Callback] Snap Click:", author, permlink);
-          navigate(`/${author}/${permlink}`);
+          navigate(`/@${author}/${permlink}`);
         }}
         onPollClick={(author, permlink, question) => {
           console.log("[Callback] Poll Click:", author, permlink, question);
-          navigate(`/${author}/${permlink}`);
+          navigate(`/@${author}/${permlink}`);
         }}
         onActivityPermlink={(author, permlink) => {
           console.log("[Callback] Activity Permlink:", author, permlink);
-          navigate(`/${author}/${permlink}`);
+          navigate(`/@${author}/${permlink}`);
         }}
         onActivitySelect={(activity) => {
           console.log("[Callback] Activity Selected:", activity);

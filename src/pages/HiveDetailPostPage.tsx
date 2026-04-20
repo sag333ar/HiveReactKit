@@ -2,7 +2,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { HiveDetailPost } from "@/components/HiveDetailPost";
 
 const HiveDetailPostPage = () => {
-  const { author, permlink } = useParams<{ author: string; permlink: string }>();
+  const params = useParams<{ author: string; permlink: string }>();
+  const rawAuthor = params.author ?? "";
+  const author = rawAuthor.startsWith("@") ? rawAuthor.slice(1) : rawAuthor;
+  const permlink = params.permlink;
   const navigate = useNavigate();
 
   if (!author || !permlink) {
@@ -20,10 +23,10 @@ const HiveDetailPostPage = () => {
         permlink={permlink}
         currentUser="sagarkothari88"
         onBack={() => navigate(-1)}
-        onNavigateToPost={(a, p) => navigate(`/${a}/${p}`)}
+        onNavigateToPost={(a, p) => navigate(`/@${a}/${p}`)}
         onUserClick={(user) => {
           console.log("[Callback] User Click:", user);
-          navigate(`/profile/${user}`);
+          navigate(`/@${user}`);
         }}
         onUpvote={(percent) => {
           console.log("[Callback] Upvote:", author, permlink, `${percent}%`);

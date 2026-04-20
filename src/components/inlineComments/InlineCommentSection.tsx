@@ -26,6 +26,10 @@ interface InlineCommentSectionProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Intercept intra-body Hive post links in comment bodies. */
+  onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Intercept intra-body Hive profile links in comment bodies. */
+  onUserClick?: (username: string) => void;
 }
 
 export default function InlineCommentSection({
@@ -46,6 +50,8 @@ export default function InlineCommentSection({
   onShareComment,
   onTipComment,
   onReportComment,
+  onNavigateToPost,
+  onUserClick,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -304,6 +310,8 @@ export default function InlineCommentSection({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onNavigateToPost={onNavigateToPost}
+              onUserClick={onUserClick}
             />
           ))}
         </div>
