@@ -42,6 +42,13 @@ interface InlineCommentItemProps {
   onUserClick?: (username: string) => void;
   /** Default reward routing seeded into every reply composer. */
   defaultReward?: RewardOption;
+  /** Renderer URL overrides applied to the comment body. */
+  renderOptions?: {
+    userLinkUrlFn?: (username: string) => string;
+    tagLinkUrlFn?: (tag: string) => string;
+    postBaseUrl?: string;
+    ipfsGateway?: string;
+  };
 }
 
 const MAX_DEPTH = 4;
@@ -70,6 +77,7 @@ export default function InlineCommentItem({
   onNavigateToPost,
   onUserClick,
   defaultReward,
+  renderOptions,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -166,22 +174,29 @@ export default function InlineCommentItem({
   const hasMarkdownImagesInBody = /!\[[^\]]*\]\([^)]+\)/.test(sanitizedBody) || /<img\s/i.test(sanitizedBody);
   const metadataImages: string[] = Array.isArray(metadata?.image) ? metadata.image : [];
 
-  // Use @snapie/renderer createHiveRenderer (supports YouTube, 3Speak, IPFS, X.com embeds)
+  // Use @snapie/renderer createHiveRenderer (supports YouTube, 3Speak, IPFS, X.com embeds).
+  // Defaults point at peakd so the in-body click interceptor catches user mentions
+  // and post links automatically. Consumers can override via `renderOptions`.
   const renderHiveContent = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: 'https://hreplier.sagarkothari88.one/',
-        ipfsGateway: 'https://ipfs.3speak.tv',
+        baseUrl: renderOptions?.postBaseUrl ?? 'https://peakd.com/',
+        ipfsGateway: renderOptions?.ipfsGateway ?? 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 480,
-        usertagUrlFn: (user: string) => `https://hreplier.sagarkothari88.one/#/@${user}`,
-        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
+        hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
       });
     } catch {
       return null;
     }
-  }, []);
+  }, [
+    renderOptions?.postBaseUrl,
+    renderOptions?.ipfsGateway,
+    renderOptions?.userLinkUrlFn,
+    renderOptions?.tagLinkUrlFn,
+  ]);
 
   const renderedBody = useMemo(() => {
     if (!sanitizedBody || !renderHiveContent) return '';
@@ -615,6 +630,7 @@ export default function InlineCommentItem({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              renderOptions={renderOptions}
             />
           ))}
         </div>

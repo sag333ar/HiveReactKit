@@ -3,6 +3,32 @@ import { Post } from "@/types/post";
 import type { Poll } from "@/types/poll";
 import type { PendingAuthorRow, PendingCurationRow } from "@/types/reward";
 
+/** Page size for the snaps tab. 20 per load — initial fetch + each scroll-end load-more. */
+const SNAPS_PAGE_SIZE = 20;
+
+/** Default "parent" container for getUserSnaps (kept for backwards compatibility). */
+export const DEFAULT_SNAP_PARENT = 'peak.snaps';
+
+/**
+ * Known snap-container parents supported by UserDetailProfile's segmented
+ * control. Values are the account names queried via `?parent=<account>`.
+ */
+export const SNAP_SUBTYPE_PARENTS = {
+  snaps: 'peak.snaps',
+  ecency: 'ecency.waves',
+  threads: 'leothreads',
+  liketu: 'liketu.moments',
+} as const;
+export type SnapSubType = keyof typeof SNAP_SUBTYPE_PARENTS;
+
+/**
+ * In-memory cache of the full snap-references list per (username, parent).
+ * The hreplier endpoint returns a single fixed batch (no server-side
+ * pagination), so we fetch it once per key and slice client-side for
+ * infinite scroll. Cache key: `${username}|${parent}`.
+ */
+const snapRefsCache = new Map<string, { id: number; author: string; permlink: string }[]>();
+
 class UserService {
   private readonly HIVE_API_URL = 'https://api.hive.blog';
 
@@ -282,19 +308,26 @@ class UserService {
   }
 
   /**
-   * Fetch snap references for a user from PeakD API.
-   * Returns { id, author, permlink }[] with cursor for pagination.
+   * Fetch snap references for a user from the hreplier API.
+   * Returns `{ id, author, permlink }[]`. The endpoint does not support
+   * cursor-based pagination — it returns a single batch, so `startId`
+   * is accepted for call-site compatibility but ignored.
+   *
+   * `parent` selects the container account: `peak.snaps` (Snaps), `ecency.waves`
+   * (Ecency waves), `leothreads` (Threads), `liketu.moments` (Liketu moments).
    */
-  async getSnapReferences(username: string, startId?: number, signal?: AbortSignal): Promise<{ id: number; author: string; permlink: string }[]> {
-    let url = `https://peakd.com/api/public/snaps/account?container=peak.snaps&username=${username}`;
-    if (startId !== undefined) {
-      url += `&startId=${startId}`;
-    }
+  async getSnapReferences(
+    username: string,
+    _startId?: number,
+    signal?: AbortSignal,
+    parent: string = DEFAULT_SNAP_PARENT,
+  ): Promise<{ id: number; author: string; permlink: string }[]> {
+    const url = `https://hreplier-api.sagarkothari88.one/snaps?author=${encodeURIComponent(username)}&parent=${encodeURIComponent(parent)}`;
     const response = await this._fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     }, signal);
-    if (!response.ok) throw new Error(`PeakD API error: ${response.status}`);
+    if (!response.ok) throw new Error(`Snaps API error: ${response.status}`);
     const data = await response.json();
     return Array.isArray(data) ? data : [];
   }
@@ -335,22 +368,49 @@ class UserService {
   }
 
   /**
-   * Fetch snaps for a user using PeakD API + Hive bridge.get_post.
-   * Step 1: Get snap references from PeakD (with pagination via startId)
-   * Step 2: Batch fetch full post data via bridge.get_post
+   * Fetch a page of snaps for a user via the hreplier API + Hive bridge.get_post.
+   *
+   * The hreplier endpoint returns the full snap-reference list in one shot and
+   * has no server-side pagination, so we cache it per (username, parent) and
+   * slice client-side. `startId` is repurposed as the slice offset (20-item
+   * pages):
+   *   - undefined / 0 → first 20 refs
+   *   - 20, 40, …     → subsequent pages
+   * `nextStartId` is the next offset to request, or null when exhausted.
+   *
+   * `parent` selects the container account — see SNAP_SUBTYPE_PARENTS
+   * (defaults to `peak.snaps`). Cache is keyed per parent so switching
+   * segments never collides.
+   *
+   * Only the current slice is materialised via bridge.get_post, so switching
+   * pages stays snappy.
    */
-  async getUserSnaps(username: string, startId?: number, observer?: string, signal?: AbortSignal): Promise<{ snaps: Post[]; nextStartId: number | null }> {
-    const refs = await this.getSnapReferences(username, startId, signal);
-    if (refs.length === 0) {
+  async getUserSnaps(
+    username: string,
+    startId?: number,
+    observer?: string,
+    signal?: AbortSignal,
+    parent: string = DEFAULT_SNAP_PARENT,
+  ): Promise<{ snaps: Post[]; nextStartId: number | null }> {
+    const offset = typeof startId === 'number' && Number.isFinite(startId) ? Math.max(0, Math.floor(startId)) : 0;
+
+    // Fetch references once per (username, parent); reuse for subsequent page slices.
+    const cacheKey = `${username}|${parent}`;
+    let refs = snapRefsCache.get(cacheKey);
+    if (!refs) {
+      refs = await this.getSnapReferences(username, undefined, signal, parent);
+      if (signal?.aborted) throw new Error('aborted');
+      snapRefsCache.set(cacheKey, refs);
+    }
+
+    if (refs.length === 0 || offset >= refs.length) {
       return { snaps: [], nextStartId: null };
     }
 
-    const snaps = await this.batchGetPosts(refs, observer || username, signal);
-
-    // Determine next cursor for pagination (last item's id)
-    const lastRef = refs[refs.length - 1];
-    const nextStartId = refs.length >= 15 ? lastRef.id : null; // PeakD returns ~15 per page
-
+    const slice = refs.slice(offset, offset + SNAPS_PAGE_SIZE);
+    const snaps = await this.batchGetPosts(slice, observer || username, signal);
+    const nextOffset = offset + slice.length;
+    const nextStartId = nextOffset < refs.length ? nextOffset : null;
     return { snaps, nextStartId };
   }
 

@@ -70,6 +70,26 @@ export interface HiveDetailPostProps {
    * Typically wired to a user setting.
    */
   defaultReward?: import('../utils/commentOptions').RewardOption;
+
+  /**
+   * Override the Hive content renderer's link-generating functions so the
+   * rendered `<a>` URLs route into your app instead of an external Hive
+   * frontend. The in-body click interceptor already recognises peakd /
+   * hive.blog / ecency / inleo URLs plus `#/@user` and `/@user` hash/
+   * root-relative hrefs, so any of those formats will be routed internally
+   * via `onUserClick` / `onNavigateToPost`. Applies to both the post body
+   * and inline comment bodies.
+   */
+  renderOptions?: {
+    /** Replace user-mention URL (e.g. `(u) => '#/@' + u`). */
+    userLinkUrlFn?: (username: string) => string;
+    /** Replace hashtag URL (e.g. `(t) => '#/tag/' + t`). */
+    tagLinkUrlFn?: (tag: string) => string;
+    /** Replace the renderer's base URL used when `convertHiveUrls` is on. */
+    postBaseUrl?: string;
+    /** Replace the IPFS gateway prefix used for ipfs:// embeds. */
+    ipfsGateway?: string;
+  };
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   onShare?: () => void;
@@ -177,6 +197,7 @@ export function HiveDetailPost({
   showVoteButton,
   processBody,
   defaultReward,
+  renderOptions,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -211,22 +232,29 @@ export function HiveDetailPost({
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [votedChoices, setVotedChoices] = useState<number[]>([]);
 
-  // Hive content renderer using @snapie/renderer (supports YouTube, 3Speak, IPFS, X.com)
+  // Hive content renderer using @snapie/renderer (supports YouTube, 3Speak, IPFS, X.com).
+  // Defaults point at peakd so the in-body click interceptor catches user mentions
+  // and post links automatically. Consumers can override any of these via `renderOptions`.
   const renderMarkdown = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: 'https://hreplier.sagarkothari88.one/',
-        ipfsGateway: 'https://ipfs.3speak.tv',
+        baseUrl: renderOptions?.postBaseUrl ?? 'https://peakd.com/',
+        ipfsGateway: renderOptions?.ipfsGateway ?? 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 480,
-        usertagUrlFn: (user: string) => `https://hreplier.sagarkothari88.one/#/@${user}`,
-        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
+        hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
       });
     } catch {
       return null;
     }
-  }, []);
+  }, [
+    renderOptions?.postBaseUrl,
+    renderOptions?.ipfsGateway,
+    renderOptions?.userLinkUrlFn,
+    renderOptions?.tagLinkUrlFn,
+  ]);
 
   // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
   // Cast via unknown so the runtime string check works despite the Post type saying object.
@@ -980,6 +1008,7 @@ export function HiveDetailPost({
                 alreadyVoted={alreadyVoted}
                 parentTags={parentTags}
                 defaultReward={defaultReward}
+                renderOptions={renderOptions}
               />
             </div>
           </div>

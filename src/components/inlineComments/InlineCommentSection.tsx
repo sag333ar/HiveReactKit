@@ -23,6 +23,13 @@ interface InlineCommentSectionProps {
   parentTags?: string[];
   /** Default reward routing seeded into every reply composer in this section. */
   defaultReward?: RewardOption;
+  /** Renderer URL overrides applied to every comment body in this section. */
+  renderOptions?: {
+    userLinkUrlFn?: (username: string) => string;
+    tagLinkUrlFn?: (tag: string) => string;
+    postBaseUrl?: string;
+    ipfsGateway?: string;
+  };
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -66,6 +73,7 @@ export default function InlineCommentSection({
   alreadyVoted,
   parentTags,
   defaultReward,
+  renderOptions,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -339,6 +347,7 @@ export default function InlineCommentSection({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              renderOptions={renderOptions}
             />
           ))}
         </div>

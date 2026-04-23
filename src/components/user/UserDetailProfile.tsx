@@ -34,7 +34,7 @@ import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
 import { PostActionButton } from "../actionButtons/PostActionButton";
-import { userService } from "@/services/userService";
+import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
 import type { Follower, Following } from "@/types/user";
@@ -193,6 +193,16 @@ const extractPlainText = (body: string): string => {
 // ─── Module-level cache (persists across mount/unmount) ──────────────────────
 const profileStateCache: Record<string, { tab: TabType; scrollTop: number; tabScrollLeft: number }> = {};
 
+/** Segmented control options shown at the top of the Snaps tab. Avatar is
+ *  the Hive profile image of the container account (peak.snaps, ecency.waves,
+ *  leothreads, liketu.moments). */
+const SNAP_SUBTYPE_OPTIONS: { id: SnapSubType; label: string; avatar: string }[] = [
+  { id: "snaps",   label: "Snaps",   avatar: "https://images.hive.blog/u/peak.snaps/avatar" },
+  { id: "ecency",  label: "Ecency",  avatar: "https://images.hive.blog/u/ecency.waves/avatar" },
+  { id: "threads", label: "Threads", avatar: "https://images.hive.blog/u/leothreads/avatar" },
+  { id: "liketu",  label: "Liketu",  avatar: "https://images.hive.blog/u/liketu.moments/avatar" },
+];
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
@@ -248,6 +258,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [replies, setReplies] = useState<Post[]>([]);
   const [snaps, setSnaps] = useState<Post[]>([]);
   const [snapsNextStartId, setSnapsNextStartId] = useState<number | null>(null);
+  const [snapsSubType, setSnapsSubType] = useState<SnapSubType>("snaps");
   const [polls, setPolls] = useState<Poll[]>([]);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
@@ -564,7 +575,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "snaps": {
-            const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, undefined, currentUsername, signal);
+            const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(
+              targetUsername,
+              undefined,
+              currentUsername,
+              signal,
+              SNAP_SUBTYPE_PARENTS[snapsSubType],
+            );
             setSnaps(filterPost(rawSnaps));
             setSnapsNextStartId(nextStartId);
             setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
@@ -771,7 +788,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [targetUsername, activeTab]);
+    // snapsSubType is included so switching the snaps segment re-fetches.
+  }, [targetUsername, activeTab, snapsSubType]);
+
+  // Clear stale snaps + cursor immediately when the snaps segment changes,
+  // so the UI shows the loading state instead of the previous segment's items.
+  useEffect(() => {
+    setSnaps([]);
+    setSnapsNextStartId(null);
+    setHasMore((prev) => ({ ...prev, snaps: true }));
+  }, [snapsSubType]);
 
   // Filtered data for rendering — always reflects latest filter props
   const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
@@ -809,7 +835,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         }
         case "snaps": {
           if (!snapsNextStartId) break;
-          const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(targetUsername, snapsNextStartId, currentUsername);
+          const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(
+            targetUsername,
+            snapsNextStartId,
+            currentUsername,
+            undefined,
+            SNAP_SUBTYPE_PARENTS[snapsSubType],
+          );
           setSnaps((prev) => [...prev, ...filterPost(rawSnaps)]);
           setSnapsNextStartId(nextStartId);
           setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
@@ -858,7 +890,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, snaps, snapsNextStartId, comments, replies, followers, following]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, snaps, snapsNextStartId, snapsSubType, comments, replies, followers, following]);
 
   // ─── IntersectionObserver for infinite scroll ─────────────────────────
 
@@ -1096,7 +1128,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {preview && (
           <div
             className="fixed inset-0 z-[2000] bg-black/80 flex items-center justify-center p-4"
-            onClick={() => setPreview(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+            onClick={(e) => { e.stopPropagation(); setPreview(false); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
             <div
               className="relative max-w-3xl max-h-[85vh] w-full flex items-center justify-center"
@@ -1109,7 +1148,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               />
               {/* Close hint */}
               <button
-                onClick={() => setPreview(false)}
+                onClick={(e) => { e.stopPropagation(); setPreview(false); }}
                 className="absolute top-2 right-2 text-white/70 hover:text-white bg-black/50 rounded-full p-1.5 transition-colors"
                 title="Close"
               >
@@ -2003,6 +2042,68 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    // Snaps tab — keep the segmented control mounted while the content below
+    // (skeleton / empty state / list) swaps on sub-type change. This prevents
+    // the whole tab bar from flickering each time the user taps Ecency /
+    // Threads / Liketu.
+    if (activeTab === "snaps") {
+      const segmentedControl = (
+        <div className="mb-3 flex gap-2 overflow-x-auto">
+          {SNAP_SUBTYPE_OPTIONS.map((opt) => {
+            const selected = snapsSubType === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSnapsSubType(opt.id)}
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selected
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+                aria-pressed={selected}
+              >
+                <img
+                  src={opt.avatar}
+                  alt=""
+                  className="h-4 w-4 shrink-0 rounded-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                <span>{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+
+      let body: React.ReactNode;
+      if (loadingContent && filteredSnaps.length === 0) {
+        body = renderSkeletonForTab();
+      } else if (filteredSnaps.length === 0) {
+        body = (
+          <div className="text-center py-12">
+            <Camera className="h-12 w-12 text-gray-500 mx-auto mb-3" />
+            <p className="text-gray-400">No snaps found</p>
+          </div>
+        );
+      } else {
+        body = (
+          <div className="space-y-3">
+            {filteredSnaps.map((item) =>
+              renderPostItem(item, "post", onSnapClick ? () => onSnapClick(item.author, item.permlink) : undefined)
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          {segmentedControl}
+          {body}
+        </div>
+      );
+    }
+
     if (loadingContent) {
       return renderSkeletonForTab();
     }
@@ -2080,8 +2181,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    // The snaps tab has its own dedicated branch earlier in renderTabContent,
+    // so only blogs/posts/comments/replies reach this handler.
     const getItemClickHandler = (item: Post) => {
-      if (activeTab === "snaps" && onSnapClick) return () => onSnapClick(item.author, item.permlink);
       if ((activeTab === "blogs" || activeTab === "posts") && onPostClick) return () => onPostClick(item.author, item.permlink, item.title);
       return undefined;
     };
