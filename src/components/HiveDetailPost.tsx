@@ -56,6 +56,14 @@ export interface HiveDetailPostProps {
    * Auto-hidden internally when the current user has already voted the post.
    */
   showVoteButton?: boolean;
+
+  /**
+   * Optional pre-render transform for the post body. Lets the consumer strip
+   * app-specific footers (e.g. "via Apps from ...") and emit a badge — the
+   * returned `body` is handed to the markdown renderer, and `badge`, if any,
+   * is rendered just above the body.
+   */
+  processBody?: (body: string, tags: string[]) => { body: string; badge?: React.ReactNode };
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   onShare?: () => void;
@@ -161,6 +169,7 @@ export function HiveDetailPost({
   onNavigateToPost,
   onVotePoll,
   showVoteButton,
+  processBody,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -212,10 +221,39 @@ export function HiveDetailPost({
     }
   }, []);
 
-  const renderedBody = useMemo(() => {
-    if (!post?.body || !renderMarkdown) return '';
+  // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
+  // Cast via unknown so the runtime string check works despite the Post type saying object.
+  const parsedMetadata = useMemo(() => {
+    const raw = post?.json_metadata as unknown;
+    if (!raw) return {} as Record<string, any>;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw) as Record<string, any>; } catch { return {} as Record<string, any>; }
+    }
+    return raw as Record<string, any>;
+  }, [post?.json_metadata]);
+
+  // Tags to seed the comment composer's locked defaults. Inherited from the parent post.
+  const parentTags = useMemo<string[]>(() => {
+    const t = parsedMetadata?.tags;
+    return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
+  }, [parsedMetadata]);
+
+  // Let the consumer transform the body (e.g. strip app footers) and optionally
+  // produce a badge to render above the post body. Depends on parentTags.
+  const processedBody = useMemo(() => {
+    if (!post?.body) return { body: '', badge: undefined as React.ReactNode | undefined };
+    if (!processBody) return { body: post.body, badge: undefined };
     try {
-      let html = renderMarkdown(post.body);
+      return processBody(post.body, parentTags);
+    } catch {
+      return { body: post.body, badge: undefined };
+    }
+  }, [post?.body, processBody, parentTags]);
+
+  const renderedBody = useMemo(() => {
+    if (!processedBody.body || !renderMarkdown) return '';
+    try {
+      let html = renderMarkdown(processedBody.body);
 
       // Upgrade 3Speak embed URLs to play.3speak.tv with portrait-friendly params
       // (matches hive-snaps ThreeSpeakPlayer: play.3speak.tv/embed?v=...&mode=iframe&noscroll=1)
@@ -255,7 +293,7 @@ export function HiveDetailPost({
     } catch {
       return '';
     }
-  }, [post?.body, renderMarkdown]);
+  }, [processedBody.body, renderMarkdown]);
 
   // Fallback for broken images: strip proxy/gateway prefix and retry with the original URL
   useEffect(() => {
@@ -316,23 +354,6 @@ export function HiveDetailPost({
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
   }, [renderedBody, onNavigateToPost, onUserClick]);
-
-  // Parse json_metadata — condenser_api returns it as a raw JSON string; bridge returns an object.
-  // Cast via unknown so the runtime string check works despite the Post type saying object.
-  const parsedMetadata = useMemo(() => {
-    const raw = post?.json_metadata as unknown;
-    if (!raw) return {} as Record<string, any>;
-    if (typeof raw === 'string') {
-      try { return JSON.parse(raw) as Record<string, any>; } catch { return {} as Record<string, any>; }
-    }
-    return raw as Record<string, any>;
-  }, [post?.json_metadata]);
-
-  // Tags to seed the comment composer's locked defaults. Inherited from the parent post.
-  const parentTags = useMemo<string[]>(() => {
-    const t = parsedMetadata?.tags;
-    return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
-  }, [parsedMetadata]);
 
   // Has the current user already upvoted this post? Drives visibility of the
   // composer's "upvote on publish" toggle (hidden once voted).
@@ -682,6 +703,9 @@ export function HiveDetailPost({
 
             {/* Rendered body — full width */}
             <div className="pb-6">
+              {processedBody.badge && (
+                <div className="mb-2">{processedBody.badge}</div>
+              )}
               {renderedBody ? (
                 <div
                   ref={postBodyRef}

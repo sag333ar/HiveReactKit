@@ -281,20 +281,30 @@ const PostComposer = ({
   const rewardBtnRef = useRef<HTMLButtonElement>(null);
   const tagsPopoverRef = useRef<HTMLDivElement>(null);
   const rewardPopoverRef = useRef<HTMLDivElement>(null);
-  const [tagsAnchor, setTagsAnchor] = useState<{ top: number; right: number } | null>(null);
-  const [rewardAnchor, setRewardAnchor] = useState<{ top: number; right: number } | null>(null);
+  const [tagsAnchor, setTagsAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [rewardAnchor, setRewardAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  const readAnchor = (btn: HTMLButtonElement | null) => {
+  // Popover widths (px) — kept in sync with the content's max widths.
+  const TAGS_POPOVER_WIDTH = 288; // w-72
+  const REWARD_POPOVER_WIDTH = 224; // w-56
+  const VIEWPORT_MARGIN = 8;
+
+  // Center the popover horizontally in the viewport; vertical position stays anchored
+  // just below the button so the user sees the connection. Width is clamped to the viewport.
+  const readAnchor = (btn: HTMLButtonElement | null, preferredWidth: number) => {
     if (!btn) return null;
     const r = btn.getBoundingClientRect();
-    return { top: r.bottom + 4, right: window.innerWidth - r.right };
+    const vw = window.innerWidth;
+    const width = Math.min(preferredWidth, Math.max(0, vw - VIEWPORT_MARGIN * 2));
+    const left = Math.max(VIEWPORT_MARGIN, Math.round((vw - width) / 2));
+    return { top: r.bottom + 4, left, width };
   };
 
   const toggleTagsOpen = useCallback(() => {
     setIsRewardOpen(false);
     setIsTagsOpen((prev) => {
       const next = !prev;
-      setTagsAnchor(next ? readAnchor(tagsBtnRef.current) : null);
+      setTagsAnchor(next ? readAnchor(tagsBtnRef.current, TAGS_POPOVER_WIDTH) : null);
       return next;
     });
   }, []);
@@ -302,7 +312,7 @@ const PostComposer = ({
     setIsTagsOpen(false);
     setIsRewardOpen((prev) => {
       const next = !prev;
-      setRewardAnchor(next ? readAnchor(rewardBtnRef.current) : null);
+      setRewardAnchor(next ? readAnchor(rewardBtnRef.current, REWARD_POPOVER_WIDTH) : null);
       return next;
     });
   }, []);
@@ -1136,8 +1146,8 @@ const PostComposer = ({
       {isTagsOpen && tagsAnchor && createPortal(
         <div
           ref={tagsPopoverRef}
-          style={{ position: 'fixed', top: tagsAnchor.top, right: tagsAnchor.right }}
-          className="z-[9999] w-72 max-w-[calc(100vw-1rem)] rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
+          style={{ position: 'fixed', top: tagsAnchor.top, left: tagsAnchor.left, width: tagsAnchor.width }}
+          className="z-[9999] rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tags</span>
@@ -1207,8 +1217,8 @@ const PostComposer = ({
       {isRewardOpen && rewardAnchor && createPortal(
         <div
           ref={rewardPopoverRef}
-          style={{ position: 'fixed', top: rewardAnchor.top, right: rewardAnchor.right }}
-          className="z-[9999] w-56 max-w-[calc(100vw-1rem)] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+          style={{ position: 'fixed', top: rewardAnchor.top, left: rewardAnchor.left, width: rewardAnchor.width }}
+          className="z-[9999] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
         >
           {REWARD_OPTIONS.map((opt) => (
             <button
