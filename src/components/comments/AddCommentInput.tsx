@@ -275,17 +275,13 @@ const PostComposer = ({
     [reward, onRewardChange],
   );
 
-  // Popover anchoring — render through a portal so ancestor `overflow-hidden`
-  // (e.g. modals wrapping the composer) cannot clip the dropdowns.
-  const tagsBtnRef = useRef<HTMLButtonElement>(null);
+  // Reward popover anchoring — render through a portal so ancestor `overflow-hidden`
+  // (e.g. modals wrapping the composer) cannot clip the dropdown. The Tags panel is
+  // inline (see the tag strip below the textarea) so it needs no anchor plumbing.
   const rewardBtnRef = useRef<HTMLButtonElement>(null);
-  const tagsPopoverRef = useRef<HTMLDivElement>(null);
   const rewardPopoverRef = useRef<HTMLDivElement>(null);
-  const [tagsAnchor, setTagsAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
   const [rewardAnchor, setRewardAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // Popover widths (px) — kept in sync with the content's max widths.
-  const TAGS_POPOVER_WIDTH = 288; // w-72
   const REWARD_POPOVER_WIDTH = 224; // w-56
   const VIEWPORT_MARGIN = 8;
 
@@ -302,11 +298,7 @@ const PostComposer = ({
 
   const toggleTagsOpen = useCallback(() => {
     setIsRewardOpen(false);
-    setIsTagsOpen((prev) => {
-      const next = !prev;
-      setTagsAnchor(next ? readAnchor(tagsBtnRef.current, TAGS_POPOVER_WIDTH) : null);
-      return next;
-    });
+    setIsTagsOpen((prev) => !prev);
   }, []);
   const toggleRewardOpen = useCallback(() => {
     setIsTagsOpen(false);
@@ -317,28 +309,24 @@ const PostComposer = ({
     });
   }, []);
 
-  // Close either popover on outside click and on window resize/scroll.
+  // Close the reward popover on outside click and on window resize/scroll.
   useEffect(() => {
-    if (!isTagsOpen && !isRewardOpen) return;
-    const closeAll = () => { setIsTagsOpen(false); setIsRewardOpen(false); };
+    if (!isRewardOpen) return;
+    const close = () => setIsRewardOpen(false);
     const onMouseDown = (e: MouseEvent) => {
       const t = e.target as Node;
-      const inTagsBtn = tagsBtnRef.current?.contains(t);
-      const inRewardBtn = rewardBtnRef.current?.contains(t);
-      const inTagsPop = tagsPopoverRef.current?.contains(t);
-      const inRewardPop = rewardPopoverRef.current?.contains(t);
-      if (inTagsBtn || inRewardBtn || inTagsPop || inRewardPop) return;
-      closeAll();
+      if (rewardBtnRef.current?.contains(t) || rewardPopoverRef.current?.contains(t)) return;
+      close();
     };
     document.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('resize', closeAll);
-    window.addEventListener('scroll', closeAll, true);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
     return () => {
       document.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('resize', closeAll);
-      window.removeEventListener('scroll', closeAll, true);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
     };
-  }, [isTagsOpen, isRewardOpen]);
+  }, [isRewardOpen]);
 
   // Hive content renderer using @snapie/renderer
   const renderMarkdown = useMemo(() => {
@@ -924,11 +912,10 @@ const PostComposer = ({
 
         {!hideTags && (
           <button
-            ref={tagsBtnRef}
             type="button"
             onClick={toggleTagsOpen}
-            className={`${toolbarBtnClass} ${userTags.length > 0 ? 'text-blue-400' : ''}`}
-            title={`Tags (${mergedTags.length}/${maxTags})`}
+            className={`${toolbarBtnClass} ${isTagsOpen ? 'bg-gray-700 text-blue-400' : userTags.length > 0 ? 'text-blue-400' : ''}`}
+            title={isTagsOpen ? 'Hide tag editor' : `Tags (${mergedTags.length}/${maxTags})`}
             disabled={isDisabled}
           >
             <Tag className="h-4 w-4" />
@@ -1047,37 +1034,71 @@ const PostComposer = ({
           }}
         />
 
-        {/* Tag strip — mirrors the tag manager; tap the Tag toolbar icon to add/remove. */}
-        {!hideTags && mergedTags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 px-0.5">
-            {lockedTags.map((t) => (
-              <span
-                key={`strip-locked-${t}`}
-                className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-[11px] text-gray-200"
-                title="Default tag — cannot be removed"
-              >
-                <Lock className="h-2.5 w-2.5 text-gray-400" />
-                {t}
-              </span>
-            ))}
-            {userTags.map((t) => (
-              <span
-                key={`strip-user-${t}`}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-[11px] text-blue-200"
-              >
-                {t}
+        {/* Tag strip — inline chips + (optional) add-tag input row. */}
+        {!hideTags && (mergedTags.length > 0 || isTagsOpen) && (
+          <div className="flex flex-col gap-1.5 px-0.5">
+            {mergedTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {lockedTags.map((t) => (
+                  <span
+                    key={`strip-locked-${t}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-[11px] text-gray-200"
+                    title="Default tag — cannot be removed"
+                  >
+                    <Lock className="h-2.5 w-2.5 text-gray-400" />
+                    {t}
+                  </span>
+                ))}
+                {userTags.map((t) => (
+                  <span
+                    key={`strip-user-${t}`}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-[11px] text-blue-200"
+                  >
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => removeUserTag(t)}
+                      className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white disabled:opacity-50"
+                      title={`Remove ${t}`}
+                      disabled={isDisabled}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </span>
+                ))}
+                <span className="ml-auto text-[10px] text-gray-500">{mergedTags.length}/{maxTags}</span>
+              </div>
+            )}
+            {isTagsOpen && (
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={tagDraft}
+                  onChange={(e) => setTagDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      addUserTag(tagDraft);
+                      setTagDraft('');
+                    } else if (e.key === 'Escape') {
+                      setIsTagsOpen(false);
+                    }
+                  }}
+                  placeholder={remainingTagSlots > 0 ? 'Add a tag (Enter to save)' : 'Max tags reached'}
+                  disabled={remainingTagSlots === 0 || isDisabled}
+                  autoFocus
+                  className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 placeholder-gray-500 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                />
                 <button
                   type="button"
-                  onClick={() => removeUserTag(t)}
-                  className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white disabled:opacity-50"
-                  title={`Remove ${t}`}
-                  disabled={isDisabled}
+                  onClick={() => { addUserTag(tagDraft); setTagDraft(''); }}
+                  disabled={remainingTagSlots === 0 || !tagDraft.trim() || isDisabled}
+                  className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  Add
                 </button>
-              </span>
-            ))}
-            <span className="ml-auto text-[10px] text-gray-500">{mergedTags.length}/{maxTags}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1141,77 +1162,6 @@ const PostComposer = ({
         onSave={(poll) => { setPollData(poll); onPollChange?.(poll); }}
         initialData={pollData}
       />
-
-      {/* Tags popover — portalled so ancestor overflow:hidden cannot clip it. */}
-      {isTagsOpen && tagsAnchor && createPortal(
-        <div
-          ref={tagsPopoverRef}
-          style={{ position: 'fixed', top: tagsAnchor.top, left: tagsAnchor.left, width: tagsAnchor.width }}
-          className="z-[9999] rounded-lg border border-gray-700 bg-gray-900 p-3 shadow-xl"
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tags</span>
-            <span className="text-[10px] text-gray-500">{mergedTags.length} / {maxTags}</span>
-          </div>
-          <div className="mb-2 flex flex-wrap gap-1">
-            {lockedTags.map((t) => (
-              <span
-                key={`locked-${t}`}
-                className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-xs text-gray-200"
-                title="Default tag — cannot be removed"
-              >
-                <Lock className="h-3 w-3 text-gray-400" />
-                {t}
-              </span>
-            ))}
-            {userTags.map((t) => (
-              <span
-                key={`user-${t}`}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-xs text-blue-200"
-              >
-                {t}
-                <button
-                  type="button"
-                  onClick={() => removeUserTag(t)}
-                  className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white"
-                  title={`Remove ${t}`}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-            {mergedTags.length === 0 && (
-              <span className="text-xs text-gray-500">No tags yet</span>
-            )}
-          </div>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              value={tagDraft}
-              onChange={(e) => setTagDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ',') {
-                  e.preventDefault();
-                  addUserTag(tagDraft);
-                  setTagDraft('');
-                }
-              }}
-              placeholder={remainingTagSlots > 0 ? 'Add a tag' : 'Max tags reached'}
-              disabled={remainingTagSlots === 0}
-              className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 placeholder-gray-500 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <button
-              type="button"
-              onClick={() => { addUserTag(tagDraft); setTagDraft(''); }}
-              disabled={remainingTagSlots === 0 || !tagDraft.trim()}
-              className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Add
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
 
       {/* Reward popover — portalled. */}
       {isRewardOpen && rewardAnchor && createPortal(
