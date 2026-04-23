@@ -59,11 +59,17 @@ export interface HiveDetailPostProps {
 
   /**
    * Optional pre-render transform for the post body. Lets the consumer strip
-   * app-specific footers (e.g. "via Apps from ...") and emit a badge — the
-   * returned `body` is handed to the markdown renderer, and `badge`, if any,
-   * is rendered just above the body.
+   * app-specific footers (e.g. "via Apps from ...") before the markdown
+   * renderer runs. Return the (possibly-transformed) body string.
    */
-  processBody?: (body: string, tags: string[]) => { body: string; badge?: React.ReactNode };
+  processBody?: (body: string, tags: string[]) => string;
+
+  /**
+   * Default reward routing pre-selected in every comment composer on this
+   * detail page (top-level reply + nested sub-comment replies).
+   * Typically wired to a user setting.
+   */
+  defaultReward?: import('../utils/commentOptions').RewardOption;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   onShare?: () => void;
@@ -170,6 +176,7 @@ export function HiveDetailPost({
   onVotePoll,
   showVoteButton,
   processBody,
+  defaultReward,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -238,22 +245,22 @@ export function HiveDetailPost({
     return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
   }, [parsedMetadata]);
 
-  // Let the consumer transform the body (e.g. strip app footers) and optionally
-  // produce a badge to render above the post body. Depends on parentTags.
+  // Let the consumer transform the body (e.g. strip app footers) before the
+  // markdown renderer runs. Depends on parentTags so transforms can inspect them.
   const processedBody = useMemo(() => {
-    if (!post?.body) return { body: '', badge: undefined as React.ReactNode | undefined };
-    if (!processBody) return { body: post.body, badge: undefined };
+    if (!post?.body) return '';
+    if (!processBody) return post.body;
     try {
       return processBody(post.body, parentTags);
     } catch {
-      return { body: post.body, badge: undefined };
+      return post.body;
     }
   }, [post?.body, processBody, parentTags]);
 
   const renderedBody = useMemo(() => {
-    if (!processedBody.body || !renderMarkdown) return '';
+    if (!processedBody || !renderMarkdown) return '';
     try {
-      let html = renderMarkdown(processedBody.body);
+      let html = renderMarkdown(processedBody);
 
       // Upgrade 3Speak embed URLs to play.3speak.tv with portrait-friendly params
       // (matches hive-snaps ThreeSpeakPlayer: play.3speak.tv/embed?v=...&mode=iframe&noscroll=1)
@@ -293,7 +300,7 @@ export function HiveDetailPost({
     } catch {
       return '';
     }
-  }, [processedBody.body, renderMarkdown]);
+  }, [processedBody, renderMarkdown]);
 
   // Fallback for broken images: strip proxy/gateway prefix and retry with the original URL
   useEffect(() => {
@@ -703,9 +710,6 @@ export function HiveDetailPost({
 
             {/* Rendered body — full width */}
             <div className="pb-6">
-              {processedBody.badge && (
-                <div className="mb-2">{processedBody.badge}</div>
-              )}
               {renderedBody ? (
                 <div
                   ref={postBodyRef}
@@ -947,6 +951,7 @@ export function HiveDetailPost({
                 onComments={() => commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
                 showVoteButton={showVoteButton}
                 parentTags={parentTags}
+                defaultReward={defaultReward}
               />
             </div>
 
@@ -974,6 +979,7 @@ export function HiveDetailPost({
                 showVoteButton={showVoteButton}
                 alreadyVoted={alreadyVoted}
                 parentTags={parentTags}
+                defaultReward={defaultReward}
               />
             </div>
           </div>

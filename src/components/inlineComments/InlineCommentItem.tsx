@@ -9,6 +9,7 @@ import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import UpvoteListModal from '../UpvoteListModal';
 import { PostComposer } from '../comments/AddCommentInput';
+import type { RewardOption } from '../../utils/commentOptions';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 
@@ -39,6 +40,8 @@ interface InlineCommentItemProps {
   onNavigateToPost?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive user profile. */
   onUserClick?: (username: string) => void;
+  /** Default reward routing seeded into every reply composer. */
+  defaultReward?: RewardOption;
 }
 
 const MAX_DEPTH = 4;
@@ -66,6 +69,7 @@ export default function InlineCommentItem({
   onReportComment,
   onNavigateToPost,
   onUserClick,
+  defaultReward,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -497,6 +501,7 @@ export default function InlineCommentItem({
                         templateApiBaseUrl={templateApiBaseUrl}
                         hideUserHeader
                         showCancel
+                        defaultReward={defaultReward}
                       />
                     </div>
                   </div>,
@@ -562,6 +567,7 @@ export default function InlineCommentItem({
                     templateApiBaseUrl={templateApiBaseUrl}
                     hideUserHeader
                     showCancel
+                    defaultReward={defaultReward}
                   />
                 </div>
               </>
@@ -608,6 +614,7 @@ export default function InlineCommentItem({
               onReportComment={onReportComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
+              defaultReward={defaultReward}
             />
           ))}
         </div>

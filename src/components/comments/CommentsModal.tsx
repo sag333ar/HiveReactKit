@@ -32,6 +32,8 @@ interface CommentsModalProps {
   showVoteButton?: boolean;
   /** Locked default tags for the top-level composer (typically the parent post's tags, app tag first). */
   parentTags?: string[];
+  /** Default reward routing seeded into the composer. */
+  defaultReward?: import('../../utils/commentOptions').RewardOption;
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -44,7 +46,7 @@ interface CommentsModalProps {
   templateApiBaseUrl?: string;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +277,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   showVoteButton={showVoteButton}
                   onVoteChange={(enabled, percent) => { voteRef.current = { enabled, percent }; }}
                   defaultTags={parentTags}
+                  defaultReward={defaultReward}
                 />
               </div>
             )}

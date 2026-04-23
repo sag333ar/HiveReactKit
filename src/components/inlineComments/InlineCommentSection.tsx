@@ -4,6 +4,7 @@ import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
 import InlineCommentItem from './InlineCommentItem';
 import { PostComposer } from '../comments/AddCommentInput';
+import type { RewardOption } from '../../utils/commentOptions';
 import { toast } from '@/hooks';
 
 interface InlineCommentSectionProps {
@@ -20,6 +21,8 @@ interface InlineCommentSectionProps {
   alreadyVoted?: boolean;
   /** Locked default tags for the top-level composer (parent post's tags, app tag first). */
   parentTags?: string[];
+  /** Default reward routing seeded into every reply composer in this section. */
+  defaultReward?: RewardOption;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -62,6 +65,7 @@ export default function InlineCommentSection({
   showVoteButton,
   alreadyVoted,
   parentTags,
+  defaultReward,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +272,7 @@ export default function InlineCommentSection({
             disableAutoFocus
             showVoteButton={!!showVoteButton && !alreadyVoted}
             defaultTags={parentTags}
+            defaultReward={defaultReward}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
           />
         </div>
@@ -333,6 +338,7 @@ export default function InlineCommentSection({
               onReportComment={onReportComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
+              defaultReward={defaultReward}
             />
           ))}
         </div>

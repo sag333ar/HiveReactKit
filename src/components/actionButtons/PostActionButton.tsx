@@ -46,6 +46,8 @@ export interface PostActionButtonProps {
   showVoteButton?: boolean;
   /** Locked default tags for the composer (usually the parent post's tags, app tag first). */
   parentTags?: string[];
+  /** Default reward routing seeded into the comment composer. */
+  defaultReward?: import('../../utils/commentOptions').RewardOption;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when reblog is clicked (when logged in). */
@@ -97,6 +99,7 @@ export function PostActionButton({
   disableCommentsModal,
   showVoteButton,
   parentTags,
+  defaultReward,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -455,6 +458,7 @@ export function PostActionButton({
           templateApiBaseUrl={templateApiBaseUrl}
           showVoteButton={!!showVoteButton && !hasVoted}
           parentTags={parentTags}
+          defaultReward={defaultReward}
         />
       )}
 
