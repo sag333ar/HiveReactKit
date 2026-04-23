@@ -42,8 +42,20 @@ export interface HiveDetailPostProps {
    * Called when the user submits a comment.
    * Return `false` to indicate the operation was cancelled (e.g. keychain request denied)
    * — the composed text will be preserved and no refresh will occur.
+   * `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
+   * (1–100, step 0.25) — consumer should broadcast vote+comment atomically.
    */
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
+  onSubmitComment?: (
+    parentAuthor: string,
+    parentPermlink: string,
+    body: string,
+    voteWeight?: number | null,
+  ) => void | boolean | Promise<void | boolean>;
+  /**
+   * Show the upvote-on-publish toggle in the post's comment composer. Default false (opt-in).
+   * Auto-hidden internally when the current user has already voted the post.
+   */
+  showVoteButton?: boolean;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   onShare?: () => void;
@@ -148,6 +160,7 @@ export function HiveDetailPost({
   onUserClick,
   onNavigateToPost,
   onVotePoll,
+  showVoteButton,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -314,6 +327,20 @@ export function HiveDetailPost({
     }
     return raw as Record<string, any>;
   }, [post?.json_metadata]);
+
+  // Tags to seed the comment composer's locked defaults. Inherited from the parent post.
+  const parentTags = useMemo<string[]>(() => {
+    const t = parsedMetadata?.tags;
+    return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
+  }, [parsedMetadata]);
+
+  // Has the current user already upvoted this post? Drives visibility of the
+  // composer's "upvote on publish" toggle (hidden once voted).
+  const alreadyVoted = useMemo(() => {
+    if (!currentUser || !post?.active_votes) return false;
+    const me = currentUser.toLowerCase();
+    return post.active_votes.some((v: { voter: string }) => v.voter?.toLowerCase() === me);
+  }, [currentUser, post?.active_votes]);
 
   const fetchPostContent = useCallback(async () => {
     setLoading(true);
@@ -894,6 +921,8 @@ export function HiveDetailPost({
                 templateApiBaseUrl={templateApiBaseUrl}
                 disableCommentsModal
                 onComments={() => commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                showVoteButton={showVoteButton}
+                parentTags={parentTags}
               />
             </div>
 
@@ -918,6 +947,9 @@ export function HiveDetailPost({
                 onReportComment={onReportComment}
                 onNavigateToPost={onNavigateToPost}
                 onUserClick={onUserClick}
+                showVoteButton={showVoteButton}
+                alreadyVoted={alreadyVoted}
+                parentTags={parentTags}
               />
             </div>
           </div>

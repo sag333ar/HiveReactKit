@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
 import { X, Search, MessageCirclePlus, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -19,8 +19,19 @@ interface CommentsModalProps {
   onClickCommentReply?: (comment: Discussion) => void;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
   /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet).
-   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved. */
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void | boolean>;
+   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
+   *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
+   *  (value in 1–100, step 0.25); consumer should broadcast vote+comment atomically. */
+  onSubmitComment?: (
+    parentAuthor: string,
+    parentPermlink: string,
+    body: string,
+    voteWeight?: number | null,
+  ) => Promise<void | boolean>;
+  /** Show the upvote-on-publish toggle in the composer (the parent decides — usually `!alreadyVoted`). */
+  showVoteButton?: boolean;
+  /** Locked default tags for the top-level composer (typically the parent post's tags, app tag first). */
+  parentTags?: string[];
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -33,7 +44,7 @@ interface CommentsModalProps {
   templateApiBaseUrl?: string;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +54,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddComment, setShowAddComment] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Latest vote-on-publish selection from AddCommentInput. Null when toggle is off.
+  const voteRef = useRef<{ enabled: boolean; percent: number }>({ enabled: false, percent: 100 });
 
   const fetchComments = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -95,7 +108,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
     // When callback is provided: use only the callback. No token, no apiService. (Same pattern as CommentTile onClickCommentUpvote.)
     if (onSubmitComment) {
       try {
-        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        const { enabled, percent } = voteRef.current;
+        const voteWeight = enabled ? percent : null;
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight));
         // If callback returns false, the operation was cancelled — preserve composer text
         if (result === false) return;
         setShowAddComment(false);
@@ -257,6 +272,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   giphyApiKey={giphyApiKey}
                   templateToken={templateToken}
                   templateApiBaseUrl={templateApiBaseUrl}
+                  showVoteButton={showVoteButton}
+                  onVoteChange={(enabled, percent) => { voteRef.current = { enabled, percent }; }}
+                  defaultTags={parentTags}
                 />
               </div>
             )}

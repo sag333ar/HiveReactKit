@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock } from 'lucide-react';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp } from 'lucide-react';
 import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
 import ImageUploader from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
@@ -81,6 +81,24 @@ export interface PostComposerProps {
   /** Hide the reward routing toolbar button. */
   hideReward?: boolean;
 
+  /**
+   * Show the "upvote on publish" toggle in the toolbar (default false — opt-in).
+   * Set this to `!alreadyVoted` so the button hides once the user has voted on the parent.
+   */
+  showVoteButton?: boolean;
+  /** Initial toggle state for upvote-on-publish (default false). */
+  defaultVoteEnabled?: boolean;
+  /** Initial slider percent (1–100, step 0.25, default 100). */
+  defaultVotePercent?: number;
+  /**
+   * Called whenever the upvote-on-publish toggle or percent changes.
+   * `enabled=false` => consumer should post a plain comment.
+   * `enabled=true`  => consumer should broadcast vote+comment together at `percent`.
+   */
+  onVoteChange?: (enabled: boolean, percent: number) => void;
+  /** Label shown next to the slider (default "Upvote parent on publish"). */
+  voteLabel?: string;
+
   /** Show cancel button (default true) */
   showCancel?: boolean;
   /** Submit button label (default "Post") */
@@ -152,6 +170,11 @@ const PostComposer = ({
   defaultReward = 'default',
   onRewardChange,
   hideReward,
+  showVoteButton = false,
+  defaultVoteEnabled = false,
+  defaultVotePercent = 100,
+  onVoteChange,
+  voteLabel = 'Upvote parent on publish',
   showCancel = true,
   submitLabel = "Post",
   title,
@@ -224,6 +247,20 @@ const PostComposer = ({
   const removeUserTag = useCallback((tag: string) => {
     setUserTags((prev) => prev.filter((t) => t !== tag));
   }, []);
+
+  // Upvote-on-publish toggle + slider. The composer owns the UI; the consumer owns the broadcast.
+  // Slider step is 0.25%; clamp rounds to the nearest 0.25 within [0.25, 100].
+  const clampPercent = (n: number) => {
+    const snapped = Math.round(n * 4) / 4;
+    return Math.max(0.25, Math.min(100, snapped));
+  };
+  const formatPercent = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  const [voteEnabled, setVoteEnabled] = useState<boolean>(defaultVoteEnabled);
+  const [votePercent, setVotePercent] = useState<number>(clampPercent(defaultVotePercent));
+  useEffect(() => {
+    onVoteChange?.(voteEnabled, votePercent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voteEnabled, votePercent]);
 
   // Reward routing — controlled or uncontrolled.
   const [internalReward, setInternalReward] = useState<RewardOption>(defaultReward);
@@ -900,7 +937,55 @@ const PostComposer = ({
             <Coins className="h-4 w-4" />
           </button>
         )}
+
+        {showVoteButton && (
+          <button
+            type="button"
+            onClick={() => setVoteEnabled(v => !v)}
+            className={`${toolbarBtnClass} ${voteEnabled ? 'text-blue-400' : ''}`}
+            title={voteEnabled ? `Upvote on publish: ${formatPercent(votePercent)}%` : 'Upvote parent on publish'}
+            disabled={isDisabled}
+          >
+            <ThumbsUp className="h-4 w-4" fill={voteEnabled ? 'currentColor' : 'none'} />
+          </button>
+        )}
       </div>
+
+      {/* Inline upvote slider — visible only when the toggle is on. */}
+      {showVoteButton && voteEnabled && (
+        <div className="rounded-lg border border-gray-700 bg-gray-800/60 px-3 pt-4 pb-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs text-gray-300">{voteLabel}</span>
+            <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+              {formatPercent(votePercent)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0.25}
+            max={100}
+            step={0.25}
+            value={votePercent}
+            onChange={(e) => setVotePercent(clampPercent(Number(e.target.value)))}
+            disabled={isDisabled}
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:h-2 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white disabled:opacity-50"
+            style={{ background: `linear-gradient(to right, #2563eb ${votePercent}%, #374151 ${votePercent}%)` }}
+          />
+          <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+            {[1, 25, 50, 75, 100].map((stop) => (
+              <button
+                key={stop}
+                type="button"
+                onClick={() => setVotePercent(stop)}
+                disabled={isDisabled}
+                className={`rounded px-1 transition hover:text-blue-300 disabled:opacity-50 ${votePercent === stop ? 'font-bold text-blue-400' : ''}`}
+              >
+                {stop}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Wallet approval indicator (blinking amber) — shown during image signing OR broadcast. */}
       {(isAwaitingApproval || awaitingWalletApproval) && (

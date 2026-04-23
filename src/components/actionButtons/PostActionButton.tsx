@@ -32,12 +32,20 @@ export interface PostActionButtonProps {
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
   /** Called when user submits a comment. Frontend handles signing/broadcast.
-   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved. */
+   *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
+   *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
+   *  (1–100, step 0.25) — consumer should broadcast vote+comment atomically. */
   onSubmitComment?: (
     parentAuthor: string,
     parentPermlink: string,
-    body: string
+    body: string,
+    voteWeight?: number | null,
   ) => void | boolean | Promise<void | boolean>;
+  /** Show the upvote-on-publish toggle in the comment composer.
+   *  Auto-hidden when the current user has already voted this post. */
+  showVoteButton?: boolean;
+  /** Locked default tags for the composer (usually the parent post's tags, app tag first). */
+  parentTags?: string[];
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when reblog is clicked (when logged in). */
@@ -87,6 +95,8 @@ export function PostActionButton({
   templateToken,
   templateApiBaseUrl,
   disableCommentsModal,
+  showVoteButton,
+  parentTags,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -242,7 +252,8 @@ export function PostActionButton({
   const handleCommentSubmit = async (
     parentAuthor: string,
     parentPermlink: string,
-    body: string
+    body: string,
+    voteWeight?: number | null
   ) => {
     // if (!isLoggedIn) {
     //   showToast("Please Login to comment");
@@ -251,7 +262,7 @@ export function PostActionButton({
     if (!onSubmitComment) return;
     try {
       const result = await Promise.resolve(
-        onSubmitComment(parentAuthor, parentPermlink, body)
+        onSubmitComment(parentAuthor, parentPermlink, body, voteWeight ?? null)
       );
       // If callback returns false, the operation was cancelled — don't show success toast
       if (result === false) return false;
@@ -442,6 +453,8 @@ export function PostActionButton({
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
+          showVoteButton={!!showVoteButton && !hasVoted}
+          parentTags={parentTags}
         />
       )}
 

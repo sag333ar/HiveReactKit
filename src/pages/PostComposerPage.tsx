@@ -78,6 +78,13 @@ const PostComposerPage = () => {
             if (poll) alert(`Poll attached: ${poll.question} (${poll.choices.length} choices)`);
             else alert('Poll removed');
           }}
+          showVoteButton={true}
+          defaultVoteEnabled={true}
+          defaultVotePercent={100}
+          onVoteChange={(enabled, percent) => {
+            console.log('Vote changed:', enabled, percent);
+          }}
+          voteLabel="Upvote parent on publish"
         />
       </div>
     </div>

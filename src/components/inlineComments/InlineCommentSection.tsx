@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Loader2, AlertCircle, RefreshCw, MessageCirclePlus, Search } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import { Discussion } from '@/types/comment';
@@ -11,8 +11,15 @@ interface InlineCommentSectionProps {
   permlink: string;
   currentUser?: string;
   token?: string;
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
+  /** `voteWeight` is non-null when the top-level composer's upvote-on-publish toggle is on (only fires for the post-reply composer). */
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string, voteWeight?: number | null) => void | boolean | Promise<void | boolean>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
+  /** Show the upvote-on-publish toggle on the top-level composer. Auto-hidden when `alreadyVoted`. */
+  showVoteButton?: boolean;
+  /** If true, the current user already upvoted the post — hides the toggle. */
+  alreadyVoted?: boolean;
+  /** Locked default tags for the top-level composer (parent post's tags, app tag first). */
+  parentTags?: string[];
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -52,6 +59,9 @@ export default function InlineCommentSection({
   onReportComment,
   onNavigateToPost,
   onUserClick,
+  showVoteButton,
+  alreadyVoted,
+  parentTags,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,10 +136,18 @@ export default function InlineCommentSection({
     setActiveReplyKey(null);
   };
 
+  // Vote-on-publish state for the TOP-LEVEL composer only (post reply). Nested reply composers
+  // don't surface vote toggles because their targets are sub-comments, not the post.
+  const topVoteRef = useRef<{ enabled: boolean; percent: number }>({ enabled: false, percent: 100 });
+
   const handleCommentSubmit = async (parentAuthor: string, parentPermlink: string, body: string) => {
+    // Only the post-reply composer carries a vote weight. Sub-comment replies always send null.
+    const isPostReply = parentAuthor === author && parentPermlink === permlink;
+    const { enabled, percent } = topVoteRef.current;
+    const voteWeight = isPostReply && enabled ? percent : null;
     if (onSubmitComment) {
       try {
-        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body));
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight));
         // If callback returns false, the operation was cancelled (e.g. keychain denied) — preserve text
         if (result === false) return false;
         setActiveReplyKey(null);
@@ -248,6 +266,9 @@ export default function InlineCommentSection({
             templateApiBaseUrl={templateApiBaseUrl}
             hideUserHeader
             disableAutoFocus
+            showVoteButton={!!showVoteButton && !alreadyVoted}
+            defaultTags={parentTags}
+            onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
           />
         </div>
       )}
