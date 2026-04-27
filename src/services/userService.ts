@@ -783,9 +783,309 @@ class UserService {
     return data.result;
   }
 
+  // ─── Growth Analytics ──────────────────────────────────────────────────────
+
+  /**
+   * Fetch daily growth analytics for an account over a `days` window
+   * (typically 7 or 30). Walks `get_account_history` backwards in pages of
+   * 1000 ops until the window cutoff is passed, buckets reward / power-up /
+   * power-down operations by UTC day, and reconstructs the cumulative HP
+   * trend by working back from the account's current effective HP.
+   *
+   * Reference: hivelytics (mrtats/hivelytics) — buildChartDays / addChartBucket / renderCharts.
+   */
+  async getGrowthAnalytics(
+    username: string,
+    days: number = 30,
+    onProgress?: (partial: GrowthAnalyticsResult) => void,
+    signal?: AbortSignal
+  ): Promise<GrowthAnalyticsResult> {
+    const safeDays = Math.max(1, Math.min(60, days || 30));
+    const buckets = this.buildGrowthDays(safeDays);
+    const dayKeySet = new Set(buckets.map(b => b.key));
+    const map = this.initGrowthMap(buckets);
+
+    const [accounts, dgp, priceFeed] = await Promise.all([
+      this.getAccounts([username], signal),
+      this.getDynamicGlobalProperties(signal),
+      this.rpcCall('condenser_api.get_current_median_history_price', [], signal).catch(() => null),
+    ]);
+
+    const account = accounts?.[0];
+    const cutoffMs = Date.now() - safeDays * 24 * 60 * 60 * 1000;
+
+    const processChunk = (chunk: any[]): number => {
+      let oldest = Number.MAX_VALUE;
+      for (const [, item] of chunk) {
+        const ts = this.parseHiveTime(item?.timestamp);
+        if (!ts) continue;
+        if (ts < oldest) oldest = ts;
+        const op = item?.op;
+        if (!Array.isArray(op)) continue;
+        const [type, body] = op;
+        const dateKey = this.dateKeyFromMs(ts);
+        if (!dayKeySet.has(dateKey)) continue;
+        const bucket = map[dateKey];
+
+        if (type === 'author_reward') {
+          const hp = this.vestsToHp(this.parseAssetFloat(body.vesting_payout), dgp);
+          const hive = this.parseAssetFloat(body.hive_payout);
+          const hbd = this.parseAssetFloat(body.hbd_payout);
+          bucket.author.hp += hp;
+          bucket.author.hive += hive;
+          bucket.author.hbd += hbd;
+          bucket.hpDelta += hp;
+        } else if (type === 'curation_reward') {
+          const hp = this.vestsToHp(this.parseAssetFloat(body.reward), dgp);
+          bucket.curation.hp += hp;
+          bucket.hpDelta += hp;
+        } else if (type === 'producer_reward') {
+          const hp = this.vestsToHp(this.parseAssetFloat(body.vesting_shares), dgp);
+          bucket.witness.hp += hp;
+          bucket.hpDelta += hp;
+        } else if (type === 'comment_benefactor_reward' && body.benefactor === username) {
+          const hp = this.vestsToHp(this.parseAssetFloat(body.vesting_payout), dgp);
+          bucket.benefactor.hp += hp;
+          bucket.hpDelta += hp;
+        } else if (type === 'transfer_to_vesting' && body.to === username) {
+          const hiveAmt = this.parseAssetFloat(body.amount);
+          bucket.hpDelta += hiveAmt;
+          bucket.powerUp += hiveAmt;
+        } else if (type === 'fill_vesting_withdraw' && body.from_account === username) {
+          const withdrawn = this.parseAssetFloat(body.withdrawn);
+          const hpDown = -this.vestsToHp(withdrawn, dgp);
+          bucket.hpDelta += hpDown;
+          bucket.powerDown += Math.abs(hpDown);
+          if (body.to_account && body.to_account !== username) {
+            bucket.powerDownTo += Math.abs(hpDown);
+          }
+        } else if (type === 'return_vesting_delegation' && body.account === username) {
+          const hpGain = this.vestsToHp(this.parseAssetFloat(body.vesting_shares), dgp);
+          bucket.hpDelta += hpGain;
+        }
+      }
+      return oldest;
+    };
+
+    let startIdx = -1;
+    const limit = 1000;
+    let oldestTs = Number.MAX_VALUE;
+    // Safety cap only — primary exit is hitting the time cutoff. Active
+    // accounts can produce >1000 ops/day, so a 30-day window may need many
+    // pages. Earlier we capped this far too low (~18 pages) which left the
+    // left half of the 30-day chart empty even though a 7-day chart looked
+    // fine. 200 pages = 200k ops, plenty for any realistic 30-day window.
+    const maxPages = 200;
+    let pages = 0;
+
+    while (pages < maxPages) {
+      let chunk: any[] | null = null;
+      try {
+        chunk = await this.rpcCall('condenser_api.get_account_history', [username, startIdx, limit], signal);
+      } catch {
+        break;
+      }
+      if (!Array.isArray(chunk) || !chunk.length) break;
+
+      const ts = processChunk(chunk);
+      if (ts < oldestTs) oldestTs = ts;
+
+      // Emit a partial result so consumers can render incrementally
+      if (onProgress) {
+        onProgress(this.buildGrowthResult(buckets, map, account, dgp, priceFeed));
+      }
+
+      if (oldestTs <= cutoffMs) break;
+      startIdx = chunk[0][0] - 1;
+      if (startIdx < 0) break;
+      pages++;
+      // Light throttle — be polite to the public RPC node but not so slow
+      // that 30-day windows take 30s+ to load.
+      await this.delay(40);
+    }
+
+    return this.buildGrowthResult(buckets, map, account, dgp, priceFeed);
+  }
+
+  private buildGrowthDays(days: number): GrowthDay[] {
+    const today = new Date();
+    const out: GrowthDay[] = [];
+    for (let offset = days - 1; offset >= 0; offset--) {
+      const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset));
+      const key = d.toISOString().slice(0, 10);
+      const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      out.push({ key, label });
+    }
+    return out;
+  }
+
+  private initGrowthMap(days: GrowthDay[]): Record<string, GrowthBucket> {
+    const map: Record<string, GrowthBucket> = {};
+    const z = () => ({ hp: 0, hive: 0, hbd: 0 });
+    days.forEach(d => {
+      map[d.key] = {
+        author: z(), curation: z(), witness: z(), benefactor: z(),
+        hpDelta: 0, powerUp: 0, powerDown: 0, powerDownTo: 0,
+      };
+    });
+    return map;
+  }
+
+  private dateKeyFromMs(ms: number): string {
+    const d = new Date(ms);
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10);
+  }
+
+  private vestsToHp(vests: number, dgp: any): number {
+    if (!dgp) return 0;
+    const tf = this.parseAssetFloat(dgp.total_vesting_fund_hive);
+    const ts = this.parseAssetFloat(dgp.total_vesting_shares);
+    if (!ts) return 0;
+    return vests * tf / ts;
+  }
+
+  private effectiveHp(account: any, dgp: any): number {
+    if (!account || !dgp) return 0;
+    const vesting = this.parseAssetFloat(account.vesting_shares);
+    const delegatedOut = this.parseAssetFloat(account.delegated_vesting_shares);
+    const received = this.parseAssetFloat(account.received_vesting_shares);
+    return this.vestsToHp(vesting - delegatedOut + received, dgp);
+  }
+
+  private buildGrowthResult(
+    days: GrowthDay[],
+    map: Record<string, GrowthBucket>,
+    account: any,
+    dgp: any,
+    priceFeed: any
+  ): GrowthAnalyticsResult {
+    const price = priceFeed
+      ? (this.parseAssetFloat(priceFeed.base) / this.parseAssetFloat(priceFeed.quote || '1.000 HIVE'))
+      : 1;
+
+    const effectiveHpNow = this.effectiveHp(account, dgp);
+    const totalHpDelta = days.reduce((acc, d) => acc + (map[d.key]?.hpDelta || 0), 0);
+    const startHp = Math.max(0, effectiveHpNow - totalHpDelta);
+
+    let cumulative = startHp;
+    const series: GrowthDailyPoint[] = days.map(d => {
+      const b = map[d.key];
+      const hpDelta = b?.hpDelta || 0;
+      cumulative += hpDelta;
+      const author = b?.author || { hp: 0, hive: 0, hbd: 0 };
+      const curation = b?.curation || { hp: 0, hive: 0, hbd: 0 };
+      const witness = b?.witness || { hp: 0, hive: 0, hbd: 0 };
+      const benefactor = b?.benefactor || { hp: 0, hive: 0, hbd: 0 };
+      const earnedUsd = (cat: { hp: number; hive: number; hbd: number }) =>
+        (cat.hbd || 0) + (cat.hive || 0) * price + (cat.hp || 0) * price;
+      return {
+        key: d.key,
+        label: d.label,
+        cumulativeHp: Number(cumulative.toFixed(3)),
+        hpDelta: Number(hpDelta.toFixed(3)),
+        powerUp: Number((b?.powerUp || 0).toFixed(3)),
+        powerDown: Number((b?.powerDown || 0).toFixed(3)),
+        powerDownTo: Number((b?.powerDownTo || 0).toFixed(3)),
+        authorHp: Number(author.hp.toFixed(3)),
+        curationHp: Number(curation.hp.toFixed(3)),
+        witnessHp: Number(witness.hp.toFixed(3)),
+        benefactorHp: Number(benefactor.hp.toFixed(3)),
+        authorUsd: Number(earnedUsd(author).toFixed(3)),
+        curationUsd: Number(earnedUsd(curation).toFixed(3)),
+        witnessUsd: Number(earnedUsd(witness).toFixed(3)),
+        benefactorUsd: Number(earnedUsd(benefactor).toFixed(3)),
+      };
+    });
+
+    const totals = series.reduce(
+      (acc, d) => {
+        acc.authorHp += d.authorHp;
+        acc.curationHp += d.curationHp;
+        acc.witnessHp += d.witnessHp;
+        acc.benefactorHp += d.benefactorHp;
+        acc.powerUp += d.powerUp;
+        acc.powerDown += d.powerDown;
+        acc.authorUsd += d.authorUsd;
+        acc.curationUsd += d.curationUsd;
+        acc.witnessUsd += d.witnessUsd;
+        acc.benefactorUsd += d.benefactorUsd;
+        return acc;
+      },
+      { authorHp: 0, curationHp: 0, witnessHp: 0, benefactorHp: 0, powerUp: 0, powerDown: 0,
+        authorUsd: 0, curationUsd: 0, witnessUsd: 0, benefactorUsd: 0 }
+    );
+
+    return {
+      days,
+      series,
+      currentHp: Number(effectiveHpNow.toFixed(3)),
+      startHp: Number(startHp.toFixed(3)),
+      hpDelta: Number(totalHpDelta.toFixed(3)),
+      hivePrice: price,
+      totals,
+    };
+  }
+
   userAvatar(username: string): string {
     return `https://images.hive.blog/u/${username}/avatar`;
   }
+}
+
+// ─── Growth analytics types ─────────────────────────────────────────────────
+
+export interface GrowthDay {
+  key: string;   // YYYY-MM-DD (UTC)
+  label: string; // M/D
+}
+
+export interface GrowthBucket {
+  author: { hp: number; hive: number; hbd: number };
+  curation: { hp: number; hive: number; hbd: number };
+  witness: { hp: number; hive: number; hbd: number };
+  benefactor: { hp: number; hive: number; hbd: number };
+  hpDelta: number;
+  powerUp: number;
+  powerDown: number;
+  powerDownTo: number;
+}
+
+export interface GrowthDailyPoint {
+  key: string;
+  label: string;
+  cumulativeHp: number;
+  hpDelta: number;
+  powerUp: number;
+  powerDown: number;
+  powerDownTo: number;
+  authorHp: number;
+  curationHp: number;
+  witnessHp: number;
+  benefactorHp: number;
+  authorUsd: number;
+  curationUsd: number;
+  witnessUsd: number;
+  benefactorUsd: number;
+}
+
+export interface GrowthAnalyticsResult {
+  days: GrowthDay[];
+  series: GrowthDailyPoint[];
+  currentHp: number;
+  startHp: number;
+  hpDelta: number;
+  hivePrice: number;
+  totals: {
+    authorHp: number;
+    curationHp: number;
+    witnessHp: number;
+    benefactorHp: number;
+    powerUp: number;
+    powerDown: number;
+    authorUsd: number;
+    curationUsd: number;
+    witnessUsd: number;
+    benefactorUsd: number;
+  };
 }
 
 export const userService = new UserService();

@@ -50,6 +50,8 @@ export { default as UserInfo } from './components/user/UserInfo';
 export { default as UserProfilePage } from './components/user/UserProfilePage';
 export { default as UserDetailProfile } from './components/user/UserDetailProfile';
 export type { UserDetailProfileProps } from './components/user/UserDetailProfile';
+export { default as UserGrowth } from './components/user/UserGrowth';
+export type { UserGrowthProps } from './components/user/UserGrowth';
 
 // Landing components
 export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';

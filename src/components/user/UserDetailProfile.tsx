@@ -33,6 +33,7 @@ import {
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
+import UserGrowth from "./UserGrowth";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -128,7 +129,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -245,7 +246,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>("blogs"); // will be corrected in useEffect
+  // Default to the first tab in tabShown (or "blogs" when tabShown is omitted)
+  // so we never briefly render a tab the consumer didn't include.
+  const initialTab: TabType = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const prevUsernameRef = useRef<string>("");
   const activeTabRef = useRef<TabType>(activeTab);
   activeTabRef.current = activeTab;
@@ -281,7 +285,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false,
-    votingPower: false, badges: false, witnessVotes: false,
+    votingPower: false, badges: false, witnessVotes: false, growth: false,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -504,10 +508,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
     prevUsernameRef.current = targetUsername;
 
-    // Restore if visited before, otherwise default to first tab
+    // Restore if visited before, otherwise default to first tab.
+    // Validate the cached tab is still in tabShown — if the consumer changed
+    // the visible tab list, an old cached tab could otherwise render content
+    // for a tab that's no longer in the bar.
     const cached = profileStateCache[targetUsername];
     const firstTab = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
-    setActiveTab(cached?.tab || firstTab);
+    const cachedTabValid = cached?.tab && (
+      !tabShown || tabShown.length === 0 || tabShown.includes(cached.tab)
+    );
+    setActiveTab(cachedTabValid ? (cached!.tab as TabType) : firstTab);
     // Restore scroll positions after render
     requestAnimationFrame(() => {
       if (cached) {
@@ -518,7 +528,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         tabScrollRef.current?.scrollTo({ left: 0 });
       }
     });
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false });
     setBadges([]);
     setWitnessVotes([]);
     setVotingPowerData(null);
@@ -1860,6 +1870,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // ─── Render: Tab content ─────────────────────────────────────────────────
 
   const renderTabContent = () => {
+    if (activeTab === "growth") {
+      return <UserGrowth username={targetUsername} />;
+    }
+
     if (activeTab === "wallet") {
       return (
         <div className="max-w-lg mx-auto">
@@ -2207,6 +2221,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "activities", label: "Activities", icon: Activity },
     { id: "authorRewards", label: "Author Rewards", icon: Award },
     { id: "curationRewards", label: "Curation Rewards", icon: TrendingUp },
+    { id: "growth", label: "Growth", icon: TrendingUp },
     { id: "followers", label: "Followers", icon: Users },
     { id: "following", label: "Following", icon: Users },
     { id: "wallet", label: "Wallet", icon: WalletIcon },
