@@ -94,7 +94,8 @@ These fire from the `PostActionButton` component rendered on each post/comment/s
 | `onUserClick` | `(username: string) => void` | User avatar/name clicked (in followers, following, post cards) |
 | `onPostClick` | `(author: string, permlink: string, title: string) => void` | Blog, post, or reward row clicked |
 | `onSnapClick` | `(author: string, permlink: string) => void` | Snap item clicked |
-| `onPollClick` | `(author: string, permlink: string, question: string) => void` | Poll item clicked |
+| `onPollClick` | `(author: string, permlink: string, question: string) => void` | Poll card body clicked. Clicks on poll choices, the submit button, and the action bar are intercepted and do **not** trigger this |
+| `onVotePoll` | `(author, permlink, choiceNums: number[]) => void \| boolean \| Promise<void \| boolean>` | User submitted an inline vote from the polls tab. See [Inline Poll Voting](#inline-poll-voting) below |
 | `onActivityPermlink` | `(author: string, permlink: string) => void` | Activity permlink clicked |
 | `onActivitySelect` | `(activity: any) => void` | Activity item selected |
 | `onShare` | `(username: string) => void` | Share button clicked in the header |
@@ -139,6 +140,76 @@ The component includes two favourite-related features that appear automatically 
 />
 ```
 
+## Inline Poll Voting
+
+The polls tab renders each poll as a rich card with **all choices visible
+inline**, vote percentages as horizontal fill bars, and (when `currentUsername`
++ `onVotePoll` are provided) a built-in voting flow — users never have to leave
+the list to vote.
+
+The voting widget is the same one used inside [HiveDetailPost](HiveDetailPost.md);
+the underlying component is exported as `PollListItem` if you want to reuse it
+outside of `UserDetailProfile`.
+
+### Behaviour
+
+Every interactive flow goes through the **same `onVotePoll(author, permlink, choiceNums)` callback** — the consumer never has to branch on poll type. The user always confirms via an explicit **Submit Vote** button (no auto-submit on tap).
+
+| Scenario | Behaviour |
+|----------|-----------|
+| Active poll, single-choice (`max_choices_voted === 1`) | Choices behave as **radio buttons** — selecting another option replaces the previous selection. **Submit Vote** button calls `onVotePoll(author, permlink, [choiceNum])` |
+| Active poll, multi-choice (`max_choices_voted > 1`) | Choices behave as **checkboxes** — tapping toggles, capped at `max_choices_voted`. **Submit Vote** button calls `onVotePoll(author, permlink, [n1, n2, …])` |
+| Already voted (current session or via `poll_voters` from API) | Voted choices highlighted in green, "✓ Voted" footer marker; voting UI hidden unless `allow_vote_changes` is set |
+| `allow_vote_changes` and already voted | Old vote rendered dimmed-green so the user remembers their previous choice; user re-selects and clicks **Change Vote**, which calls the same `onVotePoll` callback |
+| Poll ended (`status === "Ended"` or `end_time` passed) | Choices read-only with vote percentages; voting UI hidden |
+| `onVotePoll` not provided OR `currentUsername` empty | All choices read-only with vote bars; no Submit button |
+
+### Cancellation
+
+`onVotePoll` may return `false` (or a Promise resolving to `false`) — for
+example when a Hive Keychain prompt is denied. In that case the per-card vote
+state is **not** updated, so the user can re-attempt without seeing a stale
+"voted" marker.
+
+### Click-event isolation
+
+Clicks inside choice rows, the submit button, the vote-cancel flow, and the
+`PostActionButton` row do **not** bubble up to the card, so `onPollClick` only
+fires when the user clicks the question/preview area.
+
+### Example
+
+```tsx
+<UserDetailProfile
+  username="user"
+  currentUsername="myaccount"
+  tabShown={["polls", "blogs"]}
+  onVotePoll={async (author, permlink, choices) => {
+    // Hive Keychain or any signing flow
+    const ok = await signAndBroadcastPollVote(author, permlink, choices);
+    if (!ok) return false;       // cancelled — UI keeps the user's selection
+    // success — UserDetailProfile marks the choices as voted
+  }}
+  onPollClick={(author, permlink) => navigate(`/@${author}/${permlink}`)}
+/>
+```
+
+### Standalone usage
+
+```tsx
+import { PollListItem, type PollListItemProps } from 'hive-react-kit';
+
+<PollListItem
+  poll={pollObject}
+  currentUsername="myaccount"
+  onVotePoll={(author, permlink, choices) => votePoll(author, permlink, choices)}
+  onPollClick={(author, permlink) => navigate(`/@${author}/${permlink}`)}
+  onUpvote={(author, permlink, percent) => upvote(author, permlink, percent)}
+  onRequestReportPost={(author, permlink) => openReportModal(author, permlink)}
+  // …other forwarded action callbacks
+/>
+```
+
 ## TabType Reference
 
 | Value | Label | Data Source | Pagination |
@@ -147,6 +218,7 @@ The component includes two favourite-related features that appear automatically 
 | `"posts"` | Posts | `bridge.get_account_posts` (sort: posts) | Cursor-based, infinite scroll |
 | `"snaps"` | Snaps | PeakD API + `bridge.get_post` batch | startId cursor, infinite scroll |
 | `"polls"` | Polls | HiveHub polls API | All at once |
+| `"growth"` | Growth | `condenser_api.get_account_history` (rewards / power-up / power-down ops) | Streamed (7d/30d toggle) |
 | `"comments"` | Comments | `bridge.get_account_posts` (sort: comments) | Cursor-based, infinite scroll |
 | `"replies"` | Replies | `bridge.get_account_posts` (sort: replies) | Cursor-based, infinite scroll |
 | `"activities"` | Activities | ActivityList component (internal) | Internal |

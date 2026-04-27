@@ -52,6 +52,8 @@ export { default as UserDetailProfile } from './components/user/UserDetailProfil
 export type { UserDetailProfileProps } from './components/user/UserDetailProfile';
 export { default as UserGrowth } from './components/user/UserGrowth';
 export type { UserGrowthProps } from './components/user/UserGrowth';
+export { default as PollListItem } from './components/user/PollListItem';
+export type { PollListItemProps } from './components/user/PollListItem';
 
 // Landing components
 export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';

@@ -86,6 +86,15 @@ const UserDetailProfilePage = () => {
           console.log("[Callback] Poll Click:", author, permlink, question);
           navigate(`/@${author}/${permlink}`);
         }}
+        onVotePoll={(author, permlink, choiceNums) => {
+          console.log("[Callback] Vote Poll:", author, permlink, choiceNums);
+          const ok = window.confirm(
+            `Vote on @${author}/${permlink}\nchoice${choiceNums.length > 1 ? "s" : ""}: ${choiceNums.join(", ")}\n\nIntegrate with Aioha/HiveKeychain here.\n\nClick OK to mark as voted, Cancel to simulate a denied signature.`
+          );
+          // Returning false here keeps the user's selection so they can retry
+          // (mirrors the real Keychain-denied flow).
+          return ok ? undefined : false;
+        }}
         onActivityPermlink={(author, permlink) => {
           console.log("[Callback] Activity Permlink:", author, permlink);
           navigate(`/@${author}/${permlink}`);

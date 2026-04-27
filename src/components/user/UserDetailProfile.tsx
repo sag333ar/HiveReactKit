@@ -34,6 +34,7 @@ import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
 import UserGrowth from "./UserGrowth";
+import PollListItem from "./PollListItem";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -90,6 +91,20 @@ export interface UserDetailProfileProps {
   onReblog?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
+
+  /**
+   * Called when the user submits a poll vote from the inline voting UI on the
+   * polls tab. `choiceNums` is an array of 1-based choice numbers selected
+   * (one entry for single-choice polls, one or more for multi-choice).
+   *
+   * Return `false` (or a Promise resolving to `false`) to indicate the
+   * operation was cancelled (e.g. keychain request denied) — the per-card
+   * vote state will not be updated.
+   *
+   * When this callback is omitted, the polls tab still renders choices with
+   * vote bars but is read-only.
+   */
+  onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | boolean | Promise<void | boolean>;
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
@@ -229,6 +244,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onReblog,
   onTip,
   onReportPost,
+  onVotePoll,
   onUserClick,
   onPostClick,
   onSnapClick,
@@ -1345,98 +1361,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     );
   };
 
-  // ─── Render: Poll item ─────────────────────────────────────────────────
-
-  const renderPollItem = (poll: Poll) => {
-    const totalVotes = poll.poll_stats?.total_voting_accounts_num || 0;
-    const isActive = poll.status === "Active";
-    const endDate = new Date(poll.end_time);
-    const now = new Date();
-    const isExpired = endDate < now;
-    const previewText = poll.post_body ? extractPlainText(poll.post_body) : "";
-    const choiceCount = poll.poll_choices?.length || 0;
-
-    return (
-      <div
-        key={`${poll.author}/${poll.permlink}`}
-        className="border border-gray-700 rounded-lg bg-gray-800 hover:bg-gray-700/50 transition-colors cursor-pointer"
-        onClick={() => onPollClick?.(poll.author, poll.permlink, poll.question)}
-      >
-        <div className="p-4">
-          {/* Header: author + status */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <img
-                src={`https://images.hive.blog/u/${poll.author}/avatar`}
-                alt={poll.author}
-                className="w-8 h-8 rounded-full bg-gray-700"
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${poll.author}&background=random&size=32`; }}
-              />
-              <div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onUserClick?.(poll.author); }}
-                  className="text-sm font-medium text-white hover:text-blue-400"
-                >
-                  @{poll.author}
-                </button>
-                <p className="text-[10px] text-gray-500">{formatTimeAgo(poll.created)}</p>
-              </div>
-            </div>
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isActive && !isExpired ? "bg-green-500/20 text-green-400" : "bg-gray-600/30 text-gray-400"}`}>
-              {isActive && !isExpired ? "Active" : "Ended"}
-            </span>
-          </div>
-
-          {/* Question */}
-          <h3 className="text-sm font-semibold text-white mb-1">{poll.question}</h3>
-
-          {/* Body preview */}
-          {previewText && (
-            <p className="text-gray-400 text-xs line-clamp-2 mb-2">{previewText.substring(0, 150)}</p>
-          )}
-
-          {/* Stats row */}
-          <div className="flex items-center gap-3 text-[11px] text-gray-500">
-            <span>{totalVotes} voter{totalVotes !== 1 ? "s" : ""}</span>
-            <span>{choiceCount} option{choiceCount !== 1 ? "s" : ""}</span>
-            {poll.poll_stats?.total_hive_hp != null && poll.poll_stats.total_hive_hp > 0 && (
-              <span>{(poll.poll_stats.total_hive_hp / 1000).toFixed(1)}k HP</span>
-            )}
-            {poll.end_time && (
-              <span>{isActive && !isExpired ? `Ends ${formatTimeAgo(poll.end_time)}` : "Ended"}</span>
-            )}
-          </div>
-        </div>
-
-        {/* PostActionButton */}
-        <div className="px-4 pb-3 pt-1 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
-          <PostActionButton
-            author={poll.author}
-            permlink={poll.permlink}
-            currentUser={currentUsername}
-            hiveIconUrl="/images/hive_logo.png"
-            initialVotes={[]}
-            initialCommentsCount={0}
-            onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
-            onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
-            onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={poll.author !== currentUsername && onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
-            onShare={onSharePost ? () => onSharePost(poll.author, poll.permlink) : undefined}
-            onTip={poll.author !== currentUsername && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
-            onReport={poll.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: poll.author, permlink: poll.permlink }) : undefined}
-            disableCommentsModal={!!onCommentClick}
-            onComments={onCommentClick ? () => onCommentClick(poll.author, poll.permlink) : undefined}
-            ecencyToken={ecencyToken}
-            threeSpeakApiKey={threeSpeakApiKey}
-            giphyApiKey={giphyApiKey}
-            templateToken={templateToken}
-            templateApiBaseUrl={templateApiBaseUrl}
-          />
-        </div>
-      </div>
-    );
-  };
-
   // ─── Render: User item (follower/following) ──────────────────────────────
 
   const renderUserItem = (name: string, index: number) => (
@@ -2168,7 +2092,29 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       }
       return (
         <div className="space-y-3">
-          {filteredPolls.map((poll) => renderPollItem(poll))}
+          {filteredPolls.map((poll) => (
+            <PollListItem
+              key={`${poll.author}/${poll.permlink}`}
+              poll={poll}
+              currentUsername={currentUsername}
+              onVotePoll={onVotePoll}
+              onPollClick={onPollClick}
+              onUpvote={onUpvote}
+              onSubmitComment={onSubmitComment}
+              onClickCommentUpvote={onClickCommentUpvote}
+              onReblog={onReblog}
+              onTip={onTip}
+              onSharePost={onSharePost}
+              onCommentClick={onCommentClick}
+              onRequestReportPost={onReportPost ? (a, p) => setReportPostTarget({ author: a, permlink: p }) : undefined}
+              onUserClick={onUserClick}
+              ecencyToken={ecencyToken}
+              threeSpeakApiKey={threeSpeakApiKey}
+              giphyApiKey={giphyApiKey}
+              templateToken={templateToken}
+              templateApiBaseUrl={templateApiBaseUrl}
+            />
+          ))}
         </div>
       );
     }

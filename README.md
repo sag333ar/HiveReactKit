@@ -158,7 +158,8 @@ import { UserDetailProfile } from 'hive-react-kit';
 | `onUserClick` | `(username: string) => void` | Called when a user avatar/name is clicked (followers, following, etc.) |
 | `onPostClick` | `(author: string, permlink: string, title: string) => void` | Called when a blog/post/reward row is clicked |
 | `onSnapClick` | `(author: string, permlink: string) => void` | Called when a snap item is clicked |
-| `onPollClick` | `(author: string, permlink: string, question: string) => void` | Called when a poll item is clicked |
+| `onPollClick` | `(author: string, permlink: string, question: string) => void` | Called when a poll card body is clicked. Choices and the action bar do **not** trigger this — they have their own handlers |
+| `onVotePoll` | `(author, permlink, choiceNums: number[]) => void \| boolean \| Promise<void \| boolean>` | Called when a user submits a vote on a poll **inline from the polls tab**. `choiceNums` is an array of 1-based choice numbers. Return `false` to cancel — per-card vote state will not be updated. When omitted, choices render read-only with vote bars |
 | `onActivityPermlink` | `(author: string, permlink: string) => void` | Called when an activity permlink is clicked |
 | `onActivitySelect` | `(activity: any) => void` | Called when an activity item is selected |
 | `onShare` | `(username: string) => void` | Called when the share button is clicked |
@@ -172,7 +173,7 @@ The `tabShown` prop accepts an array of these values:
 | `"blogs"` | Blogs | User's blog posts (reblogs included) |
 | `"posts"` | Posts | User's original posts |
 | `"snaps"` | Snaps | User's snaps from PeakD |
-| `"polls"` | Polls | User's polls from HiveHub |
+| `"polls"` | Polls | User's polls from HiveHub. Each card renders the choices inline with vote bars and a **Submit Vote** flow when `onVotePoll` is provided |
 | `"comments"` | Comments | User's comments |
 | `"replies"` | Replies | Replies to the user |
 | `"activities"` | Activities | User's activity history |
