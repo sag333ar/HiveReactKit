@@ -69,6 +69,12 @@ export * from './hooks/useHiveImageSign';
 
 // Utils
 export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
+
+// Re-exports from @snapie/renderer — Hive markdown renderer used internally
+// by HiveDetailPost / AddCommentInput / InlineCommentItem. Surfaced so
+// consumers can render Hive bodies with the exact same configuration without
+// installing @snapie/renderer themselves.
+export { createHiveRenderer, renderHiveMarkdown, type HiveRendererOptions } from '@snapie/renderer';
 export {
   buildCommentOptions,
   REWARD_OPTIONS,
