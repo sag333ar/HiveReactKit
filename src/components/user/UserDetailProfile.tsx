@@ -36,6 +36,7 @@ import ActivityList from "../ActivityList";
 import UserGrowth from "./UserGrowth";
 import PollListItem from "./PollListItem";
 import { TranslatedText } from "../TranslatedText";
+import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -260,6 +261,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   isFavourited = false,
   favouriteCount = 0,
 }) => {
+  const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1092,7 +1094,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       <div className="dark flex items-center justify-center min-h-[400px] bg-gray-900">
         <div className="text-center">
           <User className="h-14 w-14 text-gray-500 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-white mb-1">User Not Found</h3>
+          <h3 className="text-lg font-medium text-white mb-1">{t("empty.userNotFound")}</h3>
           <p className="text-gray-400">{error || "This user does not exist"}</p>
           {showBackButton && onBack && (
             <button
@@ -1562,7 +1564,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       return (
         <div className="text-center py-12">
           <Award className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">No pending author rewards</p>
+          <p className="text-gray-400">{t("empty.noPendingAuthor")}</p>
           <p className="text-gray-500 text-xs mt-1">Rewards appear for posts/comments with pending payouts</p>
         </div>
       );
@@ -1577,23 +1579,23 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-700/40">
           <div className="flex items-center gap-2 mb-3">
             <Award className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-semibold text-amber-300">Pending Author Rewards</h3>
+            <h3 className="text-sm font-semibold text-amber-300">{t("reward.pendingAuthor")}</h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Posts</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.posts")}</p>
               <p className="text-lg font-bold text-white">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Comments</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.comments")}</p>
               <p className="text-lg font-bold text-white">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total HBD</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHbd")}</p>
               <p className="text-lg font-bold text-amber-400">${formatNum(authorRewardsTotals.totalHbd)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total HP</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHp")}</p>
               <p className="text-lg font-bold text-orange-400">{formatNum(authorRewardsTotals.totalHpEq)}</p>
             </div>
           </div>
@@ -1616,7 +1618,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     {row.title || `${row.author}/${row.permlink}`}
                   </h4>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${row.isComment ? "bg-blue-900/40 text-blue-300" : "bg-emerald-900/40 text-emerald-300"}`}>
-                    {row.isComment ? "Comment" : "Post"}
+                    {row.isComment ? t("reward.comment") : t("reward.post")}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
@@ -1669,8 +1671,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       return (
         <div className="text-center py-12">
           <TrendingUp className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">No pending curation rewards</p>
-          <p className="text-gray-500 text-xs mt-1">Rewards appear for posts you voted on with pending payouts</p>
+          <p className="text-gray-400">{t("empty.noPendingCuration")}</p>
+          <p className="text-gray-500 text-xs mt-1">{t("empty.curationHint")}</p>
         </div>
       );
     }
@@ -1688,28 +1690,28 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-4 border border-blue-700/40">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-5 h-5 text-blue-400" />
-            <h3 className="text-sm font-semibold text-blue-300">Pending Curation Rewards</h3>
+            <h3 className="text-sm font-semibold text-blue-300">{t("reward.pendingCuration")}</h3>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Posts</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.posts")}</p>
               <p className="text-lg font-bold text-white">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Comments</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.comments")}</p>
               <p className="text-lg font-bold text-white">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total HP</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHp")}</p>
               <p className="text-lg font-bold text-blue-400">{formatNum(curationRewardsTotals.totalHp)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Total HBD</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHbd")}</p>
               <p className="text-lg font-bold text-purple-400">${formatNum(curationRewardsTotals.totalHbd)}</p>
             </div>
             {avgEfficiency !== null && (
               <div className="bg-black/30 rounded-lg p-2.5">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Avg Efficiency</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.avgEfficiency")}</p>
                 <p className={`text-lg font-bold ${avgEfficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
                   {avgEfficiency.toFixed(1)}%
                 </p>
@@ -1738,7 +1740,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <p className="text-xs text-gray-500 mt-0.5">by @{row.author}</p>
                   </div>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${row.isComment ? "bg-blue-900/40 text-blue-300" : "bg-emerald-900/40 text-emerald-300"}`}>
-                    {row.isComment ? "Comment" : "Post"}
+                    {row.isComment ? t("reward.comment") : t("reward.post")}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
@@ -1847,7 +1849,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <Gauge className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">Voting power data unavailable</p>
+            <p className="text-gray-400">{t("empty.votingPowerUnavailable")}</p>
           </div>
         );
       }
@@ -1868,7 +1870,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       const rechargeSeconds = ((100 - sliderPower) / 100) * REGEN_SECONDS;
 
       const formatRechargeTime = (totalSeconds: number): string => {
-        if (totalSeconds <= 0) return "Fully charged";
+        if (totalSeconds <= 0) return t("common.fullyCharged");
         const days = Math.floor(totalSeconds / 86400);
         const hours = Math.floor((totalSeconds % 86400) / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -1881,9 +1883,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
       const bars = [
-        { label: "Voting Power", value: votingPowerData.upvotePower, color: "#10b981" },
-        { label: "Downvote Power", value: votingPowerData.downvotePower, color: "#f59e0b" },
-        { label: "Resource Credits", value: votingPowerData.resourceCredits, color: "#3b82f6" },
+        { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "#10b981" },
+        { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "#f59e0b" },
+        { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "#3b82f6" },
       ];
       return (
         <div className="max-w-lg mx-auto space-y-6">
@@ -1952,7 +1954,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <Award className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">No badges found</p>
+            <p className="text-gray-400">{t("empty.noBadges")}</p>
           </div>
         );
       }
@@ -1970,7 +1972,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <Shield className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">No witness votes found</p>
+            <p className="text-gray-400">{t("empty.noWitnessVotes")}</p>
           </div>
         );
       }
@@ -2022,7 +2024,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         body = (
           <div className="text-center py-12">
             <Camera className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">No snaps found</p>
+            <p className="text-gray-400">{t("empty.noSnaps")}</p>
           </div>
         );
       } else {
@@ -2053,7 +2055,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">No followers found</p>
+            <p className="text-gray-400">{t("empty.noFollowers")}</p>
           </div>
         );
       }
@@ -2070,7 +2072,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">Not following anyone</p>
+            <p className="text-gray-400">{t("empty.notFollowing")}</p>
           </div>
         );
       }
@@ -2087,7 +2089,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         return (
           <div className="text-center py-12">
             <BarChart3 className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">No polls found</p>
+            <p className="text-gray-400">{t("empty.noPolls")}</p>
           </div>
         );
       }
@@ -2134,10 +2136,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     if (current.data.length === 0) {
       const EmptyIcon = current.icon;
+      const emptyKey =
+        activeTab === "blogs" ? "empty.noBlogs"
+          : activeTab === "posts" ? "empty.noPosts"
+          : activeTab === "comments" ? "empty.noComments"
+          : activeTab === "replies" ? "empty.noReplies"
+          : "empty.noPosts";
       return (
         <div className="text-center py-12">
           <EmptyIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">No {activeTab} found</p>
+          <p className="text-gray-400">{t(emptyKey as any)}</p>
         </div>
       );
     }
@@ -2159,22 +2167,22 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // ─── Render: Tabs ────────────────────────────────────────────────────────
 
   const allTabs: { id: TabType; label: string; icon: any }[] = [
-    { id: "blogs", label: "Blogs", icon: FileText },
-    { id: "posts", label: "Posts", icon: FileText },
-    { id: "snaps", label: "Snaps", icon: Camera },
-    { id: "polls", label: "Polls", icon: BarChart3 },
-    { id: "comments", label: "Comments", icon: MessageCircle },
-    { id: "replies", label: "Replies", icon: Reply },
-    { id: "activities", label: "Activities", icon: Activity },
-    { id: "authorRewards", label: "Author Rewards", icon: Award },
-    { id: "curationRewards", label: "Curation Rewards", icon: TrendingUp },
-    { id: "growth", label: "Growth", icon: TrendingUp },
-    { id: "followers", label: "Followers", icon: Users },
-    { id: "following", label: "Following", icon: Users },
-    { id: "wallet", label: "Wallet", icon: WalletIcon },
-    { id: "votingPower", label: "Voting Power", icon: Gauge },
-    { id: "badges", label: "Badges", icon: Award },
-    { id: "witnessVotes", label: "Witness Votes", icon: Shield },
+    { id: "blogs", label: t("tab.blogs"), icon: FileText },
+    { id: "posts", label: t("tab.posts"), icon: FileText },
+    { id: "snaps", label: t("tab.snaps"), icon: Camera },
+    { id: "polls", label: t("tab.polls"), icon: BarChart3 },
+    { id: "comments", label: t("tab.comments"), icon: MessageCircle },
+    { id: "replies", label: t("tab.replies"), icon: Reply },
+    { id: "activities", label: t("tab.activities"), icon: Activity },
+    { id: "authorRewards", label: t("tab.authorRewards"), icon: Award },
+    { id: "curationRewards", label: t("tab.curationRewards"), icon: TrendingUp },
+    { id: "growth", label: t("tab.growth"), icon: TrendingUp },
+    { id: "followers", label: t("tab.followers"), icon: Users },
+    { id: "following", label: t("tab.following"), icon: Users },
+    { id: "wallet", label: t("tab.wallet"), icon: WalletIcon },
+    { id: "votingPower", label: t("tab.votingPower"), icon: Gauge },
+    { id: "badges", label: t("tab.badges"), icon: Award },
+    { id: "witnessVotes", label: t("tab.witnessVotes"), icon: Shield },
   ];
 
   // If tabShown is provided, only show those tabs in that exact order.
@@ -2268,7 +2276,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       >
                         <span className="flex items-center gap-2">
                           {profile.isFollowing ? <UserMinus className="h-4 w-4 text-red-400" /> : <UserPlus className="h-4 w-4 text-green-400" />}
-                          {profile.isFollowing ? "Unfollow" : "Follow"}
+                          {profile.isFollowing ? t("action.unfollow") : t("action.follow")}
                         </span>
                       </button>
                     )}
@@ -2282,7 +2290,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50"
                       >
                         <span className="flex items-center gap-2">
-                          <Ban className="h-4 w-4 text-red-400" /> Ignore Author
+                          <Ban className="h-4 w-4 text-red-400" /> {t("action.ignoreAuthor")}
                         </span>
                       </button>
                     )}
@@ -2296,7 +2304,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50 last:rounded-b-lg"
                       >
                         <span className="flex items-center gap-2">
-                          <Flag className="h-4 w-4 text-orange-400" /> Report User
+                          <Flag className="h-4 w-4 text-orange-400" /> {t("action.reportUser")}
                         </span>
                       </button>
                     )}
@@ -2308,7 +2316,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 first:rounded-t-lg"
                     >
                       <span className="flex items-center gap-2">
-                        <Share2 className="h-4 w-4 text-blue-400" /> Share Profile
+                        <Share2 className="h-4 w-4 text-blue-400" /> {t("action.shareProfile")}
                       </span>
                     </button>
                   </div>
@@ -2409,13 +2417,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             {/* Followers / Following / Posts */}
             <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-gray-200">
               <button onClick={() => setActiveTab("followers")} className="hover:text-white transition-colors drop-shadow-md">
-                <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> Followers
+                <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> {t("meta.followers")}
               </button>
               <button onClick={() => setActiveTab("following")} className="hover:text-white transition-colors drop-shadow-md">
-                <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> Following
+                <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> {t("meta.following")}
               </button>
               <span className="drop-shadow-md">
-                <span className="font-semibold">{profile.postsCount.toLocaleString()}</span> Posts
+                <span className="font-semibold">{profile.postsCount.toLocaleString()}</span> {t("meta.posts")}
               </span>
             </div>
           </div>
@@ -2507,12 +2515,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-semibold text-white mb-2">
-                Ignore Author
+                {t("modal.ignoreAuthorTitle")}
               </h3>
               <p className="text-sm text-gray-300 mb-6">
-                Are you sure you want to ignore{" "}
-                <span className="text-red-400 font-medium">@{targetUsername}</span>?
-                Their content will be hidden from your feed.
+                {t("modal.ignoreAuthorBody", { username: targetUsername })}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -2520,14 +2526,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   disabled={actionLoading}
                   className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
                 >
-                  Cancel
+                  {t("action.cancel")}
                 </button>
                 <button
                   onClick={handleIgnore}
                   disabled={actionLoading}
                   className="px-4 py-2 text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 >
-                  {actionLoading ? "Processing..." : "Confirm Ignore"}
+                  {actionLoading ? t("action.processing") : t("action.confirmIgnore")}
                 </button>
               </div>
             </div>

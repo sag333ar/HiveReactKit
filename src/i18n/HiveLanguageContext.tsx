@@ -1,8 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from "react";
 import { translateHtml as defaultTranslateHtml } from "./translateService";
+import { BUILTIN_MESSAGES, formatMessage, type KitMessageKey } from "./messages";
 
 export type TranslateHtmlFn = (html: string, target: string) => Promise<string>;
+
+/** Look up a UI label in the supplied dict, with English fallback. */
+export type KitTFn = (key: KitMessageKey, vars?: Record<string, string | number>) => string;
 
 export interface HiveLanguageContextValue {
   /**
@@ -19,11 +23,29 @@ export interface HiveLanguageContextValue {
    * returns translated HTML.
    */
   translateHtml: TranslateHtmlFn;
+
+  /**
+   * UI label translator. Resolves a key against the merged messages dict
+   * (consumer overrides → kit built-ins → English source-of-truth).
+   */
+  t: KitTFn;
+}
+
+function buildT(language: string, messages?: Record<string, Record<string, string>>): KitTFn {
+  return (key, vars) => {
+    const overrideLang = messages?.[language]?.[key];
+    const builtinLang = BUILTIN_MESSAGES[language]?.[key];
+    const overrideEn = messages?.en?.[key];
+    const builtinEn = BUILTIN_MESSAGES.en?.[key];
+    const template = overrideLang ?? builtinLang ?? overrideEn ?? builtinEn ?? key;
+    return formatMessage(template, vars);
+  };
 }
 
 const DEFAULT_VALUE: HiveLanguageContextValue = {
   language: "en",
   translateHtml: defaultTranslateHtml,
+  t: buildT("en"),
 };
 
 const HiveLanguageContext = createContext<HiveLanguageContextValue>(DEFAULT_VALUE);
@@ -33,10 +55,25 @@ export interface HiveLanguageProviderProps {
   language?: string;
 
   /**
-   * Optional override translator. If omitted, the kit's default MyMemory
-   * implementation is used.
+   * Optional override translator for user-generated HTML. If omitted, the
+   * kit's default MyMemory-backed implementation is used.
    */
   translateHtml?: TranslateHtmlFn;
+
+  /**
+   * Optional UI label overrides keyed by language code. Merges on top of
+   * the kit's built-in `en` + `es` dicts:
+   *
+   * ```tsx
+   * messages={{
+   *   es: { "action.follow": "Seguir cuenta" },  // override one label
+   *   fr: { "action.follow": "Suivre" },         // add a new language
+   * }}
+   * ```
+   *
+   * Missing keys for a non-English language fall back to English.
+   */
+  messages?: Record<string, Record<string, string>>;
 
   children: React.ReactNode;
 }
@@ -57,19 +94,26 @@ export interface HiveLanguageProviderProps {
 export const HiveLanguageProvider: React.FC<HiveLanguageProviderProps> = ({
   language = "en",
   translateHtml,
+  messages,
   children,
 }) => {
   const value = useMemo<HiveLanguageContextValue>(
     () => ({
       language,
       translateHtml: translateHtml ?? defaultTranslateHtml,
+      t: buildT(language, messages),
     }),
-    [language, translateHtml],
+    [language, translateHtml, messages],
   );
   return <HiveLanguageContext.Provider value={value}>{children}</HiveLanguageContext.Provider>;
 };
 
-/** Read the current Hive language + translator from context. */
+/** Read the current Hive language + translator + label resolver from context. */
 export function useHiveLanguage(): HiveLanguageContextValue {
   return useContext(HiveLanguageContext);
+}
+
+/** Convenience hook returning just the UI label resolver. */
+export function useKitT(): KitTFn {
+  return useContext(HiveLanguageContext).t;
 }

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Circle, CheckCircle2, Send } from "lucide-react";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { TranslatedText } from "../TranslatedText";
+import { useKitT } from "@/i18n";
 import type { Poll } from "@/types/poll";
 
 // Inline poll-voting card used inside the polls tab of UserDetailProfile.
@@ -95,6 +96,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
   templateToken,
   templateApiBaseUrl,
 }) => {
+  const t = useKitT();
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
   const [votedChoices, setVotedChoices] = useState<number[]>([]);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
@@ -208,7 +210,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
             </div>
           </div>
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${!pollEnded ? "bg-green-500/20 text-green-400" : "bg-gray-600/30 text-gray-400"}`}>
-            {!pollEnded ? "Active" : "Ended"}
+            {!pollEnded ? t("status.active") : t("status.ended")}
           </span>
         </div>
 
@@ -226,25 +228,29 @@ const PollListItem: React.FC<PollListItemProps> = ({
 
         {/* Stats row */}
         <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-3">
-          <span>{totalVoters} voter{totalVoters !== 1 ? "s" : ""}</span>
-          <span>{choices.length} option{choices.length !== 1 ? "s" : ""}</span>
+          <span>{totalVoters} {totalVoters !== 1 ? t("poll.voters") : t("poll.voter")}</span>
+          <span>{choices.length} {choices.length !== 1 ? t("poll.options") : t("poll.option")}</span>
           {poll.poll_stats?.total_hive_hp != null && poll.poll_stats.total_hive_hp > 0 && (
             <span>{(poll.poll_stats.total_hive_hp / 1000).toFixed(1)}k HP</span>
           )}
           {poll.end_time && (
-            <span>{!pollEnded ? `Ends ${formatTimeAgo(poll.end_time)}` : "Ended"}</span>
+            <span>
+              {!pollEnded
+                ? t("poll.endsIn", { when: formatTimeAgo(poll.end_time) })
+                : t("status.ended")}
+            </span>
           )}
         </div>
 
         {/* Selection hint */}
         {showVoteUI && (
           <p className="mb-2 text-[11px] text-gray-400">
-            {isChangingVote ? "Change your vote — " : ""}
+            {isChangingVote ? t("poll.changeYourVote") : ""}
             {isMulti
-              ? `Select up to ${maxChoices} option${maxChoices > 1 ? "s" : ""}`
-              : "Select an option"}
+              ? t("poll.selectUpTo", { count: maxChoices })
+              : t("poll.selectAnOption")}
             {selectedChoices.length > 0 && (
-              <span className="ml-1 text-blue-400">· {selectedChoices.length} selected</span>
+              <span className="ml-1 text-blue-400">· {t("poll.selected", { count: selectedChoices.length })}</span>
             )}
           </p>
         )}
@@ -330,7 +336,13 @@ const PollListItem: React.FC<PollListItemProps> = ({
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
             >
               <Send className="w-3.5 h-3.5" />
-              {isSubmittingVote ? "Submitting…" : isChangingVote ? "Change Vote" : `Submit Vote${selectedChoices.length > 1 ? "s" : ""}`}
+              {isSubmittingVote
+                ? t("poll.submitting")
+                : isChangingVote
+                  ? t("poll.changeVote")
+                  : selectedChoices.length > 1
+                    ? t("poll.submitVotes")
+                    : t("poll.submitVote")}
             </button>
           </div>
         )}
@@ -338,7 +350,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
         {/* Voted footer marker */}
         {alreadyVoted && (
           <div className="mt-2 text-[11px] text-green-500">
-            ✓ Voted{allowVoteChanges ? " · Vote changes allowed" : ""}
+            {t("poll.voted")}{allowVoteChanges ? ` · ${t("poll.voteChangesAllowed")}` : ""}
           </div>
         )}
       </div>

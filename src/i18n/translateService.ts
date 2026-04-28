@@ -12,7 +12,11 @@
  * in-flight dedup so two views of the same body share one network call.
  */
 
-const STORAGE_KEY = "hive-react-kit-translation-cache";
+// Bumped to v2 to invalidate caches written by the prior version, which
+// would mistakenly store the original text as the "translation" whenever
+// MyMemory returned a warning sentinel (rate-limit, untranslatable token).
+// Existing v1 entries are abandoned in localStorage; they don't pollute v2.
+const STORAGE_KEY = "hive-react-kit-translation-cache-v2";
 const STORAGE_LIMIT = 500;
 const REQUEST_CHAR_LIMIT = 480; // MyMemory anonymous: 500. Leave headroom.
 
@@ -112,10 +116,18 @@ export async function translateText(
         const out = await Promise.all(parts.map((p) => callMyMemory(p, target, source)));
         result = out.join(" ");
       }
-      memCache.set(cacheKey, result);
-      const store = loadStorageCache();
-      store[cacheKey] = result;
-      saveStorageCache();
+      // Only cache real translations. When MyMemory returns a warning sentinel
+      // or echoes the input verbatim (rate-limit, untranslatable token, etc.)
+      // `callMyMemory` falls back to returning `text`. Caching that would
+      // poison subsequent reads — every revisit would return the original
+      // even after the API recovered. Skip the cache write in that case so
+      // the next render retries.
+      if (result && result.trim() !== text.trim()) {
+        memCache.set(cacheKey, result);
+        const store = loadStorageCache();
+        store[cacheKey] = result;
+        saveStorageCache();
+      }
       return result;
     } catch {
       return text;
@@ -178,10 +190,15 @@ export async function translateHtml(html: string, target: string): Promise<strin
         n.nodeValue = translated[i] ?? n.nodeValue;
       });
       const out = tpl.innerHTML;
-      memCache.set(fullKey, out);
-      const store = loadStorageCache();
-      store[fullKey] = out;
-      saveStorageCache();
+      // Only cache when at least one text node was actually translated. If the
+      // entire HTML came back identical (every per-node call hit a MyMemory
+      // warning or rate limit), skip the cache write so the next view retries.
+      if (out && out !== html) {
+        memCache.set(fullKey, out);
+        const store = loadStorageCache();
+        store[fullKey] = out;
+        saveStorageCache();
+      }
       return out;
     } catch {
       return html;

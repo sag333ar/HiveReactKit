@@ -82,13 +82,19 @@ export { createHiveRenderer, renderHiveMarkdown, type HiveRendererOptions } from
 export {
   HiveLanguageProvider,
   useHiveLanguage,
+  useKitT,
   useTranslatedHtml,
   useTranslatedText,
   translateHtml,
   translateText,
+  BUILTIN_MESSAGES,
+  formatMessage,
   type HiveLanguageProviderProps,
   type HiveLanguageContextValue,
   type TranslateHtmlFn,
+  type KitTFn,
+  type KitMessageKey,
+  type KitMessages,
 } from './i18n';
 export { default as TranslatedBody, type TranslatedBodyProps } from './components/TranslatedBody';
 export { default as TranslatedText, type TranslatedTextProps } from './components/TranslatedText';
