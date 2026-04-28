@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { Circle, CheckCircle2, Send } from "lucide-react";
 import { PostActionButton } from "../actionButtons/PostActionButton";
+import { TranslatedText } from "../TranslatedText";
 import type { Poll } from "@/types/poll";
 
 // Inline poll-voting card used inside the polls tab of UserDetailProfile.
@@ -212,11 +213,15 @@ const PollListItem: React.FC<PollListItemProps> = ({
         </div>
 
         {/* Question */}
-        <h3 className="text-sm font-semibold text-white mb-1">{poll.question}</h3>
+        <h3 className="text-sm font-semibold text-white mb-1">
+          <TranslatedText text={poll.question} />
+        </h3>
 
         {/* Body preview */}
         {previewText && (
-          <p className="text-gray-400 text-xs line-clamp-2 mb-2">{previewText.substring(0, 150)}</p>
+          <p className="text-gray-400 text-xs line-clamp-2 mb-2">
+            <TranslatedText text={previewText.substring(0, 150)} />
+          </p>
         )}
 
         {/* Stats row */}
@@ -302,7 +307,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
                               : "text-gray-200"
                       }`}
                     >
-                      {choice.choice_text}
+                      <TranslatedText text={choice.choice_text} />
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-gray-400">

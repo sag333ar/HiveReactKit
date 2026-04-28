@@ -10,6 +10,7 @@ A comprehensive React component library for building Hive blockchain application
 - 🎯 **TypeScript Support** - Full TypeScript support with type definitions
 - 🚀 **Tree Shaking** - Optimized bundle size with tree shaking support
 - 🎭 **Customizable** - Easy to customize and extend
+- 🌐 **Content i18n** - Wrap once, every Hive post body / comment / feed preview translates to the user's language. See [docs/i18n.md](docs/i18n.md)
 
 ## Installation
 
@@ -414,6 +415,45 @@ See [docs/HiveContributionsLanding.md](docs/HiveContributionsLanding.md) for ful
 | HSnaps | https://hsnaps.sagarkothari88.one/ |
 | 3Speak | https://3speak.tv/ |
 | HiveFestFacts | https://hivefestfacts.sagarkothari88.one/ |
+
+### Content Translation (i18n)
+
+Wrap your app once with `<HiveLanguageProvider>` and every Hive content body / title / comment / feed preview rendered by the kit translates to the chosen language. Free MyMemory-backed translator by default, fully overridable for DeepL / Google / your own backend.
+
+```tsx
+import { HiveLanguageProvider } from 'hive-react-kit';
+
+<HiveLanguageProvider language="es">
+  <App />
+</HiveLanguageProvider>
+```
+
+**Auto-translates:** post bodies (`HiveDetailPost`, `InlineCommentItem`, `CommentTile`, `UserChannel`), feed-card titles + previews (`UserDetailProfile`), poll questions / previews / choice labels (`PollListItem`).
+
+**Available exports:**
+
+| Export | Purpose |
+|--------|---------|
+| `HiveLanguageProvider` | Wrap app once with `language="es"` (or any code MyMemory accepts). `language="en"` is no-op |
+| `useHiveLanguage()` | Read current `{ language, translateHtml }` from context |
+| `useTranslatedHtml(html)` | Hook returning `{ html, loading }` for translated rendered HTML |
+| `useTranslatedText(text)` | Hook returning `{ text, loading }` for translated plain strings |
+| `<TranslatedBody>` | `forwardRef`-aware drop-in for `<div … dangerouslySetInnerHTML>` |
+| `<TranslatedText>` | Inline wrapper for plain strings inside `.map()` loops |
+| `translateHtml`, `translateText` | Low-level helpers (rarely needed) |
+
+**Custom translator** — pass `translateHtml` to override the bundled MyMemory implementation:
+
+```tsx
+<HiveLanguageProvider
+  language={language}
+  translateHtml={async (html, target) => callDeepL(html, target)}
+>
+  <App />
+</HiveLanguageProvider>
+```
+
+See [docs/i18n.md](docs/i18n.md) for the full provider API, hook signatures, custom-translator integration, caching layers, failure modes, and behaviour with code blocks / embeds.
 
 ### Feed Components
 

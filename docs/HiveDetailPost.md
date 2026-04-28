@@ -231,6 +231,24 @@ export default function HiveDetailPostPage() {
 | `hiveIconUrl` | `string` | `"/images/hive_logo.png"` | URL to Hive logo icon shown next to payout value |
 | `backgroundColor` | `string \| string[]` | `undefined` (gray-900) | Background color. Single string for solid, array for gradient (top to bottom) |
 
+## Content translation (i18n)
+
+When this component renders inside a `<HiveLanguageProvider>` with a non-English `language`, the following user-generated text is translated automatically:
+
+- **Post title** (the H1 heading).
+- **Post body** (rendered HTML — text nodes only; embeds, code blocks, image src/alt-tags-as-attributes are preserved).
+- **Every inline comment body** rendered by `InlineCommentItem` (full thread, including replies opened by the comment composer).
+
+```tsx
+import { HiveLanguageProvider } from 'hive-react-kit'
+
+<HiveLanguageProvider language="es">
+  <HiveDetailPost author="alice" permlink="hello-world" />
+</HiveLanguageProvider>
+```
+
+Defaults to `"en"` (no-op). See [i18n.md](i18n.md) for the full provider API, custom-translator integration (DeepL / Google / your own), and caching behaviour.
+
 ## Inline Comments
 
 Comments are rendered inline below the post content using `InlineCommentSection` and `InlineCommentItem` components. Clicking the comment icon in the action bar scrolls to the comments section instead of opening a modal.

@@ -35,6 +35,7 @@ import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
 import UserGrowth from "./UserGrowth";
 import PollListItem from "./PollListItem";
+import { TranslatedText } from "../TranslatedText";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1310,14 +1311,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
                 className="text-left text-base font-semibold text-white mb-1 line-clamp-2 hover:text-blue-400"
               >
-                {item.title}
+                <TranslatedText text={item.title} />
               </button>
             )}
 
             {/* Body preview */}
             {previewText && (
               <p className="text-gray-400 text-sm line-clamp-2">
-                {previewText.substring(0, 200)}
+                <TranslatedText text={previewText.substring(0, 200)} />
               </p>
             )}
 

@@ -210,6 +210,27 @@ import { PollListItem, type PollListItemProps } from 'hive-react-kit';
 />
 ```
 
+## Content translation (i18n)
+
+When this component renders inside a `<HiveLanguageProvider>` with a non-English `language`, every user-generated string on the feed cards is translated automatically — no extra props needed:
+
+- **Post / blog / snap / comment / reply card titles** (the bold heading on each card).
+- **Body previews** (the truncated snippet under the title).
+- **Poll questions, body previews, and every choice label** on the Polls tab.
+- **All comment bodies** rendered by `CommentTile` / `InlineCommentItem` (Activities tab, threaded replies, comments modal).
+
+Wrap your app once and every kit-rendered body follows the chosen language:
+
+```tsx
+import { HiveLanguageProvider } from 'hive-react-kit'
+
+<HiveLanguageProvider language={i18n.language}>
+  <UserDetailProfile username="alice" />
+</HiveLanguageProvider>
+```
+
+Defaults to `"en"` (no-op). See [i18n.md](i18n.md) for the full provider API, hook usage, custom-translator integration, and caching behaviour.
+
 ## TabType Reference
 
 | Value | Label | Data Source | Pagination |

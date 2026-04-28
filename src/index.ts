@@ -75,6 +75,23 @@ export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
 // consumers can render Hive bodies with the exact same configuration without
 // installing @snapie/renderer themselves.
 export { createHiveRenderer, renderHiveMarkdown, type HiveRendererOptions } from '@snapie/renderer';
+
+// i18n — wrap your app in <HiveLanguageProvider language={...}> to translate
+// every Hive content body rendered by the kit (post bodies, comments,
+// activity feeds, snaps) into the chosen language.
+export {
+  HiveLanguageProvider,
+  useHiveLanguage,
+  useTranslatedHtml,
+  useTranslatedText,
+  translateHtml,
+  translateText,
+  type HiveLanguageProviderProps,
+  type HiveLanguageContextValue,
+  type TranslateHtmlFn,
+} from './i18n';
+export { default as TranslatedBody, type TranslatedBodyProps } from './components/TranslatedBody';
+export { default as TranslatedText, type TranslatedTextProps } from './components/TranslatedText';
 export {
   buildCommentOptions,
   REWARD_OPTIONS,

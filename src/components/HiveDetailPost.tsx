@@ -18,6 +18,8 @@ import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { TranslatedBody } from './TranslatedBody';
+import { useTranslatedText } from '@/i18n/useTranslatedText';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -221,6 +223,10 @@ export function HiveDetailPost({
   }, [backgroundColor]);
 
   const [post, setPost] = useState<Post | null>(null);
+  // Title translation follows the language set on <HiveLanguageProvider>.
+  // Returns the original synchronously, swaps to translated when the API
+  // responds, no-op for English. Cached so subsequent renders are free.
+  const { text: translatedTitle } = useTranslatedText(post?.title);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -722,7 +728,7 @@ export function HiveDetailPost({
 
             {/* Post title + meta */}
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
-              {post.title}
+              {translatedTitle || post.title}
             </h1>
             <div className="text-xs text-gray-400 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="flex items-center gap-1">
@@ -739,10 +745,10 @@ export function HiveDetailPost({
             {/* Rendered body — full width */}
             <div className="pb-6">
               {renderedBody ? (
-                <div
+                <TranslatedBody
                   ref={postBodyRef}
                   className="hive-post-body"
-                  dangerouslySetInnerHTML={{ __html: renderedBody }}
+                  html={renderedBody}
                 />
               ) : (
                 <p className="text-gray-400 text-sm italic">No content available.</p>

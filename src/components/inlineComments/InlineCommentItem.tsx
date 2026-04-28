@@ -12,6 +12,7 @@ import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { TranslatedBody } from '../TranslatedBody';
 
 interface InlineCommentItemProps {
   comment: Discussion;
@@ -323,7 +324,7 @@ export default function InlineCommentItem({
             {/* Rendered body */}
             <div className="prose prose-sm prose-invert max-w-none mb-2 text-gray-200 text-left prose-a:text-blue-400 [&>*]:text-left ml-7 md:ml-9">
               {renderedBody ? (
-                <div ref={bodyRef} className="hive-post-body" dangerouslySetInnerHTML={{ __html: renderedBody }} />
+                <TranslatedBody ref={bodyRef} className="hive-post-body" html={renderedBody} />
               ) : (
                 <p className="text-gray-400 text-sm italic">No content available.</p>
               )}

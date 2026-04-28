@@ -8,6 +8,7 @@ import { DefaultRenderer } from '@hiveio/content-renderer';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import { toast } from '@/index';
+import { TranslatedBody } from '../TranslatedBody';
 
 interface CommentTileProps {
   comment: Discussion;
@@ -225,9 +226,9 @@ const CommentTile = ({
             {/* Content - left-aligned with header and actions */}
             <div className="prose prose-sm md:prose-base prose-invert max-w-none mb-3 comment-content text-left text-gray-100 prose-a:text-blue-400 [&>*]:text-left">
               {searchQuery ? (
-                <div className="text-left" dangerouslySetInnerHTML={{ __html: displayBody }} />
+                <TranslatedBody className="text-left" html={displayBody} />
               ) : (
-                <div className="text-left" dangerouslySetInnerHTML={{ __html: hiveRenderer.render(sanitizedBody) }} />
+                <TranslatedBody className="text-left" html={hiveRenderer.render(sanitizedBody)} />
               )}
             </div>
 

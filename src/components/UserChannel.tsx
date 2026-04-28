@@ -18,6 +18,7 @@ import { activityService } from "@/services/activityService";
 import { userService } from "@/services/userService";
 import { UserChannelItem, ActivityDisplayItem } from "@/types/activity";
 import { DefaultRenderer } from "@hiveio/content-renderer";
+import { TranslatedBody } from "./TranslatedBody";
 
 interface UserChannelProps {
   username: string;
@@ -202,15 +203,13 @@ const UserChannel: React.FC<UserChannelProps> = ({
               </div>
 
               <div className="prose prose-sm dark:prose-invert max-w-none mb-3 text-gray-500 dark:text-gray-400 comment-content overflow-hidden">
-                <div
+                <TranslatedBody
                   className="break-words overflow-wrap-anywhere"
-                  dangerouslySetInnerHTML={{
-                    __html: hiveRenderer.render(
-                      shouldTruncate && !isExpanded
-                        ? activity.body.substring(0, 50) + "....."
-                        : activity.body
-                    ),
-                  }}
+                  html={hiveRenderer.render(
+                    shouldTruncate && !isExpanded
+                      ? activity.body.substring(0, 50) + "....."
+                      : activity.body,
+                  )}
                 />
                 {shouldTruncate && (
                   <button
