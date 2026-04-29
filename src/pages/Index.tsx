@@ -64,8 +64,6 @@ const Index = () => {
             return (
               <VideoFeed
                 feedType={ApiVideoFeedType.TRENDING}
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -75,8 +73,6 @@ const Index = () => {
             return (
               <VideoFeed
                 feedType={ApiVideoFeedType.NEW_VIDEOS}
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -86,8 +82,6 @@ const Index = () => {
             return (
               <VideoFeed
                 feedType={ApiVideoFeedType.FIRST_UPLOADS}
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -97,8 +91,6 @@ const Index = () => {
             return (
               <VideoFeed
                 feedType={ApiVideoFeedType.HOME}
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -109,8 +101,6 @@ const Index = () => {
               <VideoFeed
                 feedType={ApiVideoFeedType.USER}
                 username="shaktimaaan"
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -121,8 +111,6 @@ const Index = () => {
               <VideoFeed
                 feedType={ApiVideoFeedType.COMMUNITY}
                 communityId="hive-163772"
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -133,8 +121,6 @@ const Index = () => {
               <VideoFeed
                 feedType={ApiVideoFeedType.TAG_FEED}
                 tag="threespeak"
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -145,8 +131,6 @@ const Index = () => {
               <VideoFeed
                 feedType={ApiVideoFeedType.SEARCH}
                 tag="shaktimaaan"
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -173,8 +157,6 @@ const Index = () => {
               <VideoDetail
                 username="shaktimaaan"
                 permlink="fyiytkhbkz"
-                onAuthorClick={(author) => console.log("Author clicked:", author)}
-                onVideoClick={(video) => console.log("Video clicked:", video)}
                 onTagClick={(tag) => console.log("Tag clicked:", tag)}
                 onBack={() => console.log("Back clicked")}
                 onCommentsModal={(author, permlink) => console.log("Comments modal:", author, permlink)}
@@ -192,8 +174,6 @@ const Index = () => {
             return (
               <UserProfilePage
                 username="shaktimaaan"
-                onVideoClick={(video) => console.log("Video clicked:", video)}
-                onAuthorClick={(author) => console.log("Author clicked:", author)}
                 onBack={() => console.log("Back clicked")}
                 onClickUserInfoTab={() => console.log("User Info tab clicked")}
                 onClickFollowersTab={() => console.log("Followers tab clicked")}
@@ -212,8 +192,6 @@ const Index = () => {
             return (
               <CommunityDetail
                 communityId="hive-163772"
-                onVideoClick={(video) => console.log("Video clicked:", video)}
-                onAuthorClick={(author) => console.log("Author clicked:", author)}
                 onBack={() => console.log("Back clicked")}
                 onclickAboutTab={() => console.log("About tab clicked")}
                 onclickTeamTab={() => console.log("Team tab clicked")}
@@ -369,7 +347,6 @@ const Index = () => {
                 tag=""
                 observer="hive.blog"
                 limit={20}
-                onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
                 onPostClick={(post) => console.log("Post clicked:", post)}
                 onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
                 onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
@@ -398,7 +375,6 @@ const Index = () => {
             return (
               <CommunityPostDetails 
                 communityId="hive-163772"
-                onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
                 onPostClick={(post) => console.log("Post clicked:", post)}
                 onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
                 onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
@@ -482,8 +458,6 @@ const Index = () => {
             return (
               <VideoFeed
                 feedType={ApiVideoFeedType.TRENDING}
-                onVideoClick={(video) => console.log(video)}
-                onAuthorClick={(author) => console.log(author)}
               />
             );
           }`;
@@ -572,8 +546,6 @@ const Index = () => {
         <CommunityDetail
           communityId={selectedCommunityId}
           onBack={() => setSelectedCommunityId(null)}
-          onVideoClick={handleVideoClick}
-          onAuthorClick={handleAuthorClick}
           // onclickAboutTab={() => console.log("About tab clicked")}
           // onclickTeamTab={() => console.log("Team tab clicked")}
           // onclickMemberTab={() => console.log("Member tab clicked")}
@@ -910,21 +882,9 @@ const Index = () => {
                 ) : activeTab === "community-detail" ? (
                   <CommunityDetail
                     communityId="hive-163772"
-                    onVideoClick={(video) =>
-                      console.log("Video clicked:", video)
-                    }
-                    onAuthorClick={(author) =>
-                      console.log("Author clicked:", author)
-                    }
                     onBack={() => console.log("Back clicked")}
-                    onclickAboutTab={() => console.log("About tab clicked")}
-                    onclickTeamTab={() => console.log("Team tab clicked")}
-                    onclickMemberTab={() => console.log("Member tab clicked")}
                     onShare={() => console.log("Share clicked")}
-                    onFavourite={() => console.log("Favourite clicked")}
                     onRss={() => console.log("RSS clicked")}
-                    onMoreVertical={() => console.log("MoreVertical clicked")}
-                    showMoreVertical={false}
                   />
                 ) : activeTab === "account" ? (
                   <UserAccount
@@ -1096,7 +1056,6 @@ const Index = () => {
                 ) : activeTab === "post-feed" ? (
                   <div className="max-w-4xl mx-auto">
                     <PostFeedList
-                      onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
                       onPostClick={(post) => console.log("Post clicked:", post)}
                       onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
                       onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
@@ -1119,7 +1078,6 @@ const Index = () => {
                   <div className="max-w-4xl mx-auto">
                     <CommunityPostDetails 
                     communityId="hive-163772" 
-                    onAuthorClick={(author, avatar) => console.log("Author clicked:", author, avatar)}
                     onPostClick={(post) => console.log("Post clicked:", post)}
                     onCommunityClick={(communityTitle) => console.log("Community clicked:", communityTitle)}
                     onPayoutClick={(payout) => console.log("Payout clicked:", payout)}
@@ -1274,8 +1232,6 @@ const Index = () => {
                     )}
                     <VideoFeed
                       feedType={feedTabs.find((t) => t.id === activeTab)?.type}
-                      onVideoClick={handleVideoClick}
-                      onAuthorClick={handleAuthorClick}
                       {...(activeTab === "search"
                         ? { tag: searchQuery }
                         : activeTab === "user"
@@ -1285,6 +1241,8 @@ const Index = () => {
                         : activeTab === "tag"
                         ? { tag: tagQuery }
                         : {})}
+                      onVideoClick={(video) => console.log("Video clicked:", video)}
+                      onAuthorClick={(author) => console.log("Author clicked:", author)}
                     />
                   </>
                 ) : null}

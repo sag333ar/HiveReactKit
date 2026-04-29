@@ -5,6 +5,7 @@ export { default as VideoFeed } from './components/VideoFeed';
 export { default as VideoInfo } from './components/VideoInfo';
 export { default as Wallet } from './components/Wallet';
 export { default as PostFeedList } from './components/PostFeedList';
+export { default as BlogPostList, type BlogPostListProps } from './components/BlogPostList';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';
 export { default as FollowingList } from './components/FollowingList';
@@ -29,7 +30,10 @@ export { default as FavouriteWidget } from './components/common/FavouriteWidget'
 // Community components
 export { default as CommunitiesList } from './components/community/CommunitiesList';
 export { default as CommunityAbout } from './components/community/CommunityAbout';
-export { default as CommunityDetail } from './components/community/CommunityDetail';
+export {
+  default as CommunityDetail,
+  type CommunityDetailProps,
+} from './components/community/CommunityDetail';
 export { default as CommunityPostDetails } from './components/community/CommunityPostDetails';
 export { default as CommunityMembers } from './components/community/CommunityMembers';
 export { default as CommunityTeam } from './components/community/CommunityTeam';
