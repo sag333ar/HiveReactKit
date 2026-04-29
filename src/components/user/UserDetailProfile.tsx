@@ -125,6 +125,14 @@ export interface UserDetailProfileProps {
   onAddToFavourite?: (username: string) => void | Promise<void>;
   isFavourited?: boolean;
   favouriteCount?: number;
+
+  /** Initial percent (1–100) for every upvote slider on the profile page —
+   *  post upvotes, comment upvotes, and the upvote-on-publish slider in
+   *  inline comment composers. Default 100. Typically wired to a user setting. */
+  defaultVotePercent?: number;
+  /** Slider precision (0.25, 0.5, or 1) for every upvote slider on this page.
+   *  Default 0.25. */
+  voteWeightStep?: number;
 }
 
 interface ProfileData {
@@ -260,6 +268,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onAddToFavourite,
   isFavourited = false,
   favouriteCount = 0,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
 }) => {
   const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -1358,6 +1368,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}
+            defaultVotePercent={defaultVotePercent}
+            voteWeightStep={voteWeightStep}
           />
         </div>
       </div>
@@ -2116,6 +2128,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               giphyApiKey={giphyApiKey}
               templateToken={templateToken}
               templateApiBaseUrl={templateApiBaseUrl}
+              defaultVotePercent={defaultVotePercent}
+              voteWeightStep={voteWeightStep}
             />
           ))}
         </div>

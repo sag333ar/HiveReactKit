@@ -88,8 +88,11 @@ export interface PostComposerProps {
   showVoteButton?: boolean;
   /** Initial toggle state for upvote-on-publish (default false). */
   defaultVoteEnabled?: boolean;
-  /** Initial slider percent (1–100, step 0.25, default 100). */
+  /** Initial slider percent (1–100, default 100). Snapped to `voteWeightStep`. */
   defaultVotePercent?: number;
+  /** Slider precision for the upvote-on-publish slider. Use 0.25, 0.5, or 1.
+   *  Default 0.25 (back-compat). */
+  voteWeightStep?: number;
   /**
    * Called whenever the upvote-on-publish toggle or percent changes.
    * `enabled=false` => consumer should post a plain comment.
@@ -173,6 +176,7 @@ const PostComposer = ({
   showVoteButton = false,
   defaultVoteEnabled = false,
   defaultVotePercent = 100,
+  voteWeightStep = 0.25,
   onVoteChange,
   voteLabel = 'Upvote parent on publish',
   showCancel = true,
@@ -249,12 +253,16 @@ const PostComposer = ({
   }, []);
 
   // Upvote-on-publish toggle + slider. The composer owns the UI; the consumer owns the broadcast.
-  // Slider step is 0.25%; clamp rounds to the nearest 0.25 within [0.25, 100].
+  // Slider step comes from the `voteWeightStep` prop (0.25 / 0.5 / 1). Snap rounds
+  // to the nearest step within [step, 100].
   const clampPercent = (n: number) => {
-    const snapped = Math.round(n * 4) / 4;
-    return Math.max(0.25, Math.min(100, snapped));
+    const safeStep = voteWeightStep > 0 ? voteWeightStep : 0.25;
+    const snapped = Math.round(n / safeStep) * safeStep;
+    const min = safeStep;
+    return Math.max(min, Math.min(100, parseFloat(snapped.toFixed(4))));
   };
-  const formatPercent = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  const decimals = voteWeightStep >= 1 ? 0 : voteWeightStep >= 0.5 ? 1 : 2;
+  const formatPercent = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(decimals));
   const [voteEnabled, setVoteEnabled] = useState<boolean>(defaultVoteEnabled);
   const [votePercent, setVotePercent] = useState<number>(clampPercent(defaultVotePercent));
   useEffect(() => {
@@ -959,9 +967,9 @@ const PostComposer = ({
           </div>
           <input
             type="range"
-            min={0.25}
+            min={voteWeightStep}
             max={100}
-            step={0.25}
+            step={voteWeightStep}
             value={votePercent}
             onChange={(e) => setVotePercent(clampPercent(Number(e.target.value)))}
             disabled={isDisabled}

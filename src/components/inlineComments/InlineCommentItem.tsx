@@ -43,6 +43,11 @@ interface InlineCommentItemProps {
   onUserClick?: (username: string) => void;
   /** Default reward routing seeded into every reply composer. */
   defaultReward?: RewardOption;
+  /** Initial percent for the comment-upvote slider AND reply composer's
+   *  upvote-on-publish slider. Default 100. */
+  defaultVotePercent?: number;
+  /** Slider precision (0.25, 0.5, or 1) used by both sliders. Default 0.25. */
+  voteWeightStep?: number;
   /** Renderer URL overrides applied to the comment body. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -78,6 +83,8 @@ export default function InlineCommentItem({
   onNavigateToPost,
   onUserClick,
   defaultReward,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
   renderOptions,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -447,6 +454,8 @@ export default function InlineCommentItem({
                 <VoteSlider
                   author={comment.author}
                   permlink={comment.permlink}
+                  defaultValue={defaultVotePercent}
+                  step={voteWeightStep}
                   onUpvote={handlePerformUpvote}
                   onCancel={() => setShowVoteSlider(false)}
                 />
@@ -631,6 +640,8 @@ export default function InlineCommentItem({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              defaultVotePercent={defaultVotePercent}
+              voteWeightStep={voteWeightStep}
               renderOptions={renderOptions}
             />
           ))}

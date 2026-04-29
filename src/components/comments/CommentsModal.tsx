@@ -44,9 +44,13 @@ interface CommentsModalProps {
   templateToken?: string;
   /** Custom template API endpoint */
   templateApiBaseUrl?: string;
+  /** Initial percent for the composer's "upvote on publish" slider. Default 100. */
+  defaultVotePercent?: number;
+  /** Slider precision for the composer's "upvote on publish" slider (0.25, 0.5, or 1). Default 0.25. */
+  voteWeightStep?: number;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultVotePercent, voteWeightStep }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,6 +282,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   onVoteChange={(enabled, percent) => { voteRef.current = { enabled, percent }; }}
                   defaultTags={parentTags}
                   defaultReward={defaultReward}
+                  defaultVotePercent={defaultVotePercent}
+                  voteWeightStep={voteWeightStep}
                 />
               </div>
             )}

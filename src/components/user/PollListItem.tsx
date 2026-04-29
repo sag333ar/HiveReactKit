@@ -74,6 +74,11 @@ export interface PollListItemProps {
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
+
+  /** Initial percent (1–100) for the poll's upvote slider. Default 100. */
+  defaultVotePercent?: number;
+  /** Slider precision (0.25 / 0.5 / 1) used by the poll's upvote slider. Default 0.25. */
+  voteWeightStep?: number;
 }
 
 const PollListItem: React.FC<PollListItemProps> = ({
@@ -95,6 +100,8 @@ const PollListItem: React.FC<PollListItemProps> = ({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
 }) => {
   const t = useKitT();
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
@@ -378,6 +385,8 @@ const PollListItem: React.FC<PollListItemProps> = ({
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
+          defaultVotePercent={defaultVotePercent}
+          voteWeightStep={voteWeightStep}
         />
       </div>
     </div>

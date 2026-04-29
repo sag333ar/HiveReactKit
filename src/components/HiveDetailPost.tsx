@@ -74,6 +74,19 @@ export interface HiveDetailPostProps {
   defaultReward?: import('../utils/commentOptions').RewardOption;
 
   /**
+   * Initial percent (1–100) for the post's upvote slider AND every comment
+   * composer's "upvote-on-publish" / comment-upvote slider on this page.
+   * Default 100. Typically wired to a user setting.
+   */
+  defaultVotePercent?: number;
+  /**
+   * Slider precision (0.25, 0.5, or 1) used by every vote slider on this
+   * page — the post upvote action, comment upvote actions, and the
+   * upvote-on-publish slider in the comment composer. Default 0.25.
+   */
+  voteWeightStep?: number;
+
+  /**
    * Override the Hive content renderer's link-generating functions so the
    * rendered `<a>` URLs route into your app instead of an external Hive
    * frontend. The in-body click interceptor already recognises peakd /
@@ -199,6 +212,8 @@ export function HiveDetailPost({
   showVoteButton,
   processBody,
   defaultReward,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
   renderOptions,
 }: HiveDetailPostProps) {
   // Compute background style from prop
@@ -986,6 +1001,8 @@ export function HiveDetailPost({
                 showVoteButton={showVoteButton}
                 parentTags={parentTags}
                 defaultReward={defaultReward}
+                defaultVotePercent={defaultVotePercent}
+                voteWeightStep={voteWeightStep}
               />
             </div>
 
@@ -1014,6 +1031,8 @@ export function HiveDetailPost({
                 alreadyVoted={alreadyVoted}
                 parentTags={parentTags}
                 defaultReward={defaultReward}
+                defaultVotePercent={defaultVotePercent}
+                voteWeightStep={voteWeightStep}
                 renderOptions={renderOptions}
               />
             </div>

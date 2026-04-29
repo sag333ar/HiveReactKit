@@ -5,18 +5,22 @@ export function VoteSlider({
   author,
   permlink,
   defaultValue = 100,
+  step = 1,
   onUpvote,
   onCancel,
 }: {
   author: string;
   permlink: string;
   defaultValue?: number;
+  /** Slider precision. Use 0.25, 0.5, or 1 (default 1). */
+  step?: number;
   onUpvote: (percent: number) => Promise<void> | void; // allow async
   onCancel: () => void;
 }) {
   const [percent, setPercent] = useState(defaultValue);
   const [loading, setLoading] = useState(false);
   const stops = [1, ...Array.from({ length: 10 }, (_, i) => (i + 1) * 10)];
+  const decimals = step >= 1 ? 0 : step >= 0.5 ? 1 : 2;
 
   const handleVoteClick = async () => {
     if (percent === 0 || loading) return;
@@ -44,7 +48,7 @@ export function VoteSlider({
             style={{ left: `${percent}%`, transform: "translateX(-50%)" }}
           >
             <div className="bg-blue-600 text-white text-xs sm:text-sm px-2 py-1 rounded-lg shadow">
-              {percent}%
+              {percent.toFixed(decimals)}%
             </div>
             <div className="mx-auto w-2 h-2 bg-blue-600 rotate-45 -mt-1"></div>
           </div>
@@ -54,6 +58,7 @@ export function VoteSlider({
             type="range"
             min={1}
             max={100}
+            step={step}
             value={percent}
             onChange={(e) => setPercent(Number(e.target.value))}
             className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:h-2 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:-mt-1.5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-progress]:bg-blue-600 [&::-moz-range-progress]:rounded-lg"

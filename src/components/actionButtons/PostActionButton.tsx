@@ -48,6 +48,11 @@ export interface PostActionButtonProps {
   parentTags?: string[];
   /** Default reward routing seeded into the comment composer. */
   defaultReward?: import('../../utils/commentOptions').RewardOption;
+  /** Initial percent for the upvote slider when opened (1–100). Default 100. */
+  defaultVotePercent?: number;
+  /** Slider precision used by both the post upvote slider AND the comment composer's
+   *  "upvote-on-publish" slider. Use 0.25, 0.5, or 1. Default 0.25 (back-compat). */
+  voteWeightStep?: number;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when reblog is clicked (when logged in). */
@@ -100,6 +105,8 @@ export function PostActionButton({
   showVoteButton,
   parentTags,
   defaultReward,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -421,6 +428,8 @@ export function PostActionButton({
         <VoteSlider
           author={author}
           permlink={permlink}
+          defaultValue={defaultVotePercent}
+          step={voteWeightStep}
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
         />
@@ -459,6 +468,8 @@ export function PostActionButton({
           showVoteButton={!!showVoteButton && !hasVoted}
           parentTags={parentTags}
           defaultReward={defaultReward}
+          defaultVotePercent={defaultVotePercent}
+          voteWeightStep={voteWeightStep}
         />
       )}
 

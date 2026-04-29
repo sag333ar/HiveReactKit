@@ -23,6 +23,10 @@ interface InlineCommentSectionProps {
   parentTags?: string[];
   /** Default reward routing seeded into every reply composer in this section. */
   defaultReward?: RewardOption;
+  /** Initial percent for the "upvote on publish" slider in every reply composer. Default 100. */
+  defaultVotePercent?: number;
+  /** Slider precision (0.25, 0.5, or 1) used by every reply composer. Default 0.25. */
+  voteWeightStep?: number;
   /** Renderer URL overrides applied to every comment body in this section. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -73,6 +77,8 @@ export default function InlineCommentSection({
   alreadyVoted,
   parentTags,
   defaultReward,
+  defaultVotePercent = 100,
+  voteWeightStep = 0.25,
   renderOptions,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
@@ -281,6 +287,8 @@ export default function InlineCommentSection({
             showVoteButton={!!showVoteButton && !alreadyVoted}
             defaultTags={parentTags}
             defaultReward={defaultReward}
+            defaultVotePercent={defaultVotePercent}
+            voteWeightStep={voteWeightStep}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
           />
         </div>
@@ -347,6 +355,8 @@ export default function InlineCommentSection({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              defaultVotePercent={defaultVotePercent}
+              voteWeightStep={voteWeightStep}
               renderOptions={renderOptions}
             />
           ))}
