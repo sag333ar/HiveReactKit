@@ -48,9 +48,11 @@ interface CommentsModalProps {
   defaultVotePercent?: number;
   /** Slider precision for the composer's "upvote on publish" slider (0.25, 0.5, or 1). Default 0.25. */
   voteWeightStep?: number;
+  /** Allow landscape videos in the comment composer. Default false. */
+  allowLandscapeVideos?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultVotePercent, voteWeightStep }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultVotePercent, voteWeightStep, allowLandscapeVideos }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,6 +286,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   defaultReward={defaultReward}
                   defaultVotePercent={defaultVotePercent}
                   voteWeightStep={voteWeightStep}
+                  allowLandscapeVideos={allowLandscapeVideos}
                 />
               </div>
             )}

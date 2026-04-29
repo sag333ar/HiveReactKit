@@ -87,6 +87,14 @@ export interface HiveDetailPostProps {
   voteWeightStep?: number;
 
   /**
+   * Allow landscape (horizontal) videos in the embedded comment composer's
+   * video uploader. Default false — only portrait clips, matching the
+   * hSnaps Moments contract. Set true for apps where horizontal video is
+   * acceptable (e.g. hivesuite).
+   */
+  allowLandscapeVideos?: boolean;
+
+  /**
    * Override the Hive content renderer's link-generating functions so the
    * rendered `<a>` URLs route into your app instead of an external Hive
    * frontend. The in-body click interceptor already recognises peakd /
@@ -214,6 +222,7 @@ export function HiveDetailPost({
   defaultReward,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
   renderOptions,
 }: HiveDetailPostProps) {
   // Compute background style from prop
@@ -1003,6 +1012,7 @@ export function HiveDetailPost({
                 defaultReward={defaultReward}
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
+                allowLandscapeVideos={allowLandscapeVideos}
               />
             </div>
 
@@ -1033,6 +1043,7 @@ export function HiveDetailPost({
                 defaultReward={defaultReward}
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
+                allowLandscapeVideos={allowLandscapeVideos}
                 renderOptions={renderOptions}
               />
             </div>

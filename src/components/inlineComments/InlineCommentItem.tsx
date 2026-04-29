@@ -48,6 +48,8 @@ interface InlineCommentItemProps {
   defaultVotePercent?: number;
   /** Slider precision (0.25, 0.5, or 1) used by both sliders. Default 0.25. */
   voteWeightStep?: number;
+  /** Allow landscape videos in this comment's reply composer. Default false. */
+  allowLandscapeVideos?: boolean;
   /** Renderer URL overrides applied to the comment body. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -85,6 +87,7 @@ export default function InlineCommentItem({
   defaultReward,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
   renderOptions,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -527,6 +530,7 @@ export default function InlineCommentItem({
                         hideUserHeader
                         showCancel
                         defaultReward={defaultReward}
+                        allowLandscapeVideos={allowLandscapeVideos}
                       />
                     </div>
                   </div>,
@@ -593,6 +597,7 @@ export default function InlineCommentItem({
                     hideUserHeader
                     showCancel
                     defaultReward={defaultReward}
+                    allowLandscapeVideos={allowLandscapeVideos}
                   />
                 </div>
               </>
@@ -642,6 +647,7 @@ export default function InlineCommentItem({
               defaultReward={defaultReward}
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
+              allowLandscapeVideos={allowLandscapeVideos}
               renderOptions={renderOptions}
             />
           ))}

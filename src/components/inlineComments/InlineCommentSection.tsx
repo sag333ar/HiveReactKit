@@ -27,6 +27,8 @@ interface InlineCommentSectionProps {
   defaultVotePercent?: number;
   /** Slider precision (0.25, 0.5, or 1) used by every reply composer. Default 0.25. */
   voteWeightStep?: number;
+  /** Allow landscape videos in every reply composer's video uploader. Default false. */
+  allowLandscapeVideos?: boolean;
   /** Renderer URL overrides applied to every comment body in this section. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -79,6 +81,7 @@ export default function InlineCommentSection({
   defaultReward,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
   renderOptions,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
@@ -289,6 +292,7 @@ export default function InlineCommentSection({
             defaultReward={defaultReward}
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
+            allowLandscapeVideos={allowLandscapeVideos}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
           />
         </div>
@@ -357,6 +361,7 @@ export default function InlineCommentSection({
               defaultReward={defaultReward}
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
+              allowLandscapeVideos={allowLandscapeVideos}
               renderOptions={renderOptions}
             />
           ))}

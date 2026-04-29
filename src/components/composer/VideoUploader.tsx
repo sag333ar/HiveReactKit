@@ -14,6 +14,9 @@ export interface VideoUploaderProps {
   /** 3Speak API key. Falls back to demo key if not provided. */
   threeSpeakApiKey?: string
   disabled?: boolean
+  /** When true, accept landscape videos too. Default false — only portrait
+   *  (vertical) clips are accepted, matching the hSnaps Moments contract. */
+  allowLandscape?: boolean
 }
 
 const THREE_SPEAK_UPLOAD_ENDPOINT = 'https://embed.3speak.tv/uploads'
@@ -144,7 +147,7 @@ async function uploadVideoToThreeSpeak(
   })
 }
 
-const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username, ecencyToken, onSignMessage, threeSpeakApiKey, disabled = false }) => {
+const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username, ecencyToken, onSignMessage, threeSpeakApiKey, disabled = false, allowLandscape = false }) => {
   const apiKey = threeSpeakApiKey || DEFAULT_API_KEY
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadControllerRef = useRef<AbortController | null>(null)
@@ -187,7 +190,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({ onVideoUploaded, username
       const info = await getVideoInfo(file)
       setVideoDuration(info.duration)
       setVideoAspectRatio(info.width && info.height ? `${info.width}/${info.height}` : '9/16')
-      if (info.width && info.height && info.width > info.height) { setError(`Only portrait (vertical) videos are allowed. Your video is ${info.width}×${info.height} (landscape). Please record or crop in portrait mode.`); return }
+      if (!allowLandscape && info.width && info.height && info.width > info.height) { setError(`Only portrait (vertical) videos are allowed. Your video is ${info.width}×${info.height} (landscape). Please record or crop in portrait mode.`); return }
       if (info.duration > MAX_DURATION_SECONDS) { setError(`Video is too long (${formatDuration(info.duration)}). Maximum is ${formatDuration(MAX_DURATION_SECONDS)}.`); return }
       const thumb = await generateThumbnail(file)
       setThumbnailDataUrl(thumb.dataUrl); setThumbnailBlob(thumb.blob)

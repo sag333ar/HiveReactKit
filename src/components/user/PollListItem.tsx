@@ -79,6 +79,8 @@ export interface PollListItemProps {
   defaultVotePercent?: number;
   /** Slider precision (0.25 / 0.5 / 1) used by the poll's upvote slider. Default 0.25. */
   voteWeightStep?: number;
+  /** Allow landscape videos in the poll's comment composer uploader. Default false. */
+  allowLandscapeVideos?: boolean;
 }
 
 const PollListItem: React.FC<PollListItemProps> = ({
@@ -102,6 +104,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
   templateApiBaseUrl,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
 }) => {
   const t = useKitT();
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
@@ -387,6 +390,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
           templateApiBaseUrl={templateApiBaseUrl}
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
+          allowLandscapeVideos={allowLandscapeVideos}
         />
       </div>
     </div>

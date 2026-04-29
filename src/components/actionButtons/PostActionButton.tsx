@@ -53,6 +53,8 @@ export interface PostActionButtonProps {
   /** Slider precision used by both the post upvote slider AND the comment composer's
    *  "upvote-on-publish" slider. Use 0.25, 0.5, or 1. Default 0.25 (back-compat). */
   voteWeightStep?: number;
+  /** Allow landscape videos in the embedded comment composer's uploader. Default false. */
+  allowLandscapeVideos?: boolean;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when reblog is clicked (when logged in). */
@@ -107,6 +109,7 @@ export function PostActionButton({
   defaultReward,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -470,6 +473,7 @@ export function PostActionButton({
           defaultReward={defaultReward}
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
+          allowLandscapeVideos={allowLandscapeVideos}
         />
       )}
 

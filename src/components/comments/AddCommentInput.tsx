@@ -93,6 +93,10 @@ export interface PostComposerProps {
   /** Slider precision for the upvote-on-publish slider. Use 0.25, 0.5, or 1.
    *  Default 0.25 (back-compat). */
   voteWeightStep?: number;
+  /** Allow landscape (horizontal) videos in the embedded VideoUploader.
+   *  Default false — only portrait clips, matching the hSnaps Moments contract.
+   *  Set true on apps where horizontal video is acceptable (e.g. hivesuite). */
+  allowLandscapeVideos?: boolean;
   /**
    * Called whenever the upvote-on-publish toggle or percent changes.
    * `enabled=false` => consumer should post a plain comment.
@@ -177,6 +181,7 @@ const PostComposer = ({
   defaultVoteEnabled = false,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
   onVoteChange,
   voteLabel = 'Upvote parent on publish',
   showCancel = true,
@@ -889,6 +894,7 @@ const PostComposer = ({
             onSignMessage={onSignMessage}
             threeSpeakApiKey={threeSpeakApiKey}
             disabled={isSubmitting || !!videoEmbedUrl}
+            allowLandscape={allowLandscapeVideos}
           />
         )}
         {!hideEmoji && (

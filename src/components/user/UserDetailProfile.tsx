@@ -133,6 +133,9 @@ export interface UserDetailProfileProps {
   /** Slider precision (0.25, 0.5, or 1) for every upvote slider on this page.
    *  Default 0.25. */
   voteWeightStep?: number;
+  /** Allow landscape videos in every embedded comment composer on this profile.
+   *  Default false (portrait-only, matches hSnaps Moments contract). */
+  allowLandscapeVideos?: boolean;
 }
 
 interface ProfileData {
@@ -270,6 +273,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   favouriteCount = 0,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
+  allowLandscapeVideos = false,
 }) => {
   const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -1370,6 +1374,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             templateApiBaseUrl={templateApiBaseUrl}
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
+            allowLandscapeVideos={allowLandscapeVideos}
           />
         </div>
       </div>
@@ -2130,6 +2135,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               templateApiBaseUrl={templateApiBaseUrl}
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
+              allowLandscapeVideos={allowLandscapeVideos}
             />
           ))}
         </div>
