@@ -37,6 +37,11 @@ import { HiveDetailPost } from "@/components/HiveDetailPost";
 import { PostActionButton } from "@/components/actionButtons";
 import UserDetailProfile from "@/components/user/UserDetailProfile";
 import { PostComposer } from "@/components/comments/AddCommentInput";
+import SnapsFeedView, { type SnapsFeedSlot, type SnapsFeedKey } from "@/components/feed/SnapsFeedView";
+import { apiService } from "@/services/apiService";
+import { userService } from "@/services/userService";
+import type { Post } from "@/types/post";
+import { useEffect } from "react";
 
 const Index = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoFeedItem | null>(
@@ -538,7 +543,105 @@ const Index = () => {
     { id: "activity-list", label: "Activity List", icon: "📋" },
     { id: "user-detail-profile", label: "User Detail Profile", icon: "🧑" },
     { id: "post-composer", label: "Post Composer", icon: "✍️" },
+    { id: "snaps-feed-view", label: "Snaps Feed View", icon: "🌀" },
   ];
+
+  // ── Demo data for <SnapsFeedView/> ──
+  // Mirrors the hSnaps app's two-step container flow so the demo shows
+  // the SAME data the hSnaps home feed shows:
+  //
+  //   1. `userService.getUserPosts(<container account>)` → latest "container"
+  //      posts published by peak.snaps / ecency.waves / leothreads /
+  //      liketu.moments.
+  //   2. For each container, `apiService.getCommentsList(author, permlink)`
+  //      → the replies. Each reply is a "snap".
+  //
+  // This is exactly what `fetchFeedPage` does in `hive-snaps-reactjs`'s
+  // `services/hiveService.ts` (CONTAINER_ACCOUNTS map), so a feed slot in
+  // the demo and the hSnaps home screen render the same set of posts.
+  const CONTAINER_ACCOUNTS_DEMO: Record<SnapsFeedKey, string> = {
+    snaps: "peak.snaps",
+    ecency: "ecency.waves",
+    threads: "leothreads",
+    liketu: "liketu.moments",
+  };
+
+  const SnapsFeedViewDemo = () => {
+    const [snapsPosts, setSnapsPosts] = useState<Post[]>([]);
+    const [ecencyPosts, setEcencyPosts] = useState<Post[]>([]);
+    const [threadsPosts, setThreadsPosts] = useState<Post[]>([]);
+    const [liketuPosts, setLiketuPosts] = useState<Post[]>([]);
+    const [snapsLoading, setSnapsLoading] = useState(true);
+    const [ecencyLoading, setEcencyLoading] = useState(true);
+    const [threadsLoading, setThreadsLoading] = useState(true);
+    const [liketuLoading, setLiketuLoading] = useState(true);
+
+    /**
+     * Pull the latest 2 container posts for a feed account, then unwrap
+     * each container's replies into a flat list of snaps. Caps at ~30 to
+     * keep the demo lightweight.
+     */
+    const loadFeed = async (key: SnapsFeedKey): Promise<Post[]> => {
+      const account = CONTAINER_ACCOUNTS_DEMO[key];
+      const containers = await userService.getUserPosts(account, 2);
+      const replies: Post[] = [];
+      for (const container of containers) {
+        const list = await apiService.getCommentsList(
+          container.author,
+          container.permlink,
+        );
+        // The kit's Discussion shape extends Post with extra comment fields;
+        // the union is structurally compatible with what BlogPostList /
+        // SnapsFeedCard read (author, permlink, body, created, json_metadata,
+        // active_votes, payout, children).
+        replies.push(...(list as unknown as Post[]));
+        if (replies.length >= 30) break;
+      }
+      return replies;
+    };
+
+    useEffect(() => {
+      loadFeed("snaps").then(setSnapsPosts).catch(() => setSnapsPosts([])).finally(() => setSnapsLoading(false));
+      loadFeed("ecency").then(setEcencyPosts).catch(() => setEcencyPosts([])).finally(() => setEcencyLoading(false));
+      loadFeed("threads").then(setThreadsPosts).catch(() => setThreadsPosts([])).finally(() => setThreadsLoading(false));
+      loadFeed("liketu").then(setLiketuPosts).catch(() => setLiketuPosts([])).finally(() => setLiketuLoading(false));
+    }, []);
+
+    const slot = (posts: Post[], loading: boolean): SnapsFeedSlot => ({
+      posts,
+      loading,
+      hasMore: false, // Demo: single-page preview. Production wires its
+                     // own paginated store (see hivesuite SnapsUnifiedPage).
+    });
+
+    return (
+      <div className="h-[calc(100vh-200px)]">
+        <SnapsFeedView
+          feeds={{
+            snaps: slot(snapsPosts, snapsLoading),
+            ecency: slot(ecencyPosts, ecencyLoading),
+            threads: slot(threadsPosts, threadsLoading),
+            liketu: slot(liketuPosts, liketuLoading),
+          }}
+          currentUser={mockUser?.username}
+          onUpvote={(author, permlink, percent) => {
+            console.log("Upvote", author, permlink, percent);
+            alert(`Upvote @${author}/${permlink} at ${percent}%`);
+          }}
+          onSubmitComment={(pAuthor, pPermlink, body) => {
+            console.log("Comment", pAuthor, pPermlink, body);
+            alert(`Comment on @${pAuthor}/${pPermlink}: ${body}`);
+          }}
+          onReblog={(a, p) => alert(`Reblog @${a}/${p}`)}
+          onSharePost={(a, p) => alert(`Share @${a}/${p}`)}
+          onTip={(a) => alert(`Tip @${a}`)}
+          onUserClick={(u) => alert(`Open @${u}`)}
+          onPostClick={(a, p) => alert(`Open @${a}/${p}`)}
+          allowLandscapeVideos
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
@@ -1165,6 +1268,8 @@ const Index = () => {
                       onShare={(user) => { navigator.clipboard?.writeText(`https://peakd.com/@${user}`); }}
                     />
                   </div>
+                ) : activeTab === "snaps-feed-view" ? (
+                  <SnapsFeedViewDemo />
                 ) : activeTab === "post-composer" ? (
                   <div className="max-w-2xl mx-auto">
                     <PostComposer

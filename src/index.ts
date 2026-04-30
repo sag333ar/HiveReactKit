@@ -6,6 +6,25 @@ export { default as VideoInfo } from './components/VideoInfo';
 export { default as Wallet } from './components/Wallet';
 export { default as PostFeedList } from './components/PostFeedList';
 export { default as BlogPostList, type BlogPostListProps } from './components/BlogPostList';
+export {
+  default as SnapsFeedView,
+  type SnapsFeedViewProps,
+  type SnapsFeedSlot,
+  type SnapsFeedKey,
+} from './components/feed/SnapsFeedView';
+export {
+  default as SnapsFeedCard,
+  type SnapsFeedCardProps,
+} from './components/feed/SnapsFeedCard';
+export {
+  default as SnapsFeedList,
+  type SnapsFeedListProps,
+} from './components/feed/SnapsFeedList';
+export {
+  default as FeedSegmentControl,
+  type FeedSegmentControlProps,
+  type FeedSegmentOption,
+} from './components/feed/FeedSegmentControl';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';
 export { default as FollowingList } from './components/FollowingList';
