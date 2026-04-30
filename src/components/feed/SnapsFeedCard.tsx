@@ -16,6 +16,7 @@
  * the host app owns the data plane.
  */
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import { createHiveRenderer } from '@snapie/renderer';
 import {
   ChevronLeft,
   ChevronRight,
@@ -631,6 +632,93 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   // user's own reply (matches the hSnaps PostCard logic). The matched
   // key is forwarded so PostActionButton can lazy-load the body for its
   // hover preview tooltip.
+  // ── Markdown rendering ───────────────────────────────────────────────
+  // The original feed-body parser stripped everything down to plain text,
+  // which meant bold/italic/headings/lists/tables/blockquotes never
+  // rendered. Match the hSnaps FeedItemBody approach instead: render the
+  // post body through @snapie/renderer (the same engine the detail page
+  // uses), with compact `.snaps-feed-body` styles tightening it for a
+  // narrow card. The AttachmentStrip continues to surface media
+  // separately, so we strip media URLs from the body before rendering
+  // to avoid duplicate previews.
+  const renderHive = useMemo(() => {
+    try {
+      return createHiveRenderer({
+        baseUrl: 'https://peakd.com/',
+        ipfsGateway: 'https://ipfs.3speak.tv',
+        assetsWidth: 640,
+        assetsHeight: 480,
+        usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
+        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        convertHiveUrls: true,
+      });
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const renderedBodyHtml = useMemo(() => {
+    const raw = post.body ?? '';
+    if (!raw || !renderHive) return '';
+    let body = raw;
+
+    // Strip the trailing "via Apps from" attribution (some clients
+    // append <sub>[via Apps from](https://linktr.ee/...)</sub>).
+    body = body.replace(
+      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\][^<]*<\/sub>\s*$/i,
+      '',
+    );
+
+    // Hive post bodies routinely use `<br>` instead of real newlines,
+    // which kills GFM block parsing — tables, lists, blockquotes all
+    // fall into a single paragraph. Convert every `<br>` variant back
+    // to a real newline before the markdown engine sees the body.
+    body = body.replace(/\r\n/g, '\n');
+    body = body.replace(/<br\s*\/?>\s*\n?/gi, '\n');
+
+    // Drop trailing tag-list lines (e.g. "#hsnaps, #hivesuite") that
+    // some apps tack on — they're already represented by the hSnaps
+    // pill / community chip in the header.
+    body = body.replace(/(?:^|\n)\s*(?:#[\p{L}\p{N}_-]+(?:\s*,?\s*)){1,}$/u, '');
+
+    // GFM requires a blank line between a paragraph and a table. After
+    // collapsing `<br>` we often get "intro text\n| col | col |…" with
+    // only a single newline — which the parser treats as part of the
+    // preceding paragraph. Insert a blank line before any table row
+    // that follows non-empty, non-pipe text.
+    body = body.replace(/([^\n|])\n(\|)/g, '$1\n\n$2');
+
+    // Strip media that the AttachmentStrip already surfaces, so we
+    // don't show the same image / 3Speak / YouTube twice on one card.
+    body = body.replace(IMG_MD_REGEX, '');
+    body = body.replace(IMG_HTML_REGEX, '');
+    body = body.replace(YOUTUBE_REGEX, '');
+    body = body.replace(THREE_SPEAK_REGEX, '');
+    body = body.replace(AUDIO_FILE_REGEX, '');
+
+    // Tighten — collapse runs of 3+ blank lines to exactly one, trim
+    // edges. (Without this the rendered HTML can pick up huge blank
+    // gaps from the body when many tags or attribution lines were
+    // stripped above.)
+    body = body.replace(/\n{3,}/g, '\n\n').trim();
+
+    if (!body) return '';
+    try {
+      let html = renderHive(body);
+      // Match the kit's HiveDetailPost: rewrite the embed iframe to
+      // `play.3speak.tv` (the legacy `3speak.tv/embed` shape doesn't
+      // accept iframe mode in some browsers).
+      html = html.replace(
+        /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
+        (_m: string, v: string) =>
+          `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
+      );
+      return html;
+    } catch {
+      return '';
+    }
+  }, [post.body, renderHive]);
+
   const myReplyKey = useMemo(() => {
     if (!currentUser || !Array.isArray(post.replies) || post.replies.length === 0) return undefined;
     const prefix = `${currentUser.toLowerCase()}/`;
@@ -712,18 +800,44 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         )}
       </header>
 
-      {/* Body — plain text + attachment strip. No title, no full HTML body. */}
+      {/* Body — markdown HTML (compact `.snaps-feed-body` styles) +
+          attachment strip. We render markdown so bold / italic /
+          headings / lists / blockquotes / code / TABLES all show up
+          properly inside the card; the AttachmentStrip handles
+          image/video/audio previews separately. */}
       <div
         className="cursor-pointer overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
-        {parsed.segments.length > 0 && (
+        {renderedBodyHtml ? (
+          // No `line-clamp-6` here: webkit-line-clamp is an
+          // inline-text clamp and breaks block-level rendering for
+          // tables / lists / blockquotes / code blocks. Letting the
+          // body render at its natural height keeps tables intact;
+          // the card stays clickable for anything inside that isn't
+          // an anchor / button / media element.
+          <div
+            className="snaps-feed-body"
+            // The renderer already sanitises and rewrites Hive URLs;
+            // dangerouslySetInnerHTML here is the standard pattern
+            // used elsewhere in the kit (HiveDetailPost / inline
+            // comments).
+            dangerouslySetInnerHTML={{ __html: renderedBodyHtml }}
+            onClick={(e) => {
+              const t = e.target as HTMLElement;
+              if (t.closest('a, button, img, video, iframe')) e.stopPropagation();
+            }}
+          />
+        ) : parsed.segments.length > 0 ? (
+          // Fallback when the renderer is unavailable or returns empty
+          // (e.g. body was entirely media): keep the old plain-text
+          // segments so the card never renders blank.
           <InlineBody
             segments={parsed.segments}
             onUserClick={onUserClick}
             onTagClick={onTagClick}
           />
-        )}
+        ) : null}
         <AttachmentStrip attachments={parsed.attachments} />
       </div>
 
