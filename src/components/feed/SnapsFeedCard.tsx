@@ -40,6 +40,12 @@ export interface SnapsFeedCardProps {
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
+  /** Click on just the message-circle icon — typical use: open an
+   *  inline reply composer. Mirrors hSnaps PostCard. */
+  onClickCommentIcon?: (author: string, permlink: string) => void;
+  /** Click on just the count number next to the comment icon — typical
+   *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
+  onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
@@ -54,6 +60,11 @@ export interface SnapsFeedCardProps {
   voteWeightStep?: number;
   allowLandscapeVideos?: boolean;
   defaultReward?: RewardOption;
+
+  /** Optional render slot for header right-side actions (e.g. a kebab
+   *  menu with Edit / Delete / Flag). Receives the post so the host can
+   *  own edit/delete/flag state per card. */
+  renderHeaderActions?: (post: Post) => ReactNode;
 }
 
 // ── Body parsing ─────────────────────────────────────────────────────────
@@ -592,6 +603,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onTip,
   onSharePost,
   onCommentClick,
+  onClickCommentIcon,
+  onClickCommentCount,
   onReportPost,
   onUserClick,
   onPostClick,
@@ -605,11 +618,28 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   voteWeightStep,
   allowLandscapeVideos,
   defaultReward,
+  renderHeaderActions,
 }) => {
   const parsed = useMemo(() => parseBody(post), [post.body, post.json_metadata]);
   const isHSnapsPost = useMemo(() => hasHsnapsTag(post), [post.json_metadata]);
   // Reset attachment carousel position when the post changes.
   useEffect(() => {}, [post.author, post.permlink]);
+
+  // Detect if `currentUser` already has a reply on this post. The bridge
+  // returns `post.replies` as an array of `${author}/${permlink}` strings;
+  // matching the prefix `${currentUser}/` is enough to identify the
+  // user's own reply (matches the hSnaps PostCard logic). The matched
+  // key is forwarded so PostActionButton can lazy-load the body for its
+  // hover preview tooltip.
+  const myReplyKey = useMemo(() => {
+    if (!currentUser || !Array.isArray(post.replies) || post.replies.length === 0) return undefined;
+    const prefix = `${currentUser.toLowerCase()}/`;
+    const found = (post.replies as unknown[]).find(
+      (key): key is string => typeof key === 'string' && key.toLowerCase().startsWith(prefix),
+    );
+    return found ?? undefined;
+  }, [currentUser, post.replies]);
+  const hasCommented = !!myReplyKey;
 
   const rawPayout = post.payout
     ? post.payout.toFixed(3)
@@ -670,6 +700,16 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             </>
           )}
         </div>
+        {renderHeaderActions && (
+          <div
+            className="shrink-0"
+            // Stop the card-body click handler from firing when the
+            // user opens the menu / clicks Edit / Flag.
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderHeaderActions(post)}
+          </div>
+        )}
       </header>
 
       {/* Body — plain text + attachment strip. No title, no full HTML body. */}
@@ -706,6 +746,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
           disableCommentsModal={!!onCommentClick}
           onComments={onCommentClick ? () => onCommentClick(post.author, post.permlink) : undefined}
+          onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(post.author, post.permlink) : undefined}
+          onClickCommentCount={onClickCommentCount ? () => onClickCommentCount(post.author, post.permlink) : undefined}
+          hasCommented={hasCommented}
+          myReplyKey={myReplyKey}
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
           giphyApiKey={giphyApiKey}

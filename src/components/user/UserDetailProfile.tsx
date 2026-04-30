@@ -38,7 +38,8 @@ import PollListItem from "./PollListItem";
 import { TranslatedText } from "../TranslatedText";
 import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
-import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from "@/services/userService";
+import { userService } from "@/services/userService";
+import ProfileSnapsTab from "./ProfileSnapsTab";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
 import type { Follower, Following } from "@/types/user";
@@ -119,6 +120,12 @@ export interface UserDetailProfileProps {
   onSharePost?: (author: string, permlink: string) => void;
   /** When provided, clicking the comment icon navigates to the post detail instead of opening the comments modal. */
   onCommentClick?: (author: string, permlink: string) => void;
+  /** Snaps tab only: click on the comment icon (separate from count) —
+   *  typical use: open an inline reply composer. Mirrors hSnaps. */
+  onClickSnapCommentIcon?: (author: string, permlink: string) => void;
+  /** Snaps tab only: click on the comment count number — typical use:
+   *  navigate to the post detail. */
+  onClickSnapCommentCount?: (author: string, permlink: string) => void;
 
   // Favourite callbacks
   onFavouriteList?: () => void | Promise<void>;
@@ -136,6 +143,10 @@ export interface UserDetailProfileProps {
   /** Allow landscape videos in every embedded comment composer on this profile.
    *  Default false (portrait-only, matches hSnaps Moments contract). */
   allowLandscapeVideos?: boolean;
+
+  /** Per-card right-side header action menu (Edit / Delete / Flag) for the
+   *  Snaps tab. Forwarded into <SnapsFeedView/>. */
+  renderSnapHeaderActions?: (post: Post) => React.ReactNode;
 }
 
 interface ProfileData {
@@ -222,16 +233,6 @@ const extractPlainText = (body: string): string => {
 // ─── Module-level cache (persists across mount/unmount) ──────────────────────
 const profileStateCache: Record<string, { tab: TabType; scrollTop: number; tabScrollLeft: number }> = {};
 
-/** Segmented control options shown at the top of the Snaps tab. Avatar is
- *  the Hive profile image of the container account (peak.snaps, ecency.waves,
- *  leothreads, liketu.moments). */
-const SNAP_SUBTYPE_OPTIONS: { id: SnapSubType; label: string; avatar: string }[] = [
-  { id: "snaps",   label: "Snaps",   avatar: "https://images.hive.blog/u/peak.snaps/avatar" },
-  { id: "ecency",  label: "Ecency",  avatar: "https://images.hive.blog/u/ecency.waves/avatar" },
-  { id: "threads", label: "Threads", avatar: "https://images.hive.blog/u/leothreads/avatar" },
-  { id: "liketu",  label: "Liketu",  avatar: "https://images.hive.blog/u/liketu.moments/avatar" },
-];
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
@@ -267,6 +268,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onShare,
   onSharePost,
   onCommentClick,
+  onClickSnapCommentIcon,
+  onClickSnapCommentCount,
   onFavouriteList,
   onAddToFavourite,
   isFavourited = false,
@@ -274,6 +277,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  renderSnapHeaderActions,
 }) => {
   const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -293,9 +297,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
-  const [snaps, setSnaps] = useState<Post[]>([]);
-  const [snapsNextStartId, setSnapsNextStartId] = useState<number | null>(null);
-  const [snapsSubType, setSnapsSubType] = useState<SnapSubType>("snaps");
   const [polls, setPolls] = useState<Poll[]>([]);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
@@ -520,8 +521,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   useEffect(() => {
     setBlogs([]);
     setPosts([]);
-    setSnaps([]);
-    setSnapsNextStartId(null);
     setPolls([]);
     setAuthorRewards([]);
     setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
@@ -618,16 +617,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "snaps": {
-            const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(
-              targetUsername,
-              undefined,
-              currentUsername,
-              signal,
-              SNAP_SUBTYPE_PARENTS[snapsSubType],
-            );
-            setSnaps(filterPost(rawSnaps));
-            setSnapsNextStartId(nextStartId);
-            setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
+            // Snaps tab manages its own data plane via <ProfileSnapsTab/>;
+            // skip the centralized fetch path entirely.
             break;
           }
           case "polls": {
@@ -831,21 +822,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return () => {
       abortController.abort();
     };
-    // snapsSubType is included so switching the snaps segment re-fetches.
-  }, [targetUsername, activeTab, snapsSubType]);
-
-  // Clear stale snaps + cursor immediately when the snaps segment changes,
-  // so the UI shows the loading state instead of the previous segment's items.
-  useEffect(() => {
-    setSnaps([]);
-    setSnapsNextStartId(null);
-    setHasMore((prev) => ({ ...prev, snaps: true }));
-  }, [snapsSubType]);
+  }, [targetUsername, activeTab]);
 
   // Filtered data for rendering — always reflects latest filter props
   const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
   const filteredPosts = useMemo(() => filterPost(posts), [posts, filterPost]);
-  const filteredSnaps = useMemo(() => filterPost(snaps), [snaps, filterPost]);
   const filteredComments = useMemo(() => filterPost(comments), [comments, filterPost]);
   const filteredReplies = useMemo(() => filterPost(replies), [replies, filterPost]);
   const filteredPolls = useMemo(() => filterPost(polls), [polls, filterPost]);
@@ -877,17 +858,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           break;
         }
         case "snaps": {
-          if (!snapsNextStartId) break;
-          const { snaps: rawSnaps, nextStartId } = await userService.getUserSnaps(
-            targetUsername,
-            snapsNextStartId,
-            currentUsername,
-            undefined,
-            SNAP_SUBTYPE_PARENTS[snapsSubType],
-          );
-          setSnaps((prev) => [...prev, ...filterPost(rawSnaps)]);
-          setSnapsNextStartId(nextStartId);
-          setHasMore((prev) => ({ ...prev, snaps: nextStartId !== null }));
+          // Load-more for the snaps tab is handled inside <ProfileSnapsTab/>.
           break;
         }
         case "comments": {
@@ -933,7 +904,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, snaps, snapsNextStartId, snapsSubType, comments, replies, followers, following]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following]);
 
   // ─── IntersectionObserver for infinite scroll ─────────────────────────
 
@@ -2005,59 +1976,52 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     // the whole tab bar from flickering each time the user taps Ecency /
     // Threads / Liketu.
     if (activeTab === "snaps") {
-      const segmentedControl = (
-        <div className="mb-3 flex gap-2 overflow-x-auto">
-          {SNAP_SUBTYPE_OPTIONS.map((opt) => {
-            const selected = snapsSubType === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setSnapsSubType(opt.id)}
-                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  selected
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                }`}
-                aria-pressed={selected}
-              >
-                <img
-                  src={opt.avatar}
-                  alt=""
-                  className="h-4 w-4 shrink-0 rounded-full object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-                <span>{opt.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      );
-
-      let body: React.ReactNode;
-      if (loadingContent && filteredSnaps.length === 0) {
-        body = renderSkeletonForTab();
-      } else if (filteredSnaps.length === 0) {
-        body = (
-          <div className="text-center py-12">
-            <Camera className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.noSnaps")}</p>
-          </div>
-        );
-      } else {
-        body = (
-          <div className="space-y-3">
-            {filteredSnaps.map((item) =>
-              renderPostItem(item, "post", onSnapClick ? () => onSnapClick(item.author, item.permlink) : undefined)
-            )}
-          </div>
-        );
-      }
-
+      // Snaps tab uses the same <SnapsFeedView/> shell as the unified Snaps
+      // page — 1-column on mobile (with a pill switcher), 4-column on
+      // tablet+ (peak.snaps · ecency.waves · leothreads · liketu.moments).
+      // Desktop renders each column with its own scrollbar, so the wrapper
+      // gives it a fixed height to clip against. ProfileSnapsTab owns its
+      // own data plane.
       return (
-        <div>
-          {segmentedControl}
-          {body}
+        <div className="h-[calc(100vh-260px)] min-h-[420px]">
+          <ProfileSnapsTab
+            // Remount on user change so the per-username pagination cache
+            // hydrates correctly. Without this key the component is reused
+            // across profiles and the cache-mirror effect can briefly
+            // write the previous user's state into the new user's slot.
+            key={targetUsername}
+            username={targetUsername}
+            currentUsername={currentUsername}
+            reportedPosts={reportedPosts}
+            reportedAuthors={reportedAuthors}
+            onUpvote={onUpvote}
+            onSubmitComment={onSubmitComment}
+            onClickCommentUpvote={onClickCommentUpvote}
+            onReblog={onReblog}
+            onTip={onTip}
+            onSharePost={onSharePost}
+            onCommentClick={onCommentClick}
+            onClickCommentIcon={onClickSnapCommentIcon}
+            onClickCommentCount={onClickSnapCommentCount}
+            onUserClick={onUserClick}
+            onPostClick={onSnapClick
+              ? (author, permlink) => onSnapClick(author, permlink)
+              : onPostClick
+                ? (author, permlink, title) => onPostClick(author, permlink, title ?? "")
+                : undefined}
+            onReportPost={onReportPost
+              ? (author, permlink) => setReportPostTarget({ author, permlink })
+              : undefined}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
+            defaultVotePercent={defaultVotePercent}
+            voteWeightStep={voteWeightStep}
+            allowLandscapeVideos={allowLandscapeVideos}
+            renderHeaderActions={renderSnapHeaderActions}
+          />
         </div>
       );
     }
@@ -2142,11 +2106,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
-    // Content tabs (blogs, posts, snaps, comments, replies)
+    // Content tabs (blogs, posts, comments, replies). Snaps has its own
+    // dedicated branch above and does not pass through this fallback.
     const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
       blogs: { data: filteredBlogs, type: "blog", icon: FileText },
       posts: { data: filteredPosts, type: "post", icon: FileText },
-      snaps: { data: filteredSnaps, type: "post", icon: Camera },
       comments: { data: filteredComments, type: "comment", icon: MessageCircle },
       replies: { data: filteredReplies, type: "reply", icon: Reply },
     };
@@ -2580,7 +2544,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 p.author === reportPostTarget.author && p.permlink === reportPostTarget.permlink;
               setBlogs((prev) => prev.filter((p) => !match(p)));
               setPosts((prev) => prev.filter((p) => !match(p)));
-              setSnaps((prev) => prev.filter((p) => !match(p)));
               setComments((prev) => prev.filter((p) => !match(p)));
               setReplies((prev) => prev.filter((p) => !match(p)));
               setPolls((prev) => prev.filter((p) => !match(p)));

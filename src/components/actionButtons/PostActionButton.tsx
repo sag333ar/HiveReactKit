@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ThumbsUp,
   MessageCircle,
@@ -79,6 +79,25 @@ export interface PostActionButtonProps {
   templateApiBaseUrl?: string;
   /** When true, clicking the comment icon calls onComments instead of opening the CommentsModal popup */
   disableCommentsModal?: boolean;
+
+  /** Called when the comment ICON is clicked. When set, the icon is
+   *  rendered as its own button (separate from the count) — typical
+   *  use is to open an inline reply composer. */
+  onClickCommentIcon?: () => void;
+  /** Called when the comment COUNT is clicked. When set, the count is
+   *  rendered as its own button — typical use is to navigate into
+   *  the post detail / comments view. */
+  onClickCommentCount?: () => void;
+
+  /** Pre-computed "current user has commented on this post" flag —
+   *  typically derived from `post.replies` matching `${currentUser}/…`.
+   *  When true, the comment icon is highlighted in red and a hover
+   *  tooltip with the user's reply body is enabled. Mirrors hSnaps. */
+  hasCommented?: boolean;
+  /** `${author}/${permlink}` of the current user's reply on this post.
+   *  Used to lazy-fetch the reply body the first time the user hovers
+   *  the comment icon, so the tooltip can show what they wrote. */
+  myReplyKey?: string;
 }
 
 export function PostActionButton({
@@ -104,6 +123,10 @@ export function PostActionButton({
   templateToken,
   templateApiBaseUrl,
   disableCommentsModal,
+  onClickCommentIcon,
+  onClickCommentCount,
+  hasCommented = false,
+  myReplyKey,
   showVoteButton,
   parentTags,
   defaultReward,
@@ -166,6 +189,86 @@ export function PostActionButton({
     isLoggedIn &&
     !!currentUser &&
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
+
+  // ── "I already commented" hover preview (mirrors hSnaps PostCard) ───
+  // When `hasCommented` is true and a `myReplyKey` is provided, hovering
+  // the comment icon lazy-fetches the user's reply body and shows a
+  // small tooltip with a plain-text excerpt. Falls back to "No preview
+  // available" if the body comes back empty.
+  const [showCommentPreview, setShowCommentPreview] = useState(false);
+  const [myReplyBody, setMyReplyBody] = useState<string | null>(null);
+  const [loadingMyReply, setLoadingMyReply] = useState(false);
+
+  const handleCommentHoverEnter = () => {
+    if (!hasCommented) return;
+    setShowCommentPreview(true);
+    if (myReplyBody !== null || loadingMyReply || !myReplyKey) return;
+    const [rAuthor, rPermlink] = myReplyKey.split('/');
+    if (!rAuthor || !rPermlink) return;
+    setLoadingMyReply(true);
+
+    // Direct fetch against api.hive.blog. We can't use
+    // `apiService.getCommentsList` here because it filters out the
+    // root post (returns only replies), so the user's own reply would
+    // be excluded. `bridge.get_post` returns the post itself with its
+    // body; `condenser_api.get_content` is the universal fallback.
+    const fetchReplyBody = async (): Promise<string> => {
+      const tryCall = async (api: string, method: string, params: unknown) => {
+        const res = await fetch('https://api.hive.blog/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: `${api}.${method}`, params, id: 1 }),
+        });
+        if (!res.ok) throw new Error(`Hive RPC ${res.status}`);
+        const data = (await res.json()) as { result?: unknown; error?: { message: string } };
+        if (data.error) throw new Error(data.error.message ?? 'Hive RPC error');
+        return data.result as { body?: string } | null;
+      };
+      try {
+        const r = await tryCall('bridge', 'get_post', { author: rAuthor, permlink: rPermlink });
+        if (r && typeof r === 'object' && typeof r.body === 'string') return r.body;
+      } catch {
+        // fall through
+      }
+      try {
+        const r = await tryCall('condenser_api', 'get_content', [rAuthor, rPermlink]);
+        if (r && typeof r === 'object' && typeof r.body === 'string') return r.body;
+      } catch {
+        /* swallow */
+      }
+      return '';
+    };
+
+    fetchReplyBody()
+      .then((body) => setMyReplyBody(body))
+      .catch(() => setMyReplyBody(''))
+      .finally(() => setLoadingMyReply(false));
+  };
+
+  const myReplyPreviewText = useMemo(() => {
+    if (!myReplyBody) return '';
+    let t = myReplyBody;
+    // Strip the trailing "via Apps from" attribution that some clients
+    // append to every comment. The full suffix is
+    //   <br><sub>[via Apps from](https://linktr.ee/...)</sub>
+    // Without this, the link-replacer below would keep the literal
+    // "via Apps from" text and leak it into the hover preview.
+    t = t.replace(
+      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\]\([^)]+\)\s*<\/sub>\s*$/i,
+      '',
+    );
+    // Catch a couple of other common attributions for good measure.
+    t = t.replace(/\s*posted using.*$/i, '');
+    // Strip markdown images, HTML tags, links, and condense whitespace
+    // for a clean tooltip excerpt.
+    t = t.replace(/!\[[^\]]*\]\([^)]+\)/g, '');
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    t = t.replace(/<[^>]+>/g, '');
+    t = t.replace(/https?:\/\/\S+/g, '');
+    t = t.replace(/[*_~`#>-]+/g, ' ');
+    t = t.replace(/\s+/g, ' ').trim();
+    return t;
+  }, [myReplyBody]);
 
   const requireLogin = (action: string, onLoggedIn: () => void) => {
     if (!isLoggedIn && action !== "Comment") {
@@ -312,7 +415,7 @@ export function PostActionButton({
               <ThumbsUp
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                   hasVoted
-                    ? "text-blue-400 fill-current"
+                    ? "fill-[#e31337] text-[#e31337]"
                     : "text-gray-300"
                 }`}
               />
@@ -332,19 +435,110 @@ export function PostActionButton({
         </div>
       </div>
 
-      {/* Comments */}
-      <div className="relative group">
-        <span className={tooltipClass}>Comments</span>
-        <button
-          type="button"
-          onClick={handleCommentClick}
-          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors"
-          aria-label="Comments"
+      {/* Comments — split into icon + count when the host wires both
+          handlers separately (matches the hSnaps PostCard pattern: tap
+          the icon for an inline reply composer, tap the count to open
+          the post detail). When `hasCommented` is true the icon is
+          highlighted red and hover shows a preview of the user's
+          reply, lazy-fetched on first hover. */}
+      {onClickCommentIcon || onClickCommentCount ? (
+        <div className="relative group flex items-center gap-0.5 text-gray-300">
+          <span className={tooltipClass}>Comments</span>
+          <div
+            className="relative"
+            onMouseEnter={handleCommentHoverEnter}
+            onMouseLeave={() => setShowCommentPreview(false)}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (onClickCommentIcon) onClickCommentIcon();
+                else handleCommentClick();
+              }}
+              className="rounded p-0.5 transition-colors hover:text-blue-400"
+              aria-label={hasCommented ? "Reply to post (you've already commented)" : 'Reply to post'}
+            >
+              <MessageCircle
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                  hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
+                }`}
+              />
+            </button>
+            {hasCommented && showCommentPreview && (
+              <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[#3a424a] bg-[#1f2429] p-3 shadow-xl">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#ff8fa3]">
+                  Your comment
+                </p>
+                {loadingMyReply && (
+                  <p className="text-xs text-[#9ca3b0]">Loading…</p>
+                )}
+                {!loadingMyReply && myReplyPreviewText && (
+                  <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[#e7e7f1]">
+                    {myReplyPreviewText}
+                  </p>
+                )}
+                {!loadingMyReply && !myReplyPreviewText && myReplyBody !== null && (
+                  <p className="text-xs italic text-[#9ca3b0]">No preview available.</p>
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (onClickCommentCount) onClickCommentCount();
+              else handleCommentClick();
+            }}
+            className={`rounded px-0.5 text-xs transition-colors ${
+              hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300 hover:text-blue-400'
+            }`}
+            aria-label="Open comments"
+          >
+            {commentsCount}
+          </button>
+        </div>
+      ) : (
+        <div
+          className="relative group"
+          onMouseEnter={handleCommentHoverEnter}
+          onMouseLeave={() => setShowCommentPreview(false)}
         >
-          <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>{commentsCount}</span>
-        </button>
-      </div>
+          <span className={tooltipClass}>Comments</span>
+          <button
+            type="button"
+            onClick={handleCommentClick}
+            className={`flex items-center gap-0.5 transition-colors hover:text-blue-400 ${
+              hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300'
+            }`}
+            aria-label="Comments"
+          >
+            <MessageCircle
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
+              }`}
+            />
+            <span>{commentsCount}</span>
+          </button>
+          {hasCommented && showCommentPreview && (
+            <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[#3a424a] bg-[#1f2429] p-3 shadow-xl">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#ff8fa3]">
+                Your comment
+              </p>
+              {loadingMyReply && (
+                <p className="text-xs text-[#9ca3b0]">Loading…</p>
+              )}
+              {!loadingMyReply && myReplyPreviewText && (
+                <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[#e7e7f1]">
+                  {myReplyPreviewText}
+                </p>
+              )}
+              {!loadingMyReply && !myReplyPreviewText && myReplyBody !== null && (
+                <p className="text-xs italic text-[#9ca3b0]">No preview available.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Reblog */}
       {onReblog && (

@@ -17,7 +17,14 @@
  * already does — so the rendered cards behave identically to the rest of
  * the hivesuite Blog-style surfaces.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+// SnapsFeedView layout:
+//   • mobile (< 768 px): single column with a pill switcher; the parent
+//     scroll container owns scrolling.
+//   • desktop (≥ 768 px): 4 columns side-by-side, each with its OWN
+//     overflow-y-auto. Each column scrolls independently and the
+//     SnapsFeedList sentinel auto-detects that per-column scroll
+//     ancestor, so each feed paginates on its own until exhausted.
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
 import FeedSegmentControl from './FeedSegmentControl';
@@ -58,6 +65,10 @@ export interface SnapsFeedViewProps {
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
+  /** Comment-icon click (per card) — typical use: open inline composer. */
+  onClickCommentIcon?: (author: string, permlink: string) => void;
+  /** Comment-count click (per card) — typical use: open post detail. */
+  onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
@@ -80,6 +91,10 @@ export interface SnapsFeedViewProps {
   toolbar?: ReactNode;
   /** Optional element rendered at the bottom of the layout (e.g. Compose FAB). */
   footer?: ReactNode;
+
+  /** Optional render slot for a per-card right-side header action menu
+   *  (Edit / Delete / Flag). Forwarded to every <SnapsFeedCard/>. */
+  renderHeaderActions?: (post: import('@/types/post').Post) => ReactNode;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -98,10 +113,35 @@ const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
 
 
 /**
- * 1 col on mobile · 4 cols at tablet+ (≥ 768 px). The intermediate 2-col
- * tablet view from hSnaps is intentionally dropped — the user wants all
- * four feeds visible on a single page on every desktop / tablet width.
+ * Module-level scroll cache for the desktop per-column scroll
+ * containers — survives mount/unmount so navigating into a post detail
+ * and back lands every column at the exact scrollTop it was at before.
+ *
+ * Pagination state itself (loaded posts, nextStartId, hasMore) is owned
+ * by the host (Zustand stores on the unified page; module cache in
+ * ProfileSnapsTab), so this just lines the scroll position up on top
+ * of that. Mobile uses one outer scroll container which the host owns,
+ * so it's preserved by the host (e.g. SnapsUnifiedPage's savedScrollTop).
  */
+const scrollCache: Record<string, number> = {
+  snaps: 0,
+  ecency: 0,
+  threads: 0,
+  liketu: 0,
+};
+
+/**
+ * Module-level cache of the mobile pill-switcher selection. Without
+ * this, every remount (e.g. coming back from a post detail) resets the
+ * active feed to `defaultPrimary` — so a user on threads page 3 would
+ * land back on snaps page 1 after closing a post. Persisting the key
+ * makes them land on the same feed they left.
+ */
+let lastActiveFeed: string | null = null;
+
+/** 1 col on mobile · 4 cols at tablet+ (≥ 768 px). Each desktop column
+ *  manages its own scroll so users can drill into one feed without
+ *  losing position in the others. */
 function useFeedColumnCount(): 1 | 4 {
   const [cols, setCols] = useState<1 | 4>(() => {
     if (typeof window === 'undefined') return 1;
@@ -109,9 +149,7 @@ function useFeedColumnCount(): 1 | 4 {
   });
 
   useEffect(() => {
-    const update = () => {
-      setCols(window.innerWidth >= 768 ? 4 : 1);
-    };
+    const update = () => setCols(window.innerWidth >= 768 ? 4 : 1);
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
@@ -133,6 +171,8 @@ export function SnapsFeedView({
   onTip,
   onSharePost,
   onCommentClick,
+  onClickCommentIcon,
+  onClickCommentCount,
   onReportPost,
   onUserClick,
   onPostClick,
@@ -147,14 +187,79 @@ export function SnapsFeedView({
   defaultReward,
   toolbar,
   footer,
+  renderHeaderActions,
 }: SnapsFeedViewProps) {
   const cols = useFeedColumnCount();
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
   const finalAvatars = { ...DEFAULT_AVATARS, ...avatars };
 
-  // Mobile column selection (single visible column, switched via the
-  // top-of-page pill switcher).
-  const [col1, setCol1] = useState<SnapsFeedKey>(defaultPrimary);
+  // Mobile only: pill switcher picks which of the four containers to
+  // render. Ignored on desktop, which renders all four side-by-side.
+  // Initialized from the module-level cache so the user lands back on
+  // the same feed they were viewing before navigating to a post.
+  const [activeFeed, setActiveFeed] = useState<SnapsFeedKey>(() => {
+    const cached = lastActiveFeed;
+    if (cached === 'snaps' || cached === 'ecency' || cached === 'threads' || cached === 'liketu') {
+      return cached;
+    }
+    return defaultPrimary;
+  });
+  // Keep the module cache in sync on every change.
+  useEffect(() => {
+    lastActiveFeed = activeFeed;
+  }, [activeFeed]);
+
+  // Per-column scroll containers. Restored from `scrollCache` on
+  // mount; saved into `scrollCache` on unmount via the cleanup of a
+  // single mount-lifetime effect (so we don't miss the unmount tick
+  // when the user navigates away to a post detail). Also persists
+  // continuously through a scroll listener so back/forward navigation
+  // through multiple posts always restores from the most recent
+  // observed position.
+  const columnRefs = useRef<Partial<Record<SnapsFeedKey, HTMLDivElement | null>>>({});
+
+  const setColumnRef = useCallback(
+    (key: SnapsFeedKey) => (node: HTMLDivElement | null) => {
+      const prev = columnRefs.current[key];
+      if (prev && prev !== node) {
+        // Stash the outgoing element's last position before we lose it.
+        scrollCache[key] = prev.scrollTop;
+      }
+      columnRefs.current[key] = node;
+      if (node && scrollCache[key] > 0) {
+        // Defer one frame so the cached posts can lay out before we scroll.
+        const target = scrollCache[key];
+        requestAnimationFrame(() => {
+          if (columnRefs.current[key] === node) node.scrollTop = target;
+        });
+      }
+    },
+    [],
+  );
+
+  // Persist on unmount (covers the navigate-to-post-detail case).
+  useEffect(() => {
+    return () => {
+      for (const key of ['snaps', 'ecency', 'threads', 'liketu'] as SnapsFeedKey[]) {
+        const el = columnRefs.current[key];
+        if (el) scrollCache[key] = el.scrollTop;
+      }
+    };
+  }, []);
+
+  // Persist on every scroll so even pagecache / browser-native back
+  // (which can fire teardown asynchronously) gets a fresh value.
+  useEffect(() => {
+    const handlers: { el: HTMLDivElement; fn: () => void; key: SnapsFeedKey }[] = [];
+    for (const key of ['snaps', 'ecency', 'threads', 'liketu'] as SnapsFeedKey[]) {
+      const el = columnRefs.current[key];
+      if (!el) continue;
+      const fn = () => { scrollCache[key] = el.scrollTop; };
+      el.addEventListener('scroll', fn, { passive: true });
+      handlers.push({ el, fn, key });
+    }
+    return () => { for (const h of handlers) h.el.removeEventListener('scroll', h.fn); };
+  }, [cols]);
 
   const segOpt = (k: SnapsFeedKey) => ({
     id: k,
@@ -171,6 +276,8 @@ export function SnapsFeedView({
     onTip,
     onSharePost,
     onCommentClick,
+    onClickCommentIcon,
+    onClickCommentCount,
     onReportPost,
     onUserClick,
     onPostClick,
@@ -183,69 +290,84 @@ export function SnapsFeedView({
     voteWeightStep,
     allowLandscapeVideos,
     defaultReward,
+    renderHeaderActions,
   };
 
-  const renderColumn = (key: SnapsFeedKey, opts?: { titled?: boolean }) => {
+  const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];
+
+  /** A single feed body (error banner + list). Used both for the
+   *  mobile branch and inside each desktop column. */
+  const renderBody = (key: SnapsFeedKey) => {
     const slot = feeds[key];
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        {opts?.titled && (
-          <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0]">
-            <img
-              src={finalAvatars[key]}
-              alt=""
-              className="h-6 w-6 rounded-full object-cover ring-1 ring-[#3a424a]"
-            />
-            {finalLabels[key]}
-          </h2>
+      <>
+        {slot.error && (
+          <div className="mb-3 rounded-md border border-[#e31337] bg-red-900/20 p-2 text-xs font-medium text-red-400">
+            {slot.error}
+          </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
-          {slot.error && (
-            <div className="mb-3 rounded-md border border-[#e31337] bg-red-900/20 p-2 text-xs font-medium text-red-400">
-              {slot.error}
-            </div>
-          )}
-          <SnapsFeedList
-            {...sharedListProps}
-            posts={slot.posts}
-            loading={!!slot.loading}
-            loadingMore={!!slot.loadingMore}
-            hasMore={!!slot.hasMore}
-            onLoadMore={slot.onLoadMore}
-            emptyMessage={`No ${finalLabels[key].toLowerCase()} yet.`}
-          />
-        </div>
-      </div>
+        <SnapsFeedList
+          {...sharedListProps}
+          posts={slot.posts}
+          loading={!!slot.loading}
+          loadingMore={!!slot.loadingMore}
+          hasMore={!!slot.hasMore}
+          onLoadMore={slot.onLoadMore}
+          emptyMessage={`No ${finalLabels[key].toLowerCase()} yet.`}
+        />
+      </>
     );
   };
 
-  // ── 1 column: mobile ──────────────────────────────────────────────────
+  // ── Mobile: single column with pill switcher ─────────────────────────
   if (cols === 1) {
-    const mobileOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="mx-auto flex max-w-[720px] flex-col gap-3">
         {toolbar}
-        <div className="shrink-0 overflow-x-auto">
+        <div className="sticky top-0 z-20 -mx-2 overflow-x-auto bg-[#212529]/85 px-2 py-1 backdrop-blur">
           <FeedSegmentControl
-            options={mobileOptions.map(segOpt)}
-            value={col1}
-            onChange={(id) => setCol1(id as SnapsFeedKey)}
+            options={feedOptions.map(segOpt)}
+            value={activeFeed}
+            onChange={(id) => setActiveFeed(id as SnapsFeedKey)}
           />
         </div>
-        <div className="min-h-0 flex-1">{renderColumn(col1)}</div>
+        <div className="flex flex-col">{renderBody(activeFeed)}</div>
         {footer}
       </div>
     );
   }
 
-  // ── 4 columns: tablet+ (≥ 768 px) — no intermediate 2-col view ───────
+  // ── Desktop: 4 columns, each with its own scroll ─────────────────────
+  // The outer wrapper fills its parent height; the per-column body has
+  // `overflow-y-auto` so each column scrolls independently. SnapsFeedList's
+  // IntersectionObserver auto-detects the per-column scroll ancestor, so
+  // each feed paginates on its own until exhausted.
   return (
     <div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3">
       {toolbar}
-      <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-1 gap-4">
-        {(['snaps', 'ecency', 'threads', 'liketu'] as SnapsFeedKey[]).map((k) => (
+      <div className="grid min-h-0 flex-1 grid-cols-4 gap-4">
+        {feedOptions.map((k) => (
           <div key={k} className="flex h-full min-h-0 flex-col">
-            {renderColumn(k, { titled: true })}
+            {/* Sticky column title */}
+            <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0]">
+              <img
+                src={finalAvatars[k]}
+                alt=""
+                className="h-6 w-6 rounded-full object-cover ring-1 ring-[#3a424a]"
+              />
+              {finalLabels[k]}
+            </h2>
+            {/* Per-column scroll container. `overscroll-contain` keeps a
+                column's scroll from chaining into the page. The ref
+                callback restores the cached scrollTop on mount so
+                navigating to a post detail and back lands at the same
+                position the user was at. */}
+            <div
+              ref={setColumnRef(k)}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+            >
+              {renderBody(k)}
+            </div>
           </div>
         ))}
       </div>
