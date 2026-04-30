@@ -13,7 +13,7 @@
  * Theme: hivesuite Hive-red on dark surface (#212529 / #262b30 / #2f353d
  *        / #3a424a / #e31337). Forced dark — no `dark:` variants.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar,
   FileText,
@@ -262,9 +262,6 @@ const CommunityDetail = ({
       void navigator.clipboard.writeText(url)
     }
   }
-  const handleRss = () => {
-    window.open(`https://hive.blog/c/${communityId}/feed.rss`, '_blank', 'noopener,noreferrer')
-  }
   const handleMemberClick = (username: string) => {
     onUserClick?.(username)
   }
@@ -317,99 +314,111 @@ const CommunityDetail = ({
     ],
   )
 
+  // Single shared scroll container so the header scrolls away while
+  // the tab strip sticks to the top edge. Reset to top when the tab
+  // changes so each tab opens at its first row instead of inheriting
+  // the previous tab's offset.
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [activeTab])
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 bg-[#212529] text-[#f0f0f8]">
-      {/* Community header (the back affordance lives in the host app's
-          top navbar — kept here in case a consumer wants to keep an
-          in-page back row, surface via the existing `onBack` prop). */}
-      {loading ? (
-        <div className="rounded-xl border border-[#3a424a] bg-[#262b30] p-5 animate-pulse">
-          <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-[#2f353d]" />
-            <div className="flex-1 space-y-2">
-              <div className="h-5 w-1/3 rounded bg-[#3a424a]" />
-              <div className="h-3 w-2/3 rounded bg-[#2f353d]" />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-[#3a424a] bg-[#262b30] p-5 shrink-0">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <img
-              src={communityService.userOwnerThumb(communityId)}
-              alt={community?.title || communityId}
-              className="h-16 w-16 rounded-full object-cover bg-[#2f353d]"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${community?.title || communityId}/avatar`
-              }}
-            />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-[#f0f0f8]">
-                {community?.title || communityId}
-              </h1>
-              {community?.about && (
-                <p className="mt-1 text-sm text-[#9ca3b0]">{community.about}</p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-4 text-xs text-[#9ca3b0]">
-                <span className="inline-flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" />
-                  {(community?.subscribers || 0).toLocaleString()} members
-                </span>
-                {community?.created_at && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Created {new Date(community.created_at).getFullYear()}
-                  </span>
-                )}
+    <div className="flex h-full min-h-0 flex-col bg-[#212529] text-[#f0f0f8]">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        {/* Community header — compact on mobile, larger on desktop.
+            Lives inside the scroller so it scrolls away as the user
+            moves down through the feed. */}
+        {loading ? (
+          <div className="m-3 rounded-xl border border-[#3a424a] bg-[#262b30] p-3 animate-pulse sm:m-0 sm:p-5">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-12 w-12 rounded-full bg-[#2f353d] sm:h-16 sm:w-16" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-1/3 rounded bg-[#3a424a] sm:h-5" />
+                <div className="h-2.5 w-2/3 rounded bg-[#2f353d] sm:h-3" />
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                onClick={onRss || handleRss}
-                title="RSS feed"
-                aria-label="RSS feed"
-                className="rounded-md border border-[#3a424a] p-2 text-[#9ca3b0] hover:bg-[#2f353d] hover:text-[#f0f0f8] transition-colors"
-              >
-                <Rss className="h-4 w-4" />
-              </button>
-              <button
-                onClick={onShare || handleShare}
-                title="Share"
-                aria-label="Share"
-                className="rounded-md border border-[#3a424a] p-2 text-[#9ca3b0] hover:bg-[#2f353d] hover:text-[#f0f0f8] transition-colors"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
+          </div>
+        ) : (
+          <div className="m-3 rounded-xl border border-[#3a424a] bg-[#262b30] p-3 sm:m-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-5">
+            <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+              <img
+                src={communityService.userOwnerThumb(communityId)}
+                alt={community?.title || communityId}
+                className="h-12 w-12 flex-shrink-0 rounded-full bg-[#2f353d] object-cover sm:h-16 sm:w-16"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${community?.title || communityId}/avatar`
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2">
+                  <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[#f0f0f8] sm:text-xl">
+                    {community?.title || communityId}
+                  </h1>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={onShare || handleShare}
+                      title="Share"
+                      aria-label="Share"
+                      className="rounded-md border border-[#3a424a] p-1.5 text-[#9ca3b0] transition-colors hover:bg-[#2f353d] hover:text-[#f0f0f8] sm:p-2"
+                    >
+                      <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </button>
+                  </div>
+                </div>
+                {community?.about && (
+                  <p className="mt-0.5 line-clamp-2 text-xs text-[#9ca3b0] sm:mt-1 sm:line-clamp-none sm:text-sm">
+                    {community.about}
+                  </p>
+                )}
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#9ca3b0] sm:mt-3 sm:gap-x-4 sm:text-xs">
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    {(community?.subscribers || 0).toLocaleString()} members
+                  </span>
+                  {community?.created_at && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      Created {new Date(community.created_at).getFullYear()}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* Sticky tab strip — pinned to the top of the scroll container
+            with a blurred background, so the user can always see the
+            active tab while moving through the feed below. */}
+        <div className="sticky top-0 z-10 border-b border-[#3a424a]/60 bg-[#212529]/95 px-3 py-2 backdrop-blur sm:px-0 sm:py-2.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto md:overflow-visible">
+            {TABS.map((t) => {
+              const Icon = t.icon
+              const active = activeTab === t.id
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setActiveTab(t.id)}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs transition ${
+                    active
+                      ? 'bg-[#e31337] text-white'
+                      : 'border border-[#3a424a] text-[#e7e7f1] hover:bg-[#2f353d]'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
-      )}
 
-      {/* Tabs */}
-      <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto md:overflow-visible">
-        {TABS.map((t) => {
-          const Icon = t.icon
-          const active = activeTab === t.id
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id)}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition ${
-                active
-                  ? 'bg-[#e31337] text-white'
-                  : 'border border-[#3a424a] text-[#e7e7f1] hover:bg-[#2f353d]'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Tab body */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border border-[#3a424a] bg-[#212529] p-3">
+        {/* Tab body — flows in the same scroll container as everything
+            above, so the header scrolls away while the tab strip
+            stays pinned. */}
+        <div className="px-3 py-3 sm:px-0 sm:py-4">
         {postsError && (activeTab === 'posts' || activeTab === 'snaps') && (
           <div className="mb-3 rounded-md border border-[#e31337] bg-red-900/20 p-2 text-xs font-medium text-red-400">
             {postsError}
@@ -504,6 +513,7 @@ const CommunityDetail = ({
             onPostClick={onPostClick}
           />
         )}
+      </div>
       </div>
     </div>
   )

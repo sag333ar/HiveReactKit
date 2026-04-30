@@ -13,13 +13,14 @@
  * implementations in UserDetailProfile and can be lifted to a shared util
  * module later if more lists need them.
  */
-import { useState, type FC } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { useEffect, useState, type FC } from 'react';
+import { Loader2, ChevronLeft, ChevronRight, FileText, Play, X } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
+import { extractPostMedia, parseThreeSpeakRef, type PostMedia } from '../utils/postMedia';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -93,86 +94,209 @@ const extractPlainText = (body: string): string => {
   return text;
 };
 
-const PostImageCarousel: FC<{ images: string[] }> = ({ images }) => {
+/**
+ * Renders the visible "tile" for one media entry inside the right-side
+ * strip. Tiles fill their parent absolutely so they cover the full
+ * stretched height of the card row.
+ *
+ * Per-kind treatment:
+ *   • image      → cover-fit thumbnail
+ *   • youtube    → official hqdefault thumbnail + play badge
+ *   • threespeak → dark backdrop + play badge (no public thumbnail
+ *                  endpoint without a metadata round-trip; consumers
+ *                  open the embed iframe in the lightbox)
+ *   • twitter    → branded "𝕏" tile that opens the tweet in a new tab
+ */
+const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
+  if (media.kind === 'image') {
+    return (
+      <img
+        src={media.url}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    );
+  }
+  if (media.kind === 'youtube') {
+    return (
+      <>
+        <img
+          src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white">
+            <Play className="h-5 w-5 fill-current" />
+          </span>
+        </span>
+        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          YouTube
+        </span>
+      </>
+    );
+  }
+  if (media.kind === 'threespeak') {
+    return (
+      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#1a1d22]">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e31337]/15 text-[#e31337]">
+          <Play className="h-5 w-5 fill-current" />
+        </span>
+        <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          3Speak
+        </span>
+      </span>
+    );
+  }
+  // twitter
+  return (
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0f1419] text-white">
+      <span className="text-3xl font-semibold">𝕏</span>
+      <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium">
+        Tweet
+      </span>
+    </span>
+  );
+};
+
+/**
+ * Lightbox / preview overlay for one media entry. Images render
+ * inline; YouTube and 3Speak open their official embed iframes.
+ * Twitter is opened in a new tab at click time, so this overlay is
+ * never invoked for it.
+ */
+const MediaLightbox: FC<{ media: PostMedia; onClose: () => void }> = ({ media, onClose }) => {
+  // Lock body scroll + listen for Escape while the lightbox is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      <div
+        className="relative flex max-h-[85vh] w-full max-w-3xl items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); onClose(); }}
+          className="absolute -top-10 right-0 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        {media.kind === 'image' && (
+          <img src={media.url} alt="" className="max-h-[80vh] max-w-full rounded-lg object-contain" />
+        )}
+        {media.kind === 'youtube' && (
+          <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${media.id}?autoplay=1&rel=0&playsinline=1`}
+              title="YouTube"
+              className="h-full w-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+        {media.kind === 'threespeak' && (() => {
+          const ref = parseThreeSpeakRef(media.url);
+          const src = ref
+            ? `https://play.3speak.tv/embed?v=${encodeURIComponent(`${ref.author}/${ref.permlink}`)}&mode=iframe&noscroll=1&autoplay=1`
+            : media.url;
+          return (
+            <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '9/16', maxWidth: '380px' }}>
+              <iframe
+                src={src}
+                title="3Speak"
+                className="h-full w-full border-0"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Right-side media strip for a post card. Combines images (from
+ * `json_metadata.image` and inline body images), YouTube embeds,
+ * 3Speak embeds, and X / Twitter status links into one carousel that
+ * fills the card row's full height. The strip itself is inset from
+ * the card edges (`my-3 mr-3` + `rounded-lg`) so it has visual
+ * padding around it instead of butting against the border.
+ *
+ * Click on a tile:
+ *   • image / youtube / threespeak → open in <MediaLightbox/>
+ *   • twitter                      → open the tweet in a new tab
+ */
+const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
   const [idx, setIdx] = useState(0);
-  const [preview, setPreview] = useState(false);
-  if (images.length === 0) return null;
+  const [preview, setPreview] = useState<PostMedia | null>(null);
+  if (media.length === 0) return null;
+  const safeIdx = Math.min(idx, media.length - 1);
+  const current = media[safeIdx];
+  const onTileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (current.kind === 'twitter') {
+      window.open(current.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setPreview(current);
+  };
   return (
     <>
-      <div className="relative w-16 flex-shrink-0 mt-1.5">
+      {/* Mobile renders a fixed landscape thumbnail (28 × 20 ≈ 7:5);
+          tablet+ stretches to fill the row height again. */}
+      <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-[#2f353d] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
         <button
-          onClick={(e) => { e.stopPropagation(); setPreview(true); }}
-          className="block w-16 h-16 rounded-lg overflow-hidden border border-[#3a424a] hover:border-[#e31337] transition-colors cursor-pointer"
+          onClick={onTileClick}
+          className="absolute inset-0 block cursor-pointer"
+          aria-label="Open media preview"
         >
-          <img
-            src={images[idx]}
-            alt=""
-            className="w-full h-full object-cover bg-[#2f353d]"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
+          <MediaTile media={current} />
         </button>
-        {images.length > 1 && (
-          <div className="flex items-center justify-between mt-1">
+        {media.length > 1 && (
+          <>
             <button
-              onClick={(e) => { e.stopPropagation(); setIdx((p) => (p - 1 + images.length) % images.length); }}
-              className="p-0.5 text-[#9ca3b0] hover:text-white transition-colors"
+              onClick={(e) => { e.stopPropagation(); setIdx((p) => (p - 1 + media.length) % media.length); }}
+              className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
               title="Previous"
             >
-              <ChevronLeft className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-[10px] text-[#9ca3b0]">{idx + 1}/{images.length}</span>
             <button
-              onClick={(e) => { e.stopPropagation(); setIdx((p) => (p + 1) % images.length); }}
-              className="p-0.5 text-[#9ca3b0] hover:text-white transition-colors"
+              onClick={(e) => { e.stopPropagation(); setIdx((p) => (p + 1) % media.length); }}
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
               title="Next"
             >
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
-          </div>
+            <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {safeIdx + 1}/{media.length}
+            </span>
+          </>
         )}
       </div>
 
       {preview && (
-        <div
-          className="fixed inset-0 z-[2000] bg-black/80 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Image preview"
-          onClick={(e) => { e.stopPropagation(); setPreview(false); }}
-        >
-          <div
-            className="relative max-w-3xl max-h-[85vh] w-full flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img src={images[idx]} alt="" className="max-w-full max-h-[80vh] rounded-lg object-contain" />
-            <button
-              onClick={(e) => { e.stopPropagation(); setPreview(false); }}
-              className="absolute top-2 right-2 text-white/70 hover:text-white bg-black/50 rounded-full p-1.5 transition-colors"
-              title="Close"
-            >
-              <span className="text-lg leading-none">&times;</span>
-            </button>
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIdx((p) => (p - 1 + images.length) % images.length); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setIdx((p) => (p + 1) % images.length); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
-                  {idx + 1} / {images.length}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <MediaLightbox media={preview} onClose={() => setPreview(null)} />
       )}
     </>
   );
@@ -214,28 +338,26 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="border border-[#3a424a] rounded-lg p-4 bg-[#262b30] animate-pulse"
+            className="overflow-hidden rounded-lg border border-[#3a424a] bg-[#262b30] animate-pulse"
           >
-            <div className="flex items-start gap-3">
-              <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                <div className="h-10 w-10 rounded-full bg-[#2f353d]" />
-                <div className="h-16 w-16 rounded-lg bg-[#2f353d]/70" />
-              </div>
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-24 rounded bg-[#2f353d]" />
-                  <div className="h-2 w-12 rounded bg-[#2f353d]/70" />
+            <div className="flex items-stretch">
+              <div className="min-w-0 flex-1 space-y-1.5 p-2.5 sm:space-y-2 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="h-7 w-7 rounded-full bg-[#2f353d] sm:h-9 sm:w-9" />
+                  <div className="h-2.5 w-20 rounded bg-[#2f353d] sm:h-3 sm:w-24" />
+                  <div className="h-2 w-10 rounded bg-[#2f353d]/70 sm:w-12" />
                 </div>
-                <div className="h-4 w-5/6 rounded bg-[#2f353d]" />
-                <div className="h-3 w-full rounded bg-[#2f353d]/70" />
-                <div className="h-3 w-4/6 rounded bg-[#2f353d]/70" />
+                <div className="h-3 w-5/6 rounded bg-[#2f353d] sm:h-4" />
+                <div className="h-2.5 w-full rounded bg-[#2f353d]/70 sm:h-3" />
+                <div className="h-2.5 w-4/6 rounded bg-[#2f353d]/70 sm:h-3" />
               </div>
+              <div className="my-2 mr-2 h-20 w-28 flex-shrink-0 rounded-lg bg-[#2f353d]/70 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48" />
             </div>
-            <div className="mt-3 pt-2 border-t border-[#3a424a]/60 flex gap-3">
+            <div className="flex gap-3 border-t border-[#3a424a]/60 px-2.5 py-2 sm:px-4">
               <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
               <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
               <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
-              <div className="h-3 w-10 rounded bg-[#2f353d]/70 ml-auto" />
+              <div className="ml-auto h-3 w-10 rounded bg-[#2f353d]/70" />
             </div>
           </div>
         ))}
@@ -255,7 +377,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   return (
     <div className="space-y-3">
       {posts.map((item) => {
-        const postImages = item.json_metadata?.image?.length ? item.json_metadata.image : [];
+        const postMedia = extractPostMedia(item);
         const previewText =
           item.json_metadata?.description || (item.body ? extractPlainText(item.body) : '');
 
@@ -296,57 +418,60 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         return (
           <div
             key={`${item.author}/${item.permlink}`}
-            className={`border border-[#3a424a] rounded-lg p-4 bg-[#262b30] hover:bg-[#2f353d] transition-colors ${handleClick ? 'cursor-pointer' : ''}`}
+            className={`overflow-hidden rounded-lg border border-[#3a424a] bg-[#262b30] transition-colors hover:bg-[#2f353d] ${handleClick ? 'cursor-pointer' : ''}`}
             onClick={handleClick}
           >
-            <div className="flex items-start gap-3">
-              <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                <img
-                  src={`https://images.hive.blog/u/${item.author}/avatar`}
-                  alt={item.author}
-                  className="w-10 h-10 rounded-full bg-[#2f353d] flex-shrink-0"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
-                  }}
-                />
-                <PostImageCarousel images={postImages} />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
-                    className="font-medium text-white hover:text-[#e31337] text-sm"
-                  >
-                    @{item.author}
-                  </button>
-                  <span className="text-xs text-[#9ca3b0]">{formatTimeAgo(item.created)}</span>
+            {/* Body row: text on the left, image on the right. The image
+                column uses `self-stretch` so it always covers the full
+                height of the text column — taller bodies make the
+                image taller, not the other way around. */}
+            <div className="flex items-stretch">
+              <div className="min-w-0 flex-1 p-2.5 sm:p-4">
+                <div className="mb-1 flex items-center gap-2 sm:mb-1.5 sm:gap-3">
+                  <img
+                    src={`https://images.hive.blog/u/${item.author}/avatar`}
+                    alt={item.author}
+                    className="h-7 w-7 flex-shrink-0 rounded-full bg-[#2f353d] sm:h-9 sm:w-9"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+                    }}
+                  />
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
+                      className="text-[11px] font-medium text-white hover:text-[#e31337] sm:text-sm"
+                    >
+                      @{item.author}
+                    </button>
+                    <span className="text-[10px] text-[#9ca3b0] sm:text-xs">{formatTimeAgo(item.created)}</span>
+                    {item.community_title && (
+                      <span className="text-[10px] font-medium text-[#e31337] sm:text-xs">
+                        #{item.community_title}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {item.title && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
-                    className="text-left text-base font-semibold text-white mb-1 line-clamp-2 hover:text-[#e31337]"
+                    className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-[#e31337] sm:mb-1 sm:text-base"
                   >
                     <TranslatedText text={item.title} />
                   </button>
                 )}
 
                 {previewText && (
-                  <p className="text-[#9ca3b0] text-sm line-clamp-2">
-                    <TranslatedText text={previewText.substring(0, 200)} />
+                  <p className="line-clamp-2 text-[11px] leading-snug text-[#9ca3b0] sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
+                    <TranslatedText text={previewText.substring(0, 240)} />
                   </p>
                 )}
-
-                {item.community_title && (
-                  <span className="inline-block mt-1 text-xs text-[#e31337] font-medium">
-                    #{item.community_title}
-                  </span>
-                )}
               </div>
+
+              <PostMediaCarousel media={postMedia} />
             </div>
 
-            <div className="mt-3 pt-2 border-t border-[#3a424a]/60" onClick={(e) => e.stopPropagation()}>
+            <div className="border-t border-[#3a424a]/60 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
               <PostActionButton
                 author={item.author}
                 permlink={item.permlink}
