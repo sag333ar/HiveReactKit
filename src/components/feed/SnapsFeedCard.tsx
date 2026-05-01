@@ -28,6 +28,7 @@ import {
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
+import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
 
 export interface SnapsFeedCardProps {
@@ -268,10 +269,12 @@ const InlineBody: FC<{
 };
 
 // ── 3Speak player ────────────────────────────────────────────────────────
-// Mirrors hSnaps's <ThreeSpeakPlayer/>: official iframe embed at
-// `play.3speak.tv/embed?v=author/permlink&mode=iframe&noscroll=1`, wrapped
-// in a 9/16 portrait container capped at 380px wide. Matches the hSnaps
-// app exactly so the preview behavior is identical.
+// Uses the kit's native <ThreeSpeakNativePlayer/> (which fetches the
+// m3u8 manifest from `play.3speak.tv/api/embed?v=author/permlink` and
+// plays via hls.js + a real <video> element). The wrapper centres the
+// player and keeps it inside a `.hive-post-body`-style container so
+// the player's CSS (16:9 frame, layered thumbnail, portrait letterbox)
+// applies the same way it does in HiveDetailPost.
 
 function parse3SpeakAuthorPermlink(url: string): { author: string; permlink: string } | null {
   try {
@@ -287,19 +290,9 @@ function parse3SpeakAuthorPermlink(url: string): { author: string; permlink: str
 }
 
 const ThreeSpeakPlayer: FC<{ author: string; permlink: string }> = ({ author, permlink }) => {
-  const videoParam = encodeURIComponent(`${author}/${permlink}`);
-  const src = `https://play.3speak.tv/embed?v=${videoParam}&mode=iframe&noscroll=1`;
   return (
-    <div
-      className="three-speak-embed my-3 overflow-hidden rounded-lg bg-black/40 p-3"
-      style={{ aspectRatio: '9/16', maxWidth: '380px', margin: '0 auto' }}
-    >
-      <iframe
-        src={src}
-        title={`3Speak video by ${author}`}
-        className="h-full w-full border-0"
-        loading="lazy"
-      />
+    <div className="three-speak-embed my-3 hive-post-body" style={{ margin: '0.75rem auto' }}>
+      <ThreeSpeakNativePlayer author={author} permlink={permlink} />
     </div>
   );
 };

@@ -17,9 +17,13 @@ export function VoteSlider({
   onUpvote: (percent: number) => Promise<void> | void; // allow async
   onCancel: () => void;
 }) {
-  const [percent, setPercent] = useState(defaultValue);
+  // Slider's lower bound matches the configured step — 0.25 → 0.25%,
+  // 0.5 → 0.5%, 1 → 1%. Was hardcoded to 1, which trapped fractional-
+  // step users above 1% once they dragged up past it.
+  const minPercent = step;
+  const [percent, setPercent] = useState(Math.max(defaultValue, minPercent));
   const [loading, setLoading] = useState(false);
-  const stops = [1, ...Array.from({ length: 10 }, (_, i) => (i + 1) * 10)];
+  const stops = [minPercent, ...Array.from({ length: 10 }, (_, i) => (i + 1) * 10)];
   const decimals = step >= 1 ? 0 : step >= 0.5 ? 1 : 2;
 
   const handleVoteClick = async () => {
@@ -56,7 +60,7 @@ export function VoteSlider({
           {/* Slider — left side filled with blue */}
           <input
             type="range"
-            min={1}
+            min={minPercent}
             max={100}
             step={step}
             value={percent}

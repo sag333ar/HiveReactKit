@@ -1,4 +1,6 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ThreeSpeakPlayer } from './ThreeSpeakPlayer';
 import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
@@ -303,6 +305,22 @@ export function HiveDetailPost({
     return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
   }, [parsedMetadata]);
 
+  /**
+   * 3Speak video reference derived from `json_metadata.video` (the
+   * canonical source — set by Snaps and Waves clients on every video
+   * post). When present we render a single ThreeSpeakPlayer above the
+   * body and strip any embed iframes / autolinked URLs out of the
+   * body markup, so the page shows one player instead of duplicating.
+   */
+  const threeSpeakRef = useMemo<{ author: string; permlink: string } | null>(() => {
+    const video = parsedMetadata?.video as { platform?: unknown; url?: unknown } | undefined;
+    if (!video || video.platform !== '3speak') return null;
+    const url = typeof video.url === 'string' ? video.url : '';
+    const m = url.match(/[?&]v=([^&\s/]+)\/([^&\s/]+)/);
+    if (!m) return null;
+    return { author: m[1], permlink: m[2] };
+  }, [parsedMetadata]);
+
   // Let the consumer transform the body (e.g. strip app footers) before the
   // markdown renderer runs. Depends on parentTags so transforms can inspect them.
   const processedBody = useMemo(() => {
@@ -320,18 +338,34 @@ export function HiveDetailPost({
     try {
       let html = renderMarkdown(processedBody);
 
-      // Upgrade 3Speak embed URLs to play.3speak.tv with portrait-friendly params
-      // (matches hive-snaps ThreeSpeakPlayer: play.3speak.tv/embed?v=...&mode=iframe&noscroll=1)
+      // Replace 3Speak embed references in the body. Two cases:
+      //   1. The renderer emitted an <iframe src="…/embed?v=…">.
+      //   2. The renderer auto-linked a bare URL — `<a href>...</a>`.
+      //
+      // When `threeSpeakRef` is set (the post's `json_metadata.video`
+      // already pinned a 3Speak clip), we strip those embeds entirely
+      // — the metadata-driven ThreeSpeakPlayer rendered above the
+      // body handles playback, so leaving them in would double-up.
+      // Otherwise, we replace each match with a `.threeSpeakEmbed`
+      // placeholder that the createRoot effect mounts into.
+      const stripOnly = !!threeSpeakRef;
+      const replaceWithPlaceholder = (v: string) => {
+        if (stripOnly) return '';
+        const slash = v.indexOf('/');
+        if (slash < 1) return '';
+        const author = v.slice(0, slash);
+        const permlink = v.slice(slash + 1);
+        return `<div class="threeSpeakEmbed" data-author="${author}" data-permlink="${permlink}"></div>`;
+      };
+      // Case 1: iframe embed
       html = html.replace(
-        /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
-        (_m: string, v: string) =>
-          `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
+        /<iframe\s[^>]*src="https:\/\/(?:play\.)?3speak\.tv\/embed\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>(?:<\/iframe>)?/gi,
+        (_m: string, v: string) => replaceWithPlaceholder(v),
       );
-
-      // Wrap 3Speak video iframes in .threeSpeakWrapper for portrait (9:16) aspect ratio
+      // Case 2: auto-linked anchor (markdown autolink of a bare URL)
       html = html.replace(
-        /(<iframe\s[^>]*src="https:\/\/play\.3speak\.tv\/embed[^"]*"[^>]*><\/iframe>)/gi,
-        '<div class="threeSpeakWrapper">$1</div>',
+        /<a\s[^>]*href="https:\/\/(?:play\.)?3speak\.tv\/embed\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>[^<]*<\/a>/gi,
+        (_m: string, v: string) => replaceWithPlaceholder(v),
       );
 
       // Wrap 3Speak audio iframes in .audioWrapper — crop to just the player controls
@@ -358,7 +392,7 @@ export function HiveDetailPost({
     } catch {
       return '';
     }
-  }, [processedBody, renderMarkdown]);
+  }, [processedBody, renderMarkdown, threeSpeakRef]);
 
   // Fallback for broken images: strip proxy/gateway prefix and retry with the original URL
   useEffect(() => {
@@ -393,6 +427,117 @@ export function HiveDetailPost({
     };
     container.addEventListener('error', handleError, true);
     return () => container.removeEventListener('error', handleError, true);
+  }, [renderedBody]);
+
+  // DOM-walk pass: mount a native <ThreeSpeakPlayer> for every
+  // 3Speak embed reference found in the rendered body. We hit four
+  // shapes since the markdown renderer's output varies:
+  //   • A `.threeSpeakEmbed` placeholder div (regex pre-replace path)
+  //   • An <iframe src="…/embed?v=author/permlink"> (renderer
+  //     converted the URL to an embed)
+  //   • An <a href="…/embed?v=author/permlink">…</a> (auto-linked
+  //     bare URL)
+  //   • An <a href="…3speak.tv/watch?v=author/permlink">…</a>
+  //     (some posts paste the watch URL instead of embed)
+  //
+  // When `threeSpeakRef` is already pinned by `json_metadata.video`
+  // we render a single player above the body — in that case we
+  // *remove* matching elements here instead of mounting a second
+  // player into them. Otherwise we'd see two players (the metadata
+  // one above, the body one below) for the same clip.
+  //
+  // useLayoutEffect (vs useEffect) keeps the swap synchronous before
+  // paint, so users never see the stripped iframe / anchor briefly
+  // and then the player.
+  useLayoutEffect(() => {
+    const container = postBodyRef.current;
+    if (!container) return;
+    const stripOnly = !!threeSpeakRef;
+    /** Match `?…&v=author/permlink…` regardless of param order. */
+    const extractIds = (url: string | null): { author: string; permlink: string } | null => {
+      if (!url) return null;
+      const m = url.match(/[?&]v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
+      if (!m) return null;
+      return { author: m[1], permlink: m[2] };
+    };
+    const isThreeSpeakEmbedUrl = (url: string | null): boolean => {
+      if (!url) return false;
+      return /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?/i.test(url);
+    };
+
+    const targets: { el: HTMLElement; author: string; permlink: string }[] = [];
+
+    // Already-stamped placeholders.
+    container
+      .querySelectorAll<HTMLElement>('.threeSpeakEmbed:not([data-mounted="1"])')
+      .forEach((el) => {
+        if (stripOnly) {
+          el.remove();
+          return;
+        }
+        const author = el.dataset.author;
+        const permlink = el.dataset.permlink;
+        if (author && permlink) targets.push({ el, author, permlink });
+      });
+
+    // 3Speak iframes.
+    container.querySelectorAll<HTMLIFrameElement>('iframe').forEach((iframe) => {
+      const src = iframe.getAttribute('src');
+      if (!isThreeSpeakEmbedUrl(src)) return;
+      if (stripOnly) {
+        iframe.remove();
+        return;
+      }
+      const ids = extractIds(src);
+      if (!ids) return;
+      const div = document.createElement('div');
+      div.className = 'threeSpeakEmbed';
+      div.dataset.author = ids.author;
+      div.dataset.permlink = ids.permlink;
+      iframe.replaceWith(div);
+      targets.push({ el: div, ...ids });
+    });
+
+    // 3Speak anchors (autolinked bare URLs).
+    container.querySelectorAll<HTMLAnchorElement>('a').forEach((anchor) => {
+      const href = anchor.getAttribute('href');
+      if (!isThreeSpeakEmbedUrl(href)) return;
+      if (stripOnly) {
+        anchor.remove();
+        return;
+      }
+      const ids = extractIds(href);
+      if (!ids) return;
+      const div = document.createElement('div');
+      div.className = 'threeSpeakEmbed';
+      div.dataset.author = ids.author;
+      div.dataset.permlink = ids.permlink;
+      anchor.replaceWith(div);
+      targets.push({ el: div, ...ids });
+    });
+
+    if (targets.length === 0) return;
+    const roots: { unmount: () => void }[] = [];
+    targets.forEach(({ el, author, permlink }) => {
+      el.dataset.mounted = '1';
+      const root = createRoot(el);
+      root.render(<ThreeSpeakPlayer author={author} permlink={permlink} hideThumbnail />);
+      roots.push(root);
+    });
+    return () => {
+      // Defer unmount past the commit boundary — React forbids
+      // unmounting a root synchronously inside a render-phase
+      // cleanup, and body re-renders can land mid-commit.
+      queueMicrotask(() => {
+        roots.forEach((r) => {
+          try {
+            r.unmount();
+          } catch {
+            /* swallow */
+          }
+        });
+      });
+    };
   }, [renderedBody]);
 
   // Intercept Hive-frontend links (peakd, hive.blog, ecency) in the rendered body
@@ -765,6 +910,25 @@ export function HiveDetailPost({
                 </span>
               )}
             </div>
+
+            {/* Metadata-driven 3Speak player — `json_metadata.video`
+                is the canonical source for video posts (set by
+                hivesnaps / waves clients on every upload). Rendering
+                it here means we always show the clip, even when the
+                body markdown didn't autolink the URL. The body's
+                inline embed is stripped above to avoid double play.
+                `hideThumbnail` skips the layered thumbnail <img> on
+                this surface — the detail page is dense enough that
+                a poster placeholder feels like wasted space. */}
+            {threeSpeakRef && (
+              <div className="flex justify-center pb-3">
+                <ThreeSpeakPlayer
+                  author={threeSpeakRef.author}
+                  permlink={threeSpeakRef.permlink}
+                  hideThumbnail
+                />
+              </div>
+            )}
 
             {/* Rendered body — full width */}
             <div className="pb-6">

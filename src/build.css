@@ -181,24 +181,81 @@
   border-radius: 0.75rem;
   margin: 0;
 }
-/* 3Speak — portrait (9:16), centred, max-width like ThreeSpeakPlayer in hive-snaps */
-.hive-post-body .threeSpeakWrapper {
-  aspect-ratio: 9 / 16;
-  max-width: 450px;
-  width: 100%;
+/* 3Speak native player — see comments in index.css for the full
+   rationale. The placeholder div (`.threeSpeakEmbed`) is mounted
+   with a React-managed <ThreeSpeakPlayer/> that emits
+   `.threeSpeakNative` for the actual sizing. */
+.hive-post-body .threeSpeakEmbed {
   margin: 1rem auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.hive-post-body .threeSpeakNative {
+  width: 100%;
+  margin: 0 auto;
   border-radius: 0.75rem;
   overflow: hidden;
   background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
-.hive-post-body .threeSpeakWrapper iframe {
+.hive-post-body .threeSpeakNative.threeSpeakNativeLandscape {
+  aspect-ratio: 16 / 9;
+  max-width: 800px;
+  max-height: 80vh;
+}
+/* Portrait container is a real 9:16 column. Inline aspectRatio from
+   ThreeSpeakPlayer overrides once `loadedmetadata` fires. The
+   max-height keeps the player inside narrow modal popups (Snaps
+   preview) without overflowing the dialog. */
+.hive-post-body .threeSpeakNative.threeSpeakNativePortrait {
+  aspect-ratio: 9 / 16;
+  max-width: 450px;
+  max-height: 80vh;
+}
+/* Layered <img> thumbnail + <video> with identical sizing. See
+   index.css for rationale. Thumbnail is mounted only before first
+   play (ThreeSpeakPlayer controls visibility); pause keeps the
+   current video frame visible. */
+.hive-post-body .threeSpeakNative video,
+.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
   display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  aspect-ratio: auto;
-  border: none;
+  background: #000;
   border-radius: 0.75rem;
-  margin: 0;
+  object-fit: contain;
+}
+.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
+  z-index: 1;
+  pointer-events: none;
+}
+.hive-post-body .threeSpeakNative video {
+  z-index: 2;
+}
+/* `hideThumbnail` mode: no reserved aspect-ratio box, the <video>
+   flows with its intrinsic dimensions instead. */
+.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb {
+  aspect-ratio: auto;
+  max-width: none;
+  display: block;
+  background: transparent;
+}
+.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb video {
+  position: static;
+  width: 100%;
+  height: auto;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.hive-post-body .threeSpeakNativeMessage {
+  color: #9ca3b0;
+  font-size: 0.875rem;
 }
 /* Audio embeds — show only the player bar, clip everything else */
 .hive-post-body .audioWrapper {
