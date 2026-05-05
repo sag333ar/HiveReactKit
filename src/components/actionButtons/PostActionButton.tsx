@@ -34,12 +34,15 @@ export interface PostActionButtonProps {
   /** Called when user submits a comment. Frontend handles signing/broadcast.
    *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
    *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
-   *  (1–100, step 0.25) — consumer should broadcast vote+comment atomically. */
+   *  (1–100, step 0.25) — consumer should broadcast vote+comment atomically.
+   *  `beneficiaries` is the post-lock beneficiary list selected in the composer
+   *  (already includes threespeakfund 10% on video posts). */
   onSubmitComment?: (
     parentAuthor: string,
     parentPermlink: string,
     body: string,
     voteWeight?: number | null,
+    beneficiaries?: import('../../utils/beneficiaries').Beneficiary[],
   ) => void | boolean | Promise<void | boolean>;
   /** Show the upvote-on-publish toggle in the comment composer.
    *  Auto-hidden when the current user has already voted this post. */
@@ -48,6 +51,10 @@ export interface PostActionButtonProps {
   parentTags?: string[];
   /** Default reward routing seeded into the comment composer. */
   defaultReward?: import('../../utils/commentOptions').RewardOption;
+  /** Beneficiaries pre-populated into the comment composer. */
+  defaultBeneficiaries?: import('../../utils/beneficiaries').Beneficiary[];
+  /** Suggested beneficiary chips shown inside the composer's editor. */
+  beneficiaryFavorites?: import('../../utils/beneficiaries').Beneficiary[];
   /** Initial percent for the upvote slider when opened (1–100). Default 100. */
   defaultVotePercent?: number;
   /** Slider precision used by both the post upvote slider AND the comment composer's
@@ -130,6 +137,8 @@ export function PostActionButton({
   showVoteButton,
   parentTags,
   defaultReward,
+  defaultBeneficiaries,
+  beneficiaryFavorites,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
@@ -369,7 +378,8 @@ export function PostActionButton({
     parentAuthor: string,
     parentPermlink: string,
     body: string,
-    voteWeight?: number | null
+    voteWeight?: number | null,
+    beneficiaries?: import('../../utils/beneficiaries').Beneficiary[],
   ) => {
     // if (!isLoggedIn) {
     //   showToast("Please Login to comment");
@@ -378,7 +388,7 @@ export function PostActionButton({
     if (!onSubmitComment) return;
     try {
       const result = await Promise.resolve(
-        onSubmitComment(parentAuthor, parentPermlink, body, voteWeight ?? null)
+        onSubmitComment(parentAuthor, parentPermlink, body, voteWeight ?? null, beneficiaries)
       );
       // If callback returns false, the operation was cancelled — don't show success toast
       if (result === false) return false;
@@ -665,6 +675,8 @@ export function PostActionButton({
           showVoteButton={!!showVoteButton && !hasVoted}
           parentTags={parentTags}
           defaultReward={defaultReward}
+          defaultBeneficiaries={defaultBeneficiaries}
+          beneficiaryFavorites={beneficiaryFavorites}
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
           allowLandscapeVideos={allowLandscapeVideos}

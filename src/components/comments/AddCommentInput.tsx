@@ -1,8 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp } from 'lucide-react';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users } from 'lucide-react';
 import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
+import {
+  THREESPEAK_FUND_ACCOUNT,
+  bodyHasVideo,
+  enforceVideoBeneficiaries,
+  type Beneficiary,
+} from '../../utils/beneficiaries';
 import ImageUploader from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
 import VideoUploader from '../composer/VideoUploader';
@@ -10,6 +16,7 @@ import GiphyPicker from '../composer/GiphyPicker';
 import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
 import PollCreator from '../composer/PollCreator';
+import BeneficiariesEditor from '../composer/BeneficiariesEditor';
 import type { PollData } from '../composer/PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
 import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
@@ -80,6 +87,29 @@ export interface PostComposerProps {
   onRewardChange?: (reward: RewardOption) => void;
   /** Hide the reward routing toolbar button. */
   hideReward?: boolean;
+
+  /**
+   * Beneficiary list (controlled). When provided, the composer mirrors this
+   * list and emits changes through `onBeneficiariesChange`. The
+   * `threespeakfund` 10% lock is applied automatically while the body
+   * contains a 3Speak video URL or the embedded video uploader has produced
+   * one — there is no need for the consumer to inject it.
+   */
+  beneficiaries?: Beneficiary[];
+  /**
+   * Initial beneficiary list when uncontrolled. Useful for pre-populating the
+   * composer from a user's saved defaults.
+   */
+  defaultBeneficiaries?: Beneficiary[];
+  /** Called whenever the beneficiary list changes (after the 3Speak video lock is applied). */
+  onBeneficiariesChange?: (beneficiaries: Beneficiary[]) => void;
+  /**
+   * Suggested beneficiary chips shown inside the editor modal — typically the
+   * user's previously-used presets pulled from app settings.
+   */
+  beneficiaryFavorites?: Beneficiary[];
+  /** Hide the beneficiary toolbar button. */
+  hideBeneficiaries?: boolean;
 
   /**
    * Show the "upvote on publish" toggle in the toolbar (default false — opt-in).
@@ -177,6 +207,11 @@ const PostComposer = ({
   defaultReward = 'default',
   onRewardChange,
   hideReward,
+  beneficiaries,
+  defaultBeneficiaries,
+  onBeneficiariesChange,
+  beneficiaryFavorites,
+  hideBeneficiaries,
   showVoteButton = false,
   defaultVoteEnabled = false,
   defaultVotePercent = 100,
@@ -287,6 +322,41 @@ const PostComposer = ({
     },
     [reward, onRewardChange],
   );
+
+  // Beneficiary state. The composer keeps its own working copy and reflects
+  // controlled `beneficiaries` when supplied. The 3Speak fund 10% lock is
+  // re-applied any time the video state changes — that way the chip strip
+  // and the operation-time list always agree.
+  const hasVideo = useMemo(
+    () => Boolean(videoEmbedUrl) || bodyHasVideo(body),
+    [videoEmbedUrl, body],
+  );
+  const [internalBeneficiaries, setInternalBeneficiaries] = useState<Beneficiary[]>(() =>
+    enforceVideoBeneficiaries(defaultBeneficiaries, false),
+  );
+  const currentBeneficiaries = beneficiaries ?? internalBeneficiaries;
+  // Whenever video presence changes, re-enforce the threespeakfund rule so the
+  // locked row appears/disappears without the user having to re-open the editor.
+  useEffect(() => {
+    if (beneficiaries !== undefined) return; // controlled — consumer owns it
+    setInternalBeneficiaries((prev) => enforceVideoBeneficiaries(prev, hasVideo));
+  }, [hasVideo, beneficiaries]);
+  const [isBeneficiariesOpen, setIsBeneficiariesOpen] = useState(false);
+  const handleBeneficiariesSave = useCallback(
+    (next: Beneficiary[]) => {
+      const enforced = enforceVideoBeneficiaries(next, hasVideo);
+      if (beneficiaries === undefined) setInternalBeneficiaries(enforced);
+      onBeneficiariesChange?.(enforced);
+    },
+    [hasVideo, beneficiaries, onBeneficiariesChange],
+  );
+  // Notify parent on initial mount + whenever video lock toggles in
+  // uncontrolled mode, so the broadcast operations always reflect the lock.
+  useEffect(() => {
+    if (beneficiaries !== undefined) return;
+    onBeneficiariesChange?.(internalBeneficiaries);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [internalBeneficiaries.map((b) => `${b.account}:${b.weight}`).join('|')]);
 
   // Reward popover anchoring — render through a portal so ancestor `overflow-hidden`
   // (e.g. modals wrapping the composer) cannot clip the dropdown. The Tags panel is
@@ -949,6 +1019,22 @@ const PostComposer = ({
           </button>
         )}
 
+        {!hideBeneficiaries && (
+          <button
+            type="button"
+            onClick={() => setIsBeneficiariesOpen(true)}
+            className={`${toolbarBtnClass} ${currentBeneficiaries.length > 0 ? 'text-blue-400' : ''}`}
+            title={
+              currentBeneficiaries.length > 0
+                ? `Beneficiaries (${currentBeneficiaries.length})`
+                : 'Add beneficiaries'
+            }
+            disabled={isDisabled}
+          >
+            <Users className="h-4 w-4" />
+          </button>
+        )}
+
         {showVoteButton && (
           <button
             type="button"
@@ -1115,6 +1201,57 @@ const PostComposer = ({
             )}
           </div>
         )}
+
+        {/* Beneficiary strip — chips under the tag strip. Click any chip to open
+            the editor; the locked threespeakfund chip carries a lock icon. */}
+        {!hideBeneficiaries && currentBeneficiaries.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1 px-0.5">
+            <span className="text-[10px] uppercase tracking-wide text-gray-500 mr-1">Beneficiaries</span>
+            {currentBeneficiaries.map((b) => {
+              const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
+              return (
+                <button
+                  key={`bene-${b.account}`}
+                  type="button"
+                  onClick={() => setIsBeneficiariesOpen(true)}
+                  className={`inline-flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-[11px] ${
+                    locked
+                      ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30'
+                      : 'bg-blue-600/20 text-blue-200 border border-blue-500/30'
+                  }`}
+                  title={locked ? '10% to threespeakfund (locked for video posts)' : `Edit beneficiaries`}
+                  disabled={isDisabled}
+                >
+                  <img
+                    src={`https://images.hive.blog/u/${b.account}/avatar`}
+                    alt={`@${b.account}`}
+                    width={16}
+                    height={16}
+                    className="rounded-full bg-gray-700 border border-gray-600 object-cover shrink-0"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      if (!img.dataset.fallback) {
+                        img.dataset.fallback = '1';
+                        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(b.account)}&background=random&size=64`;
+                      }
+                    }}
+                  />
+                  {locked && <Lock className="h-2.5 w-2.5" />}
+                  @{b.account} <span className="opacity-80">{b.weight}%</span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setIsBeneficiariesOpen(true)}
+              className="ml-1 rounded-full border border-dashed border-gray-600 px-2 py-0.5 text-[11px] text-gray-400 hover:border-blue-400 hover:text-blue-300"
+              disabled={isDisabled}
+              title="Edit beneficiaries"
+            >
+              Edit
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -1175,6 +1312,14 @@ const PostComposer = ({
         onClose={() => setIsPollOpen(false)}
         onSave={(poll) => { setPollData(poll); onPollChange?.(poll); }}
         initialData={pollData}
+      />
+      <BeneficiariesEditor
+        isOpen={isBeneficiariesOpen}
+        onClose={() => setIsBeneficiariesOpen(false)}
+        onSave={handleBeneficiariesSave}
+        initialBeneficiaries={currentBeneficiaries}
+        hasVideo={hasVideo}
+        favorites={beneficiaryFavorites}
       />
 
       {/* Reward popover — portalled. */}

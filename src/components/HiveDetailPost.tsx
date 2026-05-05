@@ -54,6 +54,7 @@ export interface HiveDetailPostProps {
     parentPermlink: string,
     body: string,
     voteWeight?: number | null,
+    beneficiaries?: import('../utils/beneficiaries').Beneficiary[],
   ) => void | boolean | Promise<void | boolean>;
   /**
    * Show the upvote-on-publish toggle in the post's comment composer. Default false (opt-in).
@@ -74,6 +75,18 @@ export interface HiveDetailPostProps {
    * Typically wired to a user setting.
    */
   defaultReward?: import('../utils/commentOptions').RewardOption;
+  /**
+   * Beneficiaries pre-populated into every comment composer on this detail
+   * page (top-level reply + nested sub-comment replies). Typically wired to
+   * the user's app-wide default beneficiaries setting.
+   */
+  defaultBeneficiaries?: import('../utils/beneficiaries').Beneficiary[];
+  /**
+   * Suggested beneficiary chips shown inside every comment composer's editor
+   * on this detail page — typically the user's previously-used beneficiary
+   * presets pulled from local history.
+   */
+  beneficiaryFavorites?: import('../utils/beneficiaries').Beneficiary[];
 
   /**
    * Initial percent (1–100) for the post's upvote slider AND every comment
@@ -222,6 +235,8 @@ export function HiveDetailPost({
   showVoteButton,
   processBody,
   defaultReward,
+  defaultBeneficiaries,
+  beneficiaryFavorites,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
@@ -1174,6 +1189,8 @@ export function HiveDetailPost({
                 showVoteButton={showVoteButton}
                 parentTags={parentTags}
                 defaultReward={defaultReward}
+                defaultBeneficiaries={defaultBeneficiaries}
+                beneficiaryFavorites={beneficiaryFavorites}
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
@@ -1205,6 +1222,8 @@ export function HiveDetailPost({
                 alreadyVoted={alreadyVoted}
                 parentTags={parentTags}
                 defaultReward={defaultReward}
+                defaultBeneficiaries={defaultBeneficiaries}
+                beneficiaryFavorites={beneficiaryFavorites}
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}

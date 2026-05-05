@@ -18,3 +18,6 @@ export type { TemplatePickerProps } from './TemplatePicker'
 
 export { default as PollCreator } from './PollCreator'
 export type { PollCreatorProps, PollData } from './PollCreator'
+
+export { default as BeneficiariesEditor } from './BeneficiariesEditor'
+export type { BeneficiariesEditorProps } from './BeneficiariesEditor'

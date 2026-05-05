@@ -5,6 +5,7 @@ import { Discussion } from '@/types/comment';
 import InlineCommentItem from './InlineCommentItem';
 import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
+import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/hooks';
 
 interface InlineCommentSectionProps {
@@ -12,8 +13,9 @@ interface InlineCommentSectionProps {
   permlink: string;
   currentUser?: string;
   token?: string;
-  /** `voteWeight` is non-null when the top-level composer's upvote-on-publish toggle is on (only fires for the post-reply composer). */
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string, voteWeight?: number | null) => void | boolean | Promise<void | boolean>;
+  /** `voteWeight` is non-null when the top-level composer's upvote-on-publish toggle is on (only fires for the post-reply composer).
+   *  `beneficiaries` is the post-lock beneficiary list selected in the composer that triggered the submit. */
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string, voteWeight?: number | null, beneficiaries?: Beneficiary[]) => void | boolean | Promise<void | boolean>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   /** Show the upvote-on-publish toggle on the top-level composer. Auto-hidden when `alreadyVoted`. */
   showVoteButton?: boolean;
@@ -23,6 +25,10 @@ interface InlineCommentSectionProps {
   parentTags?: string[];
   /** Default reward routing seeded into every reply composer in this section. */
   defaultReward?: RewardOption;
+  /** Beneficiaries pre-populated into every reply composer in this section. */
+  defaultBeneficiaries?: Beneficiary[];
+  /** Suggested beneficiary chips shown inside every reply composer's editor. */
+  beneficiaryFavorites?: Beneficiary[];
   /** Initial percent for the "upvote on publish" slider in every reply composer. Default 100. */
   defaultVotePercent?: number;
   /** Slider precision (0.25, 0.5, or 1) used by every reply composer. Default 0.25. */
@@ -79,6 +85,8 @@ export default function InlineCommentSection({
   alreadyVoted,
   parentTags,
   defaultReward,
+  defaultBeneficiaries,
+  beneficiaryFavorites,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
@@ -160,15 +168,24 @@ export default function InlineCommentSection({
   // Vote-on-publish state for the TOP-LEVEL composer only (post reply). Nested reply composers
   // don't surface vote toggles because their targets are sub-comments, not the post.
   const topVoteRef = useRef<{ enabled: boolean; percent: number }>({ enabled: false, percent: 100 });
+  // Latest beneficiary list emitted by the top-level composer. Nested composers
+  // pass their own list as the 4th arg of `onCommentSubmit`.
+  const topBeneficiariesRef = useRef<Beneficiary[]>(defaultBeneficiaries ?? []);
 
-  const handleCommentSubmit = async (parentAuthor: string, parentPermlink: string, body: string) => {
+  const handleCommentSubmit = async (
+    parentAuthor: string,
+    parentPermlink: string,
+    body: string,
+    nestedBeneficiaries?: Beneficiary[],
+  ) => {
     // Only the post-reply composer carries a vote weight. Sub-comment replies always send null.
     const isPostReply = parentAuthor === author && parentPermlink === permlink;
     const { enabled, percent } = topVoteRef.current;
     const voteWeight = isPostReply && enabled ? percent : null;
+    const beneficiaries = nestedBeneficiaries ?? topBeneficiariesRef.current;
     if (onSubmitComment) {
       try {
-        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight));
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight, beneficiaries));
         // If callback returns false, the operation was cancelled (e.g. keychain denied) — preserve text
         if (result === false) return false;
         setActiveReplyKey(null);
@@ -290,6 +307,9 @@ export default function InlineCommentSection({
             showVoteButton={!!showVoteButton && !alreadyVoted}
             defaultTags={parentTags}
             defaultReward={defaultReward}
+            defaultBeneficiaries={defaultBeneficiaries}
+            beneficiaryFavorites={beneficiaryFavorites}
+            onBeneficiariesChange={(list) => { topBeneficiariesRef.current = list; }}
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
@@ -359,6 +379,8 @@ export default function InlineCommentSection({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              defaultBeneficiaries={defaultBeneficiaries}
+              beneficiaryFavorites={beneficiaryFavorites}
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
               allowLandscapeVideos={allowLandscapeVideos}

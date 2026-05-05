@@ -40,8 +40,8 @@ export { PostComposer, default as AddCommentInput } from './components/comments/
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
 // Composer components (Image, Audio, Video uploaders, GIF picker, Emoji picker, Template picker)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, EmojiPicker, TemplatePicker, PollCreator } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, GiphyPickerProps, EmojiPickerProps, TemplatePickerProps, PollCreatorProps, PollData } from './components/composer';
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, EmojiPicker, TemplatePicker, PollCreator, BeneficiariesEditor } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, GiphyPickerProps, EmojiPickerProps, TemplatePickerProps, PollCreatorProps, PollData, BeneficiariesEditorProps } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';
@@ -127,6 +127,18 @@ export {
   REWARD_OPTION_LABELS,
   type RewardOption,
 } from './utils/commentOptions';
+export {
+  THREESPEAK_FUND_ACCOUNT,
+  THREESPEAK_FUND_PERCENT,
+  bodyHasVideo,
+  normalizeBeneficiaryAccount,
+  sanitizeBeneficiaries,
+  totalBeneficiaryWeight,
+  enforceVideoBeneficiaries,
+  buildBeneficiariesCommentOptions,
+  mergeBeneficiariesIntoCommentOptions,
+  type Beneficiary,
+} from './utils/beneficiaries';
 
 // Types
 export * from './types/comment';

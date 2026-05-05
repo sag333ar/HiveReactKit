@@ -1287,6 +1287,7 @@ const Index = () => {
                       giphyApiKey={import.meta.env.VITE_GIPHY_API_KEY || undefined}
                       templateToken={import.meta.env.VITE_TEMPLATE_TOKEN || undefined}
                       templateApiBaseUrl={import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined}
+                      showVoteButton={true}
                     />
                   </div>
                 ) : feedTabs.find((t) => t.id === activeTab)?.type ? (

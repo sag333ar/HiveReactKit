@@ -6,6 +6,7 @@ import CommentTile from './CommentTile';
 import ReplyModal from './ReplyModal';
 import CommentSearchBar from './CommentSearchBar';
 import AddCommentInput from './AddCommentInput';
+import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/hooks';
 
 interface CommentsModalProps {
@@ -21,12 +22,15 @@ interface CommentsModalProps {
   /** When provided, used instead of apiService.handleComment (e.g. for aioha wallet).
    *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
    *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
-   *  (value in 1–100, step 0.25); consumer should broadcast vote+comment atomically. */
+   *  (value in 1–100, step 0.25); consumer should broadcast vote+comment atomically.
+   *  `beneficiaries` is the post-lock beneficiary list selected in the composer
+   *  (already includes threespeakfund 10% on video posts). */
   onSubmitComment?: (
     parentAuthor: string,
     parentPermlink: string,
     body: string,
     voteWeight?: number | null,
+    beneficiaries?: Beneficiary[],
   ) => Promise<void | boolean>;
   /** Show the upvote-on-publish toggle in the composer (the parent decides — usually `!alreadyVoted`). */
   showVoteButton?: boolean;
@@ -34,6 +38,10 @@ interface CommentsModalProps {
   parentTags?: string[];
   /** Default reward routing seeded into the composer. */
   defaultReward?: import('../../utils/commentOptions').RewardOption;
+  /** Beneficiaries pre-populated into the comment composer (typically the user's app-wide defaults). */
+  defaultBeneficiaries?: Beneficiary[];
+  /** Suggested beneficiary chips in the composer's editor (typically previously-used presets). */
+  beneficiaryFavorites?: Beneficiary[];
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -52,7 +60,7 @@ interface CommentsModalProps {
   allowLandscapeVideos?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultVotePercent, voteWeightStep, allowLandscapeVideos }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +72,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Latest vote-on-publish selection from AddCommentInput. Null when toggle is off.
   const voteRef = useRef<{ enabled: boolean; percent: number }>({ enabled: false, percent: 100 });
+  // Latest beneficiary list emitted by AddCommentInput (already post-lock).
+  const beneficiariesRef = useRef<Beneficiary[]>(defaultBeneficiaries ?? []);
 
   const fetchComments = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -118,7 +128,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
       try {
         const { enabled, percent } = voteRef.current;
         const voteWeight = enabled ? percent : null;
-        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight));
+        const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight, beneficiariesRef.current));
         // If callback returns false, the operation was cancelled — preserve composer text
         if (result === false) return;
         setShowAddComment(false);
@@ -284,6 +294,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   onVoteChange={(enabled, percent) => { voteRef.current = { enabled, percent }; }}
                   defaultTags={parentTags}
                   defaultReward={defaultReward}
+                  defaultBeneficiaries={defaultBeneficiaries}
+                  beneficiaryFavorites={beneficiaryFavorites}
+                  onBeneficiariesChange={(list) => { beneficiariesRef.current = list; }}
                   defaultVotePercent={defaultVotePercent}
                   voteWeightStep={voteWeightStep}
                   allowLandscapeVideos={allowLandscapeVideos}

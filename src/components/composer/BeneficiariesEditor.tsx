@@ -1,0 +1,404 @@
+/**
+ * BeneficiariesEditor — modal that lets the user attach a list of Hive accounts
+ * that will automatically receive a portion of the rewards on the post being
+ * composed.
+ *
+ * Rules enforced by the UI:
+ * - Each beneficiary's percent is in [1, 100].
+ * - The total of all beneficiaries (including the locked threespeakfund row,
+ *   if shown) is capped at 100%.
+ * - When `hasVideo` is true, the `threespeakfund` 10% row is auto-injected,
+ *   not removable, and the remaining user-controlled allocation is capped at
+ *   100 - 10 = 90%.
+ * - The user can pick from `favorites` (typically previously-used beneficiary
+ *   sets pulled from app settings/history) — clicking a favorite chip fills
+ *   the staging row.
+ *
+ * The component is purely presentational: it owns its working copy of the
+ * list while open and emits the final list via `onSave`.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
+import { Lock, Minus, Plus, Trash2, X } from 'lucide-react';
+import {
+  THREESPEAK_FUND_ACCOUNT,
+  THREESPEAK_FUND_PERCENT,
+  enforceVideoBeneficiaries,
+  normalizeBeneficiaryAccount,
+  sanitizeBeneficiaries,
+  type Beneficiary,
+} from '../../utils/beneficiaries';
+
+export interface BeneficiariesEditorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (beneficiaries: Beneficiary[]) => void;
+  /** Initial list. Defaults are pre-populated when the editor opens. */
+  initialBeneficiaries?: Beneficiary[];
+  /**
+   * When true, the `threespeakfund` 10% row is added automatically and cannot
+   * be removed; user beneficiaries are capped at 90% in total.
+   */
+  hasVideo?: boolean;
+  /**
+   * Suggested chips (favourites / previously-used presets). Each entry is one
+   * beneficiary the user may want to add quickly. Click adds it at its weight
+   * (capped to remaining allocation).
+   */
+  favorites?: Beneficiary[];
+  /** Title shown in the header. */
+  title?: string;
+  /** Hint shown under the header. */
+  description?: string;
+  /** Save button label. */
+  saveLabel?: string;
+  /** Cancel button label. */
+  cancelLabel?: string;
+}
+
+const MAX_TOTAL = 100;
+
+/**
+ * Small Hive avatar — same source other kit components use, with a UI Avatars
+ * fallback if the user has no Hive avatar set yet.
+ */
+const BeneficiaryAvatar: React.FC<{ account: string; size?: number; className?: string }> = ({
+  account,
+  size = 20,
+  className = '',
+}) => (
+  <img
+    src={`https://images.hive.blog/u/${account}/avatar`}
+    alt={`@${account}`}
+    width={size}
+    height={size}
+    style={{ width: size, height: size }}
+    className={`rounded-full bg-gray-700 border border-gray-600 object-cover shrink-0 ${className}`}
+    onError={(e) => {
+      const img = e.target as HTMLImageElement;
+      if (!img.dataset.fallback) {
+        img.dataset.fallback = '1';
+        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(account)}&background=random&size=64`;
+      }
+    }}
+  />
+);
+
+const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialBeneficiaries,
+  hasVideo = false,
+  favorites,
+  title = 'Beneficiaries',
+  description = 'Add a user you want to automatically receive a portion of the rewards for this post.',
+  saveLabel = 'Save',
+  cancelLabel = 'Cancel',
+}) => {
+  const [list, setList] = useState<Beneficiary[]>([]);
+  const [draftAccount, setDraftAccount] = useState('');
+  const [draftWeight, setDraftWeight] = useState<number>(1);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize the working list whenever the modal opens or the constraint
+  // (hasVideo) changes — the editor always reflects the current rules.
+  useEffect(() => {
+    if (!isOpen) return;
+    setList(enforceVideoBeneficiaries(initialBeneficiaries, hasVideo));
+    setDraftAccount('');
+    setDraftWeight(1);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, hasVideo]);
+
+  const userCap = hasVideo ? MAX_TOTAL - THREESPEAK_FUND_PERCENT : MAX_TOTAL;
+  const userTotal = useMemo(
+    () => list.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT).reduce((s, b) => s + b.weight, 0),
+    [list],
+  );
+  const remaining = Math.max(0, userCap - userTotal);
+
+  if (!isOpen) return null;
+
+  const updateWeight = (account: string, next: number) => {
+    setError(null);
+    const clamped = Math.max(1, Math.min(100, Math.round(next)));
+    const others = list
+      .filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT && b.account !== account)
+      .reduce((s, b) => s + b.weight, 0);
+    const allowed = Math.max(1, userCap - others);
+    const finalWeight = Math.min(clamped, allowed);
+    setList((prev) =>
+      prev.map((b) => (b.account === account ? { ...b, weight: finalWeight } : b)),
+    );
+  };
+
+  const removeRow = (account: string) => {
+    if (account === THREESPEAK_FUND_ACCOUNT && hasVideo) return;
+    setList((prev) => prev.filter((b) => b.account !== account));
+    setError(null);
+  };
+
+  const addBeneficiary = (rawAccount: string, weight: number) => {
+    const account = normalizeBeneficiaryAccount(rawAccount);
+    if (!account) {
+      setError('Enter an account name.');
+      return false;
+    }
+    if (list.some((b) => b.account === account)) {
+      setError(`@${account} is already added.`);
+      return false;
+    }
+    if (account === THREESPEAK_FUND_ACCOUNT && hasVideo) {
+      setError('threespeakfund is already added automatically.');
+      return false;
+    }
+    if (remaining <= 0) {
+      setError(`Total cannot exceed ${userCap}%.`);
+      return false;
+    }
+    const w = Math.max(1, Math.min(remaining, Math.round(weight) || 1));
+    setList((prev) => [...prev, { account, weight: w }]);
+    setError(null);
+    return true;
+  };
+
+  const handleAddDraft = () => {
+    if (!draftAccount.trim()) return;
+    const ok = addBeneficiary(draftAccount, draftWeight || 1);
+    if (ok) {
+      setDraftAccount('');
+      setDraftWeight(Math.max(1, Math.min(remaining - (draftWeight || 1), remaining)));
+    }
+  };
+
+  const handleSave = () => {
+    const sanitized = sanitizeBeneficiaries(list);
+    onSave(enforceVideoBeneficiaries(sanitized, hasVideo));
+    onClose();
+  };
+
+  const sortedFavorites = (favorites ?? []).filter(
+    (f) => !list.some((b) => b.account === normalizeBeneficiaryAccount(f.account)),
+  );
+
+  // Reusable weight stepper — same chunk used by both existing rows and the
+  // staging row, sized down so two of them fit comfortably on a 320px screen.
+  const renderWeightStepper = (
+    value: number,
+    onDec: () => void,
+    onInc: () => void,
+    onChangeValue: (next: number) => void,
+    disabled = false,
+    minVal = 1,
+    maxVal = 100,
+  ) => (
+    <div className="flex items-center gap-1 shrink-0">
+      <button
+        type="button"
+        onClick={onDec}
+        disabled={disabled || value <= minVal}
+        className="h-8 w-8 rounded bg-gray-800 text-gray-100 hover:bg-gray-700 disabled:opacity-40 flex items-center justify-center shrink-0"
+        aria-label="Decrease"
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={minVal}
+        max={maxVal}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChangeValue(Number(e.target.value))}
+        className="h-8 w-12 rounded border border-gray-700 bg-gray-900 px-1 text-center text-xs text-white focus:border-blue-500 outline-none disabled:opacity-50"
+      />
+      <span className="text-xs text-gray-400 w-3">%</span>
+      <button
+        type="button"
+        onClick={onInc}
+        disabled={disabled || value >= maxVal}
+        className="h-8 w-8 rounded bg-gray-800 text-gray-100 hover:bg-gray-700 disabled:opacity-40 flex items-center justify-center shrink-0"
+        aria-label="Increase"
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl rounded-t-2xl sm:rounded-xl border border-gray-700 bg-[#15181c] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
+          <h2 className="text-base sm:text-lg font-semibold text-white">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-4">
+          <p className="text-xs sm:text-sm text-gray-300">{description}</p>
+
+          {/* Column headers — desktop only. The mobile layout stacks each row,
+              so a column header would only confuse the eye. */}
+          <div className="hidden sm:flex items-center text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800 pb-2">
+            <span className="flex-1">Username</span>
+            <span className="w-44 text-center">Reward</span>
+            <span className="w-10" />
+          </div>
+
+          {/* Existing rows. Mobile: account on its own row, controls + remove
+              underneath; Desktop: everything inline. The trash button sits to
+              the right on both layouts so the gesture is consistent. */}
+          <div className="space-y-2">
+            {list.map((b) => {
+              const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
+              return (
+                <div
+                  key={b.account}
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 border-b border-gray-800/60 pb-2"
+                >
+                  <span className="flex-1 min-w-0 text-sm text-gray-100 inline-flex items-center gap-2 truncate">
+                    <BeneficiaryAvatar account={b.account} size={24} />
+                    {locked && <Lock className="h-3 w-3 text-amber-400 shrink-0" />}
+                    <span className="truncate">@{b.account}</span>
+                  </span>
+                  <div className="flex items-center justify-between sm:justify-end gap-2">
+                    {renderWeightStepper(
+                      b.weight,
+                      () => updateWeight(b.account, b.weight - 1),
+                      () => updateWeight(b.account, b.weight + 1),
+                      (n) => updateWeight(b.account, n),
+                      locked,
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeRow(b.account)}
+                      disabled={locked}
+                      className="h-8 w-8 rounded text-red-400 hover:bg-red-500/10 disabled:opacity-30 flex items-center justify-center shrink-0"
+                      aria-label={locked ? 'Locked' : 'Remove'}
+                      title={locked ? '10% to threespeakfund is required for video posts' : 'Remove'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add new row. Mobile: input full-width on its own line, then a
+              second line with stepper on the left and a wide labeled Add
+              button on the right (so it never overflows). Desktop: single row
+              like before. */}
+          <div className="rounded-lg border border-dashed border-gray-700 p-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex-1 min-w-0 flex items-center gap-1 rounded border border-gray-700 bg-gray-900 px-2 h-9">
+                <span className="text-gray-500 text-sm shrink-0">@</span>
+                <input
+                  type="text"
+                  value={draftAccount}
+                  onChange={(e) => setDraftAccount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddDraft();
+                    }
+                  }}
+                  placeholder="Account"
+                  className="flex-1 min-w-0 bg-transparent outline-none text-sm text-white placeholder-gray-500"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="flex items-center justify-between sm:justify-end gap-2">
+                {renderWeightStepper(
+                  draftWeight,
+                  () => setDraftWeight((v) => Math.max(1, v - 1)),
+                  () => setDraftWeight((v) => Math.min(remaining || 1, v + 1)),
+                  (n) => {
+                    const next = Math.max(1, Math.min(remaining || 1, n || 1));
+                    setDraftWeight(next);
+                  },
+                  false,
+                  1,
+                  Math.max(1, remaining),
+                )}
+                <button
+                  type="button"
+                  onClick={handleAddDraft}
+                  disabled={!draftAccount.trim() || remaining <= 0}
+                  className="h-8 inline-flex items-center justify-center gap-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 px-3 sm:w-10 sm:px-0 shrink-0"
+                  aria-label="Add beneficiary"
+                  title="Add beneficiary"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="sm:hidden">Add</span>
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
+              <span className={`${error ? 'text-red-400' : 'text-gray-500'}`}>
+                {error || `Remaining: ${remaining}%${hasVideo ? ` (capped at ${userCap}% — 10% reserved for threespeakfund)` : ''}`}
+              </span>
+              <span className="text-gray-500">Total used: {userTotal + (hasVideo ? THREESPEAK_FUND_PERCENT : 0)}%</span>
+            </div>
+          </div>
+
+          {/* Favorites */}
+          {sortedFavorites.length > 0 && (
+            <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
+              <div className="text-xs font-semibold text-gray-300 mb-2">Favorites</div>
+              <div className="flex flex-wrap gap-2">
+                {sortedFavorites.map((f) => {
+                  const account = normalizeBeneficiaryAccount(f.account);
+                  const weight = Math.max(1, Math.min(100, Math.round(f.weight) || 1));
+                  return (
+                    <button
+                      key={`${account}-${weight}`}
+                      type="button"
+                      onClick={() => addBeneficiary(account, weight)}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-blue-600/80 hover:bg-blue-600 pl-1 pr-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white max-w-full"
+                    >
+                      <BeneficiaryAvatar account={account} size={18} className="border-blue-300/40" />
+                      <span className="truncate">{account} ({weight}%)</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer — buttons are full-width on mobile so they're easy to tap. */}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-4 sm:px-6 py-3 border-t border-gray-800 bg-[#15181c]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-100 text-sm flex items-center justify-center gap-1"
+          >
+            <X className="h-4 w-4" /> {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full sm:w-auto px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"
+          >
+            {saveLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BeneficiariesEditor;

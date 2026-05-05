@@ -10,6 +10,7 @@ import { VoteSlider } from '../VoteSlider';
 import UpvoteListModal from '../UpvoteListModal';
 import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
+import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 import { TranslatedBody } from '../TranslatedBody';
@@ -19,7 +20,7 @@ interface InlineCommentItemProps {
   allComments: Discussion[];
   onReply: (author: string, permlink: string) => void;
   onCancelReply: () => void;
-  onCommentSubmit: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void | boolean>;
+  onCommentSubmit: (parentAuthor: string, parentPermlink: string, body: string, beneficiaries?: Beneficiary[]) => Promise<void | boolean>;
   /** "author/permlink" key of the comment currently being replied to (null = none) */
   activeReplyKey: string | null;
   currentUser?: string;
@@ -43,6 +44,10 @@ interface InlineCommentItemProps {
   onUserClick?: (username: string) => void;
   /** Default reward routing seeded into every reply composer. */
   defaultReward?: RewardOption;
+  /** Beneficiaries pre-populated into every reply composer. */
+  defaultBeneficiaries?: Beneficiary[];
+  /** Suggested beneficiary chips shown inside every reply composer's editor. */
+  beneficiaryFavorites?: Beneficiary[];
   /** Initial percent for the comment-upvote slider AND reply composer's
    *  upvote-on-publish slider. Default 100. */
   defaultVotePercent?: number;
@@ -85,6 +90,8 @@ export default function InlineCommentItem({
   onNavigateToPost,
   onUserClick,
   defaultReward,
+  defaultBeneficiaries,
+  beneficiaryFavorites,
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
@@ -100,6 +107,10 @@ export default function InlineCommentItem({
   const [toastMessage, setToastMessage] = useState('');
   const [expandedPastMaxDepth, setExpandedPastMaxDepth] = useState(false);
   const [replyBody, setReplyBody] = useState('');
+  // Latest beneficiary list emitted by this item's reply composer(s). The
+  // mobile (portal) and desktop (inline) composers both write into the same
+  // ref because only one is open at a time.
+  const replyBeneficiariesRef = useRef<Beneficiary[]>(defaultBeneficiaries ?? []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -514,7 +525,7 @@ export default function InlineCommentItem({
                         </div>
                       </div>
                       <PostComposer
-                        onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
+                        onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                         onCancel={onCancelReply}
                         currentUser={currentUser}
                         parentAuthor={comment.author}
@@ -530,6 +541,9 @@ export default function InlineCommentItem({
                         hideUserHeader
                         showCancel
                         defaultReward={defaultReward}
+                        defaultBeneficiaries={defaultBeneficiaries}
+                        beneficiaryFavorites={beneficiaryFavorites}
+                        onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                         allowLandscapeVideos={allowLandscapeVideos}
                       />
                     </div>
@@ -581,7 +595,7 @@ export default function InlineCommentItem({
                     </div>
                   </div>
                   <PostComposer
-                    onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body)}
+                    onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                     onCancel={onCancelReply}
                     currentUser={currentUser}
                     parentAuthor={comment.author}
@@ -597,6 +611,9 @@ export default function InlineCommentItem({
                     hideUserHeader
                     showCancel
                     defaultReward={defaultReward}
+                    defaultBeneficiaries={defaultBeneficiaries}
+                    beneficiaryFavorites={beneficiaryFavorites}
+                    onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                     allowLandscapeVideos={allowLandscapeVideos}
                   />
                 </div>
@@ -645,6 +662,8 @@ export default function InlineCommentItem({
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
+              defaultBeneficiaries={defaultBeneficiaries}
+              beneficiaryFavorites={beneficiaryFavorites}
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
               allowLandscapeVideos={allowLandscapeVideos}
