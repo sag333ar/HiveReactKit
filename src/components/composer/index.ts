@@ -5,7 +5,7 @@ export { default as AudioUploader } from './AudioUploader'
 export type { AudioUploaderProps } from './AudioUploader'
 
 export { default as VideoUploader } from './VideoUploader'
-export type { VideoUploaderProps } from './VideoUploader'
+export type { VideoUploaderProps, VideoUploadDetails } from './VideoUploader'
 
 export { default as GiphyPicker } from './GiphyPicker'
 export type { GiphyPickerProps } from './GiphyPicker'
@@ -21,3 +21,6 @@ export type { PollCreatorProps, PollData } from './PollCreator'
 
 export { default as BeneficiariesEditor } from './BeneficiariesEditor'
 export type { BeneficiariesEditorProps } from './BeneficiariesEditor'
+
+export { default as ParentPostComposer } from './ParentPostComposer'
+export type { ParentPostComposerProps, ParentPostSubmitPayload } from './ParentPostComposer'

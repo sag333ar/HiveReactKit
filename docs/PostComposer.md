@@ -1,8 +1,10 @@
 # PostComposer
 
-A rich markdown composer component with live preview, media upload (image, audio, video), paste/drag-drop image upload, GIF search, emoji picker, template picker, poll creator, code block support with copy-to-clipboard, and @ mention.
+A rich markdown composer component with live preview, media upload (image, audio, video), paste/drag-drop image upload, GIF search, emoji picker, template picker, poll creator, locked + user-typed tag manager, reward routing dropdown, beneficiaries editor (with auto `threespeakfund` 10% lock on video posts), upvote-on-publish toggle, code block support with copy-to-clipboard, and @ mention.
 
 Formerly `AddCommentInput` — the old name is still available as a deprecated re-export for backward compatibility.
+
+> Looking for a **full-screen blog composer** with title + description + side-by-side preview + draft persistence? See [ParentPostComposer](./ParentPostComposer.md). The two share the same toolbar features but different layouts.
 
 ## Installation
 
@@ -93,6 +95,60 @@ All toolbar features can be individually hidden regardless of token availability
 | `hidePoll` | `boolean` | No | `false` | Hide the poll button in the toolbar |
 | `onPollChange` | `(poll: PollData \| null) => void` | No | - | Called when a poll is attached, edited, or removed. Receives `PollData` on attach/edit, `null` on remove. Use this to include poll data in your post metadata |
 
+### Tags
+
+The toolbar's Tag button opens an inline editor with locked default tags (shown with a 🔒 icon) and user-added tags. The user input splits on `Enter`, `,`, or whitespace, so a paste like `hive dev hiveproject reactjs witness` adds 5 tags in one keystroke. Each token is normalised (lowercased, leading `#` stripped, internal whitespace replaced with `-`).
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `defaultTags` | `string[]` | No | `[]` | Locked tags shown with a 🔒 icon — cannot be edited or removed by the user. App identifiers go here (e.g. `["hsnaps"]`). Always emitted first. |
+| `maxTags` | `number` | No | `10` | Cap on **total** tags including locked entries. |
+| `onTagsChange` | `(tags: string[]) => void` | No | - | Fired with the merged list (locked + user) on every change. |
+| `hideTags` | `boolean` | No | `false` | Hide the Tag button in the toolbar. |
+
+### Reward routing
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `reward` | `RewardOption` | No | `undefined` | Controlled reward — `'default' \| 'power_up' \| 'burn' \| 'decline'`. When provided, the consumer owns the value. |
+| `defaultReward` | `RewardOption` | No | `'default'` | Initial reward when uncontrolled. |
+| `onRewardChange` | `(reward: RewardOption) => void` | No | - | Fired when the user picks a different reward. Pair with `buildCommentOptions` (or `mergeBeneficiariesIntoCommentOptions`) at broadcast time. |
+| `hideReward` | `boolean` | No | `false` | Hide the Reward button in the toolbar. |
+
+### Beneficiaries
+
+The toolbar's Beneficiaries button opens [`BeneficiariesEditor`](./BeneficiariesEditor.md). When a video is attached (either via the embedded video uploader, or because the body markdown contains a `3speak.tv/embed?v=…` URL), the composer **auto-injects a locked `threespeakfund` 10% row** and caps user-controlled allocation at 90%.
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `beneficiaries` | `Beneficiary[]` | No | `undefined` | Controlled beneficiary list. When provided, the consumer owns the value. |
+| `defaultBeneficiaries` | `Beneficiary[]` | No | `[]` | Initial list when uncontrolled. |
+| `onBeneficiariesChange` | `(beneficiaries: Beneficiary[]) => void` | No | - | Fired with the post-lock list whenever it changes. |
+| `beneficiaryFavorites` | `Beneficiary[]` | No | - | Suggestion chips inside the editor modal — typically pulled from a per-user history store. |
+| `hideBeneficiaries` | `boolean` | No | `false` | Hide the Beneficiaries button in the toolbar. |
+
+### Upvote-on-publish toggle
+
+Optional toggle that lets the user upvote the parent post in the same transaction as their comment. The composer owns the UI; the consumer owns the broadcast (use [`voteAndComment`](./HiveDetailPost.md) or push a `vote` op alongside your `comment` op).
+
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `showVoteButton` | `boolean` | No | `false` | Show the upvote-on-publish toggle button. Pass `!alreadyVoted` so the button hides once the user has voted. |
+| `defaultVoteEnabled` | `boolean` | No | `false` | Initial toggle state. |
+| `defaultVotePercent` | `number` | No | `100` | Initial slider percent (1–100). |
+| `voteWeightStep` | `number` | No | `0.25` | Slider precision — `0.25 \| 0.5 \| 1`. |
+| `onVoteChange` | `(enabled: boolean, percent: number) => void` | No | - | Fired on toggle / slider change. |
+| `voteLabel` | `string` | No | `"Upvote parent on publish"` | Slider label. |
+
+### Video uploader controls (advanced)
+
+These props are forwarded to the embedded `<VideoUploader/>`. Most consumers don't need them — defaults match the snap composer's modal flow.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `allowLandscapeVideos` | `boolean` | `false` | When `false`, only portrait clips are accepted (matches the Snaps Moments contract). Set `true` for blog/long-form composers. |
+| `useThreeSpeakV2` | `boolean` | `false` | When `true`, the TUS upload goes to `https://video.3speak.tv/files/` with v2 metadata (`upload_id`, `owner`, `filename`, `filetype`) and the resulting `uploadId` is surfaced via the video-details callback for `/api/upload/finalize`. Required for the v2 publish flow. See [ParentPostComposer](./ParentPostComposer.md) for the full path. |
+
 ### Appearance
 
 | Prop | Type | Required | Default | Description |
@@ -112,9 +168,13 @@ The component renders in this order (top to bottom):
 4. **Audio attachment preview** — embedded player with remove button (shown after upload)
 5. **Video attachment preview** — video player with remove button (shown after upload)
 6. **Poll preview** — question, choices chips, end date, edit/remove buttons (shown after poll creation)
-7. **Toolbar** — Preview, Bold, Italic, Link, Code, @Mention, Image, Audio, Video, Emoji, GIF, Template, Poll
-8. **Textarea** — with paste/drag-drop support
-9. **Actions** — keyboard hint, Cancel, Submit (hideable via `hideSubmitArea`)
+7. **Toolbar** — Preview, Bold, Italic, Link, Code, @Mention, Image, Audio, Video, Emoji, GIF, Template, Poll, Tags, Reward, Beneficiaries, Upvote-on-publish (when enabled)
+8. **Wallet-approval banner** — blinking amber strip while the wallet is pending (shown during image-upload signing or `awaitingWalletApproval`)
+9. **Inline upvote slider** — visible only when the upvote-on-publish toggle is on
+10. **Textarea** — with paste/drag-drop support
+11. **Tag strip** — locked + user chips with `<count>/<maxTags>` counter; expand for the add-tag input
+12. **Beneficiary strip** — chips with avatars (locked `threespeakfund` chip carries a 🔒 icon during video posts); click any chip to open the editor modal
+13. **Actions** — keyboard hint, Cancel, Submit (hideable via `hideSubmitArea`)
 
 ## Features
 
@@ -192,10 +252,37 @@ All three methods require `ecencyToken`.
 - Search bar to filter across all categories
 - Fixed height (480px) with hidden scrollbars
 
+### Tags
+
+- Click the Tag icon in the toolbar to open the inline tag manager.
+- Locked tags (from `defaultTags`) appear first with a 🔒 icon and can't be removed.
+- The user input commits the previous fragment as a chip whenever the user types `Enter`, `,`, or whitespace — so pasting `hive dev hiveproject reactjs witness` adds 5 chips in one keystroke.
+- Each token is normalised: lowercase, leading `#` stripped, internal whitespace replaced with `-`.
+- Capped at `maxTags` (default 10). The merged list is emitted via `onTagsChange` on every change.
+
+### Reward routing
+
+- Click the coin icon to open a portalled popover with the four options (`50% HBD and 50% HP` / `100% Hive Power` / `Burn` / `Decline`).
+- Pair `onRewardChange` with `mergeBeneficiariesIntoCommentOptions(...)` (or the lower-level `buildCommentOptions(...)`) at broadcast time to assemble the matching `comment_options` op tuple. See the [BeneficiariesEditor docs](./BeneficiariesEditor.md#helper-utilities).
+
+### Beneficiaries
+
+- Click the Users icon to open [`BeneficiariesEditor`](./BeneficiariesEditor.md) — modal that lets the user add accounts that auto-receive a portion of the rewards.
+- Each chip shows a Hive avatar (with `ui-avatars.com` fallback) next to the account name.
+- When a video is attached (via the toolbar's Video uploader OR because the body markdown contains a `3speak.tv/embed?v=…` URL), the kit **automatically prepends a locked `threespeakfund` 10% chip** and caps the user-controlled allocation at 90%. Existing entries are scaled proportionally to fit.
+- Pass `beneficiaryFavorites` to surface previously-used presets as clickable chips inside the editor.
+
+### Upvote on publish
+
+- Optional toggle (`showVoteButton`) shown on reply composers — lets the user upvote the parent in the same transaction as their comment.
+- Slider precision (`voteWeightStep`) is `0.25` / `0.5` / `1`. Default 0.25.
+- `onVoteChange(enabled, percent)` fires on toggle/slider change — pair with a `vote` op at broadcast time.
+
 ### Keyboard Shortcuts
 
 - **Cmd/Ctrl + Enter**: Submit
 - **Escape**: Cancel (if `onCancel` provided)
+- **Cmd/Ctrl + Z** / **Cmd+Shift+Z** (or **Ctrl+Y**): Undo / redo. Toolbar actions (Bold, Italic, Code, Mention, GIF, Emoji, Template, paste-image, drag-drop image) route through `document.execCommand('insertText', …)` so each action lands as one undoable step in the browser's native input pipeline.
 
 ## Error Handling
 
@@ -329,7 +416,13 @@ import { PostComposer } from 'hive-react-kit';
 ## TypeScript
 
 ```tsx
-import type { PostComposerProps, PollData } from 'hive-react-kit';
+import type {
+  PostComposerProps,
+  PollData,
+  Beneficiary,
+  RewardOption,
+  VideoUploadDetails,
+} from 'hive-react-kit';
 
 // Deprecated alias — still available
 import type { AddCommentInputProps } from 'hive-react-kit';

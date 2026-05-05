@@ -69,7 +69,9 @@ import type { Video, Comment, Wallet as WalletType } from 'hive-react-kit/types'
 
 ### Composer Components
 
-- **PostComposer** - Rich markdown composer with live preview (@snapie/renderer), image/audio/video upload, paste & drag-drop, GIF search, emoji picker (500+, 9 categories), template picker, code blocks with copy, and @ mention. See [PostComposer docs](docs/PostComposer.md)
+- **PostComposer** — Rich markdown composer with live preview (@snapie/renderer), image/audio/video upload, paste & drag-drop, GIF search, emoji picker (500+, 9 categories), template picker, code blocks with copy, @ mention, locked + user tags (split on space/comma/Enter), reward routing dropdown, beneficiaries editor with auto `threespeakfund` 10% lock on video posts, and upvote-on-publish toggle. See [PostComposer docs](docs/PostComposer.md).
+- **ParentPostComposer** — Full-screen blog composer with title (≤120 chars), description (≤120 chars with counter), markdown body, **side-by-side live preview always on**, the same toolbar features as PostComposer, local draft persistence to `localStorage`, and the 3Speak v2 video pipeline (`upload_id` → `/api/upload/finalize`). See [ParentPostComposer docs](docs/ParentPostComposer.md).
+- **BeneficiariesEditor** — Standalone modal that powers the beneficiaries flow in both composers — per-row +/- spinners, Hive avatars, favourites strip, total/remaining indicator, mobile bottom-sheet layout, and the auto `threespeakfund` 10% lock when `hasVideo`. See [BeneficiariesEditor docs](docs/BeneficiariesEditor.md).
 
 ### Modal Components
 
