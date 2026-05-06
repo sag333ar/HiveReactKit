@@ -66,7 +66,14 @@ export interface SnapsFeedViewProps {
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
   /** Comment-icon click (per card) — typical use: open inline composer. */
-  onClickCommentIcon?: (author: string, permlink: string) => void;
+  /** Forwarded to every <SnapsFeedCard/>. The optional `parentTags`
+   *  argument carries `json_metadata.tags` of the snap so the
+   *  consumer's reply composer can pre-fill them. */
+  onClickCommentIcon?: (
+    author: string,
+    permlink: string,
+    parentTags?: string[],
+  ) => void;
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;

@@ -43,8 +43,15 @@ export interface SnapsFeedCardProps {
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
   /** Click on just the message-circle icon — typical use: open an
-   *  inline reply composer. Mirrors hSnaps PostCard. */
-  onClickCommentIcon?: (author: string, permlink: string) => void;
+   *  inline reply composer. Mirrors hSnaps PostCard. The optional
+   *  `parentTags` argument carries the parent post's
+   *  `json_metadata.tags` so the composer can pre-fill (and lock) the
+   *  reply's tag list with the same tags as the parent. */
+  onClickCommentIcon?: (
+    author: string,
+    permlink: string,
+    parentTags?: string[],
+  ) => void;
   /** Click on just the count number next to the comment icon — typical
    *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
   onClickCommentCount?: (author: string, permlink: string) => void;
@@ -120,13 +127,32 @@ function parseJsonMetadata(jm: unknown): Record<string, unknown> {
   return {};
 }
 
-/** True when `json_metadata.tags` contains the literal `hsnaps` tag.
- *  Mirrors hSnaps's `isHSnapsPost` check — we surface a pill in the
- *  header for these posts and skip the chip for everything else. */
-function hasHsnapsTag(post: Post): boolean {
+/** Tags that mark a post as part of the hivesuite app family. Posts
+ *  carrying any of these get the unified "hivesuite" pill in the
+ *  card header — `hsnaps` and `hreplier` are the historic identifiers
+ *  the older sibling apps still emit, `hivesuite` is the canonical
+ *  one used going forward. */
+const HIVESUITE_FAMILY_TAGS = new Set(['hsnaps', 'hreplier', 'hivesuite']);
+
+/** True when `json_metadata.tags` contains any of the hivesuite-family
+ *  tags. Surfaces the pill in the header. Per-app chips (hSnaps,
+ *  hReplier, …) are deliberately collapsed into one branded marker
+ *  so the strip stays uncluttered. */
+function hasHivesuiteFamilyTag(post: Post): boolean {
   const meta = parseJsonMetadata(post.json_metadata as unknown);
   const raw = Array.isArray(meta.tags) ? (meta.tags as unknown[]) : [];
-  return raw.some((t) => typeof t === 'string' && t.toLowerCase() === 'hsnaps');
+  return raw.some(
+    (t) => typeof t === 'string' && HIVESUITE_FAMILY_TAGS.has(t.toLowerCase()),
+  );
+}
+
+/** Extract `json_metadata.tags` as a string array — used to seed the
+ *  reply composer when the user taps the comment icon, so the inline
+ *  composer can pre-fill (and lock) the parent's tag list. */
+function extractTagsFromMeta(post: Post): string[] {
+  const meta = parseJsonMetadata(post.json_metadata as unknown);
+  const raw = Array.isArray(meta.tags) ? (meta.tags as unknown[]) : [];
+  return raw.filter((t): t is string => typeof t === 'string' && t.length > 0);
 }
 
 function parseBody(post: Post): ParsedBody {
@@ -626,7 +652,14 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   actionsAsMenu,
 }) => {
   const parsed = useMemo(() => parseBody(post), [post.body, post.json_metadata]);
-  const isHSnapsPost = useMemo(() => hasHsnapsTag(post), [post.json_metadata]);
+  const isHivesuitePost = useMemo(
+    () => hasHivesuiteFamilyTag(post),
+    [post.json_metadata],
+  );
+  const parentMetaTags = useMemo(
+    () => extractTagsFromMeta(post),
+    [post.json_metadata],
+  );
   // Reset attachment carousel position when the post changes.
   useEffect(() => {}, [post.author, post.permlink]);
 
@@ -773,14 +806,15 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           </button>
           <span className="shrink-0 text-xs text-[#9ca3b0]">·</span>
           <span className="shrink-0 text-xs text-[#9ca3b0]">{formatTimeAgo(post.created)}</span>
-          {/* Show the `hSnaps` pill only when the post's json_metadata.tags
-              actually contains "hsnaps" — matches hSnaps PostCard's
-              `isHSnapsPost` check. We deliberately don't surface every
-              tag from json_metadata; chips are reserved for this app
-              identity marker. */}
-          {isHSnapsPost && (
+          {/* Unified "hivesuite" pill — fires for any post whose
+              json_metadata.tags include `hsnaps`, `hreplier`, or
+              `hivesuite` (the historic + canonical family tags).
+              Per-app chips were collapsed into one marker so the
+              strip stays uncluttered, and so posts created from
+              older sibling apps still get attributed correctly. */}
+          {isHivesuitePost && (
             <span className="shrink-0 rounded-full bg-[#e31337]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#e31337]">
-              hSnaps
+              hivesuite
             </span>
           )}
           {post.community_title && (
@@ -864,7 +898,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
           disableCommentsModal={!!onCommentClick}
           onComments={onCommentClick ? () => onCommentClick(post.author, post.permlink) : undefined}
-          onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(post.author, post.permlink) : undefined}
+          onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(post.author, post.permlink, parentMetaTags) : undefined}
           onClickCommentCount={onClickCommentCount ? () => onClickCommentCount(post.author, post.permlink) : undefined}
           hasCommented={hasCommented}
           myReplyKey={myReplyKey}
