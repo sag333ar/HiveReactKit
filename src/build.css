@@ -191,7 +191,10 @@
   display: flex;
   justify-content: center;
 }
-.hive-post-body .threeSpeakNative {
+/* Unscoped — see index.css for the rationale. HiveDetailPost mounts
+   the player outside `.hive-post-body`, so a body-scoped selector
+   left it completely unstyled and invisible. */
+.threeSpeakNative {
   width: 100%;
   margin: 0 auto;
   border-radius: 0.75rem;
@@ -202,7 +205,7 @@
   justify-content: center;
   position: relative;
 }
-.hive-post-body .threeSpeakNative.threeSpeakNativeLandscape {
+.threeSpeakNative.threeSpeakNativeLandscape {
   aspect-ratio: 16 / 9;
   max-width: 800px;
   max-height: 80vh;
@@ -211,7 +214,7 @@
    ThreeSpeakPlayer overrides once `loadedmetadata` fires. The
    max-height keeps the player inside narrow modal popups (Snaps
    preview) without overflowing the dialog. */
-.hive-post-body .threeSpeakNative.threeSpeakNativePortrait {
+.threeSpeakNative.threeSpeakNativePortrait {
   aspect-ratio: 9 / 16;
   max-width: 450px;
   max-height: 80vh;
@@ -220,8 +223,8 @@
    index.css for rationale. Thumbnail is mounted only before first
    play (ThreeSpeakPlayer controls visibility); pause keeps the
    current video frame visible. */
-.hive-post-body .threeSpeakNative video,
-.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
+.threeSpeakNative video,
+.threeSpeakNative .threeSpeakNativeThumb {
   display: block;
   position: absolute;
   inset: 0;
@@ -231,29 +234,38 @@
   border-radius: 0.75rem;
   object-fit: contain;
 }
-.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
+.threeSpeakNative .threeSpeakNativeThumb {
   z-index: 1;
   pointer-events: none;
 }
-.hive-post-body .threeSpeakNative video {
+.threeSpeakNative video {
   z-index: 2;
 }
-/* `hideThumbnail` mode: no reserved aspect-ratio box, the <video>
-   flows with its intrinsic dimensions instead. */
-.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb {
-  aspect-ratio: auto;
-  max-width: none;
+/* `hideThumbnail` mode: the wrapper owns the aspect-ratio (set inline
+   by ThreeSpeakPlayer) and the size caps. The <video> simply fills
+   it. See index.css for the full rationale. */
+.threeSpeakNative.threeSpeakNativeNoThumb {
   display: block;
-  background: transparent;
-}
-.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb video {
-  position: static;
-  width: 100%;
-  height: auto;
-  max-width: 800px;
   margin: 0 auto;
+  background: #000;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  max-width: min(100%, 800px);
+  max-height: 80vh;
+  position: relative;
+  min-height: 200px;
 }
-.hive-post-body .threeSpeakNativeMessage {
+.threeSpeakNative.threeSpeakNativeNoThumb video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+  border-radius: 0.75rem;
+  object-fit: contain;
+}
+.threeSpeakNativeMessage {
   color: #9ca3b0;
   font-size: 0.875rem;
 }

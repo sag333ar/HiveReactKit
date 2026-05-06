@@ -207,7 +207,15 @@
   display: flex;
   justify-content: center;
 }
-.hive-post-body .threeSpeakNative {
+/* The .threeSpeakNative ruleset is intentionally NOT scoped under
+   `.hive-post-body` even though the markdown-rewritten player lives
+   inside it: HiveDetailPost (and other surfaces) mount the player
+   *outside* the body wrapper, and earlier rules with the
+   `.hive-post-body` ancestor never matched there — leaving the
+   player completely unstyled and effectively invisible (zero-sized
+   <video>, transparent wrapper). The class names below are unique
+   enough that an unscoped selector is safe. */
+.threeSpeakNative {
   width: 100%;
   margin: 0 auto;
   border-radius: 0.75rem;
@@ -218,7 +226,7 @@
   justify-content: center;
   position: relative;
 }
-.hive-post-body .threeSpeakNative.threeSpeakNativeLandscape {
+.threeSpeakNative.threeSpeakNativeLandscape {
   aspect-ratio: 16 / 9;
   max-width: 800px;
   /* Cap by viewport too — keeps the player inside narrow modals. */
@@ -231,7 +239,7 @@
    `short: true` hint — narrower max-width so the column doesn't
    sprawl, and a max-height so it fits inside narrow modal popups
    (Snaps preview) without overflowing the dialog. */
-.hive-post-body .threeSpeakNative.threeSpeakNativePortrait {
+.threeSpeakNative.threeSpeakNativePortrait {
   aspect-ratio: 9 / 16;
   max-width: 450px;
   max-height: 80vh;
@@ -245,8 +253,8 @@
    Why a layered <img> instead of `<video poster>`? `poster` doesn't
    reliably honor `object-fit` across browsers; the <img> approach
    guarantees consistent sizing because the same CSS rules apply. */
-.hive-post-body .threeSpeakNative video,
-.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
+.threeSpeakNative video,
+.threeSpeakNative .threeSpeakNativeThumb {
   display: block;
   position: absolute;
   inset: 0;
@@ -256,32 +264,47 @@
   border-radius: 0.75rem;
   object-fit: contain;
 }
-.hive-post-body .threeSpeakNative .threeSpeakNativeThumb {
+.threeSpeakNative .threeSpeakNativeThumb {
   z-index: 1;
   pointer-events: none;
 }
-.hive-post-body .threeSpeakNative video {
+.threeSpeakNative video {
   z-index: 2;
 }
-/* `hideThumbnail` mode (HiveDetailPost): no thumbnail layer means
-   no need to reserve a 16:9/9:16 box up-front. Drop the wrapper's
-   aspect-ratio + max-width and let the <video> flow with its own
-   intrinsic dimensions instead — eliminates the empty placeholder
-   space the user complained about. */
-.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb {
-  aspect-ratio: auto;
-  max-width: none;
+/* `hideThumbnail` mode (HiveDetailPost): the wrapper's aspect-ratio
+   is set inline by ThreeSpeakPlayer using whatever it knows so far
+   (measured ratio after `loadedmetadata`, or 9:16 / 16:9 from the
+   embed API's `short` hint). Cap by both width (landscape) and
+   height (portrait) so the box always fits inside the viewport.
+   Centred so a portrait box doesn't sprawl to the left edge of a
+   wide layout. */
+.threeSpeakNative.threeSpeakNativeNoThumb {
   display: block;
-  background: transparent;
-}
-.hive-post-body .threeSpeakNative.threeSpeakNativeNoThumb video {
-  position: static;
-  width: 100%;
-  height: auto;
-  max-width: 800px;
   margin: 0 auto;
+  background: #000;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  max-width: min(100%, 800px);
+  max-height: 80vh;
+  position: relative;
+  /* min-height keeps the wrapper visible even before the embed API
+     responds (no aspect-ratio reserved yet). */
+  min-height: 200px;
 }
-.hive-post-body .threeSpeakNativeMessage {
+/* Inside hideThumbnail mode the <video> simply fills the wrapper;
+   the wrapper itself owns the aspect-ratio + max-* caps so we don't
+   end up with two layers fighting over sizing. */
+.threeSpeakNative.threeSpeakNativeNoThumb video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+  border-radius: 0.75rem;
+  object-fit: contain;
+}
+.threeSpeakNativeMessage {
   color: #9ca3b0;
   font-size: 0.875rem;
 }

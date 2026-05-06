@@ -40,29 +40,56 @@ interface EmbedMeta {
 
 const EMBED_API = 'https://play.3speak.tv/api/embed';
 
-function pickManifest(meta: EmbedMeta): string | undefined {
-  return (
-    meta.videoUrl ||
-    meta.videoUrlFallback1 ||
-    meta.videoUrlFallback2 ||
-    meta.videoUrlFallback3
-  );
+/** All candidate manifest URLs, in priority order. The embed API
+ *  ships up to four CDN mirrors and any individual one can be slow,
+ *  rate-limited, or simply down — we try them in sequence so one
+ *  unreachable CDN doesn't leave the user staring at a blank player. */
+function manifestCandidates(meta: EmbedMeta): string[] {
+  return [
+    meta.videoUrl,
+    meta.videoUrlFallback1,
+    meta.videoUrlFallback2,
+    meta.videoUrlFallback3,
+  ].filter((u): u is string => typeof u === 'string' && u.length > 0);
 }
 
 /**
  * Attach an HLS source. Uses hls.js where supported and falls back
- * to native HLS on Safari. Returns a teardown function.
+ * to native HLS on Safari. The `onFatal` callback fires once for any
+ * unrecoverable failure (HLS fatal error or `<video>` error event)
+ * so the caller can advance to the next CDN. Returns a teardown
+ * function — safe to call multiple times.
  */
-function attachHls(video: HTMLVideoElement, src: string): () => void {
-  if (video.canPlayType('application/vnd.apple.mpegurl')) {
+function attachHls(
+  video: HTMLVideoElement,
+  src: string,
+  onFatal?: () => void,
+): () => void {
+  // Safari can play HLS natively. We also use the same path for non-HLS
+  // sources (rare for 3Speak but cheap to support).
+  if (video.canPlayType('application/vnd.apple.mpegurl') || !src.includes('.m3u8')) {
+    let fired = false;
+    const handleError = () => {
+      if (fired) return;
+      fired = true;
+      onFatal?.();
+    };
+    video.addEventListener('error', handleError);
     video.src = src;
     return () => {
+      video.removeEventListener('error', handleError);
       video.removeAttribute('src');
       video.load();
     };
   }
-  if (Hls.isSupported() && src.includes('.m3u8')) {
+  if (Hls.isSupported()) {
     const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+    let fired = false;
+    hls.on(Hls.Events.ERROR, (_evt, data) => {
+      if (!data.fatal || fired) return;
+      fired = true;
+      onFatal?.();
+    });
     hls.loadSource(src);
     hls.attachMedia(video);
     return () => {
@@ -73,8 +100,18 @@ function attachHls(video: HTMLVideoElement, src: string): () => void {
       }
     };
   }
+  // Last-ditch: hand the URL to the <video> directly. Most browsers
+  // without HLS support will error; we surface that to the caller.
+  let fired = false;
+  const handleError = () => {
+    if (fired) return;
+    fired = true;
+    onFatal?.();
+  };
+  video.addEventListener('error', handleError);
   video.src = src;
   return () => {
+    video.removeEventListener('error', handleError);
     video.removeAttribute('src');
     video.load();
   };
@@ -125,12 +162,17 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
 
   // Wire HLS once we have the manifest URL, and listen for both real
   // video dimensions (resize container) and first `playing` (hide
-  // thumbnail).
+  // thumbnail). Walks the candidate list on fatal errors so a slow or
+  // unreachable CDN doesn't leave the player blank — the next mirror
+  // takes over automatically.
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !meta) return;
-    const src = pickManifest(meta);
-    if (!src) return;
+    const candidates = manifestCandidates(meta);
+    if (candidates.length === 0) {
+      setError('Video unavailable');
+      return;
+    }
 
     const onMeta = () => {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -141,11 +183,38 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
     video.addEventListener('loadedmetadata', onMeta);
     video.addEventListener('playing', onPlaying);
 
-    const detach = attachHls(video, src);
+    let cancelled = false;
+    let detach: (() => void) | null = null;
+    let index = 0;
+
+    const tryNext = () => {
+      if (cancelled) return;
+      if (detach) {
+        detach();
+        detach = null;
+      }
+      if (index >= candidates.length) {
+        // Every CDN failed — surface a real error instead of leaving
+        // the player silently stuck on the spinner / a blank box.
+        setError('Failed to load video');
+        return;
+      }
+      const url = candidates[index];
+      index += 1;
+      detach = attachHls(video, url, () => {
+        // Defer slightly so HLS internal teardown finishes before we
+        // attach a new instance to the same <video>.
+        setTimeout(tryNext, 0);
+      });
+    };
+
+    tryNext();
+
     return () => {
+      cancelled = true;
       video.removeEventListener('loadedmetadata', onMeta);
       video.removeEventListener('playing', onPlaying);
-      detach();
+      if (detach) detach();
     };
   }, [meta]);
 
@@ -155,12 +224,24 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
   const wrapperClass = `threeSpeakNative ${orientationClass}${
     hideThumbnail ? ' threeSpeakNativeNoThumb' : ''
   }`;
-  // Inline aspect-ratio is meaningful only when the wrapper actually
-  // reserves space via aspect-ratio. With `hideThumbnail` we let the
-  // <video> element flow with its intrinsic aspect, so don't apply
-  // an inline aspect — the video sets its own height.
-  const inlineStyle =
-    !hideThumbnail && aspectRatio != null ? { aspectRatio: `${aspectRatio}` } : undefined;
+  // Reserve space for the player using whatever aspect we know:
+  //  - prefer the measured ratio from `loadedmetadata`
+  //  - fall back to 9:16 / 16:9 from the API's `short` hint
+  //  - in non-hideThumbnail mode, keep the original behaviour where
+  //    the inline style only applies once a measured ratio is known
+  //    (the wrapper class handles the initial reservation there)
+  // Without this, hideThumbnail mode collapsed to 0 height while HLS
+  // was still parsing the manifest — the video appeared "missing"
+  // until a reload happened to hit a hot CDN cache.
+  const fallbackRatio = meta?.short === true ? 9 / 16 : 16 / 9;
+  const reservedRatio = aspectRatio ?? (meta ? fallbackRatio : null);
+  const inlineStyle = hideThumbnail
+    ? reservedRatio != null
+      ? { aspectRatio: `${reservedRatio}` }
+      : undefined
+    : aspectRatio != null
+      ? { aspectRatio: `${aspectRatio}` }
+      : undefined;
 
   if (error) {
     return (
