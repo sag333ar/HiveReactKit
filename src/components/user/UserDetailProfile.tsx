@@ -178,8 +178,17 @@ type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 const formatTimeAgo = (dateString: string): string => {
+  // Hive RPC returns UTC timestamps without a `Z` suffix; without it
+  // the browser parses them as local time and the relative label
+  // drifts by the user's timezone offset (e.g. "5h ago" on the post
+  // detail page vs "8h ago" on the same post in the profile tab).
+  // Normalise here so every tab — Blogs, Posts, Comments, Polls,
+  // Snaps, Replies, Activities — agrees with HiveDetailPost.
+  const iso = /Z|[+-]\d{2}:?\d{2}$/.test(dateString)
+    ? dateString
+    : `${dateString}Z`;
   const now = new Date();
-  const date = new Date(dateString);
+  const date = new Date(iso);
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;

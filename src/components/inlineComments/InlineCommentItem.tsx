@@ -306,15 +306,48 @@ export default function InlineCommentItem({
       <div className="py-2 px-1.5 md:py-3 md:px-3">
         {/* Header row */}
         <div className="flex items-center gap-1.5 md:gap-2 mb-1 min-w-0">
-          <img
-            src={`https://images.hive.blog/u/${comment.author}/avatar`}
-            alt={comment.author}
-            className="w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
-            }}
-          />
-          <span className="text-xs md:text-sm font-semibold text-white truncate">@{comment.author}</span>
+          {/* Avatar + @username are click targets when `onUserClick` is
+              wired so the consumer can navigate to the author's profile.
+              Without the prop they fall back to plain elements (no
+              cursor change, no focus ring) so the surface still reads
+              the same in environments that don't expose user pages. */}
+          {onUserClick ? (
+            <button
+              type="button"
+              onClick={() => onUserClick(comment.author)}
+              className="flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              aria-label={`Open @${comment.author}'s profile`}
+            >
+              <img
+                src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                alt={comment.author}
+                className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-700"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                }}
+              />
+            </button>
+          ) : (
+            <img
+              src={`https://images.hive.blog/u/${comment.author}/avatar`}
+              alt={comment.author}
+              className="w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+              }}
+            />
+          )}
+          {onUserClick ? (
+            <button
+              type="button"
+              onClick={() => onUserClick(comment.author)}
+              className="text-xs md:text-sm font-semibold text-white truncate hover:text-blue-400 hover:underline focus:outline-none focus:text-blue-400 focus:underline"
+            >
+              @{comment.author}
+            </button>
+          ) : (
+            <span className="text-xs md:text-sm font-semibold text-white truncate">@{comment.author}</span>
+          )}
           {comment.author === currentUser && (
             <span className="px-1 py-0.5 text-[9px] md:text-[10px] bg-blue-900 text-blue-200 rounded-full flex-shrink-0">You</span>
           )}

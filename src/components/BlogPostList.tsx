@@ -76,8 +76,15 @@ export interface BlogPostListProps {
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
 
 const formatTimeAgo = (dateString: string): string => {
+  // Hive returns UTC timestamps without a `Z` suffix; without this the
+  // browser interprets them as local time, which skews the relative
+  // label by the user's timezone offset (e.g. "in 5h" on the US west
+  // coast for a brand-new post). Append the suffix when missing.
+  const iso = /Z|[+-]\d{2}:?\d{2}$/.test(dateString)
+    ? dateString
+    : `${dateString}Z`;
   const now = new Date();
-  const date = new Date(dateString);
+  const date = new Date(iso);
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;

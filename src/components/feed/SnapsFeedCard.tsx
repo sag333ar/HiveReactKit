@@ -206,12 +206,18 @@ function parseBody(post: Post): ParsedBody {
 }
 
 function formatTimeAgo(dateString: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
+  // Hive timestamps come in as UTC without the `Z` suffix; treat them
+  // as UTC explicitly so the relative label doesn't skew by the user's
+  // timezone offset (e.g. "in 5h" for a fresh post in the Americas).
+  const iso = /Z|[+-]\d{2}:?\d{2}$/.test(dateString)
+    ? dateString
+    : `${dateString}Z`;
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
-  return new Date(dateString).toLocaleDateString();
+  return new Date(iso).toLocaleDateString();
 }
 
 // ── Inline body renderer ─────────────────────────────────────────────────
