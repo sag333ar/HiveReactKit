@@ -14,6 +14,7 @@ import CommentsModal from "@/components/comments/CommentsModal";
 import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
+import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
   author: string;
@@ -106,6 +107,12 @@ export interface PostActionButtonProps {
    *  Used to lazy-fetch the reply body the first time the user hovers
    *  the comment icon, so the tooltip can show what they wrote. */
   myReplyKey?: string;
+
+  /** Collapse the secondary actions (reblog · share · tip · report)
+   *  into a single 3-dot kebab popover. Upvote / comment counters and
+   *  the payout chip stay inline. Useful in dense card layouts (videos,
+   *  polls, community detail) where there isn't room for four icons. */
+  actionsAsMenu?: boolean;
 }
 
 export function PostActionButton({
@@ -143,6 +150,7 @@ export function PostActionButton({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  actionsAsMenu = false,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -551,62 +559,75 @@ export function PostActionButton({
         </div>
       )}
 
-      {/* Reblog */}
-      {onReblog && (
-      <div className="relative group">
-        <span className={tooltipClass}>Reblog</span>
-        <button
-          type="button"
-          onClick={handleReblogClick}
-          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
-          aria-label="Reblog"
-        >
-          <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
-      </div>
-      )}
+      {/* Secondary actions — either inline icons (default) or collapsed
+          into a single 3-dot kebab popover when `actionsAsMenu` is set. */}
+      {actionsAsMenu ? (
+        <MoreActionsMenu
+          onReblog={onReblog ? handleReblogClick : undefined}
+          onShare={handleShareClick}
+          onTip={onTip ? handleTipClick : undefined}
+          onReport={onReport ? handleReportClick : undefined}
+        />
+      ) : (
+        <>
+          {/* Reblog */}
+          {onReblog && (
+          <div className="relative group">
+            <span className={tooltipClass}>Reblog</span>
+            <button
+              type="button"
+              onClick={handleReblogClick}
+              className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+              aria-label="Reblog"
+            >
+              <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
+          )}
 
-      {/* Share */}
-      <div className="relative group">
-        <span className={tooltipClass}>Share</span>
-        <button
-          type="button"
-          onClick={handleShareClick}
-          className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
-          aria-label="Share"
-        >
-          <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
-      </div>
+          {/* Share */}
+          <div className="relative group">
+            <span className={tooltipClass}>Share</span>
+            <button
+              type="button"
+              onClick={handleShareClick}
+              className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+              aria-label="Share"
+            >
+              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
 
-      {/* Report */}
-      {onReport && (
-      <div className="relative group">
-        <span className={tooltipClass}>Report</span>
-        <button
-          type="button"
-          onClick={handleReportClick}
-          className="flex items-center gap-0.5 text-gray-300 hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
-          aria-label="Report"
-        >
-          <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
-      </div>
-      )}
+          {/* Report */}
+          {onReport && (
+          <div className="relative group">
+            <span className={tooltipClass}>Report</span>
+            <button
+              type="button"
+              onClick={handleReportClick}
+              className="flex items-center gap-0.5 text-gray-300 hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
+              aria-label="Report"
+            >
+              <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
+          )}
 
-      {/* Tip */}
-      {onTip && (
-      <div className="relative group">
-        <span className={tooltipClass}>Tip</span>
-        <button
-          type="button"
-          onClick={handleTipClick}
-          className="flex items-center gap-0.5 text-gray-300 hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
-          aria-label="Tip"
-        >
-          <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
-      </div>
+          {/* Tip */}
+          {onTip && (
+          <div className="relative group">
+            <span className={tooltipClass}>Tip</span>
+            <button
+              type="button"
+              onClick={handleTipClick}
+              className="flex items-center gap-0.5 text-gray-300 hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
+              aria-label="Tip"
+            >
+              <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
+          )}
+        </>
       )}
       </div>
 

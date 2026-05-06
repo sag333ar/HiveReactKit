@@ -67,6 +67,10 @@ export interface BlogPostListProps {
   allowLandscapeVideos?: boolean;
   /** Default reward routing for inline comment composers. */
   defaultReward?: RewardOption;
+  /** Collapse the per-card secondary actions (reblog · share · tip ·
+   *  flag) into a single 3-dot kebab menu. Forwarded to
+   *  `<PostActionButton/>`. */
+  actionsAsMenu?: boolean;
 }
 
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
@@ -331,6 +335,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   voteWeightStep,
   allowLandscapeVideos,
   defaultReward,
+  actionsAsMenu,
 }) => {
   if (loading && posts.length === 0) {
     return (
@@ -499,6 +504,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
+                actionsAsMenu={actionsAsMenu}
               />
             </div>
           </div>

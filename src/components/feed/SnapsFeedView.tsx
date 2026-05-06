@@ -95,6 +95,11 @@ export interface SnapsFeedViewProps {
   /** Optional render slot for a per-card right-side header action menu
    *  (Edit / Delete / Flag). Forwarded to every <SnapsFeedCard/>. */
   renderHeaderActions?: (post: import('@/types/post').Post) => ReactNode;
+
+  /** Collapse the per-card secondary actions (reblog · share · tip ·
+   *  flag) into a single 3-dot kebab menu. Forwarded to every
+   *  <SnapsFeedCard/>. */
+  actionsAsMenu?: boolean;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -188,6 +193,7 @@ export function SnapsFeedView({
   toolbar,
   footer,
   renderHeaderActions,
+  actionsAsMenu,
 }: SnapsFeedViewProps) {
   const cols = useFeedColumnCount();
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
@@ -291,6 +297,7 @@ export function SnapsFeedView({
     allowLandscapeVideos,
     defaultReward,
     renderHeaderActions,
+    actionsAsMenu,
   };
 
   const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];

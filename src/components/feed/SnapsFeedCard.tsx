@@ -67,6 +67,10 @@ export interface SnapsFeedCardProps {
    *  menu with Edit / Delete / Flag). Receives the post so the host can
    *  own edit/delete/flag state per card. */
   renderHeaderActions?: (post: Post) => ReactNode;
+
+  /** Collapse the per-card secondary actions (reblog · share · tip ·
+   *  flag) into a single 3-dot kebab menu inside the action bar. */
+  actionsAsMenu?: boolean;
 }
 
 // ── Body parsing ─────────────────────────────────────────────────────────
@@ -613,6 +617,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   allowLandscapeVideos,
   defaultReward,
   renderHeaderActions,
+  actionsAsMenu,
 }) => {
   const parsed = useMemo(() => parseBody(post), [post.body, post.json_metadata]);
   const isHSnapsPost = useMemo(() => hasHsnapsTag(post), [post.json_metadata]);
@@ -866,6 +871,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
           allowLandscapeVideos={allowLandscapeVideos}
+          actionsAsMenu={actionsAsMenu}
         />
       </div>
     </article>

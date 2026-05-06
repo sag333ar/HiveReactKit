@@ -76,6 +76,11 @@ export interface CommunityDetailProps {
   allowLandscapeVideos?: boolean
   defaultReward?: RewardOption
 
+  /** Collapse the per-post secondary actions (reblog · share · tip ·
+   *  flag) into a single 3-dot kebab menu inside the embedded
+   *  `<BlogPostList/>`. */
+  actionsAsMenu?: boolean
+
   // Header actions
   onShare?: () => void
   onRss?: () => void
@@ -146,6 +151,7 @@ const CommunityDetail = ({
   voteWeightStep,
   allowLandscapeVideos,
   defaultReward,
+  actionsAsMenu,
   onShare,
   onRss,
 }: CommunityDetailProps) => {
@@ -289,6 +295,7 @@ const CommunityDetail = ({
       voteWeightStep,
       allowLandscapeVideos,
       defaultReward,
+      actionsAsMenu,
     }),
     [
       currentUser,
@@ -311,6 +318,7 @@ const CommunityDetail = ({
       voteWeightStep,
       allowLandscapeVideos,
       defaultReward,
+      actionsAsMenu,
     ],
   )
 
