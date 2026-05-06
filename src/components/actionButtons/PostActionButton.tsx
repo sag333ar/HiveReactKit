@@ -673,6 +673,7 @@ export function PostActionButton({
           currentUser={currentUser ?? undefined}
           token={undefined}
           onClickUpvoteButton={handleUpvoteFromModal}
+          hiveIconUrl={hiveIconUrl}
         />
       )}
 
