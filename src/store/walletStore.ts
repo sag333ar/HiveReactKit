@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import type { WalletStore, WalletData, Transaction } from "../types/wallet";
-import * as dhive from "@hiveio/dhive";
-const dhiveClient = new dhive.Client(["https://api.hive.blog"]);
+import { getHiveApiEndpoint, getHiveClient } from "../config/hiveEndpoint";
+// Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
+const dhiveClient = getHiveClient();
 
 // ------------------- Wallet Helpers -------------------
 const getWalletDataDetail = async (username: string) => {
@@ -231,7 +232,7 @@ const fetchAccountHistory = async (
   username: string,
   limit: number = 100
 ): Promise<Transaction[]> => {
-  const response = await fetch("https://api.hive.blog/", {
+  const response = await fetch(getHiveApiEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

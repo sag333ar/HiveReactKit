@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { CommunityItem, CommunityDetailsResponse, CommunitySubscriber, CommunityActivity } from '../types/community';
+import { getHiveApiEndpoint } from '../config/hiveEndpoint';
 
 class CommunityService {
-  private readonly HIVE_API_URL = 'https://api.hive.blog';
+  /** Always read the latest endpoint — `setHiveApiEndpoint()` may have been
+   * called after construction, and a stale instance field would miss it. */
+  private get HIVE_API_URL(): string { return getHiveApiEndpoint(); }
 
   async getListOfCommunities(
     query?: string,

@@ -152,6 +152,17 @@ export * from './types/reward';
 export * from './types/wallet';
 // export * from './types/witness';
 
+// Runtime-configurable Hive RPC endpoint. Call `setHiveApiEndpoint(url)`
+// once at app startup (and again whenever the user changes the node in
+// settings) to route every dhive client and direct JSON-RPC fetch inside
+// the kit through that node.
+export {
+  getHiveApiEndpoint,
+  setHiveApiEndpoint,
+  subscribeHiveApiEndpoint,
+  getHiveClient,
+} from './config/hiveEndpoint';
+
 // Services
 export * from './services/apiService';
 export * from './services/userService';

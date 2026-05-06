@@ -1,12 +1,8 @@
-import { Client } from "@hiveio/dhive";
+import { getHiveClient } from "../config/hiveEndpoint";
 import { Witness, WitnessVotesResponse, Account, WitnessVote } from "../types/witness";
 
-// Use dev proxy paths to avoid CORS in development. Vite proxy maps these to real RPC nodes.
-const dhiveClient = new Client([
-  "https://api.hive.blog",
-  "https://api.syncad.com",
-  "https://api.deathwing.me",
-]);
+// Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
+const dhiveClient = getHiveClient();
 
 class WitnessService {
   /**

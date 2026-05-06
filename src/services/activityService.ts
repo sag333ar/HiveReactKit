@@ -1,17 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Client } from "@hiveio/dhive";
+import { getHiveClient } from "../config/hiveEndpoint";
 import {
   UserChannelItem,
   UserChannelParams,
   UserChannelResponse,
   ActivityDisplayItem,
 } from "@/types/activity";
-// Initialize DHive client
-const dhiveClient = new Client([
-  "https://api.hive.blog",
-  "https://api.syncad.com",
-  "https://api.deathwing.me",
-]);
+// Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
+const dhiveClient = getHiveClient();
 
 class ActivityService {
   /**

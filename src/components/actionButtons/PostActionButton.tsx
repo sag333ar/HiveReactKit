@@ -13,6 +13,7 @@ import UpvoteListModal from "@/components/UpvoteListModal";
 import CommentsModal from "@/components/comments/CommentsModal";
 import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
+import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 
 export interface PostActionButtonProps {
   author: string;
@@ -216,14 +217,14 @@ export function PostActionButton({
     if (!rAuthor || !rPermlink) return;
     setLoadingMyReply(true);
 
-    // Direct fetch against api.hive.blog. We can't use
+    // Direct JSON-RPC fetch against the user-selected node. We can't use
     // `apiService.getCommentsList` here because it filters out the
     // root post (returns only replies), so the user's own reply would
     // be excluded. `bridge.get_post` returns the post itself with its
     // body; `condenser_api.get_content` is the universal fallback.
     const fetchReplyBody = async (): Promise<string> => {
       const tryCall = async (api: string, method: string, params: unknown) => {
-        const res = await fetch('https://api.hive.blog/', {
+        const res = await fetch(getHiveApiEndpoint(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', method: `${api}.${method}`, params, id: 1 }),

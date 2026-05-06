@@ -2,6 +2,7 @@ import { Follower, Following, UserProfileResponse, Account } from "@/types/user"
 import { Post } from "@/types/post";
 import type { Poll } from "@/types/poll";
 import type { PendingAuthorRow, PendingCurationRow } from "@/types/reward";
+import { getHiveApiEndpoint } from "../config/hiveEndpoint";
 
 /** Page size for the snaps tab. 20 per load — initial fetch + each scroll-end load-more. */
 const SNAPS_PAGE_SIZE = 20;
@@ -30,7 +31,9 @@ export type SnapSubType = keyof typeof SNAP_SUBTYPE_PARENTS;
 const snapRefsCache = new Map<string, { id: number; author: string; permlink: string }[]>();
 
 class UserService {
-  private readonly HIVE_API_URL = 'https://api.hive.blog';
+  /** Always read the latest endpoint — `setHiveApiEndpoint()` may have been
+   * called after construction, and a stale instance field would miss it. */
+  private get HIVE_API_URL(): string { return getHiveApiEndpoint(); }
 
   /** Central fetch wrapper — threads AbortSignal to every network request */
   private async _fetch(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {

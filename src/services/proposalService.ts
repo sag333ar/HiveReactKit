@@ -1,4 +1,5 @@
 import { Proposal } from '../types/proposal';
+import { getHiveApiEndpoint } from '../config/hiveEndpoint';
 
 export class ProposalService {
   private static instance: ProposalService;
@@ -21,7 +22,7 @@ export class ProposalService {
   private async getActiveProposals(): Promise<Proposal[]> {
     try {
       // Get active proposals using official Hive API
-      const proposalsRes = await fetch('https://api.hive.blog/', {
+      const proposalsRes = await fetch(getHiveApiEndpoint(), {
         method: 'POST',
         headers: {
           'accept': 'application/json, text/plain, */*',
@@ -64,7 +65,7 @@ export class ProposalService {
       });
 
       // Get proposal votes for active proposals
-      const votesRes = await fetch('https://api.hive.blog/', {
+      const votesRes = await fetch(getHiveApiEndpoint(), {
         method: 'POST',
         headers: {
           'accept': 'application/json, text/plain, */*',
@@ -142,7 +143,7 @@ export class ProposalService {
   private async getExpiredProposals(): Promise<Proposal[]> {
     try {
       // First get the proposals
-      const proposalsRes = await fetch('https://api.hive.blog/', {
+      const proposalsRes = await fetch(getHiveApiEndpoint(), {
         method: 'POST',
         headers: {
           'accept': 'application/json, text/plain, */*',
@@ -185,7 +186,7 @@ export class ProposalService {
       });
 
       // Then get the proposal votes
-      const votesRes = await fetch('https://api.hive.blog/', {
+      const votesRes = await fetch(getHiveApiEndpoint(), {
         method: 'POST',
         headers: {
           'accept': 'application/json, text/plain, */*',

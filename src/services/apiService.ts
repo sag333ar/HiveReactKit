@@ -11,15 +11,11 @@ const server = {
     `https://images.hive.blog/u/${username}/avatar`,
   graphQLServerUrl: "https://union.us-02.infra.3speak.tv",
 };
-import { Client } from "@hiveio/dhive";
+import { getHiveClient } from "../config/hiveEndpoint";
 
-// Use dev proxy paths to avoid CORS in development. Vite proxy maps these to real RPC nodes.
-const dhiveClient = new Client([
-  "https://api.hive.blog",
-  "https://api.deathwing.me",
-  "https://api.syncad.com",
-  "https://rpc.mahdiyari.info"
-]);
+// Shared dhive client — its address is updated at runtime via
+// setHiveApiEndpoint(), so every call here uses the user-selected node.
+const dhiveClient = getHiveClient();
 
 class ApiService {
   // Common data fields fragment (for reuse)

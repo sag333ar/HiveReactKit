@@ -43,6 +43,7 @@ import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
 import { extractPostMedia, parseThreeSpeakRef, type PostMedia } from "../../utils/postMedia";
+import { getHiveApiEndpoint } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
 import type { Follower, Following } from "@/types/user";
@@ -724,7 +725,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               // Resource credits
               let resourceCredits = 0;
               try {
-                const rcResp = await fetch("https://api.hive.blog/", {
+                const rcResp = await fetch(getHiveApiEndpoint(), {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ jsonrpc: "2.0", method: "rc_api.find_rc_accounts", params: { accounts: [targetUsername] }, id: 1 }),
@@ -746,7 +747,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               let recentClaims = 0;
               let feedPrice = 0;
               try {
-                const rfResp = await fetch("https://api.hive.blog/", {
+                const rfResp = await fetch(getHiveApiEndpoint(), {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_reward_fund", params: ["post"], id: 1 }),

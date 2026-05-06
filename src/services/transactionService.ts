@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Client } from "@hiveio/dhive";
+import { getHiveClient } from "../config/hiveEndpoint";
 import {
   TransactionHistoryItem,
   TransactionHistoryParams,
@@ -7,12 +7,8 @@ import {
   Operation,
 } from "@/types/transaction";
 
-// Initialize DHive client
-const dhiveClient = new Client([
-  "https://api.hive.blog",
-  "https://api.syncad.com",
-  "https://api.deathwing.me",
-]);
+// Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
+const dhiveClient = getHiveClient();
 
 class TransactionService {
   /**
