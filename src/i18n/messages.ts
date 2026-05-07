@@ -27,6 +27,7 @@ export type KitMessageKey =
   | "meta.followers" | "meta.following" | "meta.posts"
   // Action menu
   | "action.follow" | "action.unfollow" | "action.ignoreAuthor"
+  | "action.mute" | "action.unmute"
   | "action.reportUser" | "action.shareProfile"
   | "action.cancel" | "action.confirmIgnore" | "action.processing"
   // Confirmation modals
@@ -83,6 +84,8 @@ const en: Record<KitMessageKey, string> = {
   // Action menu
   "action.follow": "Follow",
   "action.unfollow": "Unfollow",
+  "action.mute": "Mute",
+  "action.unmute": "Unmute",
   "action.ignoreAuthor": "Ignore Author",
   "action.reportUser": "Report User",
   "action.shareProfile": "Share Profile",
@@ -180,6 +183,8 @@ const es: Record<KitMessageKey, string> = {
   // Action menu
   "action.follow": "Seguir",
   "action.unfollow": "Dejar de seguir",
+  "action.mute": "Silenciar",
+  "action.unmute": "Reactivar",
   "action.ignoreAuthor": "Ignorar autor",
   "action.reportUser": "Reportar usuario",
   "action.shareProfile": "Compartir perfil",

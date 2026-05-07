@@ -31,6 +31,8 @@ import {
   Heart,
   UserPlus,
   UserMinus,
+  VolumeX,
+  Volume2,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -90,6 +92,13 @@ export interface UserDetailProfileProps {
   onUnfollow?: (username: string) => void | Promise<void>;
   onIgnoreAuthor?: (username: string) => void | Promise<void>;
   onReportUser?: (username: string, reason: string) => void | Promise<void>;
+  /** Mute a user — broadcasts the `follow` custom_json with `what: ["ignore"]`.
+   *  When wired alongside `onUnmute`, the 3-dot menu shows a Mute / Unmute
+   *  toggle for non-self profiles. Return `false` to indicate cancellation
+   *  (keychain denied) — the local state will not flip. */
+  onMute?: (username: string) => void | boolean | Promise<void | boolean>;
+  /** Unmute — same custom_json with `what: []` (clears the ignore). */
+  onUnmute?: (username: string) => void | boolean | Promise<void | boolean>;
 
   // PostActionButton callbacks
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
@@ -182,6 +191,7 @@ interface ProfileData {
   postsCount: number;
   reputation: number;
   isFollowing: boolean;
+  isMuted: boolean;
   created?: string;
   lastActivity?: string;
   hivePower?: number;
@@ -281,6 +291,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onUnfollow,
   onIgnoreAuthor,
   onReportUser,
+  onMute,
+  onUnmute,
   onUpvote,
   onSubmitComment,
   onClickCommentUpvote,
@@ -482,14 +494,21 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           votingPower = (account.voting_power / 10000) * 100;
         }
 
-        // Check if current user follows target
+        // Check if current user follows / has muted target. Both are
+        // condenser_api.get_following calls — the third parameter is the
+        // follow type. Run them in parallel to avoid stacking latency.
         let isFollowing = false;
+        let isMuted = false;
         if (currentUsername && currentUsername !== targetUsername) {
           try {
-            const currentFollowing = await userService.getFollowing(currentUsername);
+            const [currentFollowing, currentMuted] = await Promise.all([
+              userService.getFollowing(currentUsername),
+              userService.getMuted(currentUsername),
+            ]);
             isFollowing = currentFollowing.some((f) => f.following === targetUsername);
+            isMuted = currentMuted.some((f) => f.following === targetUsername);
           } catch {
-            // Silently fail - isFollowing stays false
+            // Silently fail — both flags stay false.
           }
         }
 
@@ -531,6 +550,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           postsCount: user.post_count || 0,
           reputation: user.reputation || 0,
           isFollowing,
+          isMuted,
           created: user.created,
           lastActivity: account?.last_post,
           hivePower,
@@ -998,6 +1018,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setActionLoading(false);
     }
   }, [profile, targetUsername, onFollow, onUnfollow]);
+
+  const handleMuteToggle = useCallback(async () => {
+    if (!profile) return;
+    setActionLoading(true);
+    setShowActionDropdown(false);
+    try {
+      const wasMuted = profile.isMuted;
+      const cb = wasMuted ? onUnmute : onMute;
+      if (!cb) return;
+      const result = await cb(targetUsername);
+      if (result === false) return; // user cancelled — keep state
+      setProfile((prev) => (prev ? { ...prev, isMuted: !wasMuted } : prev));
+    } catch (err) {
+      // Keychain cancelled/rejected or operation failed — don't update state.
+      console.error("Mute/Unmute error:", err);
+    } finally {
+      setActionLoading(false);
+    }
+  }, [profile, targetUsername, onMute, onUnmute]);
 
   const handleIgnore = useCallback(async () => {
     setActionLoading(true);
@@ -2367,6 +2406,21 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         <span className="flex items-center gap-2">
                           {profile.isFollowing ? <UserMinus className="h-4 w-4 text-red-400" /> : <UserPlus className="h-4 w-4 text-green-400" />}
                           {profile.isFollowing ? t("action.unfollow") : t("action.follow")}
+                        </span>
+                      </button>
+                    )}
+                    {showActions && (onMute || onUnmute) && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          handleMuteToggle();
+                        }}
+                        disabled={actionLoading || (profile.isMuted ? !onUnmute : !onMute)}
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                      >
+                        <span className="flex items-center gap-2">
+                          {profile.isMuted ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4 text-red-400" />}
+                          {profile.isMuted ? t("action.unmute") : t("action.mute")}
                         </span>
                       </button>
                     )}

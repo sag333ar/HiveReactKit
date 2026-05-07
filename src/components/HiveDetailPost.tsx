@@ -594,8 +594,14 @@ export function HiveDetailPost({
     };
   }, [renderedBody]);
 
-  // Intercept Hive-frontend links (peakd, hive.blog, ecency) in the rendered body
-  // so they route in-app via the provided callbacks instead of opening externally.
+  // Intercept anchor clicks inside the rendered body. Two policies:
+  //   - Hive-ecosystem URLs (peakd, hive.blog, ecency, inleo) → keep the
+  //     reader inside the app via `onUserClick` / `onNavigateToPost`, same
+  //     tab.
+  //   - Any other external `http(s)` URL → force a new tab so the post
+  //     surface stays put. The renderer doesn't add `target="_blank"`, so
+  //     without this generic links like https://hangout.3speak.tv/room/…
+  //     would replace the post page.
   useEffect(() => {
     const container = postBodyRef.current;
     if (!container) return;
@@ -605,14 +611,23 @@ export function HiveDetailPost({
       if (!anchor) return;
       const href = anchor.getAttribute('href');
       if (!href) return;
+
       const target = parseHiveFrontendUrl(href);
-      if (!target) return;
-      if (target.kind === 'post' && onNavigateToPost) {
+      if (target) {
+        if (target.kind === 'post' && onNavigateToPost) {
+          e.preventDefault();
+          onNavigateToPost(target.author, target.permlink);
+        } else if (target.kind === 'user' && onUserClick) {
+          e.preventDefault();
+          onUserClick(target.author);
+        }
+        return;
+      }
+
+      // Non-Hive external link — open in a new tab.
+      if (/^https?:\/\//i.test(href)) {
         e.preventDefault();
-        onNavigateToPost(target.author, target.permlink);
-      } else if (target.kind === 'user' && onUserClick) {
-        e.preventDefault();
-        onUserClick(target.author);
+        window.open(href, '_blank', 'noopener,noreferrer');
       }
     };
     container.addEventListener('click', handleClick);

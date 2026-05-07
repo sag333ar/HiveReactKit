@@ -30,6 +30,7 @@ import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
+import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -155,8 +156,27 @@ function extractTagsFromMeta(post: Post): string[] {
   return raw.filter((t): t is string => typeof t === 'string' && t.length > 0);
 }
 
+/** Strip the trailing "via Apps from <url>" credit some clients append to
+ *  snap bodies. Three observed shapes — anchored to end of body so we never
+ *  trim mid-content. Used by both the rich (HTML) and plain-text paths. */
+function stripViaAppsCredit(body: string): string {
+  return body
+    .replace(
+      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\][^<]*<\/sub>\s*$/i,
+      '',
+    )
+    .replace(
+      /\s*(?:<br\s*\/?>)?\s*\[via Apps from\]\([^)]*\)\s*$/i,
+      '',
+    )
+    .replace(
+      /\s*(?:<br\s*\/?>)?\s*via Apps from\s+https?:\/\/\S+\s*$/i,
+      '',
+    );
+}
+
 function parseBody(post: Post): ParsedBody {
-  const raw = post.body ?? '';
+  const raw = stripViaAppsCredit(post.body ?? '');
   const meta = parseJsonMetadata(post.json_metadata as unknown) as { image?: string[] };
 
   // Collect attachment URLs
@@ -699,12 +719,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     if (!raw || !renderHive) return '';
     let body = raw;
 
-    // Strip the trailing "via Apps from" attribution (some clients
-    // append <sub>[via Apps from](https://linktr.ee/...)</sub>).
-    body = body.replace(
-      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\][^<]*<\/sub>\s*$/i,
-      '',
-    );
+    // Strip trailing "via Apps from <url>" attribution (sub/markdown/plain
+    // forms — see `stripViaAppsCredit`). LikeTu / hivesuite Snaps cards
+    // should never show the trailer.
+    body = stripViaAppsCredit(body);
 
     // Hive post bodies routinely use `<br>` instead of real newlines,
     // which kills GFM block parsing — tables, lists, blockquotes all
@@ -863,7 +881,40 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             dangerouslySetInnerHTML={{ __html: renderedBodyHtml }}
             onClick={(e) => {
               const t = e.target as HTMLElement;
-              if (t.closest('a, button, img, video, iframe')) e.stopPropagation();
+              const anchor = t.closest('a') as HTMLAnchorElement | null;
+              if (anchor) {
+                // Don't bubble to the card-level click (which would
+                // navigate to the post detail).
+                e.stopPropagation();
+                if (
+                  e.defaultPrevented ||
+                  e.button !== 0 ||
+                  e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+                ) return;
+                const href = anchor.getAttribute('href');
+                if (!href) return;
+                // Hive-ecosystem URLs (peakd, hive.blog, ecency, inleo)
+                // route in-app via the kit's user/post callbacks — same
+                // tab. Other external URLs open in a new tab so the
+                // feed surface is not lost.
+                const hiveTarget = parseHiveFrontendUrl(href);
+                if (hiveTarget) {
+                  if (hiveTarget.kind === 'post' && onPostClick) {
+                    e.preventDefault();
+                    onPostClick(hiveTarget.author, hiveTarget.permlink);
+                  } else if (hiveTarget.kind === 'user' && onUserClick) {
+                    e.preventDefault();
+                    onUserClick(hiveTarget.author);
+                  }
+                  return;
+                }
+                if (/^https?:\/\//i.test(href)) {
+                  e.preventDefault();
+                  window.open(href, '_blank', 'noopener,noreferrer');
+                }
+                return;
+              }
+              if (t.closest('button, img, video, iframe')) e.stopPropagation();
             }}
           />
         ) : parsed.segments.length > 0 ? (

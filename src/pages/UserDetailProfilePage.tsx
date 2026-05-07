@@ -38,6 +38,14 @@ const UserDetailProfilePage = () => {
           console.log("[Callback] Unfollow:", user);
           alert(`Unfollow @${user} — integrate with Aioha/HiveKeychain here`);
         }}
+        onMute={(user) => {
+          console.log("[Callback] Mute:", user);
+          alert(`Mute @${user} — integrate with Aioha/HiveKeychain here`);
+        }}
+        onUnmute={(user) => {
+          console.log("[Callback] Unmute:", user);
+          alert(`Unmute @${user} — integrate with Aioha/HiveKeychain here`);
+        }}
         onIgnoreAuthor={(user) => {
           console.log("[Callback] Ignore:", user);
           alert(`Ignored @${user}`);

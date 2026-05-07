@@ -96,6 +96,30 @@ class UserService {
     return data.result;
   }
 
+  /**
+   * Returns the list of accounts the user has muted (the `ignore` follow
+   * type on Hive). Same shape as `getFollowing` — the third parameter to
+   * `condenser_api.get_following` is the type.
+   */
+  async getMuted(username: string, startMuted: string | null = null, limit = 100, signal?: AbortSignal): Promise<Following[]> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'condenser_api.get_following',
+      params: [username, startMuted || '', 'ignore', limit],
+      id: 1,
+    };
+
+    const response = await this._fetch(this.HIVE_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    }, signal);
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data.result;
+  }
+
   async getAccounts(usernames: string[], signal?: AbortSignal): Promise<Account[]> {
     const requestBody = {
       jsonrpc: '2.0',
