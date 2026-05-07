@@ -4,6 +4,7 @@ export { default as VideoDetail } from './VideoDetail';
 export { default as VideoFeed } from './VideoFeed';
 export { default as VideoInfo } from './VideoInfo';
 export { default as Wallet } from './Wallet';
+export { default as Delegations, type DelegationsProps } from './Delegations';
 export { default as PostFeedList } from './PostFeedList';
 export { default as ProposalsList } from './ProposalsList';
 export { default as FollowersList } from './FollowersList';

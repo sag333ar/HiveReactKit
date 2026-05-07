@@ -12,10 +12,21 @@ import {
 } from "react-icons/fa";
 import { useWalletStore, SUPPORTED_CURRENCIES } from "../store/walletStore";
 import type { Transaction, WalletData } from "../types/wallet";
+import { Delegations, type DelegationsProps } from "./Delegations";
 
 interface WalletProps {
   username?: string;
   className?: string;
+  /** Logged-in user — when equal to `username`, RC Update / Delete buttons
+   *  and Delegate HP/RC buttons are exposed (and only fire when the matching
+   *  callbacks below are wired). */
+  currentUsername?: string;
+  onUpdateRcDelegation?: DelegationsProps["onUpdateRcDelegation"];
+  onDeleteRcDelegation?: DelegationsProps["onDeleteRcDelegation"];
+  onCreateHpDelegation?: DelegationsProps["onCreateHpDelegation"];
+  onCreateRcDelegation?: DelegationsProps["onCreateRcDelegation"];
+  /** Hide the Delegated HIVE / RC panel inside the wallet view. */
+  hideDelegations?: boolean;
 }
 
 interface WalletTileProps {
@@ -50,39 +61,45 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
   const otherUser = isSent ? tx.to : tx.from;
 
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-      <div
-        className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isSent ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400"
-        }`}
-      >
-        {isSent ? <FaArrowUp size={12} /> : <FaArrowDown size={12} />}
+    <div className="flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+      {/* Avatar with directional badge — replaces the separate arrow column
+          so narrow rows don't burn 32px on metadata. */}
+      <div className="relative flex-shrink-0">
+        <img
+          src={`https://images.hive.blog/u/${otherUser}/avatar`}
+          alt={otherUser}
+          className="w-9 h-9 rounded-full border border-gray-700"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${otherUser}&background=random&size=36`;
+          }}
+        />
+        <span
+          className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 flex items-center justify-center ${
+            isSent ? "bg-red-500/90 text-white" : "bg-emerald-500/90 text-white"
+          }`}
+        >
+          {isSent ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
+        </span>
       </div>
-      <img
-        src={`https://images.hive.blog/u/${otherUser}/avatar`}
-        alt={otherUser}
-        className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-gray-600"
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${otherUser}&background=random&size=36`;
-        }}
-      />
+
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        {/* Top line — username & amount share the row so neither gets
+            squashed by a fixed-width sibling. */}
+        <div className="flex items-baseline justify-between gap-2 min-w-0">
           <span className="text-sm font-semibold text-gray-200 truncate">
             {otherUser}
           </span>
+          <span
+            className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
+              isSent ? "text-red-400" : "text-emerald-400"
+            }`}
+          >
+            {isSent ? "-" : "+"}{tx.amount}
+          </span>
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">
+        {/* Sub line — single line, truncates if the timestamp ever grows. */}
+        <div className="text-[11px] text-gray-500 mt-0.5 truncate">
           {isSent ? "Sent" : "Received"} &middot; {formatTimeAgo(tx.timestamp)}
-        </div>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <div
-          className={`text-sm font-bold ${
-            isSent ? "text-red-400" : "text-emerald-400"
-          }`}
-        >
-          {isSent ? "-" : "+"}{tx.amount}
         </div>
       </div>
     </div>
@@ -229,7 +246,16 @@ const ExpandableBalances: React.FC<{ walletData: WalletData | null }> = ({ walle
   );
 };
 
-export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
+export const Wallet: React.FC<WalletProps> = ({
+  username,
+  className = "",
+  currentUsername,
+  onUpdateRcDelegation,
+  onDeleteRcDelegation,
+  onCreateHpDelegation,
+  onCreateRcDelegation,
+  hideDelegations = false,
+}) => {
   const { walletData, fetchWalletData, isLoading, error, transactions, fetchTransactions, isLoadingTransactions, transactionError } = useWalletStore();
 
   useEffect(() => {
@@ -247,24 +273,37 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
     iconTextClass = "text-blue-400",
     valueClass = "text-gray-200",
   }) => (
-    <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between gap-2 p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {icon && (
-          <div className={`p-2 rounded-full flex items-center justify-center ${iconBgClass} ${iconTextClass}`}>
+          <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconTextClass}`}>
             {icon}
           </div>
         )}
-        <span className="font-semibold text-sm text-gray-300">{label}</span>
+        <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
       </div>
-      <span className={`font-medium text-sm ${valueClass}`}>{value ?? "-"}</span>
+      <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
     </div>
   );
 
+  type WalletSubTab = "delegations" | "transactions";
+  const [subTab, setSubTab] = useState<WalletSubTab>("delegations");
+  // If delegations are hidden by the consumer, default to transactions so the
+  // user never lands on a hidden tab.
+  useEffect(() => {
+    if (hideDelegations && subTab === "delegations") setSubTab("transactions");
+  }, [hideDelegations, subTab]);
+
+  const subTabBtn = (active: boolean) =>
+    `flex-1 py-2 sm:py-2.5 px-2 text-[11px] sm:text-xs font-semibold tracking-wide rounded transition-colors whitespace-nowrap ${
+      active ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+    }`;
+
   return (
-    <div className={`p-4 transition-all duration-300 ${className}`}>
-      <div className="max-w-md mx-auto">
+    <div className={`p-2 sm:p-4 transition-all duration-300 min-w-0 ${className}`}>
+      <div className="max-w-3xl mx-auto min-w-0">
         {/* Profile Header */}
-        <div className="flex flex-col items-center p-5 mb-5 rounded-xl bg-gray-800 border border-gray-700">
+        <div className="flex flex-col items-center p-4 sm:p-5 mb-4 sm:mb-5 rounded-xl bg-gray-800 border border-gray-700">
           {username && (
             <img
               src={`https://images.hive.blog/u/${username}/avatar`}
@@ -280,7 +319,7 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
         </div>
 
         {/* Estimated Value Card */}
-        <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-5 mb-5 transition-all duration-300 hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-500/10">
+        <div className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-5 mb-4 sm:mb-5 transition-all duration-300 hover:from-blue-500 hover:to-purple-500 shadow-lg shadow-blue-500/10">
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-xs font-semibold text-blue-100/80">Estimated Value</div>
             <CurrencyDropdown />
@@ -318,47 +357,79 @@ export const Wallet: React.FC<WalletProps> = ({ username, className = "" }) => {
           walletData={walletData}
         />
 
-        {/* Transaction History */}
-        <div className="mt-2">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-gray-300 tracking-wide uppercase">
-              Transaction History
-            </h3>
-            {transactions.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {transactions.length} transactions
-              </span>
-            )}
-          </div>
-
-          {isLoadingTransactions && (
-            <div className="flex items-center justify-center p-8">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin"></div>
-                <span className="text-sm text-gray-400">Loading transactions...</span>
-              </div>
-            </div>
+        {/* Sub-tabs: Delegations / Transaction History */}
+        <div className="mt-4 sm:mt-5 flex gap-2 mb-3">
+          {!hideDelegations && (
+            <button
+              onClick={() => setSubTab("delegations")}
+              className={subTabBtn(subTab === "delegations")}
+            >
+              <span className="sm:hidden">Delegations</span>
+              <span className="hidden sm:inline">DELEGATIONS</span>
+            </button>
           )}
-
-          {transactionError && (
-            <div className="flex items-center p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 mb-4 text-sm">
-              <FaExclamationTriangle className="mr-2 flex-shrink-0" />
-              <span>{transactionError}</span>
-            </div>
-          )}
-
-          {!isLoadingTransactions && !transactionError && transactions.length === 0 && (
-            <div className="text-center p-8 rounded-lg bg-gray-800 border border-gray-700">
-              <p className="text-sm text-gray-500">No transactions found</p>
-            </div>
-          )}
-
-          {!isLoadingTransactions &&
-            username &&
-            transactions.map((tx) => (
-              <TransactionRow key={tx.trx_id + tx.id} tx={tx} />
-            ))}
+          <button
+            onClick={() => setSubTab("transactions")}
+            className={subTabBtn(subTab === "transactions")}
+          >
+            <span className="sm:hidden">Transactions</span>
+            <span className="hidden sm:inline">TRANSACTION HISTORY</span>
+          </button>
         </div>
+
+        {subTab === "delegations" && !hideDelegations && username && (
+          <Delegations
+            username={username}
+            currentUsername={currentUsername}
+            onUpdateRcDelegation={onUpdateRcDelegation}
+            onDeleteRcDelegation={onDeleteRcDelegation}
+            onCreateHpDelegation={onCreateHpDelegation}
+            onCreateRcDelegation={onCreateRcDelegation}
+          />
+        )}
+
+        {subTab === "transactions" && (
+          <div className="rounded-xl bg-gray-800 border border-gray-700 p-2 sm:p-4 min-w-0">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h3 className="text-sm font-bold text-gray-300 tracking-wide uppercase">
+                Transaction History
+              </h3>
+              {transactions.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  {transactions.length} transactions
+                </span>
+              )}
+            </div>
+
+            {isLoadingTransactions && (
+              <div className="flex items-center justify-center p-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin"></div>
+                  <span className="text-sm text-gray-400">Loading transactions...</span>
+                </div>
+              </div>
+            )}
+
+            {transactionError && (
+              <div className="flex items-center p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 mb-4 text-sm">
+                <FaExclamationTriangle className="mr-2 flex-shrink-0" />
+                <span>{transactionError}</span>
+              </div>
+            )}
+
+            {!isLoadingTransactions && !transactionError && transactions.length === 0 && (
+              <div className="text-center p-8 rounded-lg bg-gray-900 border border-gray-700">
+                <p className="text-sm text-gray-500">No transactions found</p>
+              </div>
+            )}
+
+            {!isLoadingTransactions &&
+              username &&
+              transactions.map((tx) => (
+                <TransactionRow key={tx.trx_id + tx.id} tx={tx} />
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );

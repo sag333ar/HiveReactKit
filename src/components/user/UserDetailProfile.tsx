@@ -99,6 +99,22 @@ export interface UserDetailProfileProps {
   onTip?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
 
+  /** Wallet tab — RC delegation update. `maxRc` is a raw RC integer string
+   *  (e.g. "51000000000" for 51 b RC). Return `false` to indicate cancellation
+   *  (keychain denied / user closed the prompt) — the row stays in edit mode. */
+  onUpdateRcDelegation?: (delegatee: string, maxRc: string) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — RC delegation removal (broadcasts max_rc=0 internally). */
+  onDeleteRcDelegation?: (delegatee: string) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — create a new HP delegation. `hp` is HP as a numeric string
+   *  (e.g. "1000"). Wiring this prop exposes the "Delegate HP" button on the
+   *  HP tab; consumers should only pass it for keychain / hiveauth auth
+   *  methods (active key required), never for plain-posting-key sessions. */
+  onCreateHpDelegation?: (delegatee: string, hp: string) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — create a new RC delegation. `maxRc` is a raw RC integer
+   *  string (e.g. "50000000000"). Wiring this prop exposes the "Delegate RC"
+   *  button on the RC tab. Posting auth is sufficient. */
+  onCreateRcDelegation?: (delegatee: string, maxRc: string) => void | boolean | Promise<void | boolean>;
+
   /**
    * Called when the user submits a poll vote from the inline voting UI on the
    * polls tab. `choiceNums` is an array of 1-based choice numbers selected
@@ -271,6 +287,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onReblog,
   onTip,
   onReportPost,
+  onUpdateRcDelegation,
+  onDeleteRcDelegation,
+  onCreateHpDelegation,
+  onCreateRcDelegation,
   onVotePoll,
   onUserClick,
   onPostClick,
@@ -1870,8 +1890,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     if (activeTab === "wallet") {
       return (
-        <div className="max-w-lg mx-auto">
-          <Wallet username={targetUsername} />
+        <div className="max-w-3xl mx-auto">
+          <Wallet
+            username={targetUsername}
+            currentUsername={currentUsername}
+            onUpdateRcDelegation={onUpdateRcDelegation}
+            onDeleteRcDelegation={onDeleteRcDelegation}
+            onCreateHpDelegation={onCreateHpDelegation}
+            onCreateRcDelegation={onCreateRcDelegation}
+          />
         </div>
       );
     }
