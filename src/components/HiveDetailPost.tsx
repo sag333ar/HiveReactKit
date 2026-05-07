@@ -21,6 +21,8 @@ import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
+import { WorldMappinMap } from './WorldMappinMap';
+import { extractWorldMappinPin } from '../utils/worldMappin';
 import { useTranslatedText } from '@/i18n/useTranslatedText';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -374,6 +376,16 @@ export function HiveDetailPost({
       return post.body;
     }
   }, [post?.body, processBody, parentTags]);
+
+  // WorldMappin geo-pin: posts embed `[//]:# (!worldmappin <lat> lat <lng>
+  // long <descr> d3scr)` to declare a location. Extract the first pin so we
+  // can render an interactive Leaflet map below the body. The marker is a
+  // markdown comment, so the renderer drops it from the visible HTML — no
+  // need to strip it manually.
+  const worldMappinPin = useMemo(
+    () => extractWorldMappinPin(processedBody),
+    [processedBody],
+  );
 
   const renderedBody = useMemo(() => {
     if (!processedBody || !renderMarkdown) return '';
@@ -984,6 +996,19 @@ export function HiveDetailPost({
                 <p className="text-gray-400 text-sm italic">No content available.</p>
               )}
             </div>
+
+            {/* WorldMappin pin — rendered below the body when the post has a
+                geo-tag marker. Tapping the pin opens a popup with the
+                author-supplied description. */}
+            {worldMappinPin && (
+              <div className="pb-6">
+                <WorldMappinMap
+                  lat={worldMappinPin.lat}
+                  lng={worldMappinPin.lng}
+                  description={worldMappinPin.description}
+                />
+              </div>
+            )}
 
             {/* ── Poll Widget ── */}
             {parsedMetadata?.content_type === 'poll' && (() => {

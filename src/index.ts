@@ -4,6 +4,14 @@ export { default as VideoDetail } from './components/VideoDetail';
 export { default as VideoFeed } from './components/VideoFeed';
 export { default as VideoInfo } from './components/VideoInfo';
 export { default as Wallet } from './components/Wallet';
+export { default as Delegations, type DelegationsProps } from './components/Delegations';
+export { default as WorldMappinMap, type WorldMappinMapProps } from './components/WorldMappinMap';
+export {
+  extractWorldMappinPin,
+  extractWorldMappinPins,
+  stripWorldMappinMarkers,
+  type WorldMappinPin,
+} from './utils/worldMappin';
 export { default as PostFeedList } from './components/PostFeedList';
 export { default as BlogPostList, type BlogPostListProps } from './components/BlogPostList';
 export {
