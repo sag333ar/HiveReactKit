@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
-import { FaTrash, FaSearch, FaCheck, FaTimes, FaPen, FaPlus } from "react-icons/fa";
+import { FaTrash, FaSearch, FaCheck, FaTimes, FaPen, FaPlus, FaUser } from "react-icons/fa";
 import { getHiveClient } from "../config/hiveEndpoint";
 import type {
   HpDelegation,
@@ -124,17 +124,44 @@ const vestsToHpFactor = async (): Promise<number> => {
   }
 };
 
-const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 24 }) => (
-  <img
-    src={`https://images.hive.blog/u/${name}/avatar`}
-    alt={name}
-    style={{ width: size, height: size }}
-    className="rounded-full flex-shrink-0 border border-gray-700"
-    onError={(e) => {
-      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${name}&background=random&size=${size}`;
-    }}
-  />
-);
+/**
+ * Avatar that resolves through Hive's image proxy (images.hive.blog). When
+ * `name` is empty or the proxy returns an error (i.e. the account does not
+ * exist), it falls back to a neutral "null" avatar — a gray circle with a
+ * generic user icon — instead of a generated coloured initial. This makes the
+ * non-existent state legible while the user is still typing a delegatee.
+ */
+const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 24 }) => {
+  const trimmed = name.trim().toLowerCase();
+  // Hive usernames are lowercase letters/digits/dots/dashes, 3–16 chars.
+  const isPossiblyValid = /^[a-z][a-z0-9-.]{2,15}$/.test(trimmed);
+  const [errored, setErrored] = useState(false);
+
+  // Reset error state when the name changes — give the new avatar a chance.
+  useEffect(() => { setErrored(false); }, [trimmed]);
+
+  if (!isPossiblyValid || errored) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="rounded-full flex-shrink-0 border border-gray-700 bg-gray-700 flex items-center justify-center text-gray-400"
+        title={trimmed ? `@${trimmed}` : "No account"}
+      >
+        <FaUser size={Math.max(8, size * 0.45)} />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={`https://images.hive.blog/u/${trimmed}/avatar`}
+      alt={trimmed}
+      style={{ width: size, height: size }}
+      className="rounded-full flex-shrink-0 border border-gray-700 bg-gray-800 object-cover"
+      onError={() => setErrored(true)}
+    />
+  );
+};
 
 const SectionHeader: React.FC<{
   direction: "outgoing" | "incoming";
@@ -245,14 +272,20 @@ const CreateDelegationModal: React.FC<{
           </div>
           <div>
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Delegatee</label>
-            <input
-              type="text"
-              value={delegatee}
-              onChange={(e) => setDelegatee(e.target.value)}
-              placeholder="username"
-              className="mt-1 w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-100 focus:outline-none focus:border-teal-500"
-              autoFocus
-            />
+            <div className="mt-1 flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-800 border border-gray-700 focus-within:border-teal-500">
+              <Avatar name={delegatee.replace(/^@/, "")} size={22} />
+              <input
+                type="text"
+                value={delegatee}
+                onChange={(e) => setDelegatee(e.target.value.toLowerCase())}
+                placeholder="username"
+                className="flex-1 min-w-0 bg-transparent text-sm text-gray-100 focus:outline-none placeholder-gray-500"
+                autoFocus
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="none"
+              />
+            </div>
           </div>
         </div>
         <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
@@ -314,7 +347,10 @@ const RcUpdateInline: React.FC<{
 
   return (
     <div className="px-2 sm:px-3 py-2 bg-gray-900 border border-blue-500/40 rounded-md min-w-0">
-      <div className="text-[11px] text-gray-400 mb-1 truncate">@{delegatee}</div>
+      <div className="flex items-center gap-2 mb-1.5 min-w-0">
+        <Avatar name={delegatee} size={20} />
+        <span className="text-[11px] text-gray-300 truncate">@{delegatee}</span>
+      </div>
       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         <input
           type="number"
