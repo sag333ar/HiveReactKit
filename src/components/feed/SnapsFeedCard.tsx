@@ -107,6 +107,13 @@ const THREE_SPEAK_REGEX = /https?:\/\/(?:play\.)?3speak\.tv\/[^\s"'<>)]+/gi;
 const AUDIO_FILE_REGEX = /https?:\/\/[^\s"'<>)]+\.(?:mp3|wav|ogg|m4a)\b/gi;
 const IMG_MD_REGEX = /!\[[^\]]*\]\(([^\s)]+)\)/g;
 const IMG_HTML_REGEX = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+/** Bare image URLs the markdown renderer would auto-promote into <img>
+ *  tags. Match `.jpg|.jpeg|.png|.gif|.webp|.avif|.bmp|.svg`, optionally
+ *  followed by querystring. Hive's images proxy (`images.hive.blog/<size>/<encoded-url>`)
+ *  encodes the inner URL so the trailing dot-extension is on the wrapped
+ *  URL, not on the proxy path — match that shape too. */
+const IMG_URL_REGEX =
+  /https?:\/\/[^\s"'<>)]+?\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:\?[^\s"'<>)]*)?/gi;
 const URL_REGEX = /https?:\/\/[^\s)<>\]]+/g;
 const MENTION_REGEX = /@([a-z][a-z0-9.-]{1,15}[a-z0-9])/g;
 const HASHTAG_REGEX = /(?:^|\s)#([a-zA-Z][\w-]{0,31})/g;
@@ -184,6 +191,10 @@ function parseBody(post: Post): ParsedBody {
   let m: RegExpExecArray | null;
   while ((m = IMG_MD_REGEX.exec(raw))) imageUrls.push(m[1]);
   while ((m = IMG_HTML_REGEX.exec(raw))) imageUrls.push(m[1]);
+  // Bare image URLs the renderer would otherwise auto-promote into inline
+  // <img> tags inside the body — pull them into the carousel so they're
+  // shown once (in the strip) instead of twice (strip + body).
+  while ((m = IMG_URL_REGEX.exec(raw))) imageUrls.push(m[0]);
 
   const youtubeIds: string[] = [];
   while ((m = YOUTUBE_REGEX.exec(raw))) youtubeIds.push((m[1] || m[2] || m[3])!);
@@ -747,6 +758,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     // don't show the same image / 3Speak / YouTube twice on one card.
     body = body.replace(IMG_MD_REGEX, '');
     body = body.replace(IMG_HTML_REGEX, '');
+    // Bare image URLs would otherwise be auto-promoted into <img> tags by
+    // the markdown renderer, producing a vertical stack of the same images
+    // already shown in the carousel. Pull them out before rendering.
+    body = body.replace(IMG_URL_REGEX, '');
     body = body.replace(YOUTUBE_REGEX, '');
     body = body.replace(THREE_SPEAK_REGEX, '');
     body = body.replace(AUDIO_FILE_REGEX, '');
@@ -768,6 +783,15 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         (_m: string, v: string) =>
           `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
       );
+      // Belt-and-suspenders: even after pre-stripping images from the
+      // markdown source, the renderer can re-emit <img> tags from cases we
+      // didn't anticipate (proxy redirects, encoded inner URLs, etc.).
+      // Drop them from the final HTML so the AttachmentStrip carousel
+      // remains the single source of truth for media.
+      html = html.replace(/<img\b[^>]*>/gi, '');
+      // Drop empty anchors that wrapped an <img> we just removed (they'd
+      // render as bare clickable whitespace otherwise).
+      html = html.replace(/<a\b[^>]*>\s*<\/a>/gi, '');
       return html;
     } catch {
       return '';

@@ -107,6 +107,14 @@ export interface SnapsFeedViewProps {
    *  flag) into a single 3-dot kebab menu. Forwarded to every
    *  <SnapsFeedCard/>. */
   actionsAsMenu?: boolean;
+
+  /** When `true`, the desktop 4-column layout grows naturally with its
+   *  content instead of pinning each column to a fixed-height per-column
+   *  scroller. Use this when the parent page already provides a single
+   *  scroll surface (e.g. a wrapping `overflow-y-auto`) so users get one
+   *  page-level scrollbar instead of four independent ones. Column
+   *  headers stay visible via `sticky top-0`. Mobile is unaffected. */
+  pageScroll?: boolean;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -201,6 +209,7 @@ export function SnapsFeedView({
   footer,
   renderHeaderActions,
   actionsAsMenu,
+  pageScroll,
 }: SnapsFeedViewProps) {
   const cols = useFeedColumnCount();
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
@@ -351,18 +360,83 @@ export function SnapsFeedView({
     );
   }
 
-  // ── Desktop: 4 columns, each with its own scroll ─────────────────────
-  // The outer wrapper fills its parent height; the per-column body has
-  // `overflow-y-auto` so each column scrolls independently. SnapsFeedList's
-  // IntersectionObserver auto-detects the per-column scroll ancestor, so
-  // each feed paginates on its own until exhausted.
+  // ── Desktop: 4 columns ─────────────────────────────────────────────
+  // Two layouts:
+  //  • default — each column has its own `overflow-y-auto` (legacy,
+  //    fixed-height per column).
+  //  • `pageScroll` — columns flow naturally; the parent page provides
+  //    a single scroll surface so users see one page-level scrollbar
+  //    instead of four independent ones. Column headers stay visible
+  //    via `sticky top-0`.
+  // SnapsFeedList's IntersectionObserver auto-detects whichever scroll
+  // ancestor it finds, so pagination works in both modes.
+  if (pageScroll) {
+    return (
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
+        {toolbar}
+        <div className="grid grid-cols-4 gap-4">
+          {feedOptions.map((k) => (
+            <div key={k} className="flex flex-col">
+              <h2 className="sticky top-0 z-10 mb-3 flex shrink-0 items-center gap-2 bg-[#212529]/95 py-1 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0] backdrop-blur">
+                <img
+                  src={finalAvatars[k]}
+                  alt=""
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-[#3a424a]"
+                />
+                {finalLabels[k]}
+              </h2>
+              {/* No per-column overflow — content grows naturally and the
+                  page wrapper handles scrolling. The columnRef is still
+                  attached so SnapsFeedList knows what to observe. */}
+              <div ref={setColumnRef(k)} className="pr-1">
+                {renderBody(k)}
+              </div>
+            </div>
+          ))}
+        </div>
+        {footer}
+      </div>
+    );
+  }
+
+  // Hybrid scroll: each column has its own `overflow-y-auto
+  // overscroll-contain`, so hovering and scrolling on a column moves THAT
+  // column only. When the wheel target is OUTSIDE any column (toolbar,
+  // gap between columns, page padding), the handler below distributes the
+  // wheel delta to every column in lockstep — so all 4 feeds scroll up or
+  // down together, exactly as if the page itself were scrolling.
+  //
+  // Horizontal-dominant wheel events (sideways trackpad swipes) are NOT
+  // intercepted: we let the browser bubble the event up to the page
+  // wrapper / dashboard layout so any ancestor with horizontal overflow
+  // handles it natively. Without this, swallowing every wheel event
+  // killed full-page side-scroll across the app.
+  const handleWheelOutsideColumns = (e: React.WheelEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    // If the cursor is on a column body or anything inside it, defer to
+    // that column's native overflow. We tag column bodies with
+    // `data-snaps-column-body` so this check is cheap.
+    if (target.closest('[data-snaps-column-body]')) return;
+    // Defer to the browser for purely-horizontal gestures so side-scroll
+    // works on the page chrome (only act when vertical delta dominates).
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    e.preventDefault();
+    for (const key of feedOptions) {
+      const el = columnRefs.current[key];
+      if (el) el.scrollTop += e.deltaY;
+    }
+  };
+
   return (
-    <div className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3">
+    <div
+      className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3"
+      onWheel={handleWheelOutsideColumns}
+    >
       {toolbar}
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-4">
         {feedOptions.map((k) => (
           <div key={k} className="flex h-full min-h-0 flex-col">
-            {/* Sticky column title */}
             <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0]">
               <img
                 src={finalAvatars[k]}
@@ -371,13 +445,9 @@ export function SnapsFeedView({
               />
               {finalLabels[k]}
             </h2>
-            {/* Per-column scroll container. `overscroll-contain` keeps a
-                column's scroll from chaining into the page. The ref
-                callback restores the cached scrollTop on mount so
-                navigating to a post detail and back lands at the same
-                position the user was at. */}
             <div
               ref={setColumnRef(k)}
+              data-snaps-column-body
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
             >
               {renderBody(k)}
