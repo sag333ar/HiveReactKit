@@ -1,5 +1,55 @@
-import React, { useState } from 'react'
-import { X } from 'lucide-react'
+/**
+ * Poll attachment editor for ParentPostComposer.
+ *
+ * Mirrors the feature set of the standalone hPolls "Create Poll" surface so
+ * a poll attached from the kit composer is indistinguishable on-chain from
+ * one published by hPolls itself: vote-interpretation engines (Number of
+ * Votes / HIVE→HP / Splinterlands / Arcade Colony / GLX / Hive-Engine
+ * tokens), a short preview description, max-choice slider, voter-change
+ * toggle, minimum account age, hide-results-until-voted, and the
+ * community-restricted flag.
+ *
+ * The component returns a `PollData` object whose shape matches what the
+ * Hive comment metadata expects (`preferred_interpretation`, `choices`,
+ * `end_time`, etc.) so consumers can inline it into `json_metadata`
+ * without further mapping.
+ */
+import React, { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Info, Minus, Plus, X } from 'lucide-react'
+
+/** Curated list of vote-weight interpretation engines hPolls supports. */
+export const POLL_VOTE_INTERPRETATIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'number_of_votes', label: 'Number of Votes' },
+  { key: 'token_hive_hp', label: 'Token: HIVE → HP' },
+  { key: 'splinterlands_staked_sps', label: 'Splinterlands: Staked SPS' },
+  { key: 'arcade_colony_staked_colony', label: 'Arcade Colony: Staked COLONY' },
+  { key: 'genesis_league_sport_staked_glx', label: 'Genesis League Sport: Staked GLX' },
+]
+
+/** Hive-Engine tokens (and stake variants) that hPolls can interpret. The
+ *  key follows the same `token_he_<slug>` pattern hPolls broadcasts. */
+export const POLL_HE_VOTE_INTERPRETATIONS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: 'token_he_bee', label: 'BEE' },
+  { key: 'token_he_leo', label: 'LEO' },
+  { key: 'token_he_staked_leo', label: 'Staked LEO' },
+  { key: 'token_he_zing', label: 'ZING' },
+  { key: 'token_he_staked_zing', label: 'Staked ZING' },
+  { key: 'token_he_woo', label: 'WOO' },
+  { key: 'token_he_staked_woo', label: 'Staked WOO' },
+  { key: 'token_he_crop', label: 'CROP' },
+  { key: 'token_he_pkm', label: 'PKM' },
+  { key: 'token_he_afit', label: 'AFIT' },
+  { key: 'token_he_stem', label: 'STEM' },
+  { key: 'token_he_staked_stem', label: 'Staked STEM' },
+  { key: 'token_he_beer', label: 'BEER' },
+  { key: 'token_he_staked_beer', label: 'Staked BEER' },
+]
+
+const ALL_INTERPRETATIONS = [...POLL_VOTE_INTERPRETATIONS, ...POLL_HE_VOTE_INTERPRETATIONS]
+
+const labelForInterpretation = (key: string): string =>
+  ALL_INTERPRETATIONS.find((i) => i.key === key)?.label ??
+  POLL_VOTE_INTERPRETATIONS[0].label
 
 export interface PollData {
   question: string
@@ -9,6 +59,12 @@ export interface PollData {
   allow_vote_changes: boolean
   filters: { account_age: number }
   ui_hide_res_until_voted: boolean
+  /** Short user-facing summary surfaced by some clients above the choices. */
+  description?: string
+  /** Engine key used to weight votes (`number_of_votes`, `token_hive_hp`, …). */
+  preferred_interpretation?: string
+  /** Restrict voting to community members. Maps to `community_restricted`. */
+  community_restricted?: boolean
 }
 
 export interface PollCreatorProps {
@@ -20,6 +76,7 @@ export interface PollCreatorProps {
 
 const MIN_CHOICES = 2
 const MAX_CHOICES = 10
+const MAX_DESCRIPTION = 120
 
 function defaultEndDate(): string {
   const d = new Date()
@@ -43,6 +100,36 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
   const [hideResultsUntilVoted, setHideResultsUntilVoted] = useState(
     initialData?.ui_hide_res_until_voted ?? false
   )
+  const [description, setDescription] = useState(initialData?.description ?? '')
+  const [interpretation, setInterpretation] = useState<string>(
+    initialData?.preferred_interpretation ?? 'number_of_votes'
+  )
+  const [communityRestricted, setCommunityRestricted] = useState(
+    initialData?.community_restricted ?? false
+  )
+  const [isInterpOpen, setIsInterpOpen] = useState(false)
+  const [showHeInterpOptions, setShowHeInterpOptions] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const interpRef = useRef<HTMLDivElement | null>(null)
+
+  // Close vote-interpretation popover on outside click.
+  useEffect(() => {
+    if (!isInterpOpen) return
+    const onClickOutside = (e: MouseEvent) => {
+      if (!interpRef.current) return
+      if (!interpRef.current.contains(e.target as Node)) {
+        setIsInterpOpen(false)
+        setShowHeInterpOptions(false)
+      }
+    }
+    window.addEventListener('mousedown', onClickOutside)
+    return () => window.removeEventListener('mousedown', onClickOutside)
+  }, [isInterpOpen])
+
+  // Clamp max-choices when the option count drops below the slider value.
+  useEffect(() => {
+    setMaxChoicesVoted((prev) => Math.min(Math.max(prev, 1), Math.max(choices.length, 1)))
+  }, [choices.length])
 
   if (!isOpen) return null
 
@@ -74,6 +161,9 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
       allow_vote_changes: allowVoteChanges,
       filters: { account_age: accountAge },
       ui_hide_res_until_voted: hideResultsUntilVoted,
+      description: description.trim().slice(0, MAX_DESCRIPTION) || undefined,
+      preferred_interpretation: interpretation,
+      community_restricted: communityRestricted,
     })
     onClose()
   }
@@ -81,6 +171,11 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
   const inputClass =
     'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none'
   const labelClass = 'block text-xs font-medium text-gray-400 mb-1'
+
+  // Plain function call — keep it out of `useMemo` so the hook count stays
+  // identical regardless of `isOpen` (the modal returns early when closed,
+  // so any hook below the gate would violate Rules of Hooks).
+  const interpretationLabel = labelForInterpretation(interpretation)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,6 +197,21 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
           </div>
 
           <div>
+            <label className={labelClass}>
+              Short preview description{' '}
+              <span className="text-gray-500">({description.length}/{MAX_DESCRIPTION})</span>
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, MAX_DESCRIPTION))}
+              placeholder="One-line summary shown above the choices (optional)"
+              className={inputClass}
+              maxLength={MAX_DESCRIPTION}
+            />
+          </div>
+
+          <div>
             <label className={labelClass}>Choices (min {MIN_CHOICES}, max {MAX_CHOICES})</label>
             <div className="space-y-2">
               {choices.map((choice, idx) => (
@@ -116,8 +226,8 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
               ))}
             </div>
             {choices.length < MAX_CHOICES && (
-              <button type="button" onClick={addChoice} className="mt-2 text-xs text-blue-400 hover:text-blue-300 font-medium">
-                + Add option
+              <button type="button" onClick={addChoice} className="mt-2 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 font-medium">
+                <Plus className="h-3 w-3" /> Add option
               </button>
             )}
           </div>
@@ -127,25 +237,133 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
             <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} min={new Date().toISOString().slice(0, 16)} />
           </div>
 
-          <div>
-            <label className={labelClass}>Max choices a voter can select ({maxChoicesVoted})</label>
-            <input type="range" min={1} max={Math.max(filledChoices.length, 1)} value={maxChoicesVoted} onChange={(e) => setMaxChoicesVoted(Number(e.target.value))} className="w-full accent-blue-500" />
+          {/* Vote interpretation — same engine list hPolls publishes. */}
+          <div ref={interpRef} className="relative">
+            <label className={labelClass}>
+              <span className="inline-flex items-center gap-1">
+                Vote interpretation
+                <Info className="h-3 w-3 text-gray-500" />
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={() => { setIsInterpOpen((v) => !v); setShowHeInterpOptions(false); }}
+              className={`${inputClass} flex items-center justify-between text-left`}
+            >
+              <span className="truncate">{interpretationLabel}</span>
+              {isInterpOpen
+                ? <ChevronUp className="h-4 w-4 text-gray-400" />
+                : <ChevronDown className="h-4 w-4 text-gray-400" />}
+            </button>
+            {isInterpOpen && (
+              <div className="absolute z-10 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+                {POLL_VOTE_INTERPRETATIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setInterpretation(opt.key)
+                      setIsInterpOpen(false)
+                      setShowHeInterpOptions(false)
+                    }}
+                    className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-800 ${
+                      interpretation === opt.key ? 'text-blue-400' : 'text-gray-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowHeInterpOptions((v) => !v)}
+                  className="flex w-full items-center justify-between border-t border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+                >
+                  <span>Token: Hive-Engine</span>
+                  {showHeInterpOptions
+                    ? <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
+                </button>
+                {showHeInterpOptions && (
+                  <div className="border-t border-gray-700 bg-gray-950">
+                    {POLL_HE_VOTE_INTERPRETATIONS.map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setInterpretation(opt.key)
+                          setIsInterpOpen(false)
+                          setShowHeInterpOptions(false)
+                        }}
+                        className={`block w-full text-left px-5 py-1.5 text-xs hover:bg-gray-800 ${
+                          interpretation === opt.key ? 'text-blue-400' : 'text-gray-300'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={allowVoteChanges} onChange={(e) => setAllowVoteChanges(e.target.checked)} className="accent-blue-500" />
-            <span className="text-xs text-gray-400">Allow voters to change their vote</span>
-          </label>
+          {/* Advanced section — keep the modal short by default. */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-200"
+          >
+            {showAdvanced ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+            Advanced settings
+          </button>
 
-          <div>
-            <label className={labelClass}>Minimum account age to vote (days): {accountAge}</label>
-            <input type="number" min={0} max={365} value={accountAge} onChange={(e) => setAccountAge(Math.max(0, Number(e.target.value)))} className={inputClass} />
-          </div>
+          {showAdvanced && (
+            <div className="space-y-4 border-t border-gray-800 pt-4">
+              <div>
+                <label className={labelClass}>Max choices a voter can select ({maxChoicesVoted})</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={Math.max(filledChoices.length, 1)}
+                  value={maxChoicesVoted}
+                  onChange={(e) => setMaxChoicesVoted(Number(e.target.value))}
+                  className="w-full accent-blue-500"
+                />
+              </div>
 
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={hideResultsUntilVoted} onChange={(e) => setHideResultsUntilVoted(e.target.checked)} className="accent-blue-500" />
-            <span className="text-xs text-gray-400">Hide results until user has voted</span>
-          </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={allowVoteChanges} onChange={(e) => setAllowVoteChanges(e.target.checked)} className="accent-blue-500" />
+                <span className="text-xs text-gray-400">Allow voters to change their vote</span>
+              </label>
+
+              <div>
+                <label className={labelClass}>Minimum account age to vote (days): {accountAge}</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={3650}
+                  value={accountAge}
+                  onChange={(e) => setAccountAge(Math.max(0, Number(e.target.value)))}
+                  className={inputClass}
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={hideResultsUntilVoted} onChange={(e) => setHideResultsUntilVoted(e.target.checked)} className="accent-blue-500" />
+                <span className="text-xs text-gray-400">Hide results until user has voted</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={communityRestricted}
+                  onChange={(e) => setCommunityRestricted(e.target.checked)}
+                  className="accent-blue-500"
+                />
+                <span className="text-xs text-gray-400">Restrict voting to community members</span>
+              </label>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

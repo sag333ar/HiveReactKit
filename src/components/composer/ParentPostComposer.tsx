@@ -147,6 +147,12 @@ export interface ParentPostComposerProps {
   hideTags?: boolean;
   hideReward?: boolean;
   hideBeneficiaries?: boolean;
+  /** Force the publisher to attach a poll. When `true`, Publish stays
+   *  disabled with a "poll required" hint until `pollData` is set, and an
+   *  inline warning banner appears above the toolbar. Use this when the
+   *  composer is dedicated to poll creation (e.g. the Polls screen) so
+   *  users can't accidentally publish a regular parent post. */
+  requirePoll?: boolean;
 
   /** Allow landscape videos (default true on the parent post composer). */
   allowLandscapeVideos?: boolean;
@@ -250,6 +256,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideTags,
   hideReward,
   hideBeneficiaries,
+  requirePoll,
   allowLandscapeVideos = true,
   submitLabel = 'Publish',
   submitLabelWithVideo = 'Save',
@@ -1034,8 +1041,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   }, [clearDraftAndReset]);
 
   // ── Submit ────────────────────────────────────────────────────────────────
+  // When `requirePoll` is on, withhold submission until a poll is attached.
+  // The Publish button is disabled and an inline banner explains why.
   const canSubmit =
-    title.trim().length > 0 && body.trim().length > 0 && !isSubmitting;
+    title.trim().length > 0 &&
+    body.trim().length > 0 &&
+    !isSubmitting &&
+    (!requirePoll || !!pollData);
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
@@ -1555,6 +1567,26 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 </div>
               )}
 
+              {/* Poll-required warning — shown only when the consumer has
+                  set `requirePoll` (e.g. the Polls screen) and the user
+                  hasn't attached one yet. Tapping it opens the poll editor
+                  so the publisher can fix it in one step. */}
+              {requirePoll && !pollData && (
+                <button
+                  type="button"
+                  onClick={() => setIsPollOpen(true)}
+                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200 hover:bg-amber-500/15"
+                >
+                  <span className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 shrink-0" />
+                    A poll is required for this post — tap to add one.
+                  </span>
+                  <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                    Required
+                  </span>
+                </button>
+              )}
+
               {/* Poll preview */}
               {pollData && (
                 <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
@@ -1581,6 +1613,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
+                    {pollData.description && (
+                      <p className="mb-1.5 text-[11px] text-gray-400 italic line-clamp-2">
+                        {pollData.description}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1">
                       {pollData.choices.map((c, i) => (
                         <span
@@ -1591,6 +1628,30 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                         </span>
                       ))}
                     </div>
+                    {/* Vote-engine + community badges so the publisher can
+                        confirm at-a-glance what they attached without
+                        re-opening the editor. */}
+                    {(pollData.preferred_interpretation ||
+                      pollData.community_restricted ||
+                      pollData.max_choices_voted > 1) && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+                        {pollData.preferred_interpretation && (
+                          <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-300">
+                            {pollData.preferred_interpretation.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                        {pollData.max_choices_voted > 1 && (
+                          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
+                            multi-choice ×{pollData.max_choices_voted}
+                          </span>
+                        )}
+                        {pollData.community_restricted && (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-300">
+                            community-restricted
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
