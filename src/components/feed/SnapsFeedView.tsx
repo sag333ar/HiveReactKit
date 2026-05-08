@@ -411,27 +411,36 @@ export function SnapsFeedView({
   // wrapper / dashboard layout so any ancestor with horizontal overflow
   // handles it natively. Without this, swallowing every wheel event
   // killed full-page side-scroll across the app.
-  const handleWheelOutsideColumns = (e: React.WheelEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-    // If the cursor is on a column body or anything inside it, defer to
-    // that column's native overflow. We tag column bodies with
-    // `data-snaps-column-body` so this check is cheap.
-    if (target.closest('[data-snaps-column-body]')) return;
-    // Defer to the browser for purely-horizontal gestures so side-scroll
-    // works on the page chrome (only act when vertical delta dominates).
-    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    e.preventDefault();
-    for (const key of feedOptions) {
-      const el = columnRefs.current[key];
-      if (el) el.scrollTop += e.deltaY;
-    }
-  };
+  //
+  // Native non-passive listener via useEffect — React's synthetic
+  // `onWheel` is registered as passive in React 17+, so calling
+  // `preventDefault()` inside a synthetic handler logs "Unable to
+  // preventDefault inside passive event listener invocation". The
+  // native registration with `{ passive: false }` lets us actually
+  // suppress the default scroll on the gestures we want to take over.
+  const desktopWrapperRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = desktopWrapperRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-snaps-column-body]')) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      for (const key of feedOptions) {
+        const node = columnRefs.current[key];
+        if (node) node.scrollTop += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [feedOptions]);
 
   return (
     <div
+      ref={desktopWrapperRef}
       className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3"
-      onWheel={handleWheelOutsideColumns}
     >
       {toolbar}
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-4">

@@ -547,14 +547,18 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
         <button
           type="button"
           onClick={(e) => open(e, current)}
-          className="relative flex h-full w-full items-center justify-center bg-[#1a1e22]"
+          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-[#1a1e22]"
           aria-label="Open image preview"
         >
+          {/* Scale-to-fit image (matches hSnaps' ImageThumbnail). The
+              parent flex container centers; `max-h/w-full object-contain`
+              keeps the full image visible inside the fixed-height strip
+              with a dark letterbox instead of cropping (object-cover). */}
           <img
             src={current.url}
             alt=""
             loading="lazy"
-            className="h-full w-full object-cover"
+            className="max-h-full max-w-full object-contain"
             onError={() => setErrored((prev) => new Set(prev).add(safeIdx))}
           />
         </button>
@@ -615,8 +619,11 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
 
   return (
     <>
-      <div className="relative mt-2 overflow-hidden rounded-lg border border-[#3a424a] bg-[#212529]">
-        <div className="aspect-[4/3] w-full">{renderTile()}</div>
+      <div className="relative overflow-hidden rounded-lg border border-[#3a424a] bg-[#212529]">
+        {/* Fixed strip height matching hSnaps' STRIP_HEIGHT=280px so
+            scale-to-fit images get a stable container instead of an
+            aspect-ratio box that varied with card width. */}
+        <div className="h-[280px] w-full">{renderTile()}</div>
         {attachments.length > 1 && (
           <>
             <button
@@ -880,15 +887,17 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         )}
       </header>
 
-      {/* Body — markdown HTML (compact `.snaps-feed-body` styles) +
-          attachment strip. We render markdown so bold / italic /
-          headings / lists / blockquotes / code / TABLES all show up
-          properly inside the card; the AttachmentStrip handles
-          image/video/audio previews separately. */}
+      {/* Body — media first (AttachmentStrip), then markdown HTML
+          (compact `.snaps-feed-body` styles). Order mirrors hSnaps
+          (`hive-snaps-reactjs/components/FeedItemBody`): swipeable
+          carousel up top, prose below. We render markdown so bold /
+          italic / headings / lists / blockquotes / code / TABLES all
+          show up properly inside the card. */}
       <div
-        className="cursor-pointer overflow-hidden px-4 pb-2 pt-1"
+        className="cursor-pointer space-y-2 overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
+        <AttachmentStrip attachments={parsed.attachments} />
         {renderedBodyHtml ? (
           // No `line-clamp-6` here: webkit-line-clamp is an
           // inline-text clamp and breaks block-level rendering for
@@ -951,7 +960,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             onTagClick={onTagClick}
           />
         ) : null}
-        <AttachmentStrip attachments={parsed.attachments} />
       </div>
 
       {/* Action bar */}

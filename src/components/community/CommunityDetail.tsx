@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import CommunityAbout from './CommunityAbout'
 import CommunityMembers from './CommunityMembers'
+import CommunitySnapsTab from './CommunitySnapsTab'
 import { communityService } from '../../services/communityService'
 import { apiService } from '../../services/apiService'
 import { CommunityDetailsResponse } from '../../types/community'
@@ -80,6 +81,20 @@ export interface CommunityDetailProps {
    *  flag) into a single 3-dot kebab menu inside the embedded
    *  `<BlogPostList/>`. */
   actionsAsMenu?: boolean
+
+  /** @deprecated The Snaps tab now uses the kit's built-in
+   *  CommunitySnapsTab (multi-container SnapsFeedView). This prop is
+   *  retained for backward compatibility but no longer consumed. */
+  loadCommunitySnaps?: (
+    communityId: string,
+    cursor?: { author: string; permlink: string },
+  ) => Promise<import('@/types/post').Post[]>
+
+  /** Authors the user has reported / muted — forwarded into the snaps
+   *  tab so their snaps drop out of the per-card list. */
+  reportedAuthors?: string[]
+  /** Reported posts (author + permlink pairs) — same purpose. */
+  reportedPosts?: { author: string; permlink: string }[]
 
   // Header actions
   onShare?: () => void
@@ -154,6 +169,9 @@ const CommunityDetail = ({
   actionsAsMenu,
   onShare,
   onRss,
+  loadCommunitySnaps: _loadCommunitySnaps,
+  reportedAuthors = [],
+  reportedPosts = [],
 }: CommunityDetailProps) => {
   const [activeTab, setActiveTab] = useState<TabId>('posts')
   const [communityDetails, setCommunityDetails] = useState<CommunityDetailsResponse | null>(null)
@@ -245,12 +263,15 @@ const CommunityDetail = ({
     }
   }, [communityId])
 
-  // Reset post list when active feed-tab or sort changes.
+  // Reset post list when active feed-tab or sort changes. The snaps
+  // tab no longer flows through `loadPosts` — <CommunitySnapsTab/> owns
+  // its own data plane (4-container parallel fetch + filter) so we only
+  // hit ranked-posts for the Posts tab here.
   useEffect(() => {
-    if (activeTab === 'posts' || activeTab === 'snaps') {
+    if (activeTab === 'posts') {
       setPosts([])
       setPostsHasMore(true)
-      void loadPosts(activeTab, false)
+      void loadPosts('posts', false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, postSort, communityId])
@@ -474,32 +495,36 @@ const CommunityDetail = ({
         )}
 
         {activeTab === 'snaps' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-[#9ca3b0]">
-                Latest short-form posts in this community.
-              </p>
-              <button
-                type="button"
-                onClick={() => { void loadPosts('snaps', false) }}
-                title="Refresh"
-                aria-label="Refresh"
-                disabled={postsLoading}
-                className="inline-flex items-center gap-1 rounded-md border border-[#3a424a] px-2 py-1 text-xs text-[#e7e7f1] hover:bg-[#2f353d] disabled:opacity-50"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${postsLoading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-            <BlogPostList
-              {...blogPostListProps}
-              posts={posts}
-              loading={postsLoading}
-              loadingMore={postsLoadingMore}
-              hasMore={postsHasMore}
-              onLoadMore={() => { void loadPosts('snaps', true) }}
-              emptyMessage="No recent snaps in this community."
-            />
-          </div>
+          // Mirrors UserDetailProfile's snaps tab — 1-col-mobile /
+          // 4-col-desktop SnapsFeedView, one slot per snap container
+          // (peak.snaps · ecency.waves · leothreads · liketu.moments)
+          // filtered to this community.
+          <CommunitySnapsTab
+            communityId={communityId}
+            currentUser={currentUser}
+            reportedPosts={reportedPosts}
+            reportedAuthors={reportedAuthors}
+            onUpvote={onUpvote}
+            onSubmitComment={onSubmitComment}
+            onClickCommentUpvote={onClickCommentUpvote}
+            onReblog={onReblog}
+            onTip={onTip}
+            onSharePost={onSharePost}
+            onCommentClick={onCommentClick}
+            onReportPost={onReportPost}
+            onUserClick={onUserClick}
+            onPostClick={onPostClick}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
+            defaultVotePercent={defaultVotePercent}
+            voteWeightStep={voteWeightStep}
+            allowLandscapeVideos={allowLandscapeVideos}
+            defaultReward={defaultReward}
+            actionsAsMenu={actionsAsMenu}
+          />
         )}
 
         {activeTab === 'about' && <CommunityAbout communityId={communityId} />}

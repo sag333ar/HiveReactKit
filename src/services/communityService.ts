@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { CommunityItem, CommunityDetailsResponse, CommunitySubscriber, CommunityActivity } from '../types/community';
+import { Post } from '../types/post';
 import { getHiveApiEndpoint } from '../config/hiveEndpoint';
 
 class CommunityService {
@@ -288,6 +289,121 @@ class CommunityService {
       throw error;
     }
   }
+
+  /**
+   * Snap references for a community, sourced from our `hreplier-api`
+   * `/snaps` endpoint with the `tag=<communityId>` filter. Mirrors
+   * peakd.com's public `/api/public/snaps/tags?container=…&tags=…`
+   * query but routes through our own backend. Returns the unsorted
+   * list of `{ id, author, permlink }` references; full post data is
+   * materialised by `getCommunitySnaps` via batched bridge.get_post.
+   */
+  async getCommunitySnapReferences(
+    communityId: string,
+    parent: string,
+    signal?: AbortSignal,
+  ): Promise<{ id: number; author: string; permlink: string }[]> {
+    const url =
+      `https://hreplier-api.sagarkothari88.one/snaps` +
+      `?parent=${encodeURIComponent(parent)}` +
+      `&tag=${encodeURIComponent(communityId)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal,
+    });
+    if (!response.ok) throw new Error(`Snaps API error: ${response.status}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Community-scoped snaps for one container (`peak.snaps`,
+   * `ecency.waves`, `leothreads`, `liketu.moments`). The hreplier-api
+   * `/snaps?parent=&tag=` endpoint returns the full reference list in
+   * one shot and has no server-side pagination, so we cache it per
+   * (communityId, parent) and slice client-side. `startId` is the
+   * 20-item page offset:
+   *   - undefined / 0 → first 20 refs
+   *   - 20, 40, …     → subsequent pages
+   * `nextStartId` is the next offset to request, or null when
+   * exhausted.
+   *
+   * Only the current slice is materialised via `bridge.get_post`, so
+   * switching pages stays snappy.
+   */
+  async getCommunitySnaps(
+    communityId: string,
+    parent: string,
+    startId?: number,
+    observer?: string,
+    signal?: AbortSignal,
+  ): Promise<{ snaps: Post[]; nextStartId: number | null }> {
+    const offset =
+      typeof startId === 'number' && Number.isFinite(startId)
+        ? Math.max(0, Math.floor(startId))
+        : 0;
+
+    const cacheKey = `${communityId}|${parent}`;
+    let refs = communitySnapsRefsCache.get(cacheKey);
+    if (!refs) {
+      refs = await this.getCommunitySnapReferences(communityId, parent, signal);
+      if (signal?.aborted) throw new Error('aborted');
+      communitySnapsRefsCache.set(cacheKey, refs);
+    }
+
+    if (refs.length === 0 || offset >= refs.length) {
+      return { snaps: [], nextStartId: null };
+    }
+
+    const slice = refs.slice(offset, offset + COMMUNITY_SNAPS_PAGE_SIZE);
+    const snaps = await batchGetCommunitySnapPosts(slice, this.HIVE_API_URL, observer, signal);
+    const nextOffset = offset + slice.length;
+    const nextStartId = nextOffset < refs.length ? nextOffset : null;
+    return { snaps, nextStartId };
+  }
+}
+
+const COMMUNITY_SNAPS_PAGE_SIZE = 20;
+
+/** Module-level cache so paginating doesn't re-fetch the full reference
+ *  list every time. Keyed by `${communityId}|${parent}`. */
+const communitySnapsRefsCache = new Map<
+  string,
+  { id: number; author: string; permlink: string }[]
+>();
+
+/** Batched bridge.get_post call mirroring `userService.batchGetPosts`. */
+async function batchGetCommunitySnapPosts(
+  refs: { author: string; permlink: string }[],
+  hiveApiUrl: string,
+  observer?: string,
+  signal?: AbortSignal,
+): Promise<Post[]> {
+  const BATCH_SIZE = 5;
+  const results: Post[] = [];
+  for (let i = 0; i < refs.length; i += BATCH_SIZE) {
+    const batch = refs.slice(i, i + BATCH_SIZE);
+    const rpcBatch = batch.map((ref, idx) => ({
+      jsonrpc: '2.0',
+      method: 'bridge.get_post',
+      params: { author: ref.author, permlink: ref.permlink, observer: observer ?? '' },
+      id: idx + 1,
+    }));
+    const response = await fetch(hiveApiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rpcBatch),
+      signal,
+    });
+    if (!response.ok) continue;
+    const data = await response.json();
+    const batchResults = Array.isArray(data) ? data : [data];
+    for (const item of batchResults) {
+      if (item?.result) results.push(item.result as Post);
+    }
+  }
+  return results;
 }
 
 export const communityService = new CommunityService();
