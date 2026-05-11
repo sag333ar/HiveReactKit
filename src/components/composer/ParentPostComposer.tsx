@@ -202,6 +202,13 @@ export interface ParentPostComposerProps {
   walletApprovalLabel?: string;
   /** When true, the composer renders a blinking "approve in wallet" banner. */
   awaitingWalletApproval?: boolean;
+  /**
+   * Optional content rendered at the very top of the composer body, above the
+   * title input. Use this to plug in a community picker or any other
+   * post-routing UI without forking the composer. Receives no props — the
+   * consumer owns the state.
+   */
+  communitySlot?: React.ReactNode;
 }
 
 /** Small Hive avatar with a UI Avatars fallback — matches other kit components. */
@@ -266,6 +273,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   draftKey,
   beforeVideoUpload,
   useThreeSpeakV2 = false,
+  communitySlot,
 }) => {
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
@@ -1248,6 +1256,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             )}
 
             <div className="px-3 sm:px-6 py-4 space-y-3">
+              {/* Consumer-rendered slot (e.g. community picker). Sits at the
+                  very top so post-routing decisions happen before the user
+                  starts typing. */}
+              {communitySlot}
+
               {/* Title */}
               <input
                 type="text"
@@ -1257,33 +1270,6 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 disabled={isDisabled}
                 className="w-full bg-transparent text-2xl sm:text-3xl font-semibold text-white placeholder-gray-500 outline-none border-b border-gray-800 pb-2 focus:border-blue-500 transition-colors"
               />
-
-              {/* Description (max 120 chars) */}
-              <div>
-                <textarea
-                  value={description}
-                  onChange={(e) =>
-                    setDescription(e.target.value.slice(0, DESCRIPTION_MAX))
-                  }
-                  placeholder="Short description (shown in feeds, max 120 chars)"
-                  rows={2}
-                  disabled={isDisabled}
-                  className="w-full bg-transparent text-sm text-gray-200 placeholder-gray-500 outline-none border-b border-gray-800 py-2 focus:border-blue-500 transition-colors resize-none"
-                />
-                <div className="flex items-center justify-end">
-                  <span
-                    className={`text-[11px] ${
-                      description.length >= DESCRIPTION_MAX
-                        ? 'text-red-400'
-                        : description.length > DESCRIPTION_MAX * 0.85
-                          ? 'text-amber-400'
-                          : 'text-gray-500'
-                    }`}
-                  >
-                    {description.length} / {DESCRIPTION_MAX}
-                  </span>
-                </div>
-              </div>
 
               {/* Toolbar */}
               <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-800 pb-2">
@@ -1793,6 +1779,35 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Description (max 120 chars). Lives below tags so the user
+                  finishes long-form first; the short summary that appears in
+                  feed cards is a refinement step at the end. */}
+              <div>
+                <textarea
+                  value={description}
+                  onChange={(e) =>
+                    setDescription(e.target.value.slice(0, DESCRIPTION_MAX))
+                  }
+                  placeholder="Short description (shown in feeds, max 120 chars)"
+                  rows={2}
+                  disabled={isDisabled}
+                  className="w-full bg-transparent text-sm text-gray-200 placeholder-gray-500 outline-none border-b border-gray-800 py-2 focus:border-blue-500 transition-colors resize-none"
+                />
+                <div className="flex items-center justify-end">
+                  <span
+                    className={`text-[11px] ${
+                      description.length >= DESCRIPTION_MAX
+                        ? 'text-red-400'
+                        : description.length > DESCRIPTION_MAX * 0.85
+                          ? 'text-amber-400'
+                          : 'text-gray-500'
+                    }`}
+                  >
+                    {description.length} / {DESCRIPTION_MAX}
+                  </span>
+                </div>
+              </div>
 
               {/* Beneficiary strip */}
               {!hideBeneficiaries && beneficiaries.length > 0 && (
