@@ -91,7 +91,7 @@ export function UpvoteList({
             <div>
               <p className="font-medium text-gray-900 dark:text-white">@{vote.voter}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {Math.round(vote.percent / 100)}%
+                {(vote.percent / 100).toFixed(2)}%
               </p>
             </div>
           </div>

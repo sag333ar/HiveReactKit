@@ -1877,7 +1877,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <span className="text-blue-400 font-medium">{formatNum(row.hp)} HP</span>
                   <span className="text-purple-400 font-medium">${formatNum(row.hbd)} HBD</span>
                   <span className="text-gray-500">
-                    Vote: {row.weightPct.toFixed(0)}%
+                    Vote: {row.weightPct.toFixed(2)}%
                   </span>
                   {row.efficiency !== null && (
                     <span className={`font-medium ${row.efficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`}>

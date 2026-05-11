@@ -346,9 +346,9 @@ const ActivityList: React.FC<ActivityListProps> = ({
               <div className="flex items-center gap-1">
                 <span>Block #{activity.block}</span>
               </div>
-              {activity.weight && (
+              {activity.weight !== undefined && activity.weight !== null && (
                 <div className="flex items-center gap-1">
-                  <span>{activity.weight}%</span>
+                  <span>{activity.weight.toFixed(2)}%</span>
                 </div>
               )}
               {activity.payout && (

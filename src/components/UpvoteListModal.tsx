@@ -436,7 +436,7 @@ const UpvoteListModal = ({
           ) : (
             <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
               {sortedVotes.map((vote) => {
-                const percent = Math.round((vote.percent ?? 0) / 100);
+                const percent = ((vote.percent ?? 0) / 100).toFixed(2);
                 const valueShown =
                   sort === "curation" ? vote.curation : vote.value;
                 return (

@@ -211,7 +211,8 @@ class ActivityListService {
     const { voter, author, permlink, weight } = value;
     const isIncoming = author === username;
     const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
-    const weightPercent = (weight / 100).toFixed(0);
+    const weightPercentNum = weight / 100;
+    const weightPercent = weightPercentNum.toFixed(2);
 
     let description = '';
     if (isIncoming) {
@@ -228,7 +229,7 @@ class ActivityListService {
         voter,
         author,
         permlink,
-        weight: parseInt(weightPercent)
+        weight: weightPercentNum
       }
     };
   }
