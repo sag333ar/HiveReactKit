@@ -4,6 +4,9 @@ import { ThumbsUp, MessageCircle, Clock, Play } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { apiService } from "@/services/apiService";
 import { formatThumbnailUrl } from "@/utils/thumbnail";
+import { RewardsModal } from "@/components/RewardsModal";
+import type { RewardsModalPayoutDetails } from "@/components/RewardsModal";
+import { getHiveClient } from "@/config/hiveEndpoint";
 
 interface VideoCardProps {
   video: VideoFeedItem;
@@ -23,6 +26,54 @@ const VideoCard = ({
     numOfComments: video.numOfComments,
     hiveValue: video.hiveValue,
   });
+  // Rewards popup state — payout details are fetched lazily on click
+  // because the video feed item only carries the headline value, not
+  // the structured payout/beneficiary fields the modal needs.
+  const [showRewards, setShowRewards] = useState(false);
+  const [rewardsDetails, setRewardsDetails] = useState<RewardsModalPayoutDetails | null>(null);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+
+  const openRewards = async () => {
+    setShowRewards(true);
+    if (rewardsDetails || rewardsLoading) return;
+    if (!video.author || !video.permlink) return;
+    setRewardsLoading(true);
+    try {
+      const result: any = await getHiveClient().call(
+        "condenser_api",
+        "get_content",
+        [video.author, video.permlink],
+      );
+      const parseDollar = (v?: string) =>
+        parseFloat(String(v ?? "").replace(/[^\d.]/g, "")) || 0;
+      const pendingValue = parseDollar(result?.pending_payout_value);
+      const authorValue = parseDollar(result?.author_payout_value);
+      const curatorValue = parseDollar(result?.curator_payout_value);
+      const isPaidout = !!result?.last_payout && result.last_payout !== "1970-01-01T00:00:00";
+      const totalValue = pendingValue > 0 ? pendingValue : authorValue + curatorValue;
+      setRewardsDetails({
+        pendingValue,
+        authorValue,
+        curatorValue,
+        totalValue,
+        isPaidout,
+        payoutAt: result?.cashout_time && result.cashout_time !== "1969-12-31T23:59:59"
+          ? result.cashout_time
+          : undefined,
+        percentHbd: result?.percent_hbd ?? 10000,
+        beneficiaries: Array.isArray(result?.beneficiaries)
+          ? result.beneficiaries.map((b: { account: string; weight: number }) => ({
+              account: b.account,
+              weight: b.weight,
+            }))
+          : [],
+      });
+    } catch {
+      // leave details null — modal will render with empty data
+    } finally {
+      setRewardsLoading(false);
+    }
+  };
 
   // Fetch real stats in background if not provided
   useEffect(() => {
@@ -164,9 +215,14 @@ const VideoCard = ({
           </div>
 
           {stats.hiveValue != null && stats.hiveValue > 0 && (
-            <div className="text-primary font-semibold">
-              ${stats.hiveValue.toFixed(2)}
-            </div>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); openRewards(); }}
+              className="text-primary font-semibold rounded-md px-1 py-0.5 transition-colors hover:bg-white/5"
+              aria-label="Show rewards breakdown"
+            >
+              {stats.hiveValue.toFixed(2)}
+            </button>
           )}
         </div>
 
@@ -179,6 +235,21 @@ const VideoCard = ({
           </div>
         )}
       </div>
+
+      {showRewards && (
+        <RewardsModal
+          onClose={() => setShowRewards(false)}
+          details={rewardsDetails ?? {
+            pendingValue: stats.hiveValue ?? 0,
+            authorValue: 0,
+            curatorValue: 0,
+            totalValue: stats.hiveValue ?? 0,
+            isPaidout: false,
+            percentHbd: 10000,
+            beneficiaries: [],
+          }}
+        />
+      )}
     </div>
   );
 };
