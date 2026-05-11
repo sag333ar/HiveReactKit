@@ -122,24 +122,20 @@ class ActivityListService {
   ): ActivityListItem[] {
     return historyItems
       .filter(item => {
-        // Filter out unwanted operations
+        // Hide a couple of internal/duplicated virtual ops that aren't meaningful
+        // to users. Everything else flows through so the grouped operation
+        // filter (vote / transfer / witness / etc.) can match against op.type.
         const operationType = item.op.type;
-        return operationType !== 'effective_comment_vote' &&
-               operationType !== 'witness_set_properties' &&
-               operationType !== 'producer_reward' &&
-               operationType !== 'comment_reward' &&
-               operationType !== 'comment_payout_update' &&
-               operationType !== 'claim_reward_balance' &&
-               operationType !== 'transfer' &&
-               operationType !== 'claim_account' &&
-               operationType !== 'transfer_to_vesting' &&
-               operationType !== 'transfer_to_vesting_completed';
+        return operationType !== 'comment_payout_update' &&
+               operationType !== 'transfer_to_vesting_completed' &&
+               operationType !== 'producer_reward';
       })
       .map(item => {
         const activityItem = this.parseOperation(item, username);
         return {
           id: `${item.index}-${item.trx_id}`,
           type: activityItem.type,
+          op: item.op.type,
           direction: activityItem.direction,
           timestamp: item.timestamp,
           block: item.block,

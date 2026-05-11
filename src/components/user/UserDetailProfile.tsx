@@ -69,6 +69,18 @@ export interface UserDetailProfileProps {
    */
   tabShown?: TabType[];
 
+  /**
+   * Controlled active tab. When provided, the component renders this tab
+   * and reports user-driven tab changes via `onActiveTabChange`. Pair the
+   * two to drive tab selection from a parent store (e.g. persist per user
+   * across navigation). When omitted, the component manages tab state
+   * internally with its own per-username cache.
+   */
+  activeTab?: TabType;
+  /** Called whenever the user clicks a different tab. Fires whether or
+   *  not `activeTab` is supplied. */
+  onActiveTabChange?: (tab: TabType) => void;
+
   // Composer tokens (threaded to AddCommentInput via PostActionButton → CommentsModal)
   /** Ecency image hosting token — enables image and video thumbnail upload in comment composer */
   ecencyToken?: string;
@@ -323,6 +335,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
   renderSnapHeaderActions,
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
 }) => {
   const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -330,8 +344,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [error, setError] = useState<string | null>(null);
   // Default to the first tab in tabShown (or "blogs" when tabShown is omitted)
   // so we never briefly render a tab the consumer didn't include.
-  const initialTab: TabType = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const initialTab: TabType = controlledActiveTab
+    ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
+  const [internalActiveTab, setInternalActiveTab] = useState<TabType>(initialTab);
+  const isControlled = controlledActiveTab !== undefined;
+  const activeTab: TabType = isControlled ? (controlledActiveTab as TabType) : internalActiveTab;
+  // Centralised setter so every internal call site (cache restore, tab
+  // clicks, follower/following deep-links) also notifies the parent when
+  // controlled — and updates internal state when uncontrolled.
+  const setActiveTab = useCallback((next: TabType) => {
+    if (!isControlled) setInternalActiveTab(next);
+    onActiveTabChange?.(next);
+  }, [isControlled, onActiveTabChange]);
   const prevUsernameRef = useRef<string>("");
   const activeTabRef = useRef<TabType>(activeTab);
   activeTabRef.current = activeTab;
@@ -602,7 +626,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const cachedTabValid = cached?.tab && (
       !tabShown || tabShown.length === 0 || tabShown.includes(cached.tab)
     );
-    setActiveTab(cachedTabValid ? (cached!.tab as TabType) : firstTab);
+    // When the parent controls activeTab, it owns tab restoration — leave
+    // the controlled value alone (calling setActiveTab here would call
+    // onActiveTabChange and force the parent off its remembered tab).
+    if (!isControlled) {
+      setActiveTab(cachedTabValid ? (cached!.tab as TabType) : firstTab);
+    }
     // Restore scroll positions after render
     requestAnimationFrame(() => {
       if (cached) {

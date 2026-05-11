@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   FileText,
   MessageCircle,
@@ -12,21 +12,194 @@ import {
   Search,
   DollarSign,
   User,
+  ChevronDown,
+  Check,
+  X,
 } from "lucide-react";
 import { activityListService } from "@/services/activityListService";
 import {
   ActivityListItem,
   DirectionFilter,
-  GeneralFilter,
-  RewardFilter
+  OperationFilter,
+  OPERATION_FILTER_GROUPS,
 } from "@/types/activityList";
+
+interface OperationFilterDropdownProps {
+  value: OperationFilter;
+  onChange: (value: OperationFilter) => void;
+}
+
+const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedLabel = useMemo(() => {
+    if (value === "all") return "All";
+    for (const group of OPERATION_FILTER_GROUPS) {
+      const opt = group.options.find(o => o.value === value);
+      if (opt) return opt.label;
+    }
+    return "All";
+  }, [value]);
+
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return OPERATION_FILTER_GROUPS;
+    return OPERATION_FILTER_GROUPS
+      .map(group => ({
+        ...group,
+        options: group.options.filter(
+          o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+        ),
+      }))
+      .filter(group => group.options.length > 0);
+  }, [query]);
+
+  // Close on click outside.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  // Focus the search input when the panel opens.
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    } else {
+      setQuery("");
+    }
+  }, [open]);
+
+  const pick = (next: OperationFilter) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:px-3 sm:py-2 sm:text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Mobile backdrop — taps anywhere outside the panel close it. */}
+          <div
+            className="fixed inset-0 z-40 bg-black/30 sm:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+
+          <div
+            role="listbox"
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-xl border-t border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[60vh] sm:w-72 sm:rounded-lg sm:border"
+          >
+            {/* Header / search */}
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+              <Search className="h-4 w-4 shrink-0 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search filter…"
+                className="w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none dark:text-gray-100"
+              />
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 sm:hidden"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-1">
+              {/* "All" — always visible unless filtered out by the query. */}
+              {(query.trim() === "" || "all".includes(query.trim().toLowerCase())) && (
+                <button
+                  type="button"
+                  onClick={() => pick("all")}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
+                    value === "all"
+                      ? "bg-emerald-500 text-white"
+                      : "text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <span>All</span>
+                  {value === "all" && <Check className="h-4 w-4" />}
+                </button>
+              )}
+
+              {filteredGroups.map(group => (
+                <div key={group.label} className="mt-1">
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {group.label}
+                  </div>
+                  {group.options.map(opt => {
+                    const selected = value === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => pick(opt.value)}
+                        className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
+                          selected
+                            ? "bg-emerald-500 text-white"
+                            : "text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        <span className="truncate">{opt.label}</span>
+                        {selected && <Check className="h-4 w-4 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {filteredGroups.length === 0 && query.trim() !== "" && (
+                <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No filters match "{query}"
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 interface ActivityListProps {
   username: string;
   directionFilter?: DirectionFilter;
-  generalFilter?: GeneralFilter;
-  rewardFilter?: RewardFilter;
-  searchTerm?: string;
+  operationFilter?: OperationFilter;
   limit?: number;
   className?: string;
   onClickPermlink?: (author: string, permlink: string) => void;
@@ -36,18 +209,14 @@ interface ActivityListProps {
 const ActivityList: React.FC<ActivityListProps> = ({
   username,
   directionFilter = 'all',
-  generalFilter = 'all',
-  rewardFilter = 'all',
-  searchTerm = '',
+  operationFilter = 'all',
   limit = 1000,
   className,
   onClickPermlink,
   onSelectActivity,
 }) => {
-  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [localDirectionFilter, setLocalDirectionFilter] = useState(directionFilter);
-  const [localGeneralFilter, setLocalGeneralFilter] = useState(generalFilter);
-  const [localRewardFilter, setLocalRewardFilter] = useState(rewardFilter);
+  const [localOperationFilter, setLocalOperationFilter] = useState<OperationFilter>(operationFilter);
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<ActivityListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -129,52 +298,16 @@ const ActivityList: React.FC<ActivityListProps> = ({
   useEffect(() => {
     let filtered = activities;
 
-    // Filter by direction - exclude 'others' types when direction is 'all'
     if (localDirectionFilter !== 'all') {
       filtered = filtered.filter(activity => activity.direction === localDirectionFilter);
-    } else {
-      // When direction is 'all', exclude custom_json and comment_options (others)
-      filtered = filtered.filter(activity => activity.type !== 'custom_json' && activity.type !== 'comment_options');
     }
 
-    // Filter by general type
-    if (localGeneralFilter !== 'all') {
-      if (localGeneralFilter === 'votes') {
-        filtered = filtered.filter(activity => activity.type === 'vote' || activity.type === 'effective_comment_vote');
-      } else if (localGeneralFilter === 'comments') {
-        filtered = filtered.filter(activity => activity.type === 'comment');
-      } else if (localGeneralFilter === 'replies') {
-        filtered = filtered.filter(activity => activity.type === 'comment' && activity.direction === 'in');
-      } else if (localGeneralFilter === 'curation') {
-        filtered = filtered.filter(activity => activity.type === 'curation_reward');
-      } else if (localGeneralFilter === 'others') {
-        // When filtering for 'others', include custom_json and comment_options regardless of direction filter
-        filtered = activities.filter(activity => activity.type === 'custom_json' || activity.type === 'comment_options');
-      }
-    }
-
-    // Filter by reward type
-    if (localRewardFilter !== 'all') {
-      if (localRewardFilter === 'author') {
-        filtered = filtered.filter(activity => activity.type === 'effective_comment_vote' && activity.direction === 'in');
-      } else if (localRewardFilter === 'curation') {
-        filtered = filtered.filter(activity => activity.type === 'effective_comment_vote' && activity.direction === 'out');
-      } else if (localRewardFilter === 'benefactor') {
-        filtered = filtered.filter(activity => activity.type === 'comment_options');
-      }
-    }
-
-    // Apply search
-    if (localSearchTerm) {
-      filtered = filtered.filter(activity =>
-        activity.description.toLowerCase().includes(localSearchTerm.toLowerCase()) ||
-        activity.author?.toLowerCase().includes(localSearchTerm.toLowerCase()) ||
-        activity.permlink?.toLowerCase().includes(localSearchTerm.toLowerCase())
-      );
+    if (localOperationFilter !== 'all') {
+      filtered = filtered.filter(activity => activity.op === localOperationFilter);
     }
 
     setFilteredActivities(filtered);
-  }, [activities, localDirectionFilter, localGeneralFilter, localRewardFilter, localSearchTerm]);
+  }, [activities, localDirectionFilter, localOperationFilter]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -444,93 +577,98 @@ const ActivityList: React.FC<ActivityListProps> = ({
     );
   }
 
+  // Three-position direction toggle: left = Outgoing, center = All, right = Incoming.
+  // Center is the default — the sliding thumb tracks the active segment.
+  const directionIndex = localDirectionFilter === 'out' ? 0 : localDirectionFilter === 'in' ? 2 : 1;
+  const thumbColor =
+    localDirectionFilter === 'in'
+      ? 'bg-green-500 text-white'
+      : localDirectionFilter === 'out'
+        ? 'bg-blue-500 text-white'
+        : 'bg-white text-gray-900 dark:bg-gray-700 dark:text-white';
+
   return (
-    <div className="space-y-6">
-      {/* Navigation Bar with Filters */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          {/* Search */}
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search activities..."
-                value={localSearchTerm}
-                onChange={(e) => setLocalSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+    <div className="space-y-4">
+      {/* Compact filter bar — single row on every breakpoint. Toggle pinned
+          to the start, filter + refresh pushed to the end on desktop. */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-3">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+          {/* 3-position direction toggle. Default is centre (All). */}
+          <div
+            role="radiogroup"
+            aria-label="Direction"
+            className="relative grid shrink-0 grid-cols-3 rounded-full bg-gray-100 p-0.5 text-[11px] sm:text-sm dark:bg-gray-900 w-[8.5rem] sm:w-[11rem]"
+          >
+            <span
+              aria-hidden
+              className={`absolute top-0.5 bottom-0.5 left-0.5 rounded-full shadow-sm transition-transform duration-200 ease-out ${thumbColor}`}
+              style={{ width: 'calc(33.3333% - 0.25rem)', transform: `translateX(${directionIndex * 100}%)` }}
+            />
+            <button
+              type="button"
+              role="radio"
+              aria-checked={localDirectionFilter === 'out'}
+              onClick={() => setLocalDirectionFilter('out')}
+              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors ${
+                localDirectionFilter === 'out' ? 'text-white' : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              <ArrowUp className="h-3 w-3" />
+              <span>Out</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={localDirectionFilter === 'all'}
+              onClick={() => setLocalDirectionFilter('all')}
+              className={`relative z-10 inline-flex items-center justify-center whitespace-nowrap rounded-full px-1 py-1 sm:py-1.5 transition-colors ${
+                localDirectionFilter === 'all' ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              <span>All</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={localDirectionFilter === 'in'}
+              onClick={() => setLocalDirectionFilter('in')}
+              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors ${
+                localDirectionFilter === 'in' ? 'text-white' : 'text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              <ArrowDown className="h-3 w-3" />
+              <span>In</span>
+            </button>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2">
-            {/* Direction Filter */}
-            <select
-              value={localDirectionFilter}
-              onChange={(e) => setLocalDirectionFilter(e.target.value as DirectionFilter)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="all">All Directions</option>
-              <option value="in">Incoming</option>
-              <option value="out">Outgoing</option>
-            </select>
+          {/* End-of-row group: filter dropdown + refresh. Stays right on
+              desktop; on mobile takes the remaining space (filter expands,
+              refresh stays compact). */}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none sm:gap-2">
+            <div className="min-w-0 flex-1 sm:flex-none sm:w-44">
+              <OperationFilterDropdown
+                value={localOperationFilter}
+                onChange={setLocalOperationFilter}
+              />
+            </div>
 
-            {/* General Filter */}
-            <select
-              value={localGeneralFilter}
-              onChange={(e) => setLocalGeneralFilter(e.target.value as GeneralFilter)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="all">All Types</option>
-              <option value="votes">Votes</option>
-              <option value="comments">Comments</option>
-              <option value="replies">Replies</option>
-              <option value="curation">Curation</option>
-              <option value="others">Others</option>
-            </select>
-
-            {/* Reward Filter */}
-            <select
-              value={localRewardFilter}
-              onChange={(e) => setLocalRewardFilter(e.target.value as RewardFilter)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="all">All Rewards</option>
-              <option value="author">Author</option>
-              <option value="curation">Curation</option>
-              <option value="benefactor">Benefactor</option>
-            </select>
-
-            {/* Refresh */}
             <button
               onClick={() => loadActivities()}
               disabled={loading || loadingMore}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="shrink-0 rounded-md border border-gray-200 bg-gray-50 p-1.5 text-gray-700 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:p-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+              aria-label="Refresh"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading || loadingMore ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Total: <span className="font-semibold text-gray-900 dark:text-white">{activities.length}</span>
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Filtered: <span className="font-semibold text-gray-900 dark:text-white">{filteredActivities.length}</span>
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Incoming: <span className="font-semibold text-green-600 dark:text-green-400">
-              {activities.filter(a => a.direction === 'in').length}
-            </span>
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Outgoing: <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {activities.filter(a => a.direction === 'out').length}
-            </span>
-          </div>
+        {/* Compact stats — single row on mobile too */}
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-200 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-400">
+          <span>Total: <span className="font-semibold text-gray-900 dark:text-white">{activities.length}</span></span>
+          <span>Shown: <span className="font-semibold text-gray-900 dark:text-white">{filteredActivities.length}</span></span>
+          <span>In: <span className="font-semibold text-green-600 dark:text-green-400">{activities.filter(a => a.direction === 'in').length}</span></span>
+          <span>Out: <span className="font-semibold text-blue-600 dark:text-blue-400">{activities.filter(a => a.direction === 'out').length}</span></span>
         </div>
       </div>
 
