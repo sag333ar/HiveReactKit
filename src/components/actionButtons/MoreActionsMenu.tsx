@@ -16,9 +16,12 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Repeat2, Share2, Gift, Flag } from 'lucide-react';
+import { MoreVertical, Repeat2, Share2, Gift, Flag, Pencil } from 'lucide-react';
 
 export interface MoreActionsMenuProps {
+  /** Show the Edit item (rendered first, gated by the caller to the
+   *  author themselves). */
+  onEdit?: () => void;
   /** Show the Reblog item. */
   onReblog?: () => void;
   /** Show the Share item. */
@@ -38,6 +41,7 @@ const MENU_WIDTH = 160; // matches w-40
 const GAP = 4;
 
 export function MoreActionsMenu({
+  onEdit,
   onReblog,
   onShare,
   onTip,
@@ -104,7 +108,7 @@ export function MoreActionsMenu({
 
   // No registered actions → render nothing (mirrors how the inline icons
   // disappear when their callbacks aren't passed).
-  if (!onReblog && !onShare && !onTip && !onReport) return null;
+  if (!onEdit && !onReblog && !onShare && !onTip && !onReport) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -127,6 +131,17 @@ export function MoreActionsMenu({
             className="overflow-hidden rounded-lg border border-[#3a424a] bg-[#1f2429] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {onEdit && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onEdit)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#e7e7f1] transition-colors hover:bg-[#2f353d]"
+              >
+                <Pencil className="h-3.5 w-3.5 text-blue-400" />
+                <span>Edit</span>
+              </button>
+            )}
             {onReblog && (
               <button
                 type="button"

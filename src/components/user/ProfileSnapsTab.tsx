@@ -70,6 +70,23 @@ export interface ProfileSnapsTabProps {
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Edit entry-point inside each snap's 3-dot menu — gated to the
+   *  snap's author. Forwarded directly to <SnapsFeedView/>. */
+  onEditSnap?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
+  /** Cast a poll vote from inside a snap card. */
+  onVotePoll?: (
+    author: string,
+    permlink: string,
+    choiceNums: number[],
+  ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
 

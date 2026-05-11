@@ -135,11 +135,37 @@ export interface HiveDetailPostProps {
   onShare?: () => void;
   onTip?: () => void;
   onReport?: () => void;
+  /** Called when the post author taps Edit on their own post. Only
+   *  rendered as an action when `currentUser === post.author`. The
+   *  payload contains everything the consumer needs to open an edit
+   *  modal without re-fetching: original body, title, parent refs, and
+   *  json_metadata. */
+  onEdit?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
 
   // Comment-level action callbacks (receive author/permlink of the specific comment)
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Called when the comment author taps Edit on their own comment. Only
+   *  rendered as an action on comments whose author matches `currentUser`.
+   *  Includes the original body, parent refs, and json_metadata so the
+   *  consumer can open an edit modal without re-fetching. */
+  onEditComment?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
 
   /**
    * Called when the user submits a poll vote.
@@ -245,9 +271,11 @@ export function HiveDetailPost({
   onShare,
   onTip,
   onReport,
+  onEdit,
   onShareComment,
   onTipComment,
   onReportComment,
+  onEditComment,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -1246,6 +1274,19 @@ export function HiveDetailPost({
                 onShare={onShare}
                 onTip={onTip}
                 onReport={onReport}
+                onEdit={onEdit && currentUser && post.author === currentUser
+                  ? () => onEdit({
+                      author: post.author,
+                      permlink: post.permlink,
+                      body: post.body ?? '',
+                      title: post.title ?? '',
+                      parent_author: post.parent_author ?? '',
+                      parent_permlink: post.parent_permlink ?? '',
+                      json_metadata: typeof post.json_metadata === 'string'
+                        ? post.json_metadata
+                        : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),
+                    })
+                  : undefined}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}
@@ -1283,6 +1324,7 @@ export function HiveDetailPost({
                 onShareComment={onShareComment}
                 onTipComment={onTipComment}
                 onReportComment={onReportComment}
+                onEditComment={onEditComment}
                 onNavigateToPost={onNavigateToPost}
                 onUserClick={onUserClick}
                 showVoteButton={showVoteButton}

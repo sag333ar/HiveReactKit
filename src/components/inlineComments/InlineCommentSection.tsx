@@ -55,6 +55,18 @@ interface InlineCommentSectionProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Called when the comment author taps Edit on one of their own
+   *  comments. Each comment row gates the entry-point internally to
+   *  `comment.author === currentUser`. Payload mirrors HiveDetailPost
+   *  `onEditComment` — includes body / parent refs / json_metadata. */
+  onEditComment?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
   /** Intercept intra-body Hive post links in comment bodies. */
   onNavigateToPost?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive profile links in comment bodies. */
@@ -79,6 +91,7 @@ export default function InlineCommentSection({
   onShareComment,
   onTipComment,
   onReportComment,
+  onEditComment,
   onNavigateToPost,
   onUserClick,
   showVoteButton,
@@ -376,6 +389,7 @@ export default function InlineCommentSection({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onEditComment={onEditComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}

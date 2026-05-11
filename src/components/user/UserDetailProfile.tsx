@@ -149,6 +149,17 @@ export interface UserDetailProfileProps {
    * vote bars but is read-only.
    */
   onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | boolean | Promise<void | boolean>;
+  /** Forwarded to each snap card on the Snaps tab — opens the
+   *  consumer's edit modal when the snap's author taps Edit. */
+  onEditSnap?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
@@ -316,6 +327,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onCreateHpDelegation,
   onCreateRcDelegation,
   onVotePoll,
+  onEditSnap,
   onUserClick,
   onPostClick,
   onSnapClick,
@@ -2186,6 +2198,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onReportPost={onReportPost
               ? (author, permlink) => setReportPostTarget({ author, permlink })
               : undefined}
+            onVotePoll={onVotePoll}
+            onEditSnap={onEditSnap}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}

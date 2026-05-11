@@ -7,6 +7,7 @@ import {
   Flag,
   Loader2,
   Gift,
+  Pencil,
 } from "lucide-react";
 import { VoteSlider } from "@/components/VoteSlider";
 import UpvoteListModal from "@/components/UpvoteListModal";
@@ -66,6 +67,10 @@ export interface PostActionButtonProps {
   allowLandscapeVideos?: boolean;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
+  /** Called when the Edit action is clicked. Pass only when the current
+   *  user is the post's author — the kit renders the Edit entry-point
+   *  iff this handler is provided. */
+  onEdit?: () => void;
   /** Called when reblog is clicked (when logged in). */
   onReblog?: () => void;
   /** Called when share is clicked. */
@@ -127,6 +132,7 @@ export function PostActionButton({
   onUpvote,
   onSubmitComment,
   onComments,
+  onEdit,
   onReblog,
   onShare,
   onTip,
@@ -563,6 +569,7 @@ export function PostActionButton({
           into a single 3-dot kebab popover when `actionsAsMenu` is set. */}
       {actionsAsMenu ? (
         <MoreActionsMenu
+          onEdit={onEdit}
           onReblog={onReblog ? handleReblogClick : undefined}
           onShare={handleShareClick}
           onTip={onTip ? handleTipClick : undefined}
@@ -570,6 +577,22 @@ export function PostActionButton({
         />
       ) : (
         <>
+          {/* Edit — only present when the consumer passes an onEdit handler
+              (gated to the author). */}
+          {onEdit && (
+          <div className="relative group">
+            <span className={tooltipClass}>Edit</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+              aria-label="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          </div>
+          )}
+
           {/* Reblog */}
           {onReblog && (
           <div className="relative group">

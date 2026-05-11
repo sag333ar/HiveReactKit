@@ -28,6 +28,7 @@ import {
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
+import { PollVoteWidget } from '../PollVoteWidget';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
@@ -57,6 +58,26 @@ export interface SnapsFeedCardProps {
    *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Called when the snap's author taps Edit on the action-bar kebab.
+   *  The kit only renders the entry-point when `currentUser` matches
+   *  `post.author`. Payload mirrors HiveDetailPost.onEdit. */
+  onEditSnap?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
+  /** Called when the viewer submits a vote on a poll embedded in this
+   *  snap. Pass the same handler used for poll posts on the detail
+   *  page — consumers broadcast a `custom_json` op (id: "polls"). */
+  onVotePoll?: (
+    author: string,
+    permlink: string,
+    choiceNums: number[],
+  ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
   onTagClick?: (tag: string) => void;
@@ -674,6 +695,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onEditSnap,
+  onVotePoll,
   onUserClick,
   onPostClick,
   onTagClick,
@@ -962,6 +985,31 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         ) : null}
       </div>
 
+      {/* Poll widget — rendered when the snap's json_metadata declares
+          `content_type === 'poll'`. */}
+      {(() => {
+        const meta = parseJsonMetadata(post.json_metadata as unknown) as {
+          content_type?: string;
+          question?: string;
+          choices?: string[];
+          end_time?: number;
+          max_choices_voted?: number;
+          allow_vote_changes?: boolean;
+        };
+        if (meta.content_type !== 'poll') return null;
+        return (
+          <div className="px-3 pb-1.5" onClick={(e) => e.stopPropagation()}>
+            <PollVoteWidget
+              author={post.author}
+              permlink={post.permlink}
+              currentUser={currentUser}
+              onVotePoll={onVotePoll}
+              parsedMetadata={meta}
+            />
+          </div>
+        );
+      })()}
+
       {/* Action bar */}
       <div className="border-t border-[#3a424a]/60 px-2 py-1.5">
         <PostActionButton
@@ -979,6 +1027,19 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
+          onEdit={onEditSnap && currentUser && post.author === currentUser
+            ? () => onEditSnap({
+                author: post.author,
+                permlink: post.permlink,
+                body: post.body ?? '',
+                title: post.title ?? '',
+                parent_author: post.parent_author ?? '',
+                parent_permlink: post.parent_permlink ?? '',
+                json_metadata: typeof post.json_metadata === 'string'
+                  ? post.json_metadata
+                  : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),
+              })
+            : undefined}
           disableCommentsModal={!!onCommentClick}
           onComments={onCommentClick ? () => onCommentClick(post.author, post.permlink) : undefined}
           onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(post.author, post.permlink, parentMetaTags) : undefined}

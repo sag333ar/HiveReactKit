@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag } from 'lucide-react';
+import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
 import { Discussion } from '@/types/comment';
@@ -38,6 +38,16 @@ interface InlineCommentItemProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Called when the author of this comment taps Edit. Each row gates
+   *  the entry-point internally to `comment.author === currentUser`. */
+  onEditComment?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
   /** Called when an intra-body link points at a Hive post (peakd/hive.blog/ecency/inleo). */
   onNavigateToPost?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive user profile. */
@@ -87,6 +97,7 @@ export default function InlineCommentItem({
   onShareComment,
   onTipComment,
   onReportComment,
+  onEditComment,
   onNavigateToPost,
   onUserClick,
   defaultReward,
@@ -428,6 +439,26 @@ export default function InlineCommentItem({
                   <span>Reply</span>
                 </button>
 
+                {/* Edit — only the comment author. */}
+                {onEditComment && currentUser && comment.author === currentUser && (
+                  <button
+                    onClick={() => onEditComment({
+                      author: comment.author,
+                      permlink: comment.permlink,
+                      body: comment.body ?? '',
+                      parent_author: comment.parent_author ?? '',
+                      parent_permlink: comment.parent_permlink ?? '',
+                      json_metadata: typeof comment.json_metadata === 'string'
+                        ? comment.json_metadata
+                        : (comment.json_metadata ? JSON.stringify(comment.json_metadata) : ''),
+                    })}
+                    className="text-gray-400 hover:text-blue-400 transition-colors p-0.5"
+                    title="Edit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
                 {/* Secondary: share, report, tip — icons only on mobile */}
                 {onShareComment && (
                   <button
@@ -692,6 +723,7 @@ export default function InlineCommentItem({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onEditComment={onEditComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}

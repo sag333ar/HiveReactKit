@@ -77,6 +77,23 @@ export interface SnapsFeedViewProps {
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Forwarded to every <SnapsFeedCard/> — Edit entry on the action-bar
+   *  kebab, gated to the snap's author. */
+  onEditSnap?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
+  /** Cast a poll vote from inside a snap card (custom_json id: "polls"). */
+  onVotePoll?: (
+    author: string,
+    permlink: string,
+    choiceNums: number[],
+  ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
 
@@ -194,6 +211,8 @@ export function SnapsFeedView({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onEditSnap,
+  onVotePoll,
   onUserClick,
   onPostClick,
   ecencyToken,
@@ -301,6 +320,8 @@ export function SnapsFeedView({
     onClickCommentIcon,
     onClickCommentCount,
     onReportPost,
+    onEditSnap,
+    onVotePoll,
     onUserClick,
     onPostClick,
     ecencyToken,
