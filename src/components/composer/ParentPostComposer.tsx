@@ -81,6 +81,12 @@ export interface ParentPostSubmitPayload {
   videoEmbedUrl: string | null;
   videoUploadUrl: string | null;
   videoAspectRatio: string | null;
+  /** True when the consumer enabled the reblog toggle AND the user
+   *  left it on — host should fire a second `reblog` custom_json with
+   *  `(author=currentUser, permlink=<new post permlink>)` after the
+   *  post broadcast succeeds. Only meaningful when the post was sent
+   *  to a community (`reblogToggle` is auto-hidden otherwise). */
+  reblog: boolean;
   /**
    * Full 3Speak upload metadata when the user attached a video — populated
    * by the kit's `<VideoUploader>` after a successful TUS upload. Consumers
@@ -209,6 +215,20 @@ export interface ParentPostComposerProps {
    * consumer owns the state.
    */
   communitySlot?: React.ReactNode;
+
+  /** When true, render an inline "Reblog after publish" toggle next to
+   *  the community pill. Typical use: host app flips this on when a
+   *  community is selected, so users can also reblog the post into
+   *  their own feed after the parent broadcast succeeds. The toggle
+   *  state is emitted via `ParentPostSubmitPayload.reblog`; the host
+   *  is responsible for the second broadcast. */
+  reblogToggle?: boolean;
+  /** Initial state of the reblog toggle when `reblogToggle` is shown.
+   *  Defaults to `true` to match the screenshot UX (toggle on by
+   *  default whenever it's offered). */
+  reblogToggleDefault?: boolean;
+  /** Label rendered next to the toggle. Defaults to "Reblog". */
+  reblogToggleLabel?: string;
 }
 
 /** Small Hive avatar with a UI Avatars fallback — matches other kit components. */
@@ -274,11 +294,22 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   beforeVideoUpload,
   useThreeSpeakV2 = false,
   communitySlot,
+  reblogToggle = false,
+  reblogToggleDefault = false,
+  reblogToggleLabel = 'Reblog',
 }) => {
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [body, setBody] = useState(initialBody);
+  // Reblog toggle (only meaningful when the host enabled `reblogToggle`).
+  // Tracking the host-controlled default lets the toggle flip on/off as
+  // the host shows/hides it (e.g. user selects then clears the community).
+  const [reblog, setReblog] = useState<boolean>(reblogToggle ? reblogToggleDefault : false);
+  useEffect(() => {
+    setReblog(reblogToggle ? reblogToggleDefault : false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reblogToggle, reblogToggleDefault]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = isSubmitting;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1076,6 +1107,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         videoUploadDetails,
         hasVideo: Boolean(videoUploadDetails),
         isNsfw,
+        reblog: reblogToggle ? reblog : false,
       };
       const result = await Promise.resolve(onSubmit(payload));
       if (result === false) return; // cancelled — preserve draft
@@ -1105,6 +1137,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     isNsfw,
     onSubmit,
     clearDraftAndReset,
+    reblog,
+    reblogToggle,
   ]);
 
   const removeAudio = () => {
@@ -1256,10 +1290,42 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             )}
 
             <div className="px-3 sm:px-6 py-4 space-y-3">
-              {/* Consumer-rendered slot (e.g. community picker). Sits at the
-                  very top so post-routing decisions happen before the user
-                  starts typing. */}
-              {communitySlot}
+              {/* Consumer-rendered slot (e.g. community picker) + optional
+                  Reblog toggle on the right. Sits at the very top so
+                  post-routing decisions happen before the user starts
+                  typing. */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">{communitySlot}</div>
+                {reblogToggle && (
+                  <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-gray-300">
+                    <span>{reblogToggleLabel}:</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={reblog}
+                      aria-label={`${reblogToggleLabel} ${reblog ? 'on' : 'off'}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setReblog((v) => !v);
+                      }}
+                      disabled={isDisabled}
+                      className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors ${
+                        reblog ? 'bg-blue-500' : 'bg-gray-600'
+                      } disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                          reblog ? 'translate-x-4' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                    <span className={`font-medium ${reblog ? 'text-blue-300' : 'text-gray-400'}`}>
+                      {reblog ? 'yes' : 'no'}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Title */}
               <input

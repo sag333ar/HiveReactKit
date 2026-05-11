@@ -423,6 +423,30 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         }
         const payoutTooltip = tooltipLines.join('\n');
 
+        // Structured payout details consumed by the rewards modal when
+        // the user taps the payout chip.
+        const parseDollar = (v?: string) =>
+          parseFloat((v ?? '').replace(/[^\d.]/g, '')) || 0;
+        const pendingValue = parseDollar(item.pending_payout_value);
+        const authorValue = parseDollar(item.author_payout_value);
+        const curatorValue = parseDollar(item.curator_payout_value);
+        const totalValue = item.payout && item.payout > 0
+          ? item.payout
+          : (pendingValue > 0 ? pendingValue : authorValue + curatorValue);
+        const payoutDetails = {
+          pendingValue,
+          authorValue,
+          curatorValue,
+          totalValue,
+          isPaidout: !!item.is_paidout,
+          payoutAt: item.payout_at,
+          percentHbd: item.percent_hbd ?? 10000,
+          beneficiaries: (item.beneficiaries ?? []).map((b) => ({
+            account: b.account,
+            weight: b.weight,
+          })),
+        };
+
         const handleClick = onPostClick
           ? () => onPostClick(item.author, item.permlink, item.title)
           : undefined;
@@ -491,6 +515,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 hiveValue={rawPayout}
                 hiveIconUrl="/images/hive_logo.png"
                 payoutTooltip={payoutTooltip}
+                payoutDetails={payoutDetails}
                 initialVotes={(item.active_votes as ActiveVote[] | undefined) ?? []}
                 initialCommentsCount={item.children || 0}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}

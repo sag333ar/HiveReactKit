@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { VoteSlider } from "@/components/VoteSlider";
 import UpvoteListModal from "@/components/UpvoteListModal";
+import { RewardsModal } from "@/components/RewardsModal";
+import type { RewardsModalPayoutDetails } from "@/components/RewardsModal";
 import CommentsModal from "@/components/comments/CommentsModal";
 import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
@@ -25,8 +27,15 @@ export interface PostActionButtonProps {
   hiveValue?: string;
   /** Optional: URL to a Hive logo icon shown next to the payout value */
   hiveIconUrl?: string;
-  /** Optional: Tooltip text shown on hover over the payout value (e.g. payout breakdown) */
+  /** Optional: Tooltip text shown on hover over the payout value (e.g. payout breakdown).
+   *  Deprecated path used for compatibility — when `payoutDetails` is
+   *  also provided the value pill becomes a tap target opening the
+   *  full `RewardsModal` instead of a hover tooltip. */
   payoutTooltip?: string;
+  /** Structured payout breakdown — when supplied, tapping the payout
+   *  chip opens a `RewardsModal` showing pending/realised amounts,
+   *  HBD↔HP split, time to payout, and a beneficiary list. */
+  payoutDetails?: RewardsModalPayoutDetails;
   /** Optional: Pre-loaded active votes array from the Post object. Skips the API call when provided. */
   initialVotes?: ActiveVote[];
   /** Optional: Pre-loaded comments count from the Post object (item.children). Skips the API call when provided. */
@@ -126,6 +135,7 @@ export function PostActionButton({
   hiveValue,
   hiveIconUrl,
   payoutTooltip,
+  payoutDetails,
   initialVotes,
   initialCommentsCount,
   onUpvote,
@@ -167,6 +177,7 @@ export function PostActionButton({
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({
     message: "",
@@ -645,24 +656,43 @@ export function PostActionButton({
       )}
       </div>
 
-      {/* Hive Value at end with icon and tooltip */}
+      {/* Hive Value at end. When `payoutDetails` is supplied, the chip
+          becomes a tap target opening the full RewardsModal. The
+          legacy hover tooltip path is preserved for callers that have
+          not migrated to the structured breakdown yet. */}
       <div className="flex-1 flex justify-end min-w-0 shrink-0">
         {hiveValue != null && hiveValue !== "" && (
-          <div className="relative group">
-            <div className="flex items-center gap-1 cursor-default">
+          payoutDetails ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowRewardsModal(true); }}
+              className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-white/5"
+              aria-label="Show rewards breakdown"
+            >
               <span className="font-semibold text-green-400 text-xs sm:text-sm">
                 {hiveValue}
               </span>
               {hiveIconUrl && (
                 <img src={hiveIconUrl} alt="Hive" className="w-4 h-4 rounded-full" />
               )}
-            </div>
-            {payoutTooltip && (
-              <div className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2 text-xs text-gray-200 bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-pre-line opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 z-[60]">
-                {payoutTooltip}
+            </button>
+          ) : (
+            <div className="relative group">
+              <div className="flex items-center gap-1 cursor-default">
+                <span className="font-semibold text-green-400 text-xs sm:text-sm">
+                  {hiveValue}
+                </span>
+                {hiveIconUrl && (
+                  <img src={hiveIconUrl} alt="Hive" className="w-4 h-4 rounded-full" />
+                )}
               </div>
-            )}
-          </div>
+              {payoutTooltip && (
+                <div className="absolute right-0 bottom-full mb-2 w-64 px-3 py-2 text-xs text-gray-200 bg-gray-900 border border-gray-700 rounded-lg shadow-xl whitespace-pre-line opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 z-[60]">
+                  {payoutTooltip}
+                </div>
+              )}
+            </div>
+          )
         )}
       </div>
 
@@ -675,6 +705,15 @@ export function PostActionButton({
           step={voteWeightStep}
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
+        />
+      )}
+
+      {/* Rewards / beneficiaries modal */}
+      {showRewardsModal && payoutDetails && (
+        <RewardsModal
+          onClose={() => setShowRewardsModal(false)}
+          details={payoutDetails}
+          hiveIconUrl={hiveIconUrl}
         />
       )}
 

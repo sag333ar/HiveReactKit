@@ -811,6 +811,33 @@ export function HiveDetailPost({
     return lines.join('\n');
   }, [post]);
 
+  // Structured payout details consumed by the rewards modal opened
+  // from the action bar's payout chip. Mirrors the data the legacy
+  // `payoutTooltip` string carried — keeps both paths in sync so
+  // consumers that don't pass the modal still see the tooltip.
+  const payoutDetails = useMemo(() => {
+    if (!post) return undefined;
+    const pendingValue = parseHiveValue(post.pending_payout_value);
+    const authorValue = parseHiveValue(post.author_payout_value);
+    const curatorValue = parseHiveValue(post.curator_payout_value);
+    const totalValue = post.payout && post.payout > 0
+      ? post.payout
+      : (pendingValue > 0 ? pendingValue : authorValue + curatorValue);
+    return {
+      pendingValue,
+      authorValue,
+      curatorValue,
+      totalValue,
+      isPaidout: !!post.is_paidout,
+      payoutAt: post.payout_at,
+      percentHbd: post.percent_hbd ?? 10000,
+      beneficiaries: (post.beneficiaries ?? []).map((b) => ({
+        account: b.account,
+        weight: b.weight,
+      })),
+    };
+  }, [post]);
+
   // ─── Skeleton loading state ─────────────────────────────────────────────────
 
   if (loading) {
@@ -1265,6 +1292,7 @@ export function HiveDetailPost({
                 hiveValue={payoutValue}
                 hiveIconUrl={hiveIconUrl}
                 payoutTooltip={payoutTooltip}
+                payoutDetails={payoutDetails}
                 initialVotes={post.active_votes || []}
                 initialCommentsCount={post.children || 0}
                 onUpvote={onUpvote}

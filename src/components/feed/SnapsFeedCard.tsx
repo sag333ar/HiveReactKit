@@ -844,6 +844,32 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       ? post.pending_payout_value.replace(/[^\d.]/g, '')
       : '0.000';
 
+  // Structured payout/beneficiary breakdown for the rewards modal
+  // surfaced from the action bar's payout chip.
+  const payoutDetails = (() => {
+    const parseDollar = (v?: string) =>
+      parseFloat((v ?? '').replace(/[^\d.]/g, '')) || 0;
+    const pendingValue = parseDollar(post.pending_payout_value as unknown as string);
+    const authorValue = parseDollar(post.author_payout_value as unknown as string);
+    const curatorValue = parseDollar(post.curator_payout_value as unknown as string);
+    const totalValue = post.payout && post.payout > 0
+      ? post.payout
+      : (pendingValue > 0 ? pendingValue : authorValue + curatorValue);
+    return {
+      pendingValue,
+      authorValue,
+      curatorValue,
+      totalValue,
+      isPaidout: !!post.is_paidout,
+      payoutAt: post.payout_at,
+      percentHbd: post.percent_hbd ?? 10000,
+      beneficiaries: (post.beneficiaries ?? []).map((b) => ({
+        account: b.account,
+        weight: b.weight,
+      })),
+    };
+  })();
+
   const handleBodyClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('a, button, input, textarea, select, video, iframe, img, [role="button"], [role="dialog"]')) return;
@@ -1018,6 +1044,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           currentUser={currentUser}
           hiveValue={rawPayout}
           hiveIconUrl="/images/hive_logo.png"
+          payoutDetails={payoutDetails}
           initialVotes={(post.active_votes as ActiveVote[] | undefined) ?? []}
           initialCommentsCount={post.children || 0}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
