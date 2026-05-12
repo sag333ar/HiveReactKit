@@ -69,6 +69,13 @@ export interface PostComposerProps {
    * the leading entries in the merged list. Capped at 10 total.
    */
   defaultTags?: string[];
+  /**
+   * Editable tags seeded into the composer on mount — typically the user's
+   * personal default tags from app settings. Unlike `defaultTags`, these
+   * render as removable chips so the user can take them off per-post.
+   * Any value already in `defaultTags` (locked) is filtered out.
+   */
+  initialUserTags?: string[];
   /** Max total tags including defaults (default 10). */
   maxTags?: number;
   /** Called whenever the user-added tags change. Receives the full merged list (defaults first). */
@@ -200,6 +207,7 @@ const PostComposer = ({
   hidePoll,
   onPollChange,
   defaultTags,
+  initialUserTags,
   maxTags = 10,
   onTagsChange,
   hideTags,
@@ -267,7 +275,20 @@ const PostComposer = ({
     () => (defaultTags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean),
     [defaultTags],
   );
-  const [userTags, setUserTags] = useState<string[]>([]);
+  const [userTags, setUserTags] = useState<string[]>(() => {
+    // Seed editable tags from the host (e.g. user's Settings defaults),
+    // dropping anything that already lives in the locked list so the chip
+    // doesn't appear twice.
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of initialUserTags ?? []) {
+      const t = String(raw).trim().toLowerCase().replace(/^#+/, '').replace(/\s+/g, '-');
+      if (!t || seen.has(t) || lockedTags.includes(t)) continue;
+      seen.add(t);
+      out.push(t);
+    }
+    return out;
+  });
   const [isTagsOpen, setIsTagsOpen] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
   const mergedTags = useMemo(() => [...lockedTags, ...userTags], [lockedTags, userTags]);

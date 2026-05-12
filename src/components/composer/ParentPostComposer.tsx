@@ -974,7 +974,23 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         if (typeof draft.title === 'string') setTitle(draft.title);
         if (typeof draft.description === 'string') setDescription(draft.description);
         if (typeof draft.body === 'string') setBody(draft.body);
-        if (Array.isArray(draft.userTags)) setUserTags(draft.userTags);
+        if (Array.isArray(draft.userTags)) {
+          // Merge with current `initialTags` so user defaults added in
+          // Settings after the draft was saved still appear pre-filled.
+          // The locked tag list is excluded because it's prepended
+          // separately when computing `mergedTags`.
+          const seen = new Set<string>();
+          const merged: string[] = [];
+          const push = (raw: string) => {
+            const t = raw.trim().toLowerCase();
+            if (!t || seen.has(t) || lockedTagList.includes(t)) return;
+            seen.add(t);
+            merged.push(t);
+          };
+          for (const t of initialTags ?? []) push(t);
+          for (const t of draft.userTags) push(t);
+          setUserTags(merged);
+        }
         if (draft.reward) setReward(draft.reward);
         if (Array.isArray(draft.beneficiaries)) setBeneficiaries(draft.beneficiaries);
         if (draft.audioEmbedUrl !== undefined) setAudioEmbedUrl(draft.audioEmbedUrl);
