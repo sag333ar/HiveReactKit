@@ -73,6 +73,11 @@ export interface PostActionButtonProps {
   voteWeightStep?: number;
   /** Allow landscape videos in the embedded comment composer's uploader. Default false. */
   allowLandscapeVideos?: boolean;
+  /** When true, the vote slider + reply composer surface a blinking
+   *  "Open Keychain App & Approve" hint while a broadcast is in
+   *  flight. Set this when the logged-in user is on a wallet
+   *  provider (Keychain, HiveAuth, PeakVault). */
+  awaitingWalletApproval?: boolean;
   /** Called when comment button is clicked (e.g. open comments). */
   onComments?: () => void;
   /** Called when the Edit action is clicked. Pass only when the current
@@ -166,6 +171,7 @@ export function PostActionButton({
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
   actionsAsMenu = false,
+  awaitingWalletApproval = false,
 }: PostActionButtonProps) {
   const currentUser =
     currentUserProp == null || currentUserProp === ""
@@ -705,6 +711,7 @@ export function PostActionButton({
           step={voteWeightStep}
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
+          awaitingWalletApproval={awaitingWalletApproval}
         />
       )}
 
@@ -756,6 +763,7 @@ export function PostActionButton({
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
           allowLandscapeVideos={allowLandscapeVideos}
+          awaitingWalletApproval={awaitingWalletApproval}
         />
       )}
 

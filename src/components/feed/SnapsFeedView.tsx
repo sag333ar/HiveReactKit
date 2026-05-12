@@ -108,6 +108,10 @@ export interface SnapsFeedViewProps {
   defaultVotePercent?: number;
   voteWeightStep?: number;
   allowLandscapeVideos?: boolean;
+  /** Forwarded to each snap card's vote slider — when true, a
+   *  blinking "Open Keychain App & Approve" hint is shown while a
+   *  broadcast is in flight. */
+  awaitingWalletApproval?: boolean;
   defaultReward?: RewardOption;
 
   /** Optional top-row content rendered above the columns (e.g. a Compose FAB
@@ -223,6 +227,7 @@ export function SnapsFeedView({
   defaultVotePercent,
   voteWeightStep,
   allowLandscapeVideos,
+  awaitingWalletApproval,
   defaultReward,
   toolbar,
   footer,
@@ -332,6 +337,7 @@ export function SnapsFeedView({
     defaultVotePercent,
     voteWeightStep,
     allowLandscapeVideos,
+    awaitingWalletApproval,
     defaultReward,
     renderHeaderActions,
     actionsAsMenu,

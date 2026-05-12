@@ -8,6 +8,8 @@ export function VoteSlider({
   step = 1,
   onUpvote,
   onCancel,
+  awaitingWalletApproval = false,
+  walletApprovalLabel = 'Open Keychain App & Approve',
 }: {
   author: string;
   permlink: string;
@@ -16,6 +18,13 @@ export function VoteSlider({
   step?: number;
   onUpvote: (percent: number) => Promise<void> | void; // allow async
   onCancel: () => void;
+  /** Set true when the logged-in user is on a wallet provider
+   *  (Keychain, HiveAuth, PeakVault). While the broadcast is in
+   *  flight the slider surfaces a blinking "Open Keychain App &
+   *  Approve" hint so the user knows to switch apps to authorize. */
+  awaitingWalletApproval?: boolean;
+  /** Override for the wallet-approval hint text. */
+  walletApprovalLabel?: string;
 }) {
   // Slider's lower bound matches the configured step — 0.25 → 0.25%,
   // 0.5 → 0.5%, 1 → 1%. Was hardcoded to 1, which trapped fractional-
@@ -40,9 +49,18 @@ export function VoteSlider({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="bg-gray-900 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-xl flex flex-col">
         {/* Header */}
-        <h2 className="text-center text-base sm:text-lg font-semibold text-white mb-6">
+        <h2 className="text-center text-base sm:text-lg font-semibold text-white mb-2">
           Vote for @{author}
         </h2>
+
+        {/* Wallet-approval hint — only visible while the broadcast
+            is in flight on a wallet provider. */}
+        {loading && awaitingWalletApproval && (
+          <p className="mb-4 text-center text-xs sm:text-sm font-medium text-amber-400 animate-pulse">
+            {walletApprovalLabel}
+          </p>
+        )}
+        {!(loading && awaitingWalletApproval) && <div className="mb-4" />}
 
         {/* Slider Section */}
         <div className="relative w-full flex flex-col items-center mb-8">

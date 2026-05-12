@@ -90,6 +90,10 @@ export interface SnapsFeedCardProps {
   defaultVotePercent?: number;
   voteWeightStep?: number;
   allowLandscapeVideos?: boolean;
+  /** Blinking "Open Keychain App & Approve" hint on the vote slider
+   *  while a broadcast is in flight. Set when the logged-in user is
+   *  on Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
   defaultReward?: RewardOption;
 
   /** Optional render slot for header right-side actions (e.g. a kebab
@@ -708,6 +712,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   defaultVotePercent,
   voteWeightStep,
   allowLandscapeVideos,
+  awaitingWalletApproval,
   defaultReward,
   renderHeaderActions,
   actionsAsMenu,
@@ -1082,6 +1087,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
           allowLandscapeVideos={allowLandscapeVideos}
+          awaitingWalletApproval={awaitingWalletApproval}
           actionsAsMenu={actionsAsMenu}
         />
       </div>

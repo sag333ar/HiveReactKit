@@ -65,6 +65,10 @@ export interface BlogPostListProps {
   voteWeightStep?: number;
   /** Allow landscape video uploads in the inline comment composer. */
   allowLandscapeVideos?: boolean;
+  /** Surface a blinking "Open Keychain App & Approve" hint on each
+   *  card's vote slider while a broadcast is in flight. Set when the
+   *  logged-in user is on Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
   /** Default reward routing for inline comment composers. */
   defaultReward?: RewardOption;
   /** Collapse the per-card secondary actions (reblog · share · tip ·
@@ -341,6 +345,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   defaultVotePercent,
   voteWeightStep,
   allowLandscapeVideos,
+  awaitingWalletApproval,
   defaultReward,
   actionsAsMenu,
 }) => {
@@ -536,6 +541,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
+                awaitingWalletApproval={awaitingWalletApproval}
                 actionsAsMenu={actionsAsMenu}
               />
             </div>

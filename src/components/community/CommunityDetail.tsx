@@ -75,6 +75,10 @@ export interface CommunityDetailProps {
   defaultVotePercent?: number
   voteWeightStep?: number
   allowLandscapeVideos?: boolean
+  /** Forwarded to the embedded <BlogPostList/> — when true, each
+   *  card's vote slider surfaces a blinking "Open Keychain App &
+   *  Approve" hint while a broadcast is in flight. */
+  awaitingWalletApproval?: boolean
   defaultReward?: RewardOption
 
   /** Collapse the per-post secondary actions (reblog · share · tip ·
@@ -165,6 +169,7 @@ const CommunityDetail = ({
   defaultVotePercent,
   voteWeightStep,
   allowLandscapeVideos,
+  awaitingWalletApproval,
   defaultReward,
   actionsAsMenu,
   onShare,
@@ -315,6 +320,7 @@ const CommunityDetail = ({
       defaultVotePercent,
       voteWeightStep,
       allowLandscapeVideos,
+      awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
     }),
@@ -338,6 +344,7 @@ const CommunityDetail = ({
       defaultVotePercent,
       voteWeightStep,
       allowLandscapeVideos,
+      awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
     ],
@@ -522,6 +529,7 @@ const CommunityDetail = ({
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
+            awaitingWalletApproval={awaitingWalletApproval}
             defaultReward={defaultReward}
             actionsAsMenu={actionsAsMenu}
           />

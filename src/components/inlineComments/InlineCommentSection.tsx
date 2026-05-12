@@ -35,6 +35,10 @@ interface InlineCommentSectionProps {
   voteWeightStep?: number;
   /** Allow landscape videos in every reply composer's video uploader. Default false. */
   allowLandscapeVideos?: boolean;
+  /** Forwarded to every reply composer's "Open Keychain App &
+   *  Approve" blinking hint. Set when the logged-in user is on
+   *  Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
   /** Renderer URL overrides applied to every comment body in this section. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -103,6 +107,7 @@ export default function InlineCommentSection({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  awaitingWalletApproval = false,
   renderOptions,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
@@ -326,6 +331,7 @@ export default function InlineCommentSection({
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
+            awaitingWalletApproval={awaitingWalletApproval}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
           />
         </div>
@@ -398,6 +404,7 @@ export default function InlineCommentSection({
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
               allowLandscapeVideos={allowLandscapeVideos}
+              awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
             />
           ))}

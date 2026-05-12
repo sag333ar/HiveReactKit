@@ -98,6 +98,9 @@ export interface ProfileSnapsTabProps {
   defaultVotePercent?: number;
   voteWeightStep?: number;
   allowLandscapeVideos?: boolean;
+  /** Forwarded to every <SnapsFeedCard/>'s vote slider for the
+   *  blinking wallet-approval hint. */
+  awaitingWalletApproval?: boolean;
   defaultReward?: RewardOption;
 
   /** Per-card right-side header action menu slot (e.g. Edit / Flag). */

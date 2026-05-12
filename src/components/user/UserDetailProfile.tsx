@@ -197,6 +197,12 @@ export interface UserDetailProfileProps {
    *  Default false (portrait-only, matches hSnaps Moments contract). */
   allowLandscapeVideos?: boolean;
 
+  /** Forwarded to every post card's vote slider and reply composer
+   *  — when true, a blinking "Open Keychain App & Approve" hint is
+   *  shown while a broadcast is in flight. Set when the logged-in
+   *  user is on Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
+
   /** Per-card right-side header action menu (Edit / Delete / Flag) for the
    *  Snaps tab. Forwarded into <SnapsFeedView/>. */
   renderSnapHeaderActions?: (post: Post) => React.ReactNode;
@@ -347,6 +353,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  awaitingWalletApproval = false,
   renderSnapHeaderActions,
   activeTab: controlledActiveTab,
   onActiveTabChange,
@@ -1553,6 +1560,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
+            awaitingWalletApproval={awaitingWalletApproval}
           />
         </div>
       </div>
@@ -2232,6 +2240,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             defaultVotePercent={defaultVotePercent}
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
+            awaitingWalletApproval={awaitingWalletApproval}
             renderHeaderActions={renderSnapHeaderActions}
           />
         </div>

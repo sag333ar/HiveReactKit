@@ -564,8 +564,26 @@ class ApiService {
     }
   }
 
-  async getPostContent(author: string, permlink: string): Promise<Post | null> {
+  async getPostContent(
+    author: string,
+    permlink: string,
+    observer: string = ''
+  ): Promise<Post | null> {
     try {
+      // Prefer `bridge.get_post` when an observer is supplied so the
+      // chain can return observer-aware fields (e.g. `stats.gray` /
+      // `stats.hide` driven by the observer's mute list) and so the
+      // payload shape matches what `bridge.get_discussion` returns
+      // for the comment thread below. Falls back to the universal
+      // `condenser_api.get_content` for anonymous reads.
+      if (observer) {
+        const bridgeResult: any = await dhiveClient.call(
+          'bridge',
+          'get_post',
+          { author, permlink, observer },
+        );
+        if (bridgeResult) return bridgeResult as Post;
+      }
       const result: any = await dhiveClient.call(
         "condenser_api",
         "get_content",

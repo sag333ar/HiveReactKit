@@ -111,6 +111,12 @@ export interface HiveDetailPostProps {
    */
   allowLandscapeVideos?: boolean;
 
+  /** When true, the post's vote slider surfaces a blinking
+   *  "Open Keychain App & Approve" hint while a broadcast is in
+   *  flight. Set this when the logged-in user is on a wallet
+   *  provider (Keychain, HiveAuth, PeakVault). */
+  awaitingWalletApproval?: boolean;
+
   /**
    * Override the Hive content renderer's link-generating functions so the
    * rendered `<a>` URLs route into your app instead of an external Hive
@@ -298,6 +304,7 @@ export function HiveDetailPost({
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
   renderOptions,
+  awaitingWalletApproval = false,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -674,7 +681,11 @@ export function HiveDetailPost({
     setLoading(true);
     setError(null);
     try {
-      const content = await apiService.getPostContent(author, permlink);
+      // Pass `currentUser` as the observer so `bridge.get_post`
+      // returns observer-aware data (mute/block flags) — keeps the
+      // post shape consistent with the comment thread fetched by
+      // `bridge.get_discussion` (which already uses observer).
+      const content = await apiService.getPostContent(author, permlink, currentUser ?? '');
       if (content) {
         setPost(content);
       } else {
@@ -685,7 +696,7 @@ export function HiveDetailPost({
     } finally {
       setLoading(false);
     }
-  }, [author, permlink]);
+  }, [author, permlink, currentUser]);
 
   // Fetch post content
   useEffect(() => {
@@ -1293,6 +1304,7 @@ export function HiveDetailPost({
                 hiveIconUrl={hiveIconUrl}
                 payoutTooltip={payoutTooltip}
                 payoutDetails={payoutDetails}
+                awaitingWalletApproval={awaitingWalletApproval}
                 initialVotes={post.active_votes || []}
                 initialCommentsCount={post.children || 0}
                 onUpvote={onUpvote}
@@ -1364,6 +1376,7 @@ export function HiveDetailPost({
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
+                awaitingWalletApproval={awaitingWalletApproval}
                 renderOptions={renderOptions}
               />
             </div>

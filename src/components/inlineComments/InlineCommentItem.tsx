@@ -65,6 +65,10 @@ interface InlineCommentItemProps {
   voteWeightStep?: number;
   /** Allow landscape videos in this comment's reply composer. Default false. */
   allowLandscapeVideos?: boolean;
+  /** Blinking "Open Keychain App & Approve" hint shown in the reply
+   *  composer while a broadcast is in flight. Set when the
+   *  logged-in user is on Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
   /** Renderer URL overrides applied to the comment body. */
   renderOptions?: {
     userLinkUrlFn?: (username: string) => string;
@@ -106,6 +110,7 @@ export default function InlineCommentItem({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  awaitingWalletApproval = false,
   renderOptions,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -609,6 +614,7 @@ export default function InlineCommentItem({
                         beneficiaryFavorites={beneficiaryFavorites}
                         onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                         allowLandscapeVideos={allowLandscapeVideos}
+                        awaitingWalletApproval={awaitingWalletApproval}
                       />
                     </div>
                   </div>,
@@ -679,6 +685,7 @@ export default function InlineCommentItem({
                     beneficiaryFavorites={beneficiaryFavorites}
                     onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                     allowLandscapeVideos={allowLandscapeVideos}
+                    awaitingWalletApproval={awaitingWalletApproval}
                   />
                 </div>
               </>
@@ -732,6 +739,7 @@ export default function InlineCommentItem({
               defaultVotePercent={defaultVotePercent}
               voteWeightStep={voteWeightStep}
               allowLandscapeVideos={allowLandscapeVideos}
+              awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
             />
           ))}

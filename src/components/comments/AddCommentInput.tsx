@@ -1084,8 +1084,15 @@ const PostComposer = ({
         </div>
       )}
 
-      {/* Wallet approval indicator (blinking amber) — shown during image signing OR broadcast. */}
-      {(isAwaitingApproval || awaitingWalletApproval) && (
+      {/* Wallet-approval indicator (blinking amber) — shown only while
+          a Keychain / HiveAuth / PeakVault popup is active. Two
+          triggers:
+            • `isAwaitingApproval` — set by the image-signing flow.
+            • `awaitingWalletApproval` — set by the host app when the
+              logged-in user is on a wallet provider; we gate that on
+              `isSubmitting` so the hint only blinks during the
+              broadcast, not whenever the composer is open. */}
+      {(isAwaitingApproval || (awaitingWalletApproval && isSubmitting)) && (
         <div className="px-1 py-0.5">
           <span className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</span>
         </div>

@@ -58,9 +58,13 @@ interface CommentsModalProps {
   voteWeightStep?: number;
   /** Allow landscape videos in the comment composer. Default false. */
   allowLandscapeVideos?: boolean;
+  /** Surface a blinking "Open Keychain App & Approve" hint in the
+   *  comment composer while a broadcast is in flight. Set when the
+   *  logged-in user is on Keychain / HiveAuth / PeakVault. */
+  awaitingWalletApproval?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,6 +304,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   defaultVotePercent={defaultVotePercent}
                   voteWeightStep={voteWeightStep}
                   allowLandscapeVideos={allowLandscapeVideos}
+                  awaitingWalletApproval={awaitingWalletApproval}
                 />
               </div>
             )}

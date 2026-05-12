@@ -79,6 +79,10 @@ export interface CommunitySnapsTabProps {
   defaultVotePercent?: number;
   voteWeightStep?: number;
   allowLandscapeVideos?: boolean;
+  /** Forwarded to the embedded <SnapsFeedView/> — when true, each
+   *  snap card's vote slider surfaces a blinking "Open Keychain
+   *  App & Approve" hint while a broadcast is in flight. */
+  awaitingWalletApproval?: boolean;
   defaultReward?: RewardOption;
 
   /** Per-card right-side header action menu slot. */
