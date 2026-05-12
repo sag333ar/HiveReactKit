@@ -1131,8 +1131,8 @@ export interface KERatioResult {
 
 /**
  * KE ratio for a Hive account — lifetime rewards divided by own staked HP.
- * Matches the value shown on peakd.com and mirrors the server-side calculator
- * at curation-marketing/Server/utils/ke-ratio-of-account.js.
+ * Mirrors the server-side calculator at
+ * curation-marketing/Server/utils/ke-ratio-of-account.js.
  *
  *   ke = (posting_rewards + curation_rewards in HP) / own_HP
  *
@@ -1158,15 +1158,18 @@ export async function calculateKERatio(
   const totalVestingShares = parseFloat(
     String(dynamicProps.total_vesting_shares),
   );
-  // parseFloat reads VESTS whether the value is "X.XXXXXX VESTS" (vesting_shares)
-  // or a plain integer string (posting_rewards / curation_rewards — VESTS counts,
-  // not HP).
+  // vesting_shares is "X.XXXXXX VESTS" — convert to HP via the global ratio.
   const vestToHP = (vestingShares: string | number) =>
     (totalVestingFundHive * parseFloat(String(vestingShares))) /
     totalVestingShares;
   const ownHP = vestToHP(account.vesting_shares);
-  const postingRewardsHP = vestToHP(account.posting_rewards);
-  const curationRewardsHP = vestToHP(account.curation_rewards);
+  // posting_rewards / curation_rewards are stored as integers in milli-HP
+  // (3 implicit decimals, already in HP terms — NOT VESTS). Divide by 1000
+  // to get HP-equivalent.
+  const postingRewardsHP =
+    parseFloat(String(account.posting_rewards)) / 1000;
+  const curationRewardsHP =
+    parseFloat(String(account.curation_rewards)) / 1000;
   const totalRewardsHP = postingRewardsHP + curationRewardsHP;
   const ke = ownHP > 0 ? totalRewardsHP / ownHP : 0;
   return {

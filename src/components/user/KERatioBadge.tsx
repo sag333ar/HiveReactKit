@@ -179,7 +179,7 @@ const KERatioBadge = ({
                       Own HP is the account&apos;s vesting_shares — received
                       delegations and delegations-out are excluded, so the
                       ratio reflects whether the account keeps its earnings
-                      staked. Matches the value shown on peakd.com.
+                      staked.
                     </p>
                     <p className="text-gray-400">
                       Lower is generally considered healthier for curators. The
