@@ -13,6 +13,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
 interface InlineCommentItemProps {
@@ -307,6 +308,7 @@ export default function InlineCommentItem({
   const handleUpvoteClick = () => {
     if (!currentUser) { showToast('Please login to upvote'); return; }
     if (hasAlreadyVoted || isUpvoted) { showToast('You have already upvoted this comment'); return; }
+    if (isPostTooOldToVote(comment.created)) { showToast(VOTE_WINDOW_MESSAGE); return; }
     setShowVoteSlider(true);
   };
 

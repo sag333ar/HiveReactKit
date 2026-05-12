@@ -529,6 +529,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   ?? 0
                 }
                 initialCommentsCount={item.children || 0}
+                postCreatedAt={item.created}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}

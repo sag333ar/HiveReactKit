@@ -1313,6 +1313,7 @@ export function HiveDetailPost({
                   ?? 0
                 }
                 initialCommentsCount={post.children || 0}
+                postCreatedAt={post.created}
                 onUpvote={onUpvote}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}

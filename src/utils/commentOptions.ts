@@ -8,17 +8,18 @@
  * to produce the op they append to their `signAndBroadcastTx` array.
  */
 
-export type RewardOption = 'default' | 'power_up' | 'burn' | 'decline';
+export type RewardOption = 'default' | 'power_up_75' | 'power_up' | 'burn' | 'decline';
 
 /** Human-readable labels used by the PostComposer reward dropdown. */
 export const REWARD_OPTION_LABELS: Record<RewardOption, string> = {
   default: '50% HBD and 50% HP',
+  power_up_75: '75% HP and 25% HBD',
   power_up: '100% Hive Power',
   burn: 'Burn',
   decline: 'Decline',
 };
 
-export const REWARD_OPTIONS: RewardOption[] = ['default', 'power_up', 'burn', 'decline'];
+export const REWARD_OPTIONS: RewardOption[] = ['default', 'power_up_75', 'power_up', 'burn', 'decline'];
 
 type CommentOptionsOp = [
   'comment_options',
@@ -49,6 +50,23 @@ export function buildCommentOptions(
   switch (reward) {
     case 'default':
       return null;
+    case 'power_up_75':
+      // Hive pays half the author reward as "liquid" (HBD/HP mix) and
+      // half as Hive Power. `percent_hbd` selects how much of the liquid
+      // half is paid in HBD; 5000 = 50% of liquid → HBD, the rest →
+      // Hive Power. Net effect: 25% HBD / 75% HP.
+      return [
+        'comment_options',
+        {
+          author,
+          permlink,
+          allow_votes: true,
+          allow_curation_rewards: true,
+          max_accepted_payout: '1000000.000 HBD',
+          percent_hbd: 5000,
+          extensions: [],
+        },
+      ];
     case 'power_up':
       return [
         'comment_options',

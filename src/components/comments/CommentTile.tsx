@@ -8,6 +8,7 @@ import { DefaultRenderer } from '@hiveio/content-renderer';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import { toast } from '@/index';
+import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
 interface CommentTileProps {
@@ -84,6 +85,10 @@ const CommentTile = ({
   };
 
   const handleOpenVote = () => {
+    if (isPostTooOldToVote(comment.created)) {
+      toast({ title: 'Voting closed', description: VOTE_WINDOW_MESSAGE });
+      return;
+    }
     setShowVoteSlider(true);
   };
 

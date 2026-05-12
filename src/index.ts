@@ -107,6 +107,13 @@ export * from './hooks/useHiveImageSign';
 
 // Utils
 export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
+export {
+  isPostTooOldToVote,
+  parseHiveCreated,
+  VOTE_WINDOW_DAYS,
+  VOTE_WINDOW_MS,
+  VOTE_WINDOW_MESSAGE,
+} from './utils/voteAge';
 
 // Re-exports from @snapie/renderer — Hive markdown renderer used internally
 // by HiveDetailPost / AddCommentInput / InlineCommentItem. Surfaced so

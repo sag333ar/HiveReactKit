@@ -374,6 +374,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
           hiveIconUrl="/images/hive_logo.png"
           initialVotes={[]}
           initialCommentsCount={0}
+          postCreatedAt={poll.created}
           onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}

@@ -1058,6 +1058,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             ?? 0
           }
           initialCommentsCount={post.children || 0}
+          postCreatedAt={post.created}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}

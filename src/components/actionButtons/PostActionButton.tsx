@@ -16,6 +16,7 @@ import CommentsModal from "@/components/comments/CommentsModal";
 import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
+import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -133,6 +134,11 @@ export interface PostActionButtonProps {
    *  the comment icon, so the tooltip can show what they wrote. */
   myReplyKey?: string;
 
+  /** Post's `created` timestamp (ISO string from Hive). When supplied,
+   *  the upvote button shows a "voting closed" warning and skips the
+   *  vote slider once the post is past the 7-day payout window —
+   *  Hive ignores votes cast after the cutoff. */
+  postCreatedAt?: string;
   /** Action-bar density. `default` keeps the existing compact sizing
    *  (best for dense blog/feed lists). `lg` bumps every icon and the
    *  count labels — used by the Snaps feed where the action bar is
@@ -186,6 +192,7 @@ export function PostActionButton({
   allowLandscapeVideos = false,
   actionsAsMenu = false,
   awaitingWalletApproval = false,
+  postCreatedAt,
   size = 'default',
 }: PostActionButtonProps) {
   // Tailwind class fragments for the action bar's icon / count
@@ -365,10 +372,19 @@ export function PostActionButton({
     onLoggedIn();
   };
 
+  const isPastVoteWindow = useMemo(
+    () => isPostTooOldToVote(postCreatedAt),
+    [postCreatedAt],
+  );
+
   const handleUpvoteClick = () => {
     requireLogin("Upvote", () => {
       if (hasVoted) {
         showToast("You have already upvoted this post");
+        return;
+      }
+      if (isPastVoteWindow) {
+        showToast(VOTE_WINDOW_MESSAGE);
         return;
       }
       setShowVoteSlider(true);
@@ -413,9 +429,10 @@ export function PostActionButton({
 
   const handleUpvoteFromModal = () => {
     setShowUpvoteListModal(false);
-    if (isLoggedIn && !hasVoted) setShowVoteSlider(true);
-    else if (!isLoggedIn) showToast("Please Login to Upvote");
-    else showToast("You have already upvoted this post");
+    if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
+    if (hasVoted) { showToast("You have already upvoted this post"); return; }
+    if (isPastVoteWindow) { showToast(VOTE_WINDOW_MESSAGE); return; }
+    setShowVoteSlider(true);
   };
 
   const handleCommentClick = () => {
