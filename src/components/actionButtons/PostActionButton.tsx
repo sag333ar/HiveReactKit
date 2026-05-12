@@ -126,6 +126,12 @@ export interface PostActionButtonProps {
    *  the comment icon, so the tooltip can show what they wrote. */
   myReplyKey?: string;
 
+  /** Action-bar density. `default` keeps the existing compact sizing
+   *  (best for dense blog/feed lists). `lg` bumps every icon and the
+   *  count labels — used by the Snaps feed where the action bar is
+   *  the primary tap target. */
+  size?: 'default' | 'lg';
+
   /** Collapse the secondary actions (reblog · share · tip · report)
    *  into a single 3-dot kebab popover. Upvote / comment counters and
    *  the payout chip stay inline. Useful in dense card layouts (videos,
@@ -172,7 +178,26 @@ export function PostActionButton({
   allowLandscapeVideos = false,
   actionsAsMenu = false,
   awaitingWalletApproval = false,
+  size = 'default',
 }: PostActionButtonProps) {
+  // Tailwind class fragments for the action bar's icon / count
+  // sizing. Two presets so consumers can opt into bigger tap
+  // targets without restyling each icon individually.
+  // `lg` is mobile-only: it bumps icon size, padding, and gaps on
+  // small screens so taps are easy on a snap card, but uses the
+  // exact same `sm:` desktop values as the default density so the
+  // desktop layout stays compact and consistent with other feeds.
+  const iconSizeClass = size === 'lg'
+    ? 'w-4 h-4 sm:w-4 sm:h-4'
+    : 'w-3.5 h-3.5 sm:w-4 sm:h-4';
+  const countTextClass = size === 'lg'
+    ? 'text-sm sm:text-sm'
+    : 'text-xs sm:text-sm';
+  const hiveIconClass = size === 'lg' ? 'w-5 h-5 sm:w-4 sm:h-4 rounded-full' : 'w-4 h-4 rounded-full';
+  const actionBtnPadClass = size === 'lg' ? 'p-1.5 sm:p-1' : 'p-0.5 sm:p-1';
+  const inlineGapClass = size === 'lg' ? 'gap-1.5 sm:gap-0.5' : 'gap-0.5';
+  const actionsGapClass = size === 'lg' ? 'gap-2.5 sm:gap-3' : 'gap-1.5 sm:gap-3';
+  const upvoteBtnPadClass = size === 'lg' ? 'p-1.5 sm:p-1' : 'p-0.5 sm:p-1';
   const currentUser =
     currentUserProp == null || currentUserProp === ""
       ? null
@@ -436,25 +461,25 @@ export function PostActionButton({
     "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
 
   return (
-    <div className="flex items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm w-full">
+    <div className={`flex items-center justify-between gap-2 sm:gap-4 w-full ${countTextClass}`}>
       {/* All action buttons */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 shrink-0">
+      <div className={`flex flex-wrap items-center justify-center shrink-0 ${actionsGapClass}`}>
       {/* Upvotes count + Upvote button */}
-      <div className="flex items-center gap-0.5">
+      <div className={`flex items-center ${inlineGapClass}`}>
         <div className="relative group">
           <span className={tooltipClass}>Upvote</span>
           <button
             type="button"
             onClick={handleUpvoteClick}
             disabled={voteLoading}
-            className="p-0.5 sm:p-1 rounded hover:bg-gray-700 disabled:opacity-50"
+            className={`${upvoteBtnPadClass} rounded hover:bg-gray-700 disabled:opacity-50`}
             aria-label="Upvote"
           >
             {voteLoading ? (
-              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-blue-600" />
+              <Loader2 className={`${iconSizeClass} animate-spin text-blue-600`} />
             ) : (
               <ThumbsUp
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                className={`${iconSizeClass} ${
                   hasVoted
                     ? "fill-[#e31337] text-[#e31337]"
                     : "text-gray-300"
@@ -468,7 +493,7 @@ export function PostActionButton({
           <button
             type="button"
             onClick={handleUpvoteCountClick}
-            className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors"
+            className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
             aria-label="View upvotes"
           >
             <span>{votes.length}</span>
@@ -483,7 +508,7 @@ export function PostActionButton({
           highlighted red and hover shows a preview of the user's
           reply, lazy-fetched on first hover. */}
       {onClickCommentIcon || onClickCommentCount ? (
-        <div className="relative group flex items-center gap-0.5 text-gray-300">
+        <div className={`relative group flex items-center text-gray-300 ${inlineGapClass}`}>
           <span className={tooltipClass}>Comments</span>
           <div
             className="relative"
@@ -496,11 +521,11 @@ export function PostActionButton({
                 if (onClickCommentIcon) onClickCommentIcon();
                 else handleCommentClick();
               }}
-              className="rounded p-0.5 transition-colors hover:text-blue-400"
+              className={`rounded transition-colors hover:text-blue-400 ${actionBtnPadClass}`}
               aria-label={hasCommented ? "Reply to post (you've already commented)" : 'Reply to post'}
             >
               <MessageCircle
-                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+                className={`${iconSizeClass} ${
                   hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
                 }`}
               />
@@ -530,7 +555,7 @@ export function PostActionButton({
               if (onClickCommentCount) onClickCommentCount();
               else handleCommentClick();
             }}
-            className={`rounded px-0.5 text-xs transition-colors ${
+            className={`rounded transition-colors ${actionBtnPadClass} ${
               hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300 hover:text-blue-400'
             }`}
             aria-label="Open comments"
@@ -548,13 +573,13 @@ export function PostActionButton({
           <button
             type="button"
             onClick={handleCommentClick}
-            className={`flex items-center gap-0.5 transition-colors hover:text-blue-400 ${
+            className={`flex items-center transition-colors hover:text-blue-400 rounded ${inlineGapClass} ${actionBtnPadClass} ${
               hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300'
             }`}
             aria-label="Comments"
           >
             <MessageCircle
-              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
+              className={`${iconSizeClass} ${
                 hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
               }`}
             />
@@ -600,10 +625,10 @@ export function PostActionButton({
             <button
               type="button"
               onClick={handleReblogClick}
-              className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+              className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
               aria-label="Reblog"
             >
-              <Repeat2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Repeat2 className={iconSizeClass} />
             </button>
           </div>
           )}
@@ -614,10 +639,10 @@ export function PostActionButton({
             <button
               type="button"
               onClick={handleShareClick}
-              className="flex items-center gap-0.5 text-gray-300 hover:text-blue-400 transition-colors p-0.5 sm:p-1 rounded"
+              className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
               aria-label="Share"
             >
-              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Share2 className={iconSizeClass} />
             </button>
           </div>
 
@@ -628,10 +653,10 @@ export function PostActionButton({
             <button
               type="button"
               onClick={handleReportClick}
-              className="flex items-center gap-0.5 text-gray-300 hover:text-red-400 transition-colors p-0.5 sm:p-1 rounded"
+              className={`flex items-center text-gray-300 hover:text-red-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
               aria-label="Report"
             >
-              <Flag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Flag className={iconSizeClass} />
             </button>
           </div>
           )}
@@ -643,10 +668,10 @@ export function PostActionButton({
             <button
               type="button"
               onClick={handleTipClick}
-              className="flex items-center gap-0.5 text-gray-300 hover:text-green-400 transition-colors p-0.5 sm:p-1 rounded"
+              className={`flex items-center text-gray-300 hover:text-green-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
               aria-label="Tip"
             >
-              <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Gift className={iconSizeClass} />
             </button>
           </div>
           )}
@@ -675,21 +700,21 @@ export function PostActionButton({
               className="flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-white/5"
               aria-label="Show rewards breakdown"
             >
-              <span className="font-semibold text-green-400 text-xs sm:text-sm">
+              <span className={`font-semibold text-green-400 ${countTextClass}`}>
                 {hiveValue}
               </span>
               {hiveIconUrl && (
-                <img src={hiveIconUrl} alt="Hive" className="w-4 h-4 rounded-full" />
+                <img src={hiveIconUrl} alt="Hive" className={hiveIconClass} />
               )}
             </button>
           ) : (
             <div className="relative group">
               <div className="flex items-center gap-1 cursor-default">
-                <span className="font-semibold text-green-400 text-xs sm:text-sm">
+                <span className={`font-semibold text-green-400 ${countTextClass}`}>
                   {hiveValue}
                 </span>
                 {hiveIconUrl && (
-                  <img src={hiveIconUrl} alt="Hive" className="w-4 h-4 rounded-full" />
+                  <img src={hiveIconUrl} alt="Hive" className={hiveIconClass} />
                 )}
               </div>
               {payoutTooltip && (

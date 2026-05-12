@@ -1089,6 +1089,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           allowLandscapeVideos={allowLandscapeVideos}
           awaitingWalletApproval={awaitingWalletApproval}
           actionsAsMenu={actionsAsMenu}
+          size="lg"
         />
       </div>
     </article>
