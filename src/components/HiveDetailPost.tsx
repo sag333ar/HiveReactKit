@@ -1306,6 +1306,12 @@ export function HiveDetailPost({
                 payoutDetails={payoutDetails}
                 awaitingWalletApproval={awaitingWalletApproval}
                 initialVotes={post.active_votes || []}
+                initialVoteCount={
+                  (post as { stats?: { total_votes?: number }; net_votes?: number }).stats?.total_votes
+                  ?? (post as { net_votes?: number }).net_votes
+                  ?? post.active_votes?.length
+                  ?? 0
+                }
                 initialCommentsCount={post.children || 0}
                 onUpvote={onUpvote}
                 onSubmitComment={onSubmitComment}

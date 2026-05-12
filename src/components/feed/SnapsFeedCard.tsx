@@ -1051,6 +1051,12 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           hiveIconUrl="/images/hive_logo.png"
           payoutDetails={payoutDetails}
           initialVotes={(post.active_votes as ActiveVote[] | undefined) ?? []}
+          initialVoteCount={
+            (post as { stats?: { total_votes?: number } }).stats?.total_votes
+            ?? (post as { net_votes?: number }).net_votes
+            ?? (post.active_votes as ActiveVote[] | undefined)?.length
+            ?? 0
+          }
           initialCommentsCount={post.children || 0}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}

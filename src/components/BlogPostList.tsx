@@ -522,6 +522,12 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 payoutTooltip={payoutTooltip}
                 payoutDetails={payoutDetails}
                 initialVotes={(item.active_votes as ActiveVote[] | undefined) ?? []}
+                initialVoteCount={
+                  (item as { stats?: { total_votes?: number } }).stats?.total_votes
+                  ?? (item as { net_votes?: number }).net_votes
+                  ?? (item.active_votes as ActiveVote[] | undefined)?.length
+                  ?? 0
+                }
                 initialCommentsCount={item.children || 0}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}

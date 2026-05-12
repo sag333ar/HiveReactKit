@@ -38,6 +38,13 @@ export interface PostActionButtonProps {
   payoutDetails?: RewardsModalPayoutDetails;
   /** Optional: Pre-loaded active votes array from the Post object. Skips the API call when provided. */
   initialVotes?: ActiveVote[];
+  /** True total vote count from the chain (`post.stats.total_votes`
+   *  or `post.net_votes`). Hive's `bridge.get_discussion` /
+   *  `condenser_api.get_active_votes` cap the `active_votes`
+   *  array at 1000 entries, so `votes.length` under-counts on
+   *  popular posts. Pass this when you have the canonical total so
+   *  the chip reads "1.2k" instead of being capped at 1000. */
+  initialVoteCount?: number;
   /** Optional: Pre-loaded comments count from the Post object (item.children). Skips the API call when provided. */
   initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
@@ -148,6 +155,7 @@ export function PostActionButton({
   payoutTooltip,
   payoutDetails,
   initialVotes,
+  initialVoteCount,
   initialCommentsCount,
   onUpvote,
   onSubmitComment,
@@ -205,6 +213,14 @@ export function PostActionButton({
   const isLoggedIn = currentUser != null;
 
   const [votes, setVotes] = useState<ActiveVote[]>(initialVotes ?? []);
+  // Displayed vote count is decoupled from the `votes` array because
+  // the chain caps that array at 1000 entries; the canonical total
+  // lives in `initialVoteCount` (= `post.stats.total_votes` /
+  // `post.net_votes`). Falls back to the array length only when no
+  // count was supplied.
+  const [voteCount, setVoteCount] = useState<number>(
+    initialVoteCount ?? initialVotes?.length ?? 0,
+  );
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
@@ -228,10 +244,16 @@ export function PostActionButton({
     try {
       const list = await apiService.getActiveVotes(author, permlink);
       setVotes(list);
+      // Only overwrite the canonical count from the array length
+      // when no upstream count was supplied — otherwise we'd cap
+      // the display at the 1000-entry chain limit.
+      if (initialVoteCount === undefined) {
+        setVoteCount(list.length);
+      }
     } catch {
       // Silently fail — keep using initialVotes
     }
-  }, [author, permlink]);
+  }, [author, permlink, initialVoteCount]);
 
   // Only fetch from API if NO initial data was provided
   useEffect(() => {
@@ -360,6 +382,17 @@ export function PostActionButton({
       await Promise.resolve(onUpvote(percent));
       setShowVoteSlider(false);
       showToast("Vote submitted successfully");
+      // Optimistic count bump so the chip reflects the new vote
+      // before the chain round-trip lands. `fetchVotes` below will
+      // overwrite this with the canonical number once the active
+      // votes propagate (~3-6 s on Hive).
+      if (initialVoteCount === undefined) {
+        setVoteCount((c) => c + 1);
+      } else {
+        // When the host owns the canonical count, leave it alone —
+        // the next feed refresh will reseed it. Bumping locally
+        // would double-count for hosts that re-render on success.
+      }
       // Immediately fetch to try to pick up the new vote
       await fetchVotes();
       // Hive blockchain may take a few seconds to propagate — re-fetch after 4s
@@ -496,7 +529,7 @@ export function PostActionButton({
             className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
             aria-label="View upvotes"
           >
-            <span>{votes.length}</span>
+            <span>{voteCount}</span>
           </button>
         </div>
       </div>
