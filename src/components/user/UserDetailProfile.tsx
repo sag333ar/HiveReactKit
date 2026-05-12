@@ -38,6 +38,7 @@ import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
 import ActivityList from "../ActivityList";
 import UserGrowth from "./UserGrowth";
+import KERatioBadge from "./KERatioBadge";
 import PollListItem from "./PollListItem";
 import { TranslatedText } from "../TranslatedText";
 import { useKitT } from "@/i18n";
@@ -2623,6 +2624,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <Zap className="h-3 w-3 text-orange-400" /> HP {profile.hivePower.toFixed(0)}
                 </span>
               )}
+              <KERatioBadge username={targetUsername} hideWhileLoading />
             </div>
             {/* Followers / Following / Posts */}
             <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-gray-200">

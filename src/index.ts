@@ -90,6 +90,8 @@ export { default as UserGrowth } from './components/user/UserGrowth';
 export type { UserGrowthProps } from './components/user/UserGrowth';
 export { default as PollListItem } from './components/user/PollListItem';
 export type { PollListItemProps } from './components/user/PollListItem';
+export { default as KERatioBadge } from './components/user/KERatioBadge';
+export { calculateKERatio, type KERatioResult } from './services/userService';
 
 // Landing components
 export { default as HiveContributionsLanding } from './components/landing-page/HiveContributionsLanding';

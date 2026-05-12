@@ -1115,4 +1115,65 @@ export interface GrowthAnalyticsResult {
   };
 }
 
+export interface KERatioResult {
+  username: string;
+  /** Effective Hive Power = own HP + received HP − delegated HP. */
+  currentHP: number;
+  postingRewards: number;
+  curationRewards: number;
+  totalRewards: number;
+  /** ke = (postingRewards + curationRewards) / currentHP / 1000 */
+  ke: number;
+}
+
+/**
+ * KE ("Kuriyaki Effective") ratio for a Hive account — a rough indicator of
+ * how much an account has earned relative to its own effective Hive Power.
+ *
+ *   ke = (posting_rewards + curation_rewards) / currentHP / 1000
+ *
+ * Where `currentHP` is the account's *effective* HP after subtracting
+ * delegated-out HP and adding delegated-in HP. Mirrors the server-side
+ * calculator at curation-marketing/server/utils/ke-ratio-of-account.js.
+ */
+export async function calculateKERatio(
+  username: string,
+  signal?: AbortSignal,
+): Promise<KERatioResult> {
+  if (!username) throw new Error('username is required');
+  const [accounts, dynamicProps] = await Promise.all([
+    userService.getAccounts([username], signal),
+    userService.getDynamicGlobalProperties(signal),
+  ]);
+  if (!accounts || !accounts.length) {
+    throw new Error(`Account not found: ${username}`);
+  }
+  const account = accounts[0];
+  const totalVestingFundHive = parseFloat(
+    String(dynamicProps.total_vesting_fund_hive),
+  );
+  const totalVestingShares = parseFloat(
+    String(dynamicProps.total_vesting_shares),
+  );
+  const vestToHP = (vestingShares: string | number) =>
+    (totalVestingFundHive * parseFloat(String(vestingShares))) /
+    totalVestingShares;
+  const ownVests = vestToHP(account.vesting_shares);
+  const receivedVests = vestToHP(account.received_vesting_shares);
+  const delegatedVests = vestToHP(account.delegated_vesting_shares);
+  const currentHP = ownVests + receivedVests - delegatedVests;
+  const postingRewards = parseFloat(String(account.posting_rewards));
+  const curationRewards = parseFloat(String(account.curation_rewards));
+  const totalRewards = postingRewards + curationRewards;
+  const ke = currentHP > 0 ? totalRewards / currentHP / 1000 : 0;
+  return {
+    username,
+    currentHP,
+    postingRewards,
+    curationRewards,
+    totalRewards,
+    ke,
+  };
+}
+
 export const userService = new UserService();
