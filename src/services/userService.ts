@@ -1117,24 +1117,27 @@ export interface GrowthAnalyticsResult {
 
 export interface KERatioResult {
   username: string;
-  /** Effective Hive Power = own HP + received HP − delegated HP. */
+  /** Own staked HP (vesting_shares only — excludes received and delegated). */
   currentHP: number;
+  /** Posting rewards in HP. */
   postingRewards: number;
+  /** Curation rewards in HP. */
   curationRewards: number;
+  /** Total lifetime rewards in HP. */
   totalRewards: number;
-  /** ke = (postingRewards + curationRewards) / currentHP / 1000 */
+  /** ke = (postingRewardsHP + curationRewardsHP) / ownHP */
   ke: number;
 }
 
 /**
- * KE ("Kuriyaki Effective") ratio for a Hive account — a rough indicator of
- * how much an account has earned relative to its own effective Hive Power.
+ * KE ratio for a Hive account — lifetime rewards divided by own staked HP.
+ * Matches the value shown on peakd.com and mirrors the server-side calculator
+ * at curation-marketing/Server/utils/ke-ratio-of-account.js.
  *
- *   ke = (posting_rewards + curation_rewards) / currentHP / 1000
+ *   ke = (posting_rewards + curation_rewards in HP) / own_HP
  *
- * Where `currentHP` is the account's *effective* HP after subtracting
- * delegated-out HP and adding delegated-in HP. Mirrors the server-side
- * calculator at curation-marketing/server/utils/ke-ratio-of-account.js.
+ * Own HP only — received delegations and delegations-out are excluded so the
+ * ratio reflects whether the account keeps its earnings staked.
  */
 export async function calculateKERatio(
   username: string,
@@ -1155,23 +1158,23 @@ export async function calculateKERatio(
   const totalVestingShares = parseFloat(
     String(dynamicProps.total_vesting_shares),
   );
+  // parseFloat reads VESTS whether the value is "X.XXXXXX VESTS" (vesting_shares)
+  // or a plain integer string (posting_rewards / curation_rewards — VESTS counts,
+  // not HP).
   const vestToHP = (vestingShares: string | number) =>
     (totalVestingFundHive * parseFloat(String(vestingShares))) /
     totalVestingShares;
-  const ownVests = vestToHP(account.vesting_shares);
-  const receivedVests = vestToHP(account.received_vesting_shares);
-  const delegatedVests = vestToHP(account.delegated_vesting_shares);
-  const currentHP = ownVests + receivedVests - delegatedVests;
-  const postingRewards = parseFloat(String(account.posting_rewards));
-  const curationRewards = parseFloat(String(account.curation_rewards));
-  const totalRewards = postingRewards + curationRewards;
-  const ke = currentHP > 0 ? totalRewards / currentHP / 1000 : 0;
+  const ownHP = vestToHP(account.vesting_shares);
+  const postingRewardsHP = vestToHP(account.posting_rewards);
+  const curationRewardsHP = vestToHP(account.curation_rewards);
+  const totalRewardsHP = postingRewardsHP + curationRewardsHP;
+  const ke = ownHP > 0 ? totalRewardsHP / ownHP : 0;
   return {
     username,
-    currentHP,
-    postingRewards,
-    curationRewards,
-    totalRewards,
+    currentHP: ownHP,
+    postingRewards: postingRewardsHP,
+    curationRewards: curationRewardsHP,
+    totalRewards: totalRewardsHP,
     ke,
   };
 }

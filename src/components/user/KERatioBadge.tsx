@@ -10,13 +10,13 @@ interface KERatioBadgeProps {
 }
 
 /** Color the badge based on how high the KE ratio is. Higher KE = the account
- *  has earned a lot relative to its effective HP, which is often considered
+ *  has earned a lot relative to its own staked HP, which is often considered
  *  less healthy by curators. The buckets here are a soft heuristic, not a
  *  strict on-chain rule. */
 function colorForKE(ke: number): string {
-  if (ke < 2) return 'text-emerald-400';
-  if (ke < 4) return 'text-yellow-400';
-  if (ke < 6) return 'text-orange-400';
+  if (ke < 1) return 'text-emerald-400';
+  if (ke < 2) return 'text-yellow-400';
+  if (ke < 3) return 'text-orange-400';
   return 'text-red-400';
 }
 
@@ -31,7 +31,7 @@ function formatHP(value: number): string {
  * Small clickable badge showing an account's KE ratio. Opens a details modal
  * with the underlying numbers and a plain-language explanation of the metric.
  *
- *   ke = (posting_rewards + curation_rewards) / effective_HP / 1000
+ *   ke = (posting_rewards + curation_rewards in HP) / own_HP
  *
  * Meant to live inline next to other account meta (VP, HP) on the profile
  * header, so it inherits a similar visual treatment.
@@ -172,18 +172,19 @@ const KERatioBadge = ({
                         Formula:
                       </span>{' '}
                       <span className="font-mono text-blue-200">
-                        (posting_rewards + curation_rewards) ÷ effective_HP ÷ 1000
+                        (posting_rewards + curation_rewards in HP) ÷ own_HP
                       </span>
                     </p>
                     <p>
-                      Effective HP excludes delegated-out vests and includes
-                      delegated-in vests, so the number reflects the stake the
-                      account actually controls today.
+                      Own HP is the account&apos;s vesting_shares — received
+                      delegations and delegations-out are excluded, so the
+                      ratio reflects whether the account keeps its earnings
+                      staked. Matches the value shown on peakd.com.
                     </p>
                     <p className="text-gray-400">
                       Lower is generally considered healthier for curators. The
-                      heuristic colors here (green &lt; 2, yellow &lt; 4, orange &lt; 6,
-                      red ≥ 6) are a soft guide, not a strict rule.
+                      heuristic colors here (green &lt; 1, yellow &lt; 2, orange &lt; 3,
+                      red ≥ 3) are a soft guide, not a strict rule.
                     </p>
                   </div>
                 </div>
