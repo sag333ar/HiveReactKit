@@ -19,6 +19,7 @@ import React, {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
+import { WorldMappinMap } from '../WorldMappinMap';
 import {
   ArrowLeft,
   AtSign,
@@ -229,6 +230,68 @@ export interface ParentPostComposerProps {
   reblogToggleDefault?: boolean;
   /** Label rendered next to the toggle. Defaults to "Reblog". */
   reblogToggleLabel?: string;
+  /**
+   * Optional raw markdown appended to the body for preview rendering
+   * only. Doesn't end up in the editor and isn't returned via
+   * `onSubmit`. Use this for transient previews like a picked
+   * WorldMapPin location that you haven't committed to the body yet.
+   */
+  previewExtras?: string;
+}
+
+/**
+ * WorldMapPin marker → dedicated Leaflet map section below the
+ * preview body.
+ *
+ * The marker line is a markdown comment
+ *   `[//]:# (!worldmappin LAT lat LON long DESC d3scr)`
+ * that's stripped by markdown-it (it parses `[//]:#` as a link-reference
+ * definition and drops it). Static-map image services are flaky /
+ * region-blocked, and the Hive markdown renderer's iframe allowlist
+ * rejects map embeds. So instead of inlining the map within the rendered
+ * body, we:
+ *
+ *   1. Strip the marker from the markdown stream so nothing related
+ *      shows up in the rendered HTML.
+ *   2. Extract every marker's `{lat, lng, description}` separately.
+ *   3. Render a `<WorldMappinMap>` (Leaflet + OSM tiles) for each one
+ *      as a dedicated section below the rendered body in the preview
+ *      pane.
+ */
+const WORLDMAPPIN_MARKER_REGEX =
+  /\[\/\/\]:#\s*\(\s*!worldmappin\s+(-?\d+(?:\.\d+)?)\s+lat\s+(-?\d+(?:\.\d+)?)\s+long\s+(.*?)\s+d3scr\s*\)/gi;
+
+interface ParsedWorldMapPin {
+  lat: number;
+  lng: number;
+  description: string;
+}
+
+/** Strip WorldMapPin markers from the markdown stream — the map gets
+ *  rendered as a dedicated section below the rendered body, so the
+ *  marker shouldn't appear inline in the preview. */
+function stripWorldMapPinMarkers(md: string): string {
+  return md.replace(WORLDMAPPIN_MARKER_REGEX, '');
+}
+
+/** Extract every WorldMapPin marker from a body / previewExtras source. */
+function extractWorldMapPins(src: string): ParsedWorldMapPin[] {
+  if (!src) return [];
+  const re = new RegExp(WORLDMAPPIN_MARKER_REGEX.source, 'gi');
+  const out: ParsedWorldMapPin[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const lat = parseFloat(m[1]);
+    const lng = parseFloat(m[2]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const description = (m[3] || '').trim();
+    out.push({
+      lat,
+      lng,
+      description: description.toUpperCase() === 'DESCRIPTION GOES HERE' ? '' : description,
+    });
+  }
+  return out;
 }
 
 /** Small Hive avatar with a UI Avatars fallback — matches other kit components. */
@@ -297,6 +360,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   reblogToggle = false,
   reblogToggleDefault = false,
   reblogToggleLabel = 'Reblog',
+  previewExtras = '',
 }) => {
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
@@ -736,13 +800,40 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   }, []);
 
   // The preview body includes appended audio/video URLs so the renderer
-  // embeds them inline (matches what we'll broadcast).
+  // embeds them inline (matches what we'll broadcast). `previewExtras`
+  // is host-supplied raw markdown that we want rendered alongside the
+  // body but not stored in the editor (e.g. a transient WorldMapPin
+  // marker the host hasn't committed yet). WorldMapPin markers are
+  // stripped from the markdown stream — they're surfaced as a dedicated
+  // map section below the rendered body instead of inline.
   const previewBody = useMemo(() => {
     let out = body;
     if (audioEmbedUrl) out += `\n${audioEmbedUrl}`;
     if (videoEmbedUrl) out += `\n${videoEmbedUrl}`;
+    if (previewExtras) out += `\n\n${previewExtras}`;
+    out = stripWorldMapPinMarkers(out);
     return out;
-  }, [body, audioEmbedUrl, videoEmbedUrl]);
+  }, [body, audioEmbedUrl, videoEmbedUrl, previewExtras]);
+
+  // Locations to render as Leaflet previews below the rendered body.
+  // Drawn from the actual body (committed markers) AND `previewExtras`
+  // (transient host-supplied marker the host hasn't merged yet).
+  const previewLocations = useMemo<ParsedWorldMapPin[]>(() => {
+    const fromBody = extractWorldMapPins(body);
+    const fromExtras = extractWorldMapPins(previewExtras);
+    // Dedupe on rounded lat/lng so a host that streams previewExtras
+    // alongside an existing in-body marker doesn't draw the same pin
+    // twice.
+    const seen = new Set<string>();
+    const merged: ParsedWorldMapPin[] = [];
+    for (const p of [...fromBody, ...fromExtras]) {
+      const key = `${p.lat.toFixed(6)}|${p.lng.toFixed(6)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(p);
+    }
+    return merged;
+  }, [body, previewExtras]);
 
   // When the user attaches a video via the toolbar, we render a single
   // `<ThreeSpeakPlayer/>` above the body and strip any 3Speak embeds out of
@@ -2038,6 +2129,24 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       Your post preview will appear here as you type. Markdown,
                       images, audio and video embeds all render live.
                     </p>
+                  )}
+
+                  {/* WorldMapPin maps render as a dedicated section
+                      attached below the rendered body — the marker
+                      itself is stripped from inline preview so the
+                      coords don't show up mid-paragraph. */}
+                  {previewLocations.length > 0 && (
+                    <div className="mt-4 flex flex-col gap-3">
+                      {previewLocations.map((loc, i) => (
+                        <WorldMappinMap
+                          key={`${loc.lat.toFixed(6)}|${loc.lng.toFixed(6)}|${i}`}
+                          lat={loc.lat}
+                          lng={loc.lng}
+                          description={loc.description}
+                          height={320}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
