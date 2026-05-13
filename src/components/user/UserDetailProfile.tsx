@@ -8,6 +8,7 @@ import {
   FileText,
   Reply,
   Camera,
+  Pencil,
   BarChart3,
   Activity,
   Wallet as WalletIcon,
@@ -206,6 +207,12 @@ export interface UserDetailProfileProps {
   /** Per-card right-side header action menu (Edit / Delete / Flag) for the
    *  Snaps tab. Forwarded into <SnapsFeedView/>. */
   renderSnapHeaderActions?: (post: Post) => React.ReactNode;
+
+  /** Wire this on the consumer's own profile to surface an "Edit profile"
+   *  affordance over the avatar. Only invoked when
+   *  `currentUsername === username`. The consumer owns the modal /
+   *  account_update2 broadcast. */
+  onEditProfile?: () => void;
 }
 
 interface ProfileData {
@@ -355,6 +362,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   allowLandscapeVideos = false,
   awaitingWalletApproval = false,
   renderSnapHeaderActions,
+  onEditProfile,
   activeTab: controlledActiveTab,
   onActiveTabChange,
 }) => {
@@ -468,7 +476,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   }, []);
   const isMobile = useIsMobile();
   const targetUsername = username.replace(/^@/, "").trim();
-  const isOwnProfile = currentUsername === targetUsername;
+  // Hive accounts are lowercase but route params / shared links sometimes
+  // arrive with capital letters. Compare case-insensitively so the
+  // "own profile" affordances (edit overlay etc.) don't silently disappear.
+  const isOwnProfile =
+    !!currentUsername && currentUsername.toLowerCase() === targetUsername.toLowerCase();
 
   // Build memoized sets for O(1) lookup when filtering feed content
   const reportedPostKeys = useMemo(
@@ -2581,15 +2593,48 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           {/* Profile details overlaid on cover */}
           <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4">
             <div className="flex items-end gap-3 sm:gap-4">
-              {/* Avatar */}
-              <img
-                src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
-                alt={targetUsername}
-                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover flex-shrink-0"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
-                }}
-              />
+              {/* Avatar — wrapped in a button for the owner so they
+                  can edit their profile. A persistent red pencil badge
+                  on the bottom-right corner makes the affordance
+                  discoverable on touch devices (no hover); the
+                  full-overlay dim is the bonus desktop hover state. */}
+              {isOwnProfile && onEditProfile ? (
+                <button
+                  type="button"
+                  onClick={onEditProfile}
+                  aria-label="Edit profile"
+                  className="group relative flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-white/60"
+                >
+                  <img
+                    src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
+                    alt={targetUsername}
+                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                    }}
+                  />
+                  <span
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition-all duration-150 group-hover:bg-black/55 group-hover:opacity-100 group-focus:bg-black/55 group-focus:opacity-100"
+                  >
+                    <Pencil className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </span>
+                  <span
+                    className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-[#e31337] text-white shadow-md sm:h-7 sm:w-7"
+                    aria-hidden
+                  >
+                    <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  </span>
+                </button>
+              ) : (
+                <img
+                  src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
+                  alt={targetUsername}
+                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover flex-shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                  }}
+                />
+              )}
               {/* Name + details */}
               <div className="flex-1 min-w-0 pb-0.5">
                 <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate drop-shadow-md">
