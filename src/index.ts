@@ -172,6 +172,7 @@ export * from './types/video';
 export * from './types/poll';
 export * from './types/reward';
 export * from './types/wallet';
+export * from './types/proposal';
 // export * from './types/witness';
 
 // Runtime-configurable Hive RPC endpoint. Call `setHiveApiEndpoint(url)`
@@ -189,6 +190,7 @@ export {
 export * from './services/apiService';
 export * from './services/userService';
 export * from './services/witnessService';
+export * from './services/proposalService';
 export * from './services/templateService';
 export { uploadToHiveImages, type PostingSignMessageFn } from './services/hiveImageUpload';
 
