@@ -217,6 +217,15 @@ export interface ParentPostComposerProps {
    */
   communitySlot?: React.ReactNode;
 
+  /**
+   * Optional content rendered between the title input and the markdown
+   * toolbar. Use this to plug in a consumer-owned video picker (e.g. the
+   * hivesuite video-encoder uploader) without the kit needing to know
+   * about the upload backend. When set, you'll typically also want
+   * `hideVideo` true so the kit's own 3Speak video button doesn't appear.
+   */
+  videoSlot?: React.ReactNode;
+
   /** When true, render an inline "Reblog after publish" toggle next to
    *  the community pill. Typical use: host app flips this on when a
    *  community is selected, so users can also reblog the post into
@@ -357,6 +366,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   beforeVideoUpload,
   useThreeSpeakV2 = false,
   communitySlot,
+  videoSlot,
   reblogToggle = false,
   reblogToggleDefault = false,
   reblogToggleLabel = 'Reblog',
@@ -1443,6 +1453,12 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 disabled={isDisabled}
                 className="w-full bg-transparent text-2xl sm:text-3xl font-semibold text-white placeholder-gray-500 outline-none border-b border-gray-800 pb-2 focus:border-blue-500 transition-colors"
               />
+
+              {/* Consumer-rendered video slot (e.g. video-encoder uploader).
+                  Sits right under the title because attaching a video
+                  changes the nature of the post — picking it should be a
+                  prominent step before writing the body. */}
+              {videoSlot}
 
               {/* Toolbar */}
               <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-800 pb-2">
