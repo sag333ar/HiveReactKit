@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, type JSX } from "react";
 import {
   FaWallet,
   FaMoneyBill,
-  FaPiggyBank,
   FaCoins,
   FaBolt,
   FaExclamationTriangle,
@@ -13,6 +12,14 @@ import {
 import { useWalletStore, SUPPORTED_CURRENCIES } from "../store/walletStore";
 import type { Transaction, WalletData } from "../types/wallet";
 import { Delegations, type DelegationsProps } from "./Delegations";
+import {
+  TransferModal,
+  PowerUpModal,
+  PowerDownModal,
+  SavingsModal,
+  ConfirmActionModal,
+  type Currency,
+} from "./WalletActionModals";
 
 interface WalletProps {
   username?: string;
@@ -27,6 +34,40 @@ interface WalletProps {
   onCreateRcDelegation?: DelegationsProps["onCreateRcDelegation"];
   /** Hide the Delegated HIVE / RC panel inside the wallet view. */
   hideDelegations?: boolean;
+  /** Wallet actions — only surfaced when `currentUsername === username`.
+   *  Each returns `false` to indicate cancellation (keychain denied) so the
+   *  modal stays open; void / true closes the modal. */
+  onTransfer?: (
+    to: string,
+    amount: string,
+    currency: Currency,
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  onPowerUp?: (
+    to: string,
+    amount: string,
+  ) => void | boolean | Promise<void | boolean>;
+  onPowerDown?: (hp: string) => void | boolean | Promise<void | boolean>;
+  onTransferToSavings?: (
+    currency: Currency,
+    amount: string,
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  onTransferFromSavings?: (
+    currency: Currency,
+    amount: string,
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  /** Cancels the in-progress HP power-down (broadcasts `withdraw_vesting`
+   *  with 0 vests). Surfaces a STOP button on the Hive Power row when the
+   *  account has an active vesting_withdraw_rate. */
+  onStopPowerDown?: () => void | boolean | Promise<void | boolean>;
+  /** Cancels a single pending savings withdrawal via
+   *  `cancel_transfer_from_savings`. Surfaces a STOP button next to each
+   *  pending request. */
+  onCancelSavingsWithdrawal?: (
+    requestId: number,
+  ) => void | boolean | Promise<void | boolean>;
 }
 
 interface WalletTileProps {
@@ -187,8 +228,90 @@ const CurrencyDropdown: React.FC = () => {
   );
 };
 
-const ExpandableBalances: React.FC<{ walletData: WalletData | null }> = ({ walletData }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface BalanceRowProps {
+  icon: JSX.Element;
+  iconBg: string;
+  iconText: string;
+  label: string;
+  value: string;
+  valueText: string;
+  actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" }[];
+}
+
+const BalanceRow: React.FC<BalanceRowProps> = ({
+  icon, iconBg, iconText, label, value, valueText, actions,
+}) => (
+  <div className="p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+    <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBg} ${iconText}`}>
+          {icon}
+        </div>
+        <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
+        <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueText}`}>{value}</span>
+        {actions && actions.length > 0 && (
+          <div className="flex gap-2 flex-wrap justify-end">
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                onClick={a.onClick}
+                className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
+                  a.variant === "secondary"
+                    ? "bg-gray-700 text-gray-100 hover:bg-gray-600"
+                    : "bg-blue-600 text-white hover:bg-blue-500"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+interface ExpandableBalancesProps {
+  walletData: WalletData | null;
+  isOwn: boolean;
+  onTransferHive?: () => void;
+  onPowerUp?: () => void;
+  onAddSavingsHbd?: () => void;
+  onRemoveSavingsHbd?: () => void;
+  onPowerDown?: () => void;
+  onStopPowerDown?: () => void;
+  onCancelSavingsWithdrawal?: (requestId: number) => void;
+}
+
+function formatDaysFromNow(iso?: string): string {
+  if (!iso) return "";
+  const t = new Date(/Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`).getTime();
+  const ms = t - Date.now();
+  if (ms <= 0) return "any moment";
+  const days = Math.floor(ms / 86400000);
+  const hours = Math.floor((ms % 86400000) / 3600000);
+  if (days > 0) return `${days}d ${hours}h`;
+  const mins = Math.floor((ms % 3600000) / 60000);
+  return `${hours}h ${mins}m`;
+}
+
+const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
+  walletData,
+  isOwn,
+  onTransferHive,
+  onPowerUp,
+  onAddSavingsHbd,
+  onRemoveSavingsHbd,
+  onPowerDown,
+  onStopPowerDown,
+  onCancelSavingsWithdrawal,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const pending = walletData?.pending_savings_withdrawals ?? [];
+  const powerDownActive = !!walletData?.power_down_active;
 
   return (
     <div>
@@ -204,42 +327,94 @@ const ExpandableBalances: React.FC<{ walletData: WalletData | null }> = ({ walle
       </button>
       {isExpanded && (
         <div className="ml-2 border-l-2 border-gray-700 pl-2 space-y-0">
-          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full flex items-center justify-center bg-blue-500/15 text-blue-400">
-                <FaWallet />
+          <BalanceRow
+            icon={<FaWallet />}
+            iconBg="bg-blue-500/15"
+            iconText="text-blue-400"
+            label="Balance"
+            value={walletData?.balance ?? "-"}
+            valueText="text-blue-300"
+            actions={isOwn && (onTransferHive || onPowerUp) ? [
+              ...(onTransferHive ? [{ label: "Transfer", onClick: onTransferHive }] : []),
+              ...(onPowerUp ? [{ label: "Power Up", onClick: onPowerUp, variant: "secondary" as const }] : []),
+            ] : undefined}
+          />
+          <BalanceRow
+            icon={<FaCoins />}
+            iconBg="bg-purple-500/15"
+            iconText="text-purple-400"
+            label="Savings HBD"
+            value={walletData?.savings_hbd_balance ?? "-"}
+            valueText="text-purple-300"
+            actions={isOwn && (onAddSavingsHbd || onRemoveSavingsHbd) ? [
+              ...(onAddSavingsHbd ? [{ label: "Add", onClick: onAddSavingsHbd }] : []),
+              ...(onRemoveSavingsHbd ? [{ label: "Remove", onClick: onRemoveSavingsHbd, variant: "secondary" as const }] : []),
+            ] : undefined}
+          />
+
+          {/* Pending HBD savings withdrawals — STOP per request (cancel_transfer_from_savings). */}
+          {pending.length > 0 && (
+            <div className="ml-2 p-3 rounded-lg bg-gray-900 border border-gray-700 mb-2.5">
+              <div className="text-xs font-semibold text-gray-300 mb-2">
+                Pending withdraws from savings
               </div>
-              <span className="font-semibold text-sm text-gray-300">Balance</span>
-            </div>
-            <span className="font-medium text-sm text-blue-300">{walletData?.balance ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full flex items-center justify-center bg-amber-500/15 text-amber-400">
-                <FaPiggyBank />
+              <div className="space-y-2">
+                {pending.map((w) => (
+                  <div
+                    key={w.request_id}
+                    className="flex items-center justify-between gap-2 text-xs text-gray-300 flex-wrap"
+                  >
+                    <span>
+                      <span className="text-purple-300">{w.amount}</span>{" "}
+                      withdraw will complete in{" "}
+                      <span className="text-gray-200">{formatDaysFromNow(w.complete)}</span>
+                    </span>
+                    {isOwn && onCancelSavingsWithdrawal && (
+                      <button
+                        onClick={() => onCancelSavingsWithdrawal(w.request_id)}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wide bg-red-600/20 text-red-300 border border-red-500/40 hover:bg-red-600/30 transition-colors"
+                      >
+                        STOP
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <span className="font-semibold text-sm text-gray-300">Savings Balance</span>
             </div>
-            <span className="font-medium text-sm text-amber-300">{walletData?.savings_balance ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full flex items-center justify-center bg-purple-500/15 text-purple-400">
-                <FaCoins />
-              </div>
-              <span className="font-semibold text-sm text-gray-300">Savings HBD</span>
+          )}
+
+          <BalanceRow
+            icon={<FaBolt />}
+            iconBg="bg-orange-500/15"
+            iconText="text-orange-400"
+            label="Hive Power"
+            value={walletData?.hive_power ?? "-"}
+            valueText="text-orange-300"
+            actions={isOwn ? [
+              ...(onPowerDown ? [{ label: "Power Down", onClick: onPowerDown, variant: "secondary" as const }] : []),
+              ...(powerDownActive && onStopPowerDown ? [{ label: "Stop Power Down", onClick: onStopPowerDown }] : []),
+            ] : undefined}
+          />
+
+          {/* Active power-down schedule banner. Shown alongside the STOP button
+              so the user sees why STOP is offered. */}
+          {powerDownActive && walletData?.power_down_hp_per_week && (
+            <div className="ml-2 p-3 rounded-lg bg-gray-900 border border-orange-500/30 mb-2.5 text-xs text-gray-300">
+              An unstake (power down) is in progress —{" "}
+              <span className="text-orange-300">
+                ~{walletData.power_down_hp_per_week} HIVE / week
+              </span>
+              {walletData.next_vesting_withdrawal && (
+                <>
+                  ; next payout in{" "}
+                  <span className="text-gray-200">
+                    {formatDaysFromNow(walletData.next_vesting_withdrawal)}
+                  </span>
+                </>
+              )}
+              .
             </div>
-            <span className="font-medium text-sm text-purple-300">{walletData?.savings_hbd_balance ?? "-"}</span>
-          </div>
-          <div className="flex items-center justify-between p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full flex items-center justify-center bg-orange-500/15 text-orange-400">
-                <FaBolt />
-              </div>
-              <span className="font-semibold text-sm text-gray-300">Hive Power</span>
-            </div>
-            <span className="font-medium text-sm text-orange-300">{walletData?.hive_power ?? "-"}</span>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -255,6 +430,13 @@ export const Wallet: React.FC<WalletProps> = ({
   onCreateHpDelegation,
   onCreateRcDelegation,
   hideDelegations = false,
+  onTransfer,
+  onPowerUp,
+  onPowerDown,
+  onTransferToSavings,
+  onTransferFromSavings,
+  onStopPowerDown,
+  onCancelSavingsWithdrawal,
 }) => {
   const { walletData, fetchWalletData, isLoading, error, transactions, fetchTransactions, isLoadingTransactions, transactionError } = useWalletStore();
 
@@ -265,24 +447,89 @@ export const Wallet: React.FC<WalletProps> = ({
     }
   }, [username, fetchWalletData, fetchTransactions]);
 
-  const WalletTile: React.FC<WalletTileProps> = ({
+  const isOwn = !!username && !!currentUsername &&
+    username.toLowerCase() === currentUsername.toLowerCase();
+
+  /**
+   * Schedule a wallet refresh ~4s after a successful broadcast. Hive nodes
+   * take a few seconds to confirm the operation and update `getAccounts` —
+   * pulling immediately would just re-fetch the pre-transaction snapshot.
+   */
+  const scheduleRefresh = React.useCallback(() => {
+    if (!username) return;
+    setTimeout(() => {
+      fetchWalletData(username);
+      fetchTransactions(username);
+    }, 4000);
+  }, [username, fetchWalletData, fetchTransactions]);
+
+  /**
+   * Wrap a modal onSubmit so the wallet auto-refreshes when the consumer
+   * reports success (i.e. the callback didn't return `false`).
+   */
+  const withRefresh = <Args extends unknown[]>(
+    fn?: (...args: Args) => void | boolean | Promise<void | boolean>,
+  ) => fn
+    ? async (...args: Args): Promise<void | boolean> => {
+        const res = await fn(...args);
+        if (res !== false) scheduleRefresh();
+        return res;
+      }
+    : undefined;
+
+  type ActionModal =
+    | { kind: "transfer"; initialCurrency: Currency }
+    | { kind: "powerUp" }
+    | { kind: "powerDown" }
+    | { kind: "savingsAdd"; currency: Currency }
+    | { kind: "savingsRemove"; currency: Currency }
+    | { kind: "stopPowerDown" }
+    | { kind: "cancelSavingsWithdrawal"; requestId: number; amount: string }
+    | null;
+  const [activeModal, setActiveModal] = useState<ActionModal>(null);
+
+  const WalletTile: React.FC<WalletTileProps & {
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" }[];
+  }> = ({
     label,
     value,
     icon,
     iconBgClass = "bg-blue-500/15",
     iconTextClass = "text-blue-400",
     valueClass = "text-gray-200",
+    actions,
   }) => (
-    <div className="flex items-center justify-between gap-2 p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        {icon && (
-          <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconTextClass}`}>
-            {icon}
-          </div>
-        )}
-        <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
+    <div className="p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+      <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {icon && (
+            <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconTextClass}`}>
+              {icon}
+            </div>
+          )}
+          <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
+          <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
+          {actions && actions.length > 0 && (
+            <div className="flex gap-2 flex-wrap justify-end">
+              {actions.map((a) => (
+                <button
+                  key={a.label}
+                  onClick={a.onClick}
+                  className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
+                    a.variant === "secondary"
+                      ? "bg-gray-700 text-gray-100 hover:bg-gray-600"
+                      : "bg-blue-600 text-white hover:bg-blue-500"
+                  }`}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
     </div>
   );
 
@@ -350,11 +597,25 @@ export const Wallet: React.FC<WalletProps> = ({
           iconBgClass="bg-emerald-500/15"
           iconTextClass="text-emerald-400"
           valueClass="text-emerald-300"
+          actions={isOwn && onTransfer ? [
+            { label: "Transfer", onClick: () => setActiveModal({ kind: "transfer", initialCurrency: "HBD" }) },
+          ] : undefined}
         />
 
         {/* Expandable All Balances */}
         <ExpandableBalances
           walletData={walletData}
+          isOwn={isOwn}
+          onTransferHive={onTransfer ? () => setActiveModal({ kind: "transfer", initialCurrency: "HIVE" }) : undefined}
+          onPowerUp={onPowerUp ? () => setActiveModal({ kind: "powerUp" }) : undefined}
+          onAddSavingsHbd={onTransferToSavings ? () => setActiveModal({ kind: "savingsAdd", currency: "HBD" }) : undefined}
+          onRemoveSavingsHbd={onTransferFromSavings ? () => setActiveModal({ kind: "savingsRemove", currency: "HBD" }) : undefined}
+          onPowerDown={onPowerDown ? () => setActiveModal({ kind: "powerDown" }) : undefined}
+          onStopPowerDown={onStopPowerDown ? () => setActiveModal({ kind: "stopPowerDown" }) : undefined}
+          onCancelSavingsWithdrawal={onCancelSavingsWithdrawal ? (requestId) => {
+            const w = walletData?.pending_savings_withdrawals?.find(p => p.request_id === requestId);
+            setActiveModal({ kind: "cancelSavingsWithdrawal", requestId, amount: w?.amount ?? "" });
+          } : undefined}
         />
 
         {/* Sub-tabs: Delegations / Transaction History */}
@@ -431,6 +692,70 @@ export const Wallet: React.FC<WalletProps> = ({
           </div>
         )}
       </div>
+
+      {/* ─── Wallet action modals ──────────────────────────────────── */}
+      {isOwn && username && activeModal?.kind === "transfer" && onTransfer && (
+        <TransferModal
+          from={username}
+          hiveBalance={walletData?.balance}
+          hbdBalance={walletData?.hbd_balance}
+          initialCurrency={activeModal.initialCurrency}
+          onClose={() => setActiveModal(null)}
+          onSubmit={withRefresh(onTransfer)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "powerUp" && onPowerUp && (
+        <PowerUpModal
+          from={username}
+          hiveBalance={walletData?.balance}
+          onClose={() => setActiveModal(null)}
+          onSubmit={withRefresh(onPowerUp)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "powerDown" && onPowerDown && (
+        <PowerDownModal
+          from={username}
+          hivePower={walletData?.hive_power}
+          onClose={() => setActiveModal(null)}
+          onSubmit={withRefresh(onPowerDown)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "savingsAdd" && onTransferToSavings && (
+        <SavingsModal
+          mode="add"
+          from={username}
+          currency={activeModal.currency}
+          availableBalance={activeModal.currency === "HIVE" ? walletData?.balance : walletData?.hbd_balance}
+          onClose={() => setActiveModal(null)}
+          onSubmit={withRefresh(onTransferToSavings)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "savingsRemove" && onTransferFromSavings && (
+        <SavingsModal
+          mode="remove"
+          from={username}
+          currency={activeModal.currency}
+          availableBalance={activeModal.currency === "HIVE" ? walletData?.savings_balance : walletData?.savings_hbd_balance}
+          onClose={() => setActiveModal(null)}
+          onSubmit={withRefresh(onTransferFromSavings)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "stopPowerDown" && onStopPowerDown && (
+        <ConfirmActionModal
+          title="Cancel Unstake (Power Down)?"
+          message="This will cancel the current unstake (power down) request. Are you sure?"
+          onClose={() => setActiveModal(null)}
+          onConfirm={withRefresh(onStopPowerDown)!}
+        />
+      )}
+      {isOwn && username && activeModal?.kind === "cancelSavingsWithdrawal" && onCancelSavingsWithdrawal && (
+        <ConfirmActionModal
+          title="Cancel Unstake (Withdraw) From Savings?"
+          message={`This will cancel the selected unstake (withdraw) request${activeModal.amount ? ` of ${activeModal.amount}` : ""}. Are you sure?`}
+          onClose={() => setActiveModal(null)}
+          onConfirm={withRefresh(() => onCancelSavingsWithdrawal(activeModal.requestId))!}
+        />
+      )}
     </div>
   );
 };

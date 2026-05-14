@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
-import type { WalletStore, WalletData, Transaction } from "../types/wallet";
+import type { WalletStore, WalletData, Transaction, PendingSavingsWithdrawal } from "../types/wallet";
 import { getHiveApiEndpoint, getHiveClient } from "../config/hiveEndpoint";
 // Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
 const dhiveClient = getHiveClient();
@@ -227,6 +227,37 @@ const formatLocalCurrency = (value: number, currency: string): string => {
   }
 };
 
+// ------------------- Savings Withdrawals -------------------
+const fetchPendingSavingsWithdrawals = async (
+  username: string,
+): Promise<PendingSavingsWithdrawal[]> => {
+  try {
+    const response = await fetch(getHiveApiEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: 0,
+        jsonrpc: "2.0",
+        method: "condenser_api.get_savings_withdraw_from",
+        params: [username],
+      }),
+    });
+    const data = await response.json();
+    if (data.error) return [];
+    return (data.result || []).map((r: any) => ({
+      request_id: r.request_id,
+      from: r.from,
+      to: r.to,
+      amount: r.amount,
+      memo: r.memo || "",
+      complete: r.complete,
+    })) as PendingSavingsWithdrawal[];
+  } catch (e) {
+    console.error("fetchPendingSavingsWithdrawals failed:", e);
+    return [];
+  }
+};
+
 // ------------------- Transaction Helpers -------------------
 const fetchAccountHistory = async (
   username: string,
@@ -345,6 +376,25 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const hivePower = await convertVestingSharesToHiveData(vestingShares);
 
+      // Power-down state — vesting_withdraw_rate is the per-week VESTS payout.
+      // When > 0 the account is actively powering down. next_vesting_withdrawal
+      // is the timestamp of the next weekly payout.
+      const vestingWithdrawRateRaw =
+        typeof (account as any).vesting_withdraw_rate === "string"
+          ? (account as any).vesting_withdraw_rate
+          : "0.000000 VESTS";
+      const vestingWithdrawRateVests = parseFloat(
+        vestingWithdrawRateRaw.split(" ")[0] || "0",
+      );
+      const powerDownActive = vestingWithdrawRateVests > 0;
+      const powerDownHpPerWeek = powerDownActive
+        ? await convertVestingSharesToHiveData(vestingWithdrawRateRaw)
+        : undefined;
+      const nextVestingWithdrawal =
+        powerDownActive && (account as any).next_vesting_withdrawal
+          ? String((account as any).next_vesting_withdrawal)
+          : undefined;
+
       const liquidHive = parseFloat(balance.split(" ")[0] || "0");
       const stakedHive = parseFloat(hivePower);
 
@@ -369,6 +419,11 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       const localValue = usdValue * rate;
       const formattedValue = formatLocalCurrency(localValue, selectedCurrency);
 
+      // Pull pending savings withdrawals in parallel — we keep this in
+      // walletData rather than a separate store key so the UI can fan out
+      // STOP buttons next to each request without juggling extra loaders.
+      const pendingSavingsWithdrawals = await fetchPendingSavingsWithdrawals(username);
+
       const walletData: WalletData = {
         balance,
         hbd_balance: hbdBalance,
@@ -377,6 +432,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         hive_power: `${hivePower} HP`,
         estimated_value: formattedValue,
         estimated_value_usd: usdValue,
+        power_down_active: powerDownActive,
+        power_down_hp_per_week: powerDownHpPerWeek,
+        next_vesting_withdrawal: nextVestingWithdrawal,
+        pending_savings_withdrawals: pendingSavingsWithdrawals,
       };
 
       set({ walletData, exchangeRates: rates });
@@ -404,6 +463,15 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  fetchSavingsWithdrawals: async (username: string) => {
+    const list = await fetchPendingSavingsWithdrawals(username);
+    const { walletData } = get();
+    if (walletData) {
+      set({ walletData: { ...walletData, pending_savings_withdrawals: list } });
+    }
+    return list;
   },
 
   fetchTransactions: async (username: string, limit: number = 100) => {

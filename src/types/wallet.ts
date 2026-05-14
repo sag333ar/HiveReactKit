@@ -6,7 +6,28 @@ export interface WalletData {
   hive_power: string;
   estimated_value: string;
   estimated_value_usd: number;
+  /** When a power-down is in progress this is the per-week HIVE amount.
+   *  Empty/undefined when no power-down is scheduled. */
+  power_down_hp_per_week?: string;
+  /** ISO timestamp of the next vesting withdrawal payout (UTC). */
+  next_vesting_withdrawal?: string;
+  /** True when `vesting_withdraw_rate` > 0 on the account. */
+  power_down_active?: boolean;
+  /** Pending savings withdrawals — populated by `fetchSavingsWithdrawals`. */
+  pending_savings_withdrawals?: PendingSavingsWithdrawal[];
   error?: string;
+}
+
+export interface PendingSavingsWithdrawal {
+  /** Unique per-user id picked when the withdrawal was created. Required to
+   *  broadcast `cancel_transfer_from_savings`. */
+  request_id: number;
+  from: string;
+  to: string;
+  amount: string;
+  memo: string;
+  /** ISO timestamp when the 3-day waiting period ends (UTC). */
+  complete: string;
 }
 
 export interface HpDelegation {
@@ -60,6 +81,8 @@ export interface WalletStore {
   clearWalletData: () => void;
   fetchWalletData: (username: string) => Promise<WalletData>;
   fetchTransactions: (username: string, limit?: number) => Promise<Transaction[]>;
+  /** Fetches `cancel_transfer_from_savings`-able requests via condenser API. */
+  fetchSavingsWithdrawals: (username: string) => Promise<PendingSavingsWithdrawal[]>;
   setSelectedCurrency: (currency: string) => void;
   getFormattedEstimatedValue: () => string;
 }

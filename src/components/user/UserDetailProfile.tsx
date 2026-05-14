@@ -138,6 +138,40 @@ export interface UserDetailProfileProps {
    *  button on the RC tab. Posting auth is sufficient. */
   onCreateRcDelegation?: (delegatee: string, maxRc: string) => void | boolean | Promise<void | boolean>;
 
+  /** Wallet tab — transfer HIVE / HBD. Surfaced only when viewing one's own
+   *  profile. Return `false` to indicate cancellation. */
+  onTransfer?: (
+    to: string,
+    amount: string,
+    currency: "HIVE" | "HBD",
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — power up (stake HIVE → HP). */
+  onPowerUp?: (
+    to: string,
+    amount: string,
+  ) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — power down (unstake HP → HIVE over 13 weeks). */
+  onPowerDown?: (hp: string) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — add to savings (transfer_to_savings). */
+  onTransferToSavings?: (
+    currency: "HIVE" | "HBD",
+    amount: string,
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — withdraw from savings (transfer_from_savings). */
+  onTransferFromSavings?: (
+    currency: "HIVE" | "HBD",
+    amount: string,
+    memo: string,
+  ) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — stop an in-progress power-down (withdraw_vesting with 0). */
+  onStopPowerDown?: () => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — cancel a single pending savings withdrawal. */
+  onCancelSavingsWithdrawal?: (
+    requestId: number,
+  ) => void | boolean | Promise<void | boolean>;
+
   /**
    * Called when the user submits a poll vote from the inline voting UI on the
    * polls tab. `choiceNums` is an array of 1-based choice numbers selected
@@ -340,6 +374,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onDeleteRcDelegation,
   onCreateHpDelegation,
   onCreateRcDelegation,
+  onTransfer,
+  onPowerUp,
+  onPowerDown,
+  onTransferToSavings,
+  onTransferFromSavings,
+  onStopPowerDown,
+  onCancelSavingsWithdrawal,
   onVotePoll,
   onEditSnap,
   onUserClick,
@@ -2029,6 +2070,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onDeleteRcDelegation={onDeleteRcDelegation}
             onCreateHpDelegation={onCreateHpDelegation}
             onCreateRcDelegation={onCreateRcDelegation}
+            onTransfer={onTransfer}
+            onPowerUp={onPowerUp}
+            onPowerDown={onPowerDown}
+            onTransferToSavings={onTransferToSavings}
+            onTransferFromSavings={onTransferFromSavings}
+            onStopPowerDown={onStopPowerDown}
+            onCancelSavingsWithdrawal={onCancelSavingsWithdrawal}
           />
         </div>
       );
