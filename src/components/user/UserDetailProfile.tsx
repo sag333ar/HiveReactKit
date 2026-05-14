@@ -171,6 +171,14 @@ export interface UserDetailProfileProps {
   onCancelSavingsWithdrawal?: (
     requestId: number,
   ) => void | boolean | Promise<void | boolean>;
+  /** Wallet tab — claim unclaimed reward balances via
+   *  `claim_reward_balance`. The kit passes the three reward strings;
+   *  consumers typically forward to aioha.claimRewards(). */
+  onClaimRewards?: (rewards: {
+    hive: string;
+    hbd: string;
+    vests: string;
+  }) => void | boolean | Promise<void | boolean>;
 
   /**
    * Called when the user submits a poll vote from the inline voting UI on the
@@ -381,6 +389,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onTransferFromSavings,
   onStopPowerDown,
   onCancelSavingsWithdrawal,
+  onClaimRewards,
   onVotePoll,
   onEditSnap,
   onUserClick,
@@ -988,7 +997,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   // ─── Load more (next page) ────────────────────────────────────────────
 
+  /** Tabs the central loadMore() pipeline owns. Other tabs either don't
+   *  paginate at all (rewards, badges, growth, …) or own their own
+   *  pagination (snaps via <ProfileSnapsTab/>, wallet via the Wallet's
+   *  own transactions scroll listener). Listing them explicitly here
+   *  prevents a wrong-tab scroll from accidentally appending data to a
+   *  different tab's state. */
+  const PAGINATED_TABS: TabType[] = ["blogs", "posts", "comments", "replies", "followers", "following"];
+
   const loadMore = useCallback(async () => {
+    if (!PAGINATED_TABS.includes(activeTab)) return;
     if (loadingMore || !hasMore[activeTab] || !targetUsername) return;
     setLoadingMore(true);
 
@@ -1017,6 +1035,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           break;
         }
         case "comments": {
+          // Mirror the Posts pattern exactly — same cursor semantics
+          // (start_author = the user, start_permlink = last comment),
+          // same trim-cursor-if-echoed dedupe. The previous Set-based
+          // dedupe was over-aggressive and would drop legitimate items.
           const last = comments[comments.length - 1];
           if (!last) break;
           const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
@@ -1026,6 +1048,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           break;
         }
         case "replies": {
+          // Mirror the Comments cursor pattern exactly. Confirmed against
+          // peakd: a profile for "sagar-test1" paginates with
+          // start_author = "shaktimaaan", start_permlink = "h1lowxug" —
+          // those are the LAST REPLY's own author and permlink, not the
+          // parent post's. A previous attempt used `parent_author /
+          // parent_permlink` here, which sent the wrong cursor and made
+          // the node either echo the same page or return nothing.
           const last = replies[replies.length - 1];
           if (!last) break;
           const data = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
@@ -1061,24 +1090,53 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
   }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following]);
 
-  // ─── IntersectionObserver for infinite scroll ─────────────────────────
-
+  // ─── Infinite scroll — direct scroll listener on the nested scroll
+  // container. We tried IntersectionObserver first, but it proved
+  // unreliable inside the kit's nested scroll layout when the consumer
+  // app wraps the profile in its own shell (HiveSuite). The Posts tab
+  // happened to work because its rendered cards are tall enough that the
+  // sentinel crossed the viewport boundary — Comments / Replies rows are
+  // short, so the sentinel never made it into the viewport unless the
+  // observer's `root` was pinned exactly to the right element. Scroll
+  // events are guaranteed to fire on every scroll regardless of layout,
+  // so this is the bulletproof approach.
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    const el = mainScrollRef.current;
+    if (!el) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
+    // Bottom-edge threshold: when the user has scrolled to within this
+    // many pixels of the end, fire `loadMore`. 600px gives the next page
+    // a head start so the user rarely hits a hard stop while scrolling.
+    const THRESHOLD = 600;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD) {
           loadMore();
         }
-      },
-      { rootMargin: "200px" }
-    );
+      });
+    };
 
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, [loadMore]);
+
+  // After a load-more completes, if the new page didn't make the content
+  // any taller than the viewport (short rows / fast network), the user
+  // never gets a chance to scroll and the listener above sits idle.
+  // Manually peek the scroll position and fire again — bounded by
+  // `hasMore` / `loadingMore` so it can't loop forever.
+  useEffect(() => {
+    if (loadingMore || !hasMore[activeTab]) return;
+    const el = mainScrollRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) {
+      loadMore();
+    }
+  }, [loadingMore, activeTab, hasMore, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, loadMore]);
 
   // ─── Action handlers ─────────────────────────────────────────────────────
 
@@ -2077,6 +2135,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onTransferFromSavings={onTransferFromSavings}
             onStopPowerDown={onStopPowerDown}
             onCancelSavingsWithdrawal={onCancelSavingsWithdrawal}
+            onClaimRewards={onClaimRewards}
           />
         </div>
       );
@@ -2394,16 +2453,23 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
-    // Content tabs (blogs, posts, comments, replies). Snaps has its own
-    // dedicated branch above and does not pass through this fallback.
-    const contentMap: Record<string, { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
+    // Content tabs (blogs, posts, comments, replies) — explicit allowlist
+    // so we cannot accidentally render post cards on a tab that has its
+    // own branch above (authorRewards, votingPower, badges, etc.). The
+    // earlier `Record<string, ...>` typing let `contentMap[activeTab]`
+    // silently return `undefined` for unknown tabs, which usually became
+    // `null` but could leak through layout edges on remount transitions.
+    const CONTENT_TABS: TabType[] = ["blogs", "posts", "comments", "replies"];
+    if (!CONTENT_TABS.includes(activeTab)) return null;
+
+    const contentMap: Record<"blogs" | "posts" | "comments" | "replies", { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
       blogs: { data: filteredBlogs, type: "blog", icon: FileText },
       posts: { data: filteredPosts, type: "post", icon: FileText },
       comments: { data: filteredComments, type: "comment", icon: MessageCircle },
       replies: { data: filteredReplies, type: "reply", icon: Reply },
     };
 
-    const current = contentMap[activeTab];
+    const current = contentMap[activeTab as "blogs" | "posts" | "comments" | "replies"];
     if (!current) return null;
 
     if (current.data.length === 0) {
@@ -2786,7 +2852,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* ── Tab content ── */}
-        <div className="p-4 flex-1">
+        {/* `key={activeTab}` force-remounts the entire content subtree on
+            tab change. Without it React would reuse DOM nodes when the
+            child types happen to overlap (e.g. both Posts and Author
+            Rewards render in a `space-y-3` div) and a stale card could
+            briefly remain visible while the new tab's data was loading.
+            Force-remount also resets internal state (scroll, focus,
+            in-flight image loads) inside leaf components on tab change. */}
+        <div className="p-4 flex-1" key={activeTab}>
           {renderTabContent()}
 
           {/* Infinite scroll sentinel — min-h prevents scroll jump during loading */}

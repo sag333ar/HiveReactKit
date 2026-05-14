@@ -259,10 +259,222 @@ const fetchPendingSavingsWithdrawals = async (
 };
 
 // ------------------- Transaction Helpers -------------------
+/**
+ * condenser_api.get_account_history `op_filter_low` / `op_filter_high`
+ * bitmask copied from peakd. Each bit position corresponds to an op type;
+ * peakd selects every financial operation a wallet user expects to see —
+ * transfer, power up, power down, savings deposit / withdraw, claim
+ * rewards, delegations, market orders, recurrent transfers, fill events,
+ * etc. The earlier filter of "4" only matched op id 2 (`transfer`), so
+ * everything else was silently dropped and the history looked nearly empty.
+ *
+ * Strings (not numbers) because the high bits don't fit in JS' safe
+ * integer range; the node expects them as strings anyway.
+ */
+const OP_FILTER_LOW = "848647637693366652";
+const OP_FILTER_HIGH = "129639434";
+
+/** Map a raw account-history entry to our Transaction shape. Returns null
+ *  for op types we don't render. Captures the canonical financial ops
+ *  peakd surfaces in its wallet timeline. */
+function mapHistoryEntryToTransaction(
+  entry: [number, { timestamp: string; trx_id: string; op: [string, Record<string, any>] }],
+  username: string,
+): Transaction | null {
+  const [id, tx] = entry;
+  const [opType, op] = tx.op;
+  const base = { id, timestamp: tx.timestamp, trx_id: tx.trx_id };
+
+  switch (opType) {
+    case "transfer":
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: op.memo || "",
+      };
+    case "transfer_to_vesting":
+      // Power Up — stake HIVE as HP. From the user's POV this leaves the
+      // liquid balance, so render as "sent" with a descriptive memo.
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: op.from === op.to ? "Power up" : `Power up → @${op.to}`,
+      };
+    case "transfer_to_savings":
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: op.memo ? `Savings deposit · ${op.memo}` : "Savings deposit",
+      };
+    case "transfer_from_savings":
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: op.memo ? `Savings withdraw · ${op.memo}` : "Savings withdraw",
+      };
+    case "fill_transfer_from_savings":
+      return {
+        ...base,
+        type: "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: "Savings withdraw fill",
+      };
+    case "cancel_transfer_from_savings":
+      return {
+        ...base,
+        type: "received",
+        amount: "—",
+        from: op.from,
+        to: op.from,
+        memo: `Cancelled savings withdrawal #${op.request_id}`,
+      };
+    case "fill_vesting_withdraw": {
+      // Power Down weekly payout — `deposited` is HIVE the user receives.
+      return {
+        ...base,
+        type: op.to_account === username ? "received" : "sent",
+        amount: String(op.deposited),
+        from: op.from_account,
+        to: op.to_account,
+        memo: "Power down",
+      };
+    }
+    case "claim_reward_balance": {
+      const parts: string[] = [];
+      if (op.reward_hive && parseFloat(op.reward_hive) > 0) parts.push(String(op.reward_hive));
+      if (op.reward_hbd && parseFloat(op.reward_hbd) > 0) parts.push(String(op.reward_hbd));
+      if (op.reward_vests && parseFloat(op.reward_vests) > 0) parts.push(String(op.reward_vests));
+      return {
+        ...base,
+        type: "received",
+        amount: parts.join(", ") || "—",
+        from: op.account,
+        to: op.account,
+        memo: "Claimed rewards",
+      };
+    }
+    case "delegate_vesting_shares":
+      return {
+        ...base,
+        type: op.delegator === username ? "sent" : "received",
+        amount: String(op.vesting_shares),
+        from: op.delegator,
+        to: op.delegatee,
+        memo: `Delegate HP → @${op.delegatee}`,
+      };
+    case "return_vesting_delegation":
+      return {
+        ...base,
+        type: "received",
+        amount: String(op.vesting_shares),
+        from: "delegation",
+        to: op.account,
+        memo: "Delegation returned",
+      };
+    case "author_reward": {
+      const parts: string[] = [];
+      if (op.hive_payout && parseFloat(op.hive_payout) > 0) parts.push(String(op.hive_payout));
+      if (op.hbd_payout && parseFloat(op.hbd_payout) > 0) parts.push(String(op.hbd_payout));
+      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(String(op.vesting_payout));
+      return {
+        ...base,
+        type: "received",
+        amount: parts.join(", ") || "—",
+        from: "author_reward",
+        to: op.author,
+        memo: `Author reward · ${op.permlink}`,
+      };
+    }
+    case "curation_reward":
+      return {
+        ...base,
+        type: "received",
+        amount: String(op.reward),
+        from: "curation",
+        to: op.curator,
+        memo: `Curation · @${op.comment_author}/${op.permlink}`,
+      };
+    case "comment_benefactor_reward": {
+      const parts: string[] = [];
+      if (op.hive_payout && parseFloat(op.hive_payout) > 0) parts.push(String(op.hive_payout));
+      if (op.hbd_payout && parseFloat(op.hbd_payout) > 0) parts.push(String(op.hbd_payout));
+      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(String(op.vesting_payout));
+      return {
+        ...base,
+        type: "received",
+        amount: parts.join(", ") || "—",
+        from: op.author,
+        to: op.benefactor,
+        memo: "Benefactor reward",
+      };
+    }
+    case "producer_reward":
+      return {
+        ...base,
+        type: "received",
+        amount: String(op.vesting_shares),
+        from: "producer",
+        to: op.producer,
+        memo: "Producer reward",
+      };
+    case "fill_order":
+      return {
+        ...base,
+        type: "received",
+        amount: `${op.current_pays} → ${op.open_pays}`,
+        from: op.current_owner,
+        to: op.open_owner,
+        memo: "Market fill",
+      };
+    case "recurrent_transfer":
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: op.memo ? `Recurrent · ${op.memo}` : "Recurrent transfer",
+      };
+    case "fill_recurrent_transfer":
+      return {
+        ...base,
+        type: op.from === username ? "sent" : "received",
+        amount: String(op.amount),
+        from: op.from,
+        to: op.to,
+        memo: "Recurrent fill",
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Pull a slice of account history. `start = -1` returns the latest `limit`
+ * entries; for pagination pass the smallest id from the previous page minus
+ * one. `rawCount` is the number of underlying history entries received
+ * before op-type filtering — used by callers to decide whether more pages
+ * are available (the filtered list can be much shorter than the raw page).
+ */
 const fetchAccountHistory = async (
   username: string,
-  limit: number = 100
-): Promise<Transaction[]> => {
+  limit: number = 100,
+  start: number = -1,
+): Promise<{ transactions: Transaction[]; rawCount: number; oldestIndex: number | null }> => {
   const response = await fetch(getHiveApiEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -270,32 +482,32 @@ const fetchAccountHistory = async (
       id: 0,
       jsonrpc: "2.0",
       method: "condenser_api.get_account_history",
-      params: [username, -1, limit, "4", null],
+      params: [username, start, limit, OP_FILTER_LOW, OP_FILTER_HIGH],
     }),
   });
 
   const data = await response.json();
   if (data.error) throw new Error(data.error.message || "Failed to fetch transactions");
 
-  const transactions: Transaction[] = (data.result || [])
-    .filter((entry: any) => entry[1]?.op?.[0] === "transfer")
-    .map((entry: any) => {
-      const [id, tx] = entry;
-      const op = tx.op[1];
-      return {
-        id,
-        timestamp: tx.timestamp,
-        type: op.from === username ? "sent" : "received",
-        amount: op.amount,
-        from: op.from,
-        to: op.to,
-        memo: op.memo || "",
-        trx_id: tx.trx_id,
-      } as Transaction;
-    })
+  const raw: any[] = data.result || [];
+
+  // The condenser returns entries oldest→newest within the requested
+  // window. The smallest id in `raw` is the oldest entry in this page;
+  // we pass `oldestIndex - 1` as the next page's `start`.
+  let oldestIndex: number | null = null;
+  if (raw.length > 0) {
+    oldestIndex = raw.reduce(
+      (min, entry) => (entry[0] < min ? entry[0] : min),
+      raw[0][0] as number,
+    );
+  }
+
+  const transactions: Transaction[] = raw
+    .map((entry: any) => mapHistoryEntryToTransaction(entry, username))
+    .filter((t): t is Transaction => t !== null)
     .reverse();
 
-  return transactions;
+  return { transactions, rawCount: raw.length, oldestIndex };
 };
 
 // ------------------- WalletStore -------------------
@@ -308,6 +520,8 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   transactions: [],
   isLoadingTransactions: false,
   transactionError: null,
+  hasMoreTransactions: true,
+  isLoadingMoreTransactions: false,
   selectedCurrency: detectedLocalCurrency,
   localCurrency: detectedLocalCurrency,
   exchangeRates: { USD: 1 },
@@ -376,6 +590,32 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const hivePower = await convertVestingSharesToHiveData(vestingShares);
 
+      // Unclaimed reward balances. peakd surfaces a "Pending Rewards"
+      // card whenever any of these is non-zero. The HP-equivalent of
+      // the VESTS reward is read straight from the account when the
+      // node provides it (`reward_vesting_hive`); else we fall back to
+      // converting via the global props.
+      const rewardHive =
+        typeof (account as any).reward_hive_balance === "string"
+          ? (account as any).reward_hive_balance
+          : "0.000 HIVE";
+      const rewardHbd =
+        typeof (account as any).reward_hbd_balance === "string"
+          ? (account as any).reward_hbd_balance
+          : "0.000 HBD";
+      const rewardVests =
+        typeof (account as any).reward_vesting_balance === "string"
+          ? (account as any).reward_vesting_balance
+          : "0.000000 VESTS";
+      let rewardVestingHive: string | undefined =
+        typeof (account as any).reward_vesting_hive === "string"
+          ? (account as any).reward_vesting_hive
+          : undefined;
+      if (!rewardVestingHive && parseFloat(rewardVests.split(" ")[0] || "0") > 0) {
+        const hp = await convertVestingSharesToHiveData(rewardVests);
+        rewardVestingHive = `${hp} HIVE`;
+      }
+
       // Power-down state — vesting_withdraw_rate is the per-week VESTS payout.
       // When > 0 the account is actively powering down. next_vesting_withdrawal
       // is the timestamp of the next weekly payout.
@@ -436,6 +676,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         power_down_hp_per_week: powerDownHpPerWeek,
         next_vesting_withdrawal: nextVestingWithdrawal,
         pending_savings_withdrawals: pendingSavingsWithdrawals,
+        reward_hive_balance: rewardHive,
+        reward_hbd_balance: rewardHbd,
+        reward_vesting_balance: rewardVests,
+        reward_vesting_hive: rewardVestingHive,
       };
 
       set({ walletData, exchangeRates: rates });
@@ -477,16 +721,63 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   fetchTransactions: async (username: string, limit: number = 100) => {
     set({ isLoadingTransactions: true, transactionError: null });
     try {
-      const transactions = await fetchAccountHistory(username, limit);
-      set({ transactions });
+      const { transactions, oldestIndex } = await fetchAccountHistory(username, limit, -1);
+      // No older pages once the oldest id returned is at the start of
+      // the account's history. Using oldestIndex here instead of
+      // rawCount: with the wider bitmask filter, even short pages can
+      // still have older ops to discover.
+      set({
+        transactions,
+        hasMoreTransactions: oldestIndex !== null && oldestIndex > 0,
+      });
       return transactions;
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to fetch transactions";
       console.error("Transaction fetch error:", msg);
-      set({ transactionError: msg });
+      set({ transactionError: msg, hasMoreTransactions: false });
       return [];
     } finally {
       set({ isLoadingTransactions: false });
+    }
+  },
+
+  fetchMoreTransactions: async (username: string, limit: number = 100) => {
+    const { transactions, isLoadingMoreTransactions, hasMoreTransactions } = get();
+    if (isLoadingMoreTransactions || !hasMoreTransactions) return [];
+    set({ isLoadingMoreTransactions: true });
+    try {
+      // Smallest history id we already have — its value minus one is
+      // the next `start` cursor. The bitmask filter means there may be
+      // older non-matching ops between this id and the next matching
+      // one; the node skips them server-side, so we just keep walking.
+      const oldest = transactions.reduce(
+        (min, t) => (t.id < min ? t.id : min),
+        transactions[0]?.id ?? -1,
+      );
+      if (oldest <= 0) {
+        set({ hasMoreTransactions: false });
+        return [];
+      }
+      const nextStart = oldest - 1;
+      const { transactions: more, oldestIndex } = await fetchAccountHistory(
+        username,
+        limit,
+        nextStart,
+      );
+      // De-dupe by trx_id+id — some nodes echo a boundary entry.
+      const seen = new Set(transactions.map((t) => `${t.trx_id}:${t.id}`));
+      const newOnes = more.filter((t) => !seen.has(`${t.trx_id}:${t.id}`));
+      set({
+        transactions: [...transactions, ...newOnes],
+        hasMoreTransactions: oldestIndex !== null && oldestIndex > 0,
+      });
+      return newOnes;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Failed to fetch more transactions";
+      console.error("Transaction paginate error:", msg);
+      return [];
+    } finally {
+      set({ isLoadingMoreTransactions: false });
     }
   },
 }));

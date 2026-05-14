@@ -15,6 +15,14 @@ export interface WalletData {
   power_down_active?: boolean;
   /** Pending savings withdrawals — populated by `fetchSavingsWithdrawals`. */
   pending_savings_withdrawals?: PendingSavingsWithdrawal[];
+  /** Unclaimed reward balances. All three must be passed to
+   *  `claim_reward_balance`. Surface a CLAIM button when any is > 0. */
+  reward_hive_balance?: string;
+  reward_hbd_balance?: string;
+  reward_vesting_balance?: string;
+  /** HP equivalent of `reward_vesting_balance` — useful for human-readable
+   *  display next to the CLAIM button. */
+  reward_vesting_hive?: string;
   error?: string;
 }
 
@@ -81,6 +89,13 @@ export interface WalletStore {
   clearWalletData: () => void;
   fetchWalletData: (username: string) => Promise<WalletData>;
   fetchTransactions: (username: string, limit?: number) => Promise<Transaction[]>;
+  /** Append the next page of transaction history (older than the current
+   *  oldest entry). Returns the newly appended items. */
+  fetchMoreTransactions: (username: string, limit?: number) => Promise<Transaction[]>;
+  /** True when the most recent paginated fetch indicated more data is
+   *  available — used to gate the infinite-scroll sentinel. */
+  hasMoreTransactions: boolean;
+  isLoadingMoreTransactions: boolean;
   /** Fetches `cancel_transfer_from_savings`-able requests via condenser API. */
   fetchSavingsWithdrawals: (username: string) => Promise<PendingSavingsWithdrawal[]>;
   setSelectedCurrency: (currency: string) => void;

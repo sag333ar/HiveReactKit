@@ -68,6 +68,15 @@ interface WalletProps {
   onCancelSavingsWithdrawal?: (
     requestId: number,
   ) => void | boolean | Promise<void | boolean>;
+  /** Claim unclaimed reward balances. Receives the three reward strings
+   *  the consumer must pass to `claim_reward_balance`. Surfaces a
+   *  "Pending Rewards" card with a CLAIM button when any reward balance
+   *  on the account is non-zero. */
+  onClaimRewards?: (rewards: {
+    hive: string;
+    hbd: string;
+    vests: string;
+  }) => void | boolean | Promise<void | boolean>;
 }
 
 interface WalletTileProps {
@@ -437,8 +446,27 @@ export const Wallet: React.FC<WalletProps> = ({
   onTransferFromSavings,
   onStopPowerDown,
   onCancelSavingsWithdrawal,
+  onClaimRewards,
 }) => {
-  const { walletData, fetchWalletData, isLoading, error, transactions, fetchTransactions, isLoadingTransactions, transactionError } = useWalletStore();
+  const {
+    walletData,
+    fetchWalletData,
+    isLoading,
+    error,
+    transactions,
+    fetchTransactions,
+    fetchMoreTransactions,
+    hasMoreTransactions,
+    isLoadingMoreTransactions,
+    isLoadingTransactions,
+    transactionError,
+  } = useWalletStore();
+
+  // Sentinel for infinite scroll on the transaction history list. We
+  // attach a scroll listener to the nearest scrollable ancestor of this
+  // sentinel (could be the kit's mainScrollRef when embedded in the
+  // user profile page, or the window when used standalone).
+  const txSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (username) {
@@ -446,6 +474,91 @@ export const Wallet: React.FC<WalletProps> = ({
       fetchTransactions(username);
     }
   }, [username, fetchWalletData, fetchTransactions]);
+
+  // Auto-load the next page of transactions when the user nears the
+  // bottom of the scroll container holding the wallet. We attach a
+  // scroll listener to the closest scrollable ancestor so this works
+  // both standalone (window scroll) and embedded inside the profile
+  // page (the kit's nested scroll container).
+  useEffect(() => {
+    const sentinel = txSentinelRef.current;
+    if (!sentinel || !username) return;
+    if (!hasMoreTransactions) return;
+
+    /**
+     * Walk up the DOM looking for any ancestor whose `overflow-y` is
+     * `auto`/`scroll`. We don't require `scrollHeight > clientHeight`
+     * because that gate falsely rejects the kit's `mainScrollRef`
+     * (overflow-y-auto + h-full) on the first render when the wallet
+     * hasn't grown past one viewport yet — we'd then fall back to the
+     * window, which never receives scroll events from a nested
+     * overflow container, and pagination would silently break.
+     */
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let current = node?.parentElement ?? null;
+      while (current) {
+        const style = window.getComputedStyle(current);
+        const overflowY = style.overflowY;
+        if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
+          return current;
+        }
+        current = current.parentElement;
+      }
+      return window;
+    };
+
+    // Attach to BOTH the closest overflow ancestor and the window. If a
+    // future layout change moves the scroll container elsewhere we still
+    // get notified — at worst we run an O(1) bounding-rect check twice
+    // per scroll. Cheap and bulletproof.
+    const scrollEl = getScrollParent(sentinel);
+
+    const THRESHOLD = 600;
+    let ticking = false;
+    const checkNearBottom = () => {
+      const rect = sentinel.getBoundingClientRect();
+      // Compare against whichever boundary is smaller — covers both the
+      // window viewport and the nested overflow container at the same
+      // time, so we trigger whether the user scrolls the page or the
+      // inner pane.
+      const winBottom = window.innerHeight;
+      const elBottom =
+        scrollEl === window
+          ? winBottom
+          : (scrollEl as HTMLElement).getBoundingClientRect().bottom;
+      const viewportBottom = Math.min(winBottom, elBottom);
+      if (rect.top - viewportBottom <= THRESHOLD) {
+        if (!isLoadingMoreTransactions) {
+          fetchMoreTransactions(username);
+        }
+      }
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        checkNearBottom();
+      });
+    };
+
+    // Fire once immediately in case the sentinel is already in view
+    // (short transaction history that didn't fill the page).
+    checkNearBottom();
+
+    // Listen to both candidates. Duplicate fires are deduped by `ticking`.
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    if (scrollEl !== window) {
+      window.addEventListener("scroll", onScroll, { passive: true });
+    }
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      if (scrollEl !== window) {
+        window.removeEventListener("scroll", onScroll);
+      }
+    };
+  }, [username, hasMoreTransactions, isLoadingMoreTransactions, fetchMoreTransactions, transactions.length]);
 
   const isOwn = !!username && !!currentUsername &&
     username.toLowerCase() === currentUsername.toLowerCase();
@@ -487,6 +600,7 @@ export const Wallet: React.FC<WalletProps> = ({
     | { kind: "cancelSavingsWithdrawal"; requestId: number; amount: string }
     | null;
   const [activeModal, setActiveModal] = useState<ActionModal>(null);
+  const [claiming, setClaiming] = useState(false);
 
   const WalletTile: React.FC<WalletTileProps & {
     actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" }[];
@@ -590,6 +704,59 @@ export const Wallet: React.FC<WalletProps> = ({
           </div>
         )}
 
+        {/* Pending Rewards card — only renders when ANY of the three
+            reward balances on the account is non-zero. Mirrors peakd's
+            "Pending Rewards" pill above the wallet rows. Tapping CLAIM
+            broadcasts `claim_reward_balance` via the consumer's
+            `onClaimRewards` callback; we don't fire the broadcast
+            ourselves so the kit stays signing-method agnostic. */}
+        {isOwn && onClaimRewards && (() => {
+          const hive = parseFloat((walletData?.reward_hive_balance ?? "0").split(" ")[0] || "0");
+          const hbd = parseFloat((walletData?.reward_hbd_balance ?? "0").split(" ")[0] || "0");
+          const vests = parseFloat((walletData?.reward_vesting_balance ?? "0").split(" ")[0] || "0");
+          const vestingHive = parseFloat((walletData?.reward_vesting_hive ?? "0").split(" ")[0] || "0");
+          if (hive <= 0 && hbd <= 0 && vests <= 0) return null;
+          const parts: string[] = [];
+          if (hive > 0) parts.push(walletData?.reward_hive_balance ?? "");
+          if (hbd > 0) parts.push(walletData?.reward_hbd_balance ?? "");
+          // Show HP equivalent (`reward_vesting_hive`) rather than raw VESTS
+          // — matches what peakd shows in the same card.
+          if (vests > 0 && vestingHive > 0) parts.push(`${vestingHive.toFixed(3)} HP`);
+          return (
+            <div className="p-3 sm:p-4 rounded-lg bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-700/40 mb-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-amber-300 flex items-center gap-1.5">
+                  Pending Rewards
+                </div>
+                <div className="text-xs text-amber-200/80 mt-0.5">
+                  {parts.length > 0
+                    ? parts.join("  ·  ")
+                    : "You have some pending rewards to claim."}
+                </div>
+              </div>
+              <button
+                disabled={claiming}
+                onClick={async () => {
+                  setClaiming(true);
+                  try {
+                    const res = await onClaimRewards({
+                      hive: walletData?.reward_hive_balance ?? "0.000 HIVE",
+                      hbd: walletData?.reward_hbd_balance ?? "0.000 HBD",
+                      vests: walletData?.reward_vesting_balance ?? "0.000000 VESTS",
+                    });
+                    if (res !== false) scheduleRefresh();
+                  } finally {
+                    setClaiming(false);
+                  }
+                }}
+                className="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                {claiming ? "Claiming…" : "CLAIM"}
+              </button>
+            </div>
+          );
+        })()}
+
         <WalletTile
           label="HBD Balance"
           value={walletData?.hbd_balance}
@@ -689,6 +856,29 @@ export const Wallet: React.FC<WalletProps> = ({
               transactions.map((tx) => (
                 <TransactionRow key={tx.trx_id + tx.id} tx={tx} />
               ))}
+
+            {/* Infinite-scroll sentinel. Renders only when there are
+                already transactions on screen and more pages remain — so
+                we never trigger paging on an empty list or after the
+                history has been exhausted. */}
+            {!isLoadingTransactions && transactions.length > 0 && hasMoreTransactions && (
+              <div ref={txSentinelRef} className="py-3 flex items-center justify-center">
+                {isLoadingMoreTransactions ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin"></div>
+                    <span className="text-xs text-gray-400">Loading more…</span>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-gray-600">Scroll for more</span>
+                )}
+              </div>
+            )}
+
+            {!isLoadingTransactions && transactions.length > 0 && !hasMoreTransactions && (
+              <div className="py-3 text-center text-[11px] text-gray-600">
+                No more transactions
+              </div>
+            )}
           </div>
         )}
       </div>
