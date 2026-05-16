@@ -853,15 +853,15 @@ export function HiveDetailPost({
 
   if (loading) {
     return (
-      <div className="dark flex flex-col h-full bg-gray-900 animate-pulse" style={bgStyle}>
+      <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] animate-pulse" style={bgStyle}>
         {/* Header skeleton */}
-        <div className="sticky top-0 z-30 h-[56px] bg-gray-800 border-b border-gray-700 flex items-center" style={headerBgStyle}>
+        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
-            {onBack && <div className="w-8 h-8 bg-gray-700 rounded-lg flex-shrink-0" />}
-            <div className="w-8 h-8 bg-gray-700 rounded-full flex-shrink-0" />
+            {onBack && <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-lg flex-shrink-0" />}
+            <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="h-4 bg-gray-700 rounded w-28 mb-1.5" />
-              <div className="h-3 bg-gray-700 rounded w-44" />
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-28 mb-1.5" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-44" />
             </div>
           </div>
         </div>
@@ -870,76 +870,76 @@ export function HiveDetailPost({
         <div className="flex-1 overflow-hidden">
           <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
             {/* Title skeleton */}
-            <div className="h-7 bg-gray-700 rounded w-4/5 mb-2" />
-            <div className="h-7 bg-gray-700 rounded w-3/5 mb-3" />
+            <div className="h-7 bg-[var(--hrk-bg-surface-raised)] rounded w-4/5 mb-2" />
+            <div className="h-7 bg-[var(--hrk-bg-surface-raised)] rounded w-3/5 mb-3" />
 
             {/* Meta skeleton */}
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-3.5 bg-gray-700 rounded w-32" />
-              <div className="h-3.5 bg-gray-700 rounded w-24" />
+              <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-32" />
+              <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-24" />
             </div>
 
             {/* Action bar skeleton */}
-            <div className="py-2.5 border-y border-gray-700/50 mb-5 flex items-center gap-3">
-              <div className="h-4 w-4 bg-gray-700 rounded" />
-              <div className="h-3.5 bg-gray-700 rounded w-8" />
-              <div className="h-4 w-4 bg-gray-700 rounded" />
-              <div className="h-3.5 bg-gray-700 rounded w-8" />
-              <div className="h-4 w-4 bg-gray-700 rounded" />
-              <div className="h-4 w-4 bg-gray-700 rounded" />
-              <div className="h-4 w-4 bg-gray-700 rounded" />
-              <div className="h-4 w-4 bg-gray-700 rounded" />
+            <div className="py-2.5 border-y border-[var(--hrk-border-subtle)]/50 mb-5 flex items-center gap-3">
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
+              <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-8" />
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
+              <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-8" />
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
+              <div className="h-4 w-4 bg-[var(--hrk-bg-surface-raised)] rounded" />
               <div className="flex-1" />
-              <div className="h-3.5 bg-gray-700 rounded w-16" />
+              <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
             </div>
 
             {/* Body skeleton — mimics article content */}
             <div className="space-y-4">
               {/* Paragraph 1 */}
               <div className="space-y-2">
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-4/5" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-4/5" />
               </div>
 
               {/* Image placeholder */}
-              <div className="h-48 sm:h-64 bg-gray-800 rounded-xl border border-gray-700" />
+              <div className="h-48 sm:h-64 bg-[var(--hrk-bg-surface)] rounded-xl border border-[var(--hrk-border-subtle)]" />
 
               {/* Paragraph 2 */}
               <div className="space-y-2">
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-3/5" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-3/5" />
               </div>
 
               {/* Heading */}
-              <div className="h-6 bg-gray-700 rounded w-2/5 mt-2" />
+              <div className="h-6 bg-[var(--hrk-bg-surface-raised)] rounded w-2/5 mt-2" />
 
               {/* Paragraph 3 */}
               <div className="space-y-2">
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-2/3" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-2/3" />
               </div>
 
               {/* Image placeholder */}
-              <div className="h-48 sm:h-64 bg-gray-800 rounded-xl border border-gray-700" />
+              <div className="h-48 sm:h-64 bg-[var(--hrk-bg-surface)] rounded-xl border border-[var(--hrk-border-subtle)]" />
 
               {/* Paragraph 4 */}
               <div className="space-y-2">
-                <div className="h-4 bg-gray-700/60 rounded w-full" />
-                <div className="h-4 bg-gray-700/60 rounded w-3/4" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)]/60 rounded w-3/4" />
               </div>
             </div>
 
             {/* Tags skeleton */}
-            <div className="border-t border-gray-700/50 pt-4 mt-6">
+            <div className="border-t border-[var(--hrk-border-subtle)]/50 pt-4 mt-6">
               <div className="flex items-center gap-2">
-                <div className="h-5 bg-gray-700 rounded-full w-14" />
-                <div className="h-5 bg-gray-700 rounded-full w-16" />
-                <div className="h-5 bg-gray-700 rounded-full w-12" />
-                <div className="h-5 bg-gray-700 rounded-full w-18" />
+                <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded-full w-14" />
+                <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded-full w-16" />
+                <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded-full w-12" />
+                <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded-full w-18" />
               </div>
             </div>
           </div>
@@ -952,11 +952,11 @@ export function HiveDetailPost({
 
   if (error || !post) {
     return (
-      <div className="dark flex justify-center items-center min-h-screen bg-gray-900 p-8" style={bgStyle}>
+      <div className="dark flex justify-center items-center min-h-screen bg-[var(--hrk-bg-app)] p-8" style={bgStyle}>
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-white mb-1">Failed to load post</h3>
-          <p className="text-gray-400 text-sm mb-4">{error}</p>
+          <p className="text-[var(--hrk-text-tertiary)] text-sm mb-4">{error}</p>
           <button
             onClick={fetchPostContent}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
@@ -971,19 +971,19 @@ export function HiveDetailPost({
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="dark flex flex-col h-full bg-gray-900" style={bgStyle}>
+    <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)]" style={bgStyle}>
       <div className="flex flex-col overflow-y-auto h-full">
 
         {/* ── Compact Header: Back + Avatar + Name + Stats (same pattern as UserDetailProfile) ── */}
-        <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center" style={headerBgStyle}>
+        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {/* Back */}
             {onBack && (
               <button
                 onClick={onBack}
-                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0"
               >
-                <ArrowLeft className="h-5 w-5 text-gray-300" />
+                <ArrowLeft className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
               </button>
             )}
 
@@ -991,7 +991,7 @@ export function HiveDetailPost({
             <img
               src={profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`}
               alt={post.author}
-              className="w-10 h-10 rounded-full flex-shrink-0 bg-gray-700 object-cover cursor-pointer"
+              className="w-10 h-10 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
               }}
@@ -1020,11 +1020,11 @@ export function HiveDetailPost({
             {post.depth > 0 && post.parent_author && post.parent_permlink && (
               <button
                 onClick={() => onNavigateToPost?.(post.parent_author!, post.parent_permlink!)}
-                className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 transition-colors text-sm text-blue-400 hover:text-blue-300"
+                className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/60 hover:bg-[var(--hrk-bg-surface-raised)]/60 transition-colors text-sm text-blue-400 hover:text-blue-300"
               >
                 <ArrowUpRight className="w-4 h-4" />
                 <span>View parent post</span>
-                <span className="text-gray-500 text-xs truncate max-w-[250px]">
+                <span className="text-[var(--hrk-text-tertiary)] text-xs truncate max-w-[250px]">
                   @{post.parent_author}/{post.parent_permlink}
                 </span>
               </button>
@@ -1034,7 +1034,7 @@ export function HiveDetailPost({
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
               {translatedTitle || post.title}
             </h1>
-            <div className="text-xs text-gray-400 mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="text-xs text-[var(--hrk-text-tertiary)] mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
                 {formatDate(post.created)}
@@ -1074,7 +1074,7 @@ export function HiveDetailPost({
                   html={renderedBody}
                 />
               ) : (
-                <p className="text-gray-400 text-sm italic">No content available.</p>
+                <p className="text-[var(--hrk-text-tertiary)] text-sm italic">No content available.</p>
               )}
             </div>
 
@@ -1159,12 +1159,12 @@ export function HiveDetailPost({
               };
 
               return (
-                <div className="mb-6 rounded-xl border border-gray-700 bg-gray-800/60 overflow-hidden">
+                <div className="mb-6 rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/60 overflow-hidden">
                   {/* Header */}
                   <div className="flex items-center gap-2 px-4 pt-4 pb-2">
                     <BarChart2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
                     <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Poll</span>
-                    <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium ${pollEnded ? 'bg-gray-700 text-gray-400' : 'bg-green-900/50 text-green-400'}`}>
+                    <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium ${pollEnded ? 'bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)]' : 'bg-green-900/50 text-green-400'}`}>
                       {pollEnded ? 'Ended' : `Ends in ${Math.ceil((endTs - Date.now()) / (1000 * 60 * 60 * 24))}d`}
                     </span>
                   </div>
@@ -1176,7 +1176,7 @@ export function HiveDetailPost({
 
                   {/* Selection hint */}
                   {showVoteUI && needsSubmitButton && (
-                    <p className="px-4 pb-2 text-[11px] text-gray-400">
+                    <p className="px-4 pb-2 text-[11px] text-[var(--hrk-text-tertiary)]">
                       {isChangingVote ? 'Change your vote — ' : ''}Select up to {maxChoices} option{maxChoices > 1 ? 's' : ''}
                       {selectedChoices.length > 0 && (
                         <span className="ml-1 text-blue-400">· {selectedChoices.length} selected</span>
@@ -1188,7 +1188,7 @@ export function HiveDetailPost({
                   <div className="px-4 pb-4 space-y-2">
                     {pollLoading ? (
                       [1, 2, 3].map(i => (
-                        <div key={i} className="h-9 bg-gray-700/50 rounded-lg animate-pulse" />
+                        <div key={i} className="h-9 bg-[var(--hrk-bg-surface-raised)]/50 rounded-lg animate-pulse" />
                       ))
                     ) : choices.map((choice: { choice_num: number; choice_text: string; votes?: { total_votes: number } | null }) => {
                       const votes = choice.votes?.total_votes ?? 0;
@@ -1198,8 +1198,8 @@ export function HiveDetailPost({
                       const isMaxed = needsSubmitButton && selectedChoices.length >= maxChoices && !isSelected;
                       const isClickable = showVoteUI && !isMaxed;
 
-                      let borderColor = 'border-gray-700';
-                      let iconEl = <Circle className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />;
+                      let borderColor = 'border-[var(--hrk-border-subtle)]';
+                      let iconEl = <Circle className="w-3.5 h-3.5 text-[var(--hrk-text-tertiary)] flex-shrink-0" />;
                       let fillColor = 'bg-blue-600/20';
 
                       if (isSelected) {
@@ -1221,7 +1221,7 @@ export function HiveDetailPost({
                       return (
                         <div
                           key={choice.choice_num}
-                          className={`relative rounded-lg overflow-hidden border ${borderColor} bg-gray-900/50 transition-colors ${isClickable ? 'cursor-pointer hover:border-blue-500/40' : isMaxed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`relative rounded-lg overflow-hidden border ${borderColor} bg-[var(--hrk-bg-app)]/50 transition-colors ${isClickable ? 'cursor-pointer hover:border-blue-500/40' : isMaxed ? 'opacity-50 cursor-not-allowed' : ''}`}
                           onClick={() => handleChoiceClick(choice.choice_num)}
                         >
                           {pct > 0 && (
@@ -1233,11 +1233,11 @@ export function HiveDetailPost({
                           <div className="relative flex items-center justify-between px-3 py-2.5 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               {iconEl}
-                              <span className={`text-sm truncate ${isSelected ? 'text-blue-300 font-medium' : isVoted && !isChangingVote ? 'text-green-300 font-medium' : isVoted && isChangingVote ? 'text-green-700' : 'text-gray-200'}`}>
+                              <span className={`text-sm truncate ${isSelected ? 'text-blue-300 font-medium' : isVoted && !isChangingVote ? 'text-green-300 font-medium' : isVoted && isChangingVote ? 'text-green-700' : 'text-[var(--hrk-text-primary)]'}`}>
                                 {choice.choice_text}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-gray-400">
+                            <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-[var(--hrk-text-tertiary)]">
                               <span>{pct}%</span>
                               <span className="text-gray-600">·</span>
                               <span>{votes} vote{votes !== 1 ? 's' : ''}</span>
@@ -1254,7 +1254,7 @@ export function HiveDetailPost({
                       <button
                         onClick={handleSubmit}
                         disabled={selectedChoices.length === 0 || isSubmittingVote}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-[var(--hrk-bg-surface-raised)] disabled:text-[var(--hrk-text-tertiary)] text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
                       >
                         <Send className="w-3.5 h-3.5" />
                         {isSubmittingVote ? 'Submitting…' : isChangingVote ? 'Change Vote' : `Submit Vote${selectedChoices.length > 1 ? 's' : ''}`}
@@ -1263,7 +1263,7 @@ export function HiveDetailPost({
                   )}
 
                   {/* Footer */}
-                  <div className="px-4 pb-3 text-[11px] text-gray-500 border-t border-gray-700/50 pt-2 flex items-center gap-2">
+                  <div className="px-4 pb-3 text-[11px] text-[var(--hrk-text-tertiary)] border-t border-[var(--hrk-border-subtle)]/50 pt-2 flex items-center gap-2">
                     <span>{poll?.poll_stats?.total_voting_accounts_num ?? 0} voter{(poll?.poll_stats?.total_voting_accounts_num ?? 0) !== 1 ? 's' : ''} total</span>
                     {alreadyVoted && (
                       <span className="text-green-500 ml-auto">
@@ -1277,8 +1277,8 @@ export function HiveDetailPost({
 
             {/* Tags */}
             {parsedMetadata?.tags && parsedMetadata.tags.length > 0 && (
-              <div className="border-t border-gray-700/50 pt-4 pb-4">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+              <div className="border-t border-[var(--hrk-border-subtle)]/50 pt-4 pb-4">
+                <div className="flex items-center gap-1.5 text-xs text-[var(--hrk-text-tertiary)] mb-2">
                   <Tag className="w-3.5 h-3.5" /> Tags
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1295,7 +1295,7 @@ export function HiveDetailPost({
             )}
 
             {/* Bottom action bar (repeat for long posts) */}
-            <div className="py-2.5 border-t border-gray-700/50">
+            <div className="py-2.5 border-t border-[var(--hrk-border-subtle)]/50">
               <PostActionButton
                 author={post.author}
                 permlink={post.permlink}

@@ -10,20 +10,20 @@ type Currency = "HIVE" | "HBD";
 const overlayCls =
   "fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4";
 const dialogCls =
-  "w-full max-w-md sm:max-w-lg rounded-xl bg-[#181d23] border border-gray-700 shadow-2xl overflow-hidden";
+  "w-full max-w-md sm:max-w-lg rounded-xl bg-[#181d23] border border-[var(--hrk-border-subtle)] shadow-2xl overflow-hidden";
 const headerCls =
-  "flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-700";
+  "flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[var(--hrk-border-subtle)]";
 const titleCls = "text-base sm:text-lg font-semibold text-white";
 const bodyCls = "p-4 sm:p-5 space-y-4";
 const infoBoxCls =
-  "rounded-md border border-gray-700 bg-[#1e242c] px-3 py-2.5 text-xs text-gray-400";
+  "rounded-md border border-[var(--hrk-border-subtle)] bg-[#1e242c] px-3 py-2.5 text-xs text-[var(--hrk-text-tertiary)]";
 const inputCls =
-  "w-full bg-transparent border-b border-gray-600 px-1 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors";
-const labelCls = "text-xs text-gray-400 mb-1";
+  "w-full bg-transparent border-b border-[var(--hrk-border-default)] px-1 py-1.5 text-sm text-white placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:border-[var(--hrk-info)] transition-colors";
+const labelCls = "text-xs text-[var(--hrk-text-tertiary)] mb-1";
 const footerCls =
-  "flex justify-end gap-2 px-4 sm:px-5 py-3 border-t border-gray-700 bg-[#15191e]";
+  "flex justify-end gap-2 px-4 sm:px-5 py-3 border-t border-[var(--hrk-border-subtle)] bg-[#15191e]";
 const cancelBtnCls =
-  "px-4 py-2 rounded-md text-xs font-semibold tracking-wide bg-gray-700 text-gray-100 hover:bg-gray-600 transition-colors";
+  "px-4 py-2 rounded-md text-xs font-semibold tracking-wide bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] transition-colors";
 const continueBtnCls =
   "px-4 py-2 rounded-md text-xs font-semibold tracking-wide bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors";
 
@@ -32,12 +32,12 @@ const AvatarTag: React.FC<{ username: string }> = ({ username }) => (
     <img
       src={`https://images.hive.blog/u/${username}/avatar`}
       alt={username}
-      className="w-7 h-7 rounded-full border border-gray-700 flex-shrink-0"
+      className="w-7 h-7 rounded-full border border-[var(--hrk-border-subtle)] flex-shrink-0"
       onError={(e) => {
         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${username}&background=random&size=28`;
       }}
     />
-    <span className="text-sm text-gray-200 truncate">{username}</span>
+    <span className="text-sm text-[var(--hrk-text-primary)] truncate">{username}</span>
   </div>
 );
 
@@ -125,7 +125,7 @@ export const TransferModal: React.FC<{
       <div className={dialogCls} onClick={(e) => e.stopPropagation()}>
         <div className={headerCls}>
           <h3 className={titleCls}>Transfer {currency}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] text-lg">×</button>
         </div>
         <div className={bodyCls}>
           <div className={infoBoxCls}>Transfer funds to another Hive account.</div>
@@ -141,7 +141,7 @@ export const TransferModal: React.FC<{
                   <img
                     src={`https://images.hive.blog/u/${to.trim()}/avatar`}
                     alt={to}
-                    className="w-7 h-7 rounded-full border border-gray-700 flex-shrink-0"
+                    className="w-7 h-7 rounded-full border border-[var(--hrk-border-subtle)] flex-shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         `https://ui-avatars.com/api/?name=${to.trim()}&background=random&size=28`;
@@ -183,7 +183,7 @@ export const TransferModal: React.FC<{
                 className={`${inputCls} flex-1`}
               />
               {hidePicker ? (
-                <span className="px-3 py-1.5 rounded-md bg-gray-700 text-xs text-gray-100 font-semibold">
+                <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">
                   {currency}
                 </span>
               ) : (
@@ -191,12 +191,12 @@ export const TransferModal: React.FC<{
                   <button
                     type="button"
                     onClick={() => setPickerOpen((o) => !o)}
-                    className="px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-xs text-gray-100 font-semibold flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] text-xs text-[var(--hrk-text-primary)] font-semibold flex items-center gap-1"
                   >
                     {currency} <span className="text-[10px]">▾</span>
                   </button>
                   {pickerOpen && (
-                    <div className="absolute right-0 mt-1 rounded-md bg-gray-800 border border-gray-700 shadow-lg z-10 min-w-[80px]">
+                    <div className="absolute right-0 mt-1 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] shadow-lg z-10 min-w-[80px]">
                       {(["HIVE", "HBD"] as Currency[]).map((c) => (
                         <button
                           key={c}
@@ -206,7 +206,7 @@ export const TransferModal: React.FC<{
                             setAmount("");
                             setPickerOpen(false);
                           }}
-                          className="block w-full text-left px-3 py-1.5 text-xs text-gray-100 hover:bg-gray-700"
+                          className="block w-full text-left px-3 py-1.5 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
                         >
                           {c}
                         </button>
@@ -269,7 +269,7 @@ export const PowerUpModal: React.FC<{
       <div className={dialogCls} onClick={(e) => e.stopPropagation()}>
         <div className={headerCls}>
           <h3 className={titleCls}>Stake HIVE (Power Up)</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] text-lg">×</button>
         </div>
         <div className={bodyCls}>
           <div className={infoBoxCls}>
@@ -289,7 +289,7 @@ export const PowerUpModal: React.FC<{
                   <img
                     src={`https://images.hive.blog/u/${to.trim()}/avatar`}
                     alt={to}
-                    className="w-7 h-7 rounded-full border border-gray-700 flex-shrink-0"
+                    className="w-7 h-7 rounded-full border border-[var(--hrk-border-subtle)] flex-shrink-0"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         `https://ui-avatars.com/api/?name=${to.trim()}&background=random&size=28`;
@@ -327,7 +327,7 @@ export const PowerUpModal: React.FC<{
                 onChange={(e) => setAmount(clampAmount(e.target.value, max, 3))}
                 className={`${inputCls} flex-1`}
               />
-              <span className="px-3 py-1.5 rounded-md bg-gray-700 text-xs text-gray-100 font-semibold">HIVE</span>
+              <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">HIVE</span>
             </div>
             <input
               type="range"
@@ -386,7 +386,7 @@ export const PowerDownModal: React.FC<{
       <div className={dialogCls} onClick={(e) => e.stopPropagation()}>
         <div className={headerCls}>
           <h3 className={titleCls}>Unstake HIVE (Power Down)</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] text-lg">×</button>
         </div>
         <div className={bodyCls}>
           <div className={infoBoxCls}>
@@ -417,7 +417,7 @@ export const PowerDownModal: React.FC<{
                 onChange={(e) => setAmount(clampAmount(e.target.value, max, 3))}
                 className={`${inputCls} flex-1`}
               />
-              <span className="px-3 py-1.5 rounded-md bg-gray-700 text-xs text-gray-100 font-semibold">HP</span>
+              <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">HP</span>
             </div>
             <input
               type="range"
@@ -428,8 +428,8 @@ export const PowerDownModal: React.FC<{
               onChange={(e) => setAmount(parseFloat(e.target.value).toFixed(3))}
               className="w-full mt-3 accent-blue-500"
             />
-            <div className="text-xs text-gray-400 mt-2">
-              You will receive <span className="text-gray-200">{perWeek} HIVE</span> per week
+            <div className="text-xs text-[var(--hrk-text-tertiary)] mt-2">
+              You will receive <span className="text-[var(--hrk-text-primary)]">{perWeek} HIVE</span> per week
             </div>
           </div>
         </div>
@@ -491,7 +491,7 @@ export const SavingsModal: React.FC<{
       <div className={dialogCls} onClick={(e) => e.stopPropagation()}>
         <div className={headerCls}>
           <h3 className={titleCls}>{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] text-lg">×</button>
         </div>
         <div className={bodyCls}>
           <div className={infoBoxCls}>{info}</div>
@@ -526,7 +526,7 @@ export const SavingsModal: React.FC<{
                 onChange={(e) => setAmount(clampAmount(e.target.value, max, 3))}
                 className={`${inputCls} flex-1`}
               />
-              <span className="px-3 py-1.5 rounded-md bg-gray-700 text-xs text-gray-100 font-semibold">{currency}</span>
+              <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">{currency}</span>
             </div>
           </div>
           <div>
@@ -576,10 +576,10 @@ export const ConfirmActionModal: React.FC<{
       <div className={dialogCls} onClick={(e) => e.stopPropagation()}>
         <div className={headerCls}>
           <h3 className={titleCls}>{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-lg">×</button>
+          <button onClick={onClose} className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] text-lg">×</button>
         </div>
         <div className={bodyCls}>
-          <p className="text-sm text-gray-200">{message}</p>
+          <p className="text-sm text-[var(--hrk-text-primary)]">{message}</p>
         </div>
         <div className={footerCls}>
           <button onClick={onClose} disabled={submitting} className={cancelBtnCls}>

@@ -128,7 +128,7 @@ export function MoreActionsMenu({
               width: MENU_WIDTH,
               zIndex: 2000,
             }}
-            className="overflow-hidden rounded-lg border border-[#3a424a] bg-[#1f2429] shadow-2xl"
+            className="overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {onEdit && (
@@ -136,7 +136,7 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onEdit)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#e7e7f1] transition-colors hover:bg-[#2f353d]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
                 <Pencil className="h-3.5 w-3.5 text-blue-400" />
                 <span>Edit</span>
@@ -147,7 +147,7 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onReblog)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#e7e7f1] transition-colors hover:bg-[#2f353d]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
                 <Repeat2 className="h-3.5 w-3.5 text-gray-300" />
                 <span>Reblog</span>
@@ -158,7 +158,7 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onShare)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#e7e7f1] transition-colors hover:bg-[#2f353d]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
                 <Share2 className="h-3.5 w-3.5 text-gray-300" />
                 <span>Share</span>
@@ -169,7 +169,7 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onTip)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#e7e7f1] transition-colors hover:bg-[#2f353d]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
                 <Gift className="h-3.5 w-3.5 text-green-400" />
                 <span>Tip</span>
@@ -180,7 +180,7 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onReport)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-300 transition-colors hover:bg-[#2f353d]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-300 transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
                 <Flag className="h-3.5 w-3.5" />
                 <span>Flag</span>

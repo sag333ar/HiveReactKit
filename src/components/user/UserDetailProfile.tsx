@@ -1248,54 +1248,54 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   if (loading) {
     return (
-      <div className="dark h-full overflow-y-auto animate-pulse bg-gray-900">
+      <div className="dark h-full overflow-y-auto animate-pulse bg-[var(--hrk-bg-app)]">
         {/* Header skeleton */}
-        <div className="sticky top-0 z-30 bg-gray-900 border-b border-gray-700 px-4 py-3 flex items-center gap-3">
-          {showBackButton && <div className="w-8 h-8 bg-gray-700 rounded-full" />}
-          <div className="w-9 h-9 bg-gray-700 rounded-full" />
+        <div className="sticky top-0 z-30 bg-[var(--hrk-bg-app)] border-b border-[var(--hrk-border-subtle)] px-4 py-3 flex items-center gap-3">
+          {showBackButton && <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-full" />}
+          <div className="w-9 h-9 bg-[var(--hrk-bg-surface-raised)] rounded-full" />
           <div className="flex-1 min-w-0">
-            <div className="h-4 bg-gray-700 rounded w-28 mb-1.5" />
-            <div className="h-3 bg-gray-700 rounded w-36" />
+            <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-28 mb-1.5" />
+            <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-36" />
           </div>
-          <div className="w-8 h-8 bg-gray-700 rounded-full" />
+          <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-full" />
         </div>
 
         {/* Cover image skeleton */}
         <div className="relative">
-          <div className="h-36 sm:h-44 bg-gray-800 w-full" />
+          <div className="h-36 sm:h-44 bg-[var(--hrk-bg-surface)] w-full" />
           <div className="absolute bottom-0 left-0 right-0 p-4">
-            <div className="h-4 bg-gray-700 rounded w-48 mb-2" />
-            <div className="h-3 bg-gray-700 rounded w-64 mb-3" />
+            <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-48 mb-2" />
+            <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-64 mb-3" />
             <div className="flex flex-wrap gap-3">
-              <div className="h-3 bg-gray-700 rounded w-20" />
-              <div className="h-3 bg-gray-700 rounded w-24" />
-              <div className="h-3 bg-gray-700 rounded w-28" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-24" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-28" />
             </div>
           </div>
         </div>
 
         {/* Tab bar skeleton */}
-        <div className="border-b border-gray-700 px-2 py-2 flex gap-1 overflow-x-auto">
+        <div className="border-b border-[var(--hrk-border-subtle)] px-2 py-2 flex gap-1 overflow-x-auto">
           {[80, 64, 72, 96, 80, 64, 72].map((w, i) => (
-            <div key={i} className="h-8 bg-gray-800 rounded-lg flex-shrink-0" style={{ width: w }} />
+            <div key={i} className="h-8 bg-[var(--hrk-bg-surface)] rounded-lg flex-shrink-0" style={{ width: w }} />
           ))}
         </div>
 
         {/* Content skeleton */}
         <div className="p-4 space-y-3">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <div key={i} className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
               <div className="flex gap-3">
-                <div className="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0" />
+                <div className="w-10 h-10 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
                 <div className="flex-1">
-                  <div className="h-3.5 bg-gray-700 rounded w-24 mb-2" />
-                  <div className="h-4 bg-gray-700 rounded w-4/5 mb-2" />
-                  <div className="h-3 bg-gray-700 rounded w-full mb-1.5" />
-                  <div className="h-3 bg-gray-700 rounded w-3/5 mb-3" />
+                  <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-24 mb-2" />
+                  <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-4/5 mb-2" />
+                  <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-full mb-1.5" />
+                  <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-3/5 mb-3" />
                   <div className="flex gap-4">
-                    <div className="h-3 bg-gray-700 rounded w-12" />
-                    <div className="h-3 bg-gray-700 rounded w-12" />
-                    <div className="h-3 bg-gray-700 rounded w-16" />
+                    <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-12" />
+                    <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-12" />
+                    <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
                   </div>
                 </div>
               </div>
@@ -1308,15 +1308,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   if (error || !profile) {
     return (
-      <div className="dark flex items-center justify-center min-h-[400px] bg-gray-900">
+      <div className="dark flex items-center justify-center min-h-[400px] bg-[var(--hrk-bg-app)]">
         <div className="text-center">
-          <User className="h-14 w-14 text-gray-500 mx-auto mb-3" />
+          <User className="h-14 w-14 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
           <h3 className="text-lg font-medium text-white mb-1">{t("empty.userNotFound")}</h3>
-          <p className="text-gray-400">{error || "This user does not exist"}</p>
+          <p className="text-[var(--hrk-text-tertiary)]">{error || "This user does not exist"}</p>
           {showBackButton && onBack && (
             <button
               onClick={onBack}
-              className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)]"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
@@ -1369,8 +1369,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
     if (media.kind === "threespeak") {
       return (
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#1a1d22]">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e31337]/15 text-[#e31337]">
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
             <Play className="h-5 w-5 fill-current" />
           </span>
           <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">3Speak</span>
@@ -1378,7 +1378,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
     return (
-      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0f1419] text-white">
+      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-white">
         <span className="text-3xl font-semibold">𝕏</span>
         <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium">Tweet</span>
       </span>
@@ -1468,7 +1468,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       <>
         {/* Mobile renders a fixed landscape thumbnail (28 × 20 ≈ 7:5);
             tablet+ stretches to fill the row height again. */}
-        <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-gray-700 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
+        <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-raised)] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
           <button
             onClick={onTileClick}
             className="absolute inset-0 block cursor-pointer"
@@ -1590,7 +1590,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return (
       <div
         key={`${item.author}/${item.permlink}`}
-        className={`overflow-hidden rounded-lg border border-gray-700 bg-gray-800 transition-colors hover:bg-gray-700 ${onItemClick ? "cursor-pointer" : ""}`}
+        className={`overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] ${onItemClick ? "cursor-pointer" : ""}`}
         onClick={onItemClick}
       >
         {/* Body row: text on the left, image strip on the right. The
@@ -1604,7 +1604,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               <img
                 src={`https://images.hive.blog/u/${item.author}/avatar`}
                 alt={item.author}
-                className="h-7 w-7 flex-shrink-0 rounded-full bg-gray-700 sm:h-9 sm:w-9"
+                className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
                 }}
@@ -1616,7 +1616,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 >
                   @{item.author}
                 </button>
-                <span className="text-[10px] text-gray-500 sm:text-xs">{formatTimeAgo(item.created)}</span>
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] sm:text-xs">{formatTimeAgo(item.created)}</span>
                 {item.community_title && (
                   <span className="text-[10px] font-medium text-blue-400 sm:text-xs">#{item.community_title}</span>
                 )}
@@ -1633,7 +1633,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             )}
 
             {previewText && (
-              <p className="line-clamp-2 text-[11px] leading-snug text-gray-400 sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
+              <p className="line-clamp-2 text-[11px] leading-snug text-[var(--hrk-text-tertiary)] sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
                 <TranslatedText text={previewText.substring(0, 240)} />
               </p>
             )}
@@ -1643,7 +1643,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* Action bar — always visible */}
-        <div className="border-t border-gray-700/50 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
+        <div className="border-t border-[var(--hrk-border-subtle)]/50 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
           <PostActionButton
             author={item.author}
             permlink={item.permlink}
@@ -1690,13 +1690,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const renderUserItem = (name: string, index: number) => (
     <div
       key={`${name}-${index}`}
-      className="border border-gray-700 rounded-lg p-4 bg-gray-800 hover:bg-gray-700 transition-colors"
+      className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] transition-colors"
     >
       <div className="flex items-center gap-3">
         <img
           src={`https://images.hive.blog/u/${name}/avatar`}
           alt={name}
-          className="w-10 h-10 rounded-full flex-shrink-0 bg-gray-700"
+          className="w-10 h-10 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)]"
           onError={(e) => {
             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${name}&background=random&size=40`;
           }}
@@ -1721,25 +1721,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const renderPostSkeleton = (count = 5) => (
     <div className="space-y-3 animate-pulse">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="overflow-hidden rounded-lg border border-gray-700 bg-gray-800">
+        <div key={i} className="overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]">
           <div className="flex items-stretch">
             <div className="min-w-0 flex-1 space-y-1.5 p-2.5 sm:space-y-2 sm:p-4">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="h-7 w-7 flex-shrink-0 rounded-full bg-gray-700 sm:h-9 sm:w-9" />
-                <div className="h-2.5 w-20 rounded bg-gray-700 sm:h-3 sm:w-24" />
-                <div className="h-2 w-10 rounded bg-gray-700/70 sm:w-12" />
+                <div className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9" />
+                <div className="h-2.5 w-20 rounded bg-[var(--hrk-bg-surface-raised)] sm:h-3 sm:w-24" />
+                <div className="h-2 w-10 rounded bg-[var(--hrk-bg-surface-raised)]/70 sm:w-12" />
               </div>
-              <div className="h-3 w-5/6 rounded bg-gray-700 sm:h-4" />
-              <div className="h-2.5 w-full rounded bg-gray-700/70 sm:h-3" />
-              <div className="h-2.5 w-4/6 rounded bg-gray-700/70 sm:h-3" />
+              <div className="h-3 w-5/6 rounded bg-[var(--hrk-bg-surface-raised)] sm:h-4" />
+              <div className="h-2.5 w-full rounded bg-[var(--hrk-bg-surface-raised)]/70 sm:h-3" />
+              <div className="h-2.5 w-4/6 rounded bg-[var(--hrk-bg-surface-raised)]/70 sm:h-3" />
             </div>
-            <div className="my-2 mr-2 h-20 w-28 flex-shrink-0 rounded-lg bg-gray-700/70 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48" />
+            <div className="my-2 mr-2 h-20 w-28 flex-shrink-0 rounded-lg bg-[var(--hrk-bg-surface-raised)]/70 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48" />
           </div>
-          <div className="flex gap-3 border-t border-gray-700/50 px-2.5 py-2 sm:px-4">
-            <div className="h-3 w-10 rounded bg-gray-700/70" />
-            <div className="h-3 w-10 rounded bg-gray-700/70" />
-            <div className="h-3 w-10 rounded bg-gray-700/70" />
-            <div className="ml-auto h-3 w-12 rounded bg-gray-700/70" />
+          <div className="flex gap-3 border-t border-[var(--hrk-border-subtle)]/50 px-2.5 py-2 sm:px-4">
+            <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-raised)]/70" />
+            <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-raised)]/70" />
+            <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-raised)]/70" />
+            <div className="ml-auto h-3 w-12 rounded bg-[var(--hrk-bg-surface-raised)]/70" />
           </div>
         </div>
       ))}
@@ -1750,10 +1750,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const renderUserSkeleton = (count = 8) => (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 animate-pulse">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="border border-gray-700 rounded-lg p-4 bg-gray-800">
+        <div key={i} className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0" />
-            <div className="h-4 bg-gray-700 rounded w-28" />
+            <div className="w-10 h-10 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
+            <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-28" />
           </div>
         </div>
       ))}
@@ -1764,26 +1764,26 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const renderPollSkeleton = (count = 3) => (
     <div className="space-y-3 animate-pulse">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+        <div key={i} className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
           <div className="flex items-start gap-3 mb-3">
-            <div className="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0" />
+            <div className="w-10 h-10 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <div className="h-3.5 bg-gray-700 rounded w-24" />
-                <div className="h-5 bg-gray-700 rounded-full w-14" />
+                <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-24" />
+                <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded-full w-14" />
               </div>
               {/* Question */}
-              <div className="h-4 bg-gray-700 rounded w-4/5 mb-3" />
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-4/5 mb-3" />
               {/* Poll options */}
               <div className="space-y-2 mb-3">
-                <div className="h-8 bg-gray-700 rounded-lg w-full" />
-                <div className="h-8 bg-gray-700 rounded-lg w-full" />
-                <div className="h-8 bg-gray-700 rounded-lg w-3/4" />
+                <div className="h-8 bg-[var(--hrk-bg-surface-raised)] rounded-lg w-full" />
+                <div className="h-8 bg-[var(--hrk-bg-surface-raised)] rounded-lg w-full" />
+                <div className="h-8 bg-[var(--hrk-bg-surface-raised)] rounded-lg w-3/4" />
               </div>
               {/* Stats */}
               <div className="flex gap-4">
-                <div className="h-3 bg-gray-700 rounded w-20" />
-                <div className="h-3 bg-gray-700 rounded w-24" />
+                <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+                <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-24" />
               </div>
             </div>
           </div>
@@ -1796,32 +1796,32 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const renderRewardSkeleton = () => (
     <div className="space-y-3 animate-pulse">
       {/* Summary card skeleton */}
-      <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+      <div className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-5 h-5 bg-gray-700 rounded" />
-          <div className="h-4 bg-gray-700 rounded w-44" />
+          <div className="w-5 h-5 bg-[var(--hrk-bg-surface-raised)] rounded" />
+          <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-44" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-gray-900/50 rounded-lg p-2.5">
-              <div className="h-2.5 bg-gray-700 rounded w-12 mb-2" />
-              <div className="h-5 bg-gray-700 rounded w-16" />
+            <div key={i} className="bg-[var(--hrk-bg-app)]/50 rounded-lg p-2.5">
+              <div className="h-2.5 bg-[var(--hrk-bg-surface-raised)] rounded w-12 mb-2" />
+              <div className="h-5 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
             </div>
           ))}
         </div>
       </div>
       {/* Row skeletons */}
       {[1, 2, 3, 4, 5].map(i => (
-        <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+        <div key={i} className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
           <div className="flex items-start gap-3">
-            <div className="w-7 h-7 bg-gray-700 rounded-lg" />
+            <div className="w-7 h-7 bg-[var(--hrk-bg-surface-raised)] rounded-lg" />
             <div className="flex-1">
-              <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-gray-700 rounded w-1/3 mb-3" />
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-3/4 mb-2" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-1/3 mb-3" />
               <div className="flex gap-4">
-                <div className="h-3 bg-gray-700 rounded w-20" />
-                <div className="h-3 bg-gray-700 rounded w-16" />
-                <div className="h-3 bg-gray-700 rounded w-16" />
+                <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+                <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
+                <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
               </div>
             </div>
           </div>
@@ -1880,9 +1880,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (authorRewards.length === 0 && !rewardsStillLoading) {
       return (
         <div className="text-center py-12">
-          <Award className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">{t("empty.noPendingAuthor")}</p>
-          <p className="text-gray-500 text-xs mt-1">Rewards appear for posts/comments with pending payouts</p>
+          <Award className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+          <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noPendingAuthor")}</p>
+          <p className="text-[var(--hrk-text-tertiary)] text-xs mt-1">Rewards appear for posts/comments with pending payouts</p>
         </div>
       );
     }
@@ -1900,19 +1900,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.posts")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.posts")}</p>
               <p className="text-lg font-bold text-white">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.comments")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.comments")}</p>
               <p className="text-lg font-bold text-white">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHbd")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHbd")}</p>
               <p className="text-lg font-bold text-amber-400">${formatNum(authorRewardsTotals.totalHbd)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHp")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHp")}</p>
               <p className="text-lg font-bold text-orange-400">{formatNum(authorRewardsTotals.totalHpEq)}</p>
             </div>
           </div>
@@ -1922,7 +1922,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {authorRewards.map((row, i) => (
           <div
             key={`${row.author}-${row.permlink}-${i}`}
-            className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
+            className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)] hover:border-[var(--hrk-border-default)] transition-colors cursor-pointer"
             onClick={() => onPostClick?.(row.author, row.permlink, row.title)}
           >
             <div className="flex items-start gap-3">
@@ -1938,7 +1938,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     {row.isComment ? t("reward.comment") : t("reward.post")}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[var(--hrk-text-tertiary)]">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     Payout in {formatDuration(row.payoutMs)}
@@ -1946,7 +1946,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <span className="text-amber-400 font-medium">${formatNum(row.hbd)} HBD</span>
                   {row.hpEq !== null && <span className="text-orange-400 font-medium">{formatNum(row.hpEq)} HP</span>}
                   {row.beneficiaryCut > 0 && (
-                    <span className="text-gray-500">
+                    <span className="text-[var(--hrk-text-tertiary)]">
                       Beneficiary: {(row.beneficiaryCut * 100).toFixed(0)}%
                     </span>
                   )}
@@ -1960,14 +1960,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {rewardsStillLoading && (
           <div className="animate-pulse space-y-3">
             {[1, 2].map(i => (
-              <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div key={i} className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
                 <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 bg-gray-700 rounded-lg" />
+                  <div className="w-7 h-7 bg-[var(--hrk-bg-surface-raised)] rounded-lg" />
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
+                    <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-3/4 mb-2" />
                     <div className="flex gap-4">
-                      <div className="h-3 bg-gray-700 rounded w-20" />
-                      <div className="h-3 bg-gray-700 rounded w-16" />
+                      <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+                      <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
                     </div>
                   </div>
                 </div>
@@ -1987,9 +1987,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (curationRewards.length === 0 && !rewardsStillLoading) {
       return (
         <div className="text-center py-12">
-          <TrendingUp className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">{t("empty.noPendingCuration")}</p>
-          <p className="text-gray-500 text-xs mt-1">{t("empty.curationHint")}</p>
+          <TrendingUp className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+          <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noPendingCuration")}</p>
+          <p className="text-[var(--hrk-text-tertiary)] text-xs mt-1">{t("empty.curationHint")}</p>
         </div>
       );
     }
@@ -2011,24 +2011,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.posts")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.posts")}</p>
               <p className="text-lg font-bold text-white">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.comments")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.comments")}</p>
               <p className="text-lg font-bold text-white">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHp")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHp")}</p>
               <p className="text-lg font-bold text-blue-400">{formatNum(curationRewardsTotals.totalHp)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.totalHbd")}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHbd")}</p>
               <p className="text-lg font-bold text-purple-400">${formatNum(curationRewardsTotals.totalHbd)}</p>
             </div>
             {avgEfficiency !== null && (
               <div className="bg-black/30 rounded-lg p-2.5">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{t("reward.avgEfficiency")}</p>
+                <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.avgEfficiency")}</p>
                 <p className={`text-lg font-bold ${avgEfficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
                   {avgEfficiency.toFixed(1)}%
                 </p>
@@ -2041,7 +2041,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {curationRewards.map((row, i) => (
           <div
             key={`${row.author}-${row.permlink}-${i}`}
-            className="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
+            className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)] hover:border-[var(--hrk-border-default)] transition-colors cursor-pointer"
             onClick={() => onPostClick?.(row.author, row.permlink, row.title)}
           >
             <div className="flex items-start gap-3">
@@ -2054,20 +2054,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <h4 className="text-sm font-medium text-white truncate">
                       {row.title || `${row.author}/${row.permlink}`}
                     </h4>
-                    <p className="text-xs text-gray-500 mt-0.5">by @{row.author}</p>
+                    <p className="text-xs text-[var(--hrk-text-tertiary)] mt-0.5">by @{row.author}</p>
                   </div>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${row.isComment ? "bg-blue-900/40 text-blue-300" : "bg-emerald-900/40 text-emerald-300"}`}>
                     {row.isComment ? t("reward.comment") : t("reward.post")}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[var(--hrk-text-tertiary)]">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     Payout in {formatDuration(row.payoutMs)}
                   </span>
                   <span className="text-blue-400 font-medium">{formatNum(row.hp)} HP</span>
                   <span className="text-purple-400 font-medium">${formatNum(row.hbd)} HBD</span>
-                  <span className="text-gray-500">
+                  <span className="text-[var(--hrk-text-tertiary)]">
                     Vote: {row.weightPct.toFixed(2)}%
                   </span>
                   {row.efficiency !== null && (
@@ -2076,7 +2076,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     </span>
                   )}
                   {row.votedAfterMs !== null && (
-                    <span className="text-gray-500">
+                    <span className="text-[var(--hrk-text-tertiary)]">
                       Voted after {formatDuration(row.votedAfterMs)}
                     </span>
                   )}
@@ -2090,16 +2090,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {rewardsStillLoading && (
           <div className="animate-pulse space-y-3">
             {[1, 2].map(i => (
-              <div key={i} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+              <div key={i} className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
                 <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 bg-gray-700 rounded-lg" />
+                  <div className="w-7 h-7 bg-[var(--hrk-bg-surface-raised)] rounded-lg" />
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-gray-700 rounded w-1/3 mb-3" />
+                    <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-1/3 mb-3" />
                     <div className="flex gap-4">
-                      <div className="h-3 bg-gray-700 rounded w-20" />
-                      <div className="h-3 bg-gray-700 rounded w-16" />
-                      <div className="h-3 bg-gray-700 rounded w-14" />
+                      <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+                      <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-16" />
+                      <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-14" />
                     </div>
                   </div>
                 </div>
@@ -2166,13 +2166,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           <div className="max-w-lg mx-auto space-y-6 animate-pulse">
             {[1, 2, 3].map(i => (
               <div key={i} className="space-y-2">
-                <div className="h-4 bg-gray-700 rounded w-32" />
-                <div className="h-4 bg-gray-700 rounded-full w-full" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-32" />
+                <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
               </div>
             ))}
-            <div className="mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700">
-              <div className="h-4 bg-gray-700 rounded w-40 mb-3" />
-              <div className="h-3 bg-gray-700 rounded-full w-full" />
+            <div className="mt-4 p-4 bg-[var(--hrk-bg-surface)] rounded-xl border border-[var(--hrk-border-subtle)]">
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-40 mb-3" />
+              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
             </div>
           </div>
         );
@@ -2180,8 +2180,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (!votingPowerData) {
         return (
           <div className="text-center py-12">
-            <Gauge className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.votingPowerUnavailable")}</p>
+            <Gauge className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.votingPowerUnavailable")}</p>
           </div>
         );
       }
@@ -2215,30 +2215,30 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 
       const bars = [
-        { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "#10b981" },
-        { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "#f59e0b" },
-        { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "#3b82f6" },
+        { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "var(--hrk-success)" },
+        { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "var(--hrk-warning)" },
+        { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "var(--hrk-info)" },
       ];
       return (
         <div className="max-w-lg mx-auto space-y-6">
           {/* Vote Value + Mana Slider (PeakD-style) */}
-          <div className="p-5 rounded-xl bg-gray-800 border border-gray-700 flex flex-col items-center">
+          <div className="p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] flex flex-col items-center">
             {/* Vote value badge */}
             <div className="inline-flex flex-col items-center px-5 py-2.5 rounded-full bg-blue-600/20 border border-blue-500/40 mb-5">
               <span className="text-sm sm:text-base font-bold text-white tracking-wide">
                 VOTE VALUE: <span className="text-blue-400">${formatVal(hbdValue)}</span>
-                <span className="text-gray-400 ml-1.5">({sliderPower.toFixed(2)}%)</span>
+                <span className="text-[var(--hrk-text-tertiary)] ml-1.5">({sliderPower.toFixed(2)}%)</span>
               </span>
-              <span className="text-xs text-gray-400 mt-1">
+              <span className="text-xs text-[var(--hrk-text-tertiary)] mt-1">
                 <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
                 <span className="mx-1.5">·</span>
-                <span className="text-gray-300">~{formatVal(hiveValue, 3)} HIVE</span>
+                <span className="text-[var(--hrk-text-secondary)]">~{formatVal(hiveValue, 3)} HIVE</span>
               </span>
             </div>
 
             {/* Mana slider */}
             <div className="w-full flex items-center gap-3">
-              <span className="text-xs font-medium text-gray-400 whitespace-nowrap">0%</span>
+              <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">0%</span>
               <input
                 type="range"
                 min={0}
@@ -2248,14 +2248,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 onChange={(e) => setVoteWeight(Number(e.target.value))}
                 className="flex-1 h-2.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
                 style={{
-                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${sliderPower}%, #374151 ${sliderPower}%, #374151 100%)`,
+                  background: `linear-gradient(to right, var(--hrk-info) 0%, var(--hrk-info) ${sliderPower}%, var(--hrk-border-default) ${sliderPower}%, var(--hrk-border-default) 100%)`,
                 }}
               />
-              <span className="text-xs font-medium text-gray-400 whitespace-nowrap">100%</span>
+              <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">100%</span>
             </div>
 
             {/* Recharge time */}
-            <p className="mt-3 text-sm text-gray-400">
+            <p className="mt-3 text-sm text-[var(--hrk-text-tertiary)]">
               {formatRechargeTime(rechargeSeconds)}
             </p>
           </div>
@@ -2264,10 +2264,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           {bars.map((bar) => (
             <div key={bar.label} className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-300">{bar.label}</span>
+                <span className="text-sm font-medium text-[var(--hrk-text-secondary)]">{bar.label}</span>
                 <span className="text-sm font-bold text-white">{bar.value.toFixed(2)}%</span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3">
+              <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-3">
                 <div
                   className="h-3 rounded-full transition-all duration-500 ease-out"
                   style={{ width: `${Math.min(bar.value, 100)}%`, backgroundColor: bar.color }}
@@ -2285,8 +2285,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (badges.length === 0) {
         return (
           <div className="text-center py-12">
-            <Award className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.noBadges")}</p>
+            <Award className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noBadges")}</p>
           </div>
         );
       }
@@ -2303,8 +2303,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (witnessVotes.length === 0) {
         return (
           <div className="text-center py-12">
-            <Shield className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.noWitnessVotes")}</p>
+            <Shield className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noWitnessVotes")}</p>
           </div>
         );
       }
@@ -2382,8 +2382,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (followers.length === 0) {
         return (
           <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.noFollowers")}</p>
+            <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noFollowers")}</p>
           </div>
         );
       }
@@ -2399,8 +2399,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (following.length === 0) {
         return (
           <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.notFollowing")}</p>
+            <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.notFollowing")}</p>
           </div>
         );
       }
@@ -2416,8 +2416,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (filteredPolls.length === 0) {
         return (
           <div className="text-center py-12">
-            <BarChart3 className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-            <p className="text-gray-400">{t("empty.noPolls")}</p>
+            <BarChart3 className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noPolls")}</p>
           </div>
         );
       }
@@ -2482,8 +2482,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           : "empty.noPosts";
       return (
         <div className="text-center py-12">
-          <EmptyIcon className="h-12 w-12 text-gray-500 mx-auto mb-3" />
-          <p className="text-gray-400">{t(emptyKey as any)}</p>
+          <EmptyIcon className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+          <p className="text-[var(--hrk-text-tertiary)]">{t(emptyKey as any)}</p>
         </div>
       );
     }
@@ -2536,19 +2536,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // ─── Main render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="dark flex flex-col h-full bg-gray-900">
+    <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)]">
       <div ref={mainScrollRef} className="flex flex-col overflow-y-auto h-full scrollbar-hide">
 
         {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
-        <div className="sticky top-0 z-30 h-[56px] bg-gray-800/95 backdrop-blur-sm border-b border-gray-700 flex items-center">
+        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center">
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {/* Back */}
             {showBackButton && onBack && (
               <button
                 onClick={onBack}
-                className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0"
               >
-                <ArrowLeft className="h-5 w-5 text-gray-300" />
+                <ArrowLeft className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
               </button>
             )}
 
@@ -2559,7 +2559,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 `https://images.hive.blog/u/${targetUsername}/avatar`
               }
               alt={targetUsername}
-              className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-700 object-cover"
+              className="w-8 h-8 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
               }}
@@ -2600,7 +2600,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 </button>
                 {showActionDropdown && (
                   <div
-                    className="absolute right-0 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 shadow-xl z-[100]"
+                    className="absolute right-0 mt-1 w-48 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-xl z-[100]"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {showActions && (onFollow || onUnfollow) && (
@@ -2610,7 +2610,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           handleFollowToggle();
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50"
                       >
                         <span className="flex items-center gap-2">
                           {profile.isFollowing ? <UserMinus className="h-4 w-4 text-red-400" /> : <UserPlus className="h-4 w-4 text-green-400" />}
@@ -2625,7 +2625,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           handleMuteToggle();
                         }}
                         disabled={actionLoading || (profile.isMuted ? !onUnmute : !onMute)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50"
                       >
                         <span className="flex items-center gap-2">
                           {profile.isMuted ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4 text-red-400" />}
@@ -2640,7 +2640,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           setShowIgnoreConfirm(true);
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50"
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-gray-700disabled:opacity-50"
                       >
                         <span className="flex items-center gap-2">
                           <Ban className="h-4 w-4 text-red-400" /> {t("action.ignoreAuthor")}
@@ -2654,7 +2654,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           setShowReportModal(true);
                         }}
                         disabled={actionLoading}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700disabled:opacity-50 last:rounded-b-lg"
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-gray-700disabled:opacity-50 last:rounded-b-lg"
                       >
                         <span className="flex items-center gap-2">
                           <Flag className="h-4 w-4 text-orange-400" /> {t("action.reportUser")}
@@ -2666,7 +2666,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         setShowActionDropdown(false);
                         handleShare();
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-gray-700 first:rounded-t-lg"
+                      className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] first:rounded-t-lg"
                     >
                       <span className="flex items-center gap-2">
                         <Share2 className="h-4 w-4 text-blue-400" /> {t("action.shareProfile")}
@@ -2722,7 +2722,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={targetUsername}
-                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover"
+                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
                     }}
@@ -2733,7 +2733,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <Pencil className="h-5 w-5 sm:h-6 sm:w-6" />
                   </span>
                   <span
-                    className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-[#e31337] text-white shadow-md sm:h-7 sm:w-7"
+                    className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-[var(--hrk-brand)] text-white shadow-md sm:h-7 sm:w-7"
                     aria-hidden
                   >
                     <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -2743,7 +2743,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 <img
                   src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                   alt={targetUsername}
-                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-gray-700 object-cover flex-shrink-0"
+                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
                   }}
@@ -2753,22 +2753,22 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               <div className="flex-1 min-w-0 pb-0.5">
                 <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate drop-shadow-md">
                   {profile.name || targetUsername}
-                  <span className="text-xs sm:text-sm text-gray-300 drop-shadow-md"> (@{targetUsername})</span>
+                  <span className="text-xs sm:text-sm text-[var(--hrk-text-secondary)] drop-shadow-md"> (@{targetUsername})</span>
                 </h2>
                 {profile.about && (
-                  <p className="text-gray-200 text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
+                  <p className="text-[var(--hrk-text-primary)] text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
                     {profile.about}
                   </p>
                 )}
                 {profile.location && (
-                  <span className="flex items-center gap-1 text-gray-300 text-xs mt-1 drop-shadow-md whitespace-nowrap">
+                  <span className="flex items-center gap-1 text-[var(--hrk-text-secondary)] text-xs mt-1 drop-shadow-md whitespace-nowrap">
                     <MapPin className="h-3 w-3 text-rose-400 flex-shrink-0" /> {profile.location.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()}
                   </span>
                 )}
               </div>
             </div>
             {/* Meta info row */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-gray-200">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
               {profile.website && (
                 <a
                   href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
@@ -2802,11 +2802,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               <KERatioBadge username={targetUsername} hideWhileLoading />
             </div>
             {/* Followers / Following / Posts */}
-            <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-gray-200">
-              <button onClick={() => setActiveTab("followers")} className="hover:text-white transition-colors drop-shadow-md">
+            <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
+              <button onClick={() => setActiveTab("followers")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
                 <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> {t("meta.followers")}
               </button>
-              <button onClick={() => setActiveTab("following")} className="hover:text-white transition-colors drop-shadow-md">
+              <button onClick={() => setActiveTab("following")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
                 <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> {t("meta.following")}
               </button>
               <span className="drop-shadow-md">
@@ -2817,10 +2817,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* ── Tab bar — sticks below header on scroll ── */}
-        <div className="sticky top-[56px] z-20 bg-gray-800 border-b border-gray-700 relative flex items-center">
+        <div className="sticky top-[56px] z-20 bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] relative flex items-center">
           <button
             onClick={() => scrollTabs("left")}
-            className={`absolute left-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-all ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className={`absolute left-0 z-10 h-full px-2 bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] flex items-center shadow-md transition-all ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
           >
             <ChevronLeft className="h-4 w-4 text-white" />
           </button>
@@ -2834,7 +2834,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   className={`flex items-center gap-1 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
                     activeTab === tab.id
                       ? "text-blue-400 border-blue-400"
-                      : "text-gray-400 border-transparent hover:text-gray-300 hover:border-gray-600"
+                      : "text-[var(--hrk-text-tertiary)] border-transparent hover:text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-border-default)]"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -2845,7 +2845,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           </div>
           <button
             onClick={() => scrollTabs("right")}
-            className={`absolute right-0 z-10 h-full px-2 bg-gray-700 hover:bg-gray-600 flex items-center shadow-md transition-all ${canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className={`absolute right-0 z-10 h-full px-2 bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] flex items-center shadow-md transition-all ${canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
           >
             <ChevronRight className="h-4 w-4 text-white" />
           </button>
@@ -2870,22 +2870,22 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   {(activeTab === "followers" || activeTab === "following") ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {[1, 2].map(i => (
-                        <div key={i} className="border border-gray-700 rounded-lg p-4 bg-gray-800">
+                        <div key={i} className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)]">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gray-700 rounded-full" />
-                            <div className="h-4 bg-gray-700 rounded w-28" />
+                            <div className="w-10 h-10 bg-[var(--hrk-bg-surface-raised)] rounded-full" />
+                            <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-28" />
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                    <div className="bg-[var(--hrk-bg-surface)] rounded-xl p-4 border border-[var(--hrk-border-subtle)]">
                       <div className="flex gap-3">
-                        <div className="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0" />
+                        <div className="w-10 h-10 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
                         <div className="flex-1">
-                          <div className="h-3.5 bg-gray-700 rounded w-24 mb-2" />
-                          <div className="h-4 bg-gray-700 rounded w-3/4 mb-2" />
-                          <div className="h-3 bg-gray-700 rounded w-1/2" />
+                          <div className="h-3.5 bg-[var(--hrk-bg-surface-raised)] rounded w-24 mb-2" />
+                          <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-3/4 mb-2" />
+                          <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded w-1/2" />
                         </div>
                       </div>
                     </div>
@@ -2905,20 +2905,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onClick={() => setShowIgnoreConfirm(false)}
           >
             <div
-              className="bg-gray-800 rounded-xl shadow-xl max-w-sm w-full border border-gray-700 p-6"
+              className="bg-[var(--hrk-bg-surface)] rounded-xl shadow-xl max-w-sm w-full border border-[var(--hrk-border-subtle)] p-6"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-lg font-semibold text-white mb-2">
                 {t("modal.ignoreAuthorTitle")}
               </h3>
-              <p className="text-sm text-gray-300 mb-6">
+              <p className="text-sm text-[var(--hrk-text-secondary)] mb-6">
                 {t("modal.ignoreAuthorBody", { username: targetUsername })}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={() => setShowIgnoreConfirm(false)}
                   disabled={actionLoading}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50"
                 >
                   {t("action.cancel")}
                 </button>

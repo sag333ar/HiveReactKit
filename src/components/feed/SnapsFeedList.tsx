@@ -22,24 +22,24 @@ export interface SnapsFeedListProps
 }
 
 const Skeleton = () => (
-  <div className="overflow-hidden rounded-xl border border-[#3a424a] bg-[#262b30] animate-pulse">
+  <div className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] animate-pulse">
     <div className="flex items-center gap-3 px-4 pt-4 pb-2">
-      <div className="h-9 w-9 shrink-0 rounded-full bg-[#2f353d]" />
+      <div className="h-9 w-9 shrink-0 rounded-full bg-[var(--hrk-bg-hover)]" />
       <div className="flex-1 space-y-1.5">
-        <div className="h-3 w-1/3 rounded bg-[#3a424a]" />
-        <div className="h-2.5 w-1/4 rounded bg-[#2f353d]" />
+        <div className="h-3 w-1/3 rounded bg-[var(--hrk-border-default)]" />
+        <div className="h-2.5 w-1/4 rounded bg-[var(--hrk-bg-hover)]" />
       </div>
     </div>
     <div className="space-y-2 px-4 pb-3">
-      <div className="h-3.5 w-3/4 rounded bg-[#3a424a]" />
-      <div className="h-3 w-full rounded bg-[#3a424a]/70" />
-      <div className="h-32 w-full rounded-lg bg-[#2f353d]/70" />
-      <div className="h-3 w-4/5 rounded bg-[#3a424a]/70" />
+      <div className="h-3.5 w-3/4 rounded bg-[var(--hrk-border-default)]" />
+      <div className="h-3 w-full rounded bg-[var(--hrk-border-default)]/70" />
+      <div className="h-32 w-full rounded-lg bg-[var(--hrk-bg-hover)]/70" />
+      <div className="h-3 w-4/5 rounded bg-[var(--hrk-border-default)]/70" />
     </div>
-    <div className="flex gap-3 border-t border-[#3a424a]/60 px-4 py-2.5">
-      <div className="h-3 w-10 rounded bg-[#2f353d]" />
-      <div className="h-3 w-10 rounded bg-[#2f353d]" />
-      <div className="h-3 w-10 rounded bg-[#2f353d]" />
+    <div className="flex gap-3 border-t border-[var(--hrk-border-default)]/60 px-4 py-2.5">
+      <div className="h-3 w-10 rounded bg-[var(--hrk-bg-hover)]" />
+      <div className="h-3 w-10 rounded bg-[var(--hrk-bg-hover)]" />
+      <div className="h-3 w-10 rounded bg-[var(--hrk-bg-hover)]" />
     </div>
   </div>
 );
@@ -123,7 +123,7 @@ const SnapsFeedList = ({
   if (!loading && posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-sm text-[#9ca3b0]">{emptyMessage}</p>
+        <p className="text-sm text-[var(--hrk-text-tertiary)]">{emptyMessage}</p>
       </div>
     );
   }
@@ -146,7 +146,7 @@ const SnapsFeedList = ({
           callback ref. */}
       {hasMore && <div ref={setSentinel} aria-hidden="true" className="h-1" />}
       {hasMore && loadingMore && (
-        <div className="flex items-center justify-center gap-2 py-4 text-sm text-[#9ca3b0]">
+        <div className="flex items-center justify-center gap-2 py-4 text-sm text-[var(--hrk-text-tertiary)]">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>

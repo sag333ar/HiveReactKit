@@ -66,7 +66,7 @@ export function UpvoteList({
 
   if (votes.length === 0) {
     return (
-      <div className="text-center text-gray-500 dark:text-gray-400 p-8">
+      <div className="text-center text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] p-8">
         No votes yet
       </div>
     );
@@ -77,7 +77,7 @@ export function UpvoteList({
       {votes.map((vote, index) => (
         <div
           key={index}
-          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[var(--hrk-bg-surface-raised)] rounded-lg"
         >
           <div className="flex items-center space-x-3">
             <img
@@ -90,12 +90,12 @@ export function UpvoteList({
             />
             <div>
               <p className="font-medium text-gray-900 dark:text-white">@{vote.voter}</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
                 {(vote.percent / 100).toFixed(2)}%
               </p>
             </div>
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
             {formatTimeAgo(vote.time + "Z")}
           </div>
         </div>

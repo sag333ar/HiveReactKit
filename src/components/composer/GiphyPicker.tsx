@@ -69,10 +69,10 @@ const GiphyPicker: React.FC<GiphyPickerProps> = ({ isOpen, onClose, onSelectGif,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+      <div className="bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)] rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--hrk-border-subtle)]">
           <h3 className="text-lg font-semibold text-white">Choose a GIF</h3>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-800 rounded transition-colors text-gray-400">
+          <button type="button" onClick={onClose} className="p-1 hover:bg-[var(--hrk-bg-surface)] rounded transition-colors text-[var(--hrk-text-tertiary)]">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -85,18 +85,18 @@ const GiphyPicker: React.FC<GiphyPickerProps> = ({ isOpen, onClose, onSelectGif,
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search for GIFs..."
-                className="flex-1 px-3 py-2 border border-gray-700 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400"
+                className="flex-1 px-3 py-2 border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] text-white placeholder-[var(--hrk-text-tertiary)]"
               />
-              <button type="submit" disabled={isLoading || !searchTerm.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+              <button type="submit" disabled={isLoading || !searchTerm.trim()} className="px-4 py-2 bg-[var(--hrk-brand)] text-white rounded-lg hover:bg-[var(--hrk-brand-hover)] disabled:opacity-50 flex items-center gap-2">
                 <Search className="h-4 w-4" />Search
               </button>
             </div>
           </form>
-          {error && <div className="text-red-400 text-sm mb-4">{error}</div>}
+          {error && <div className="text-[var(--hrk-danger)] text-sm mb-4">{error}</div>}
           {isLoading && (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto" />
-              <p className="mt-2 text-gray-400">Searching for GIFs...</p>
+              <p className="mt-2 text-[var(--hrk-text-tertiary)]">Searching for GIFs...</p>
             </div>
           )}
           {gifs.length > 0 && (
@@ -105,14 +105,14 @@ const GiphyPicker: React.FC<GiphyPickerProps> = ({ isOpen, onClose, onSelectGif,
                 <button key={gif.id} type="button" onClick={() => handleGifSelect(gif)} className="relative group rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all">
                   <img src={gif.images.fixed_height?.url || gif.images.downsized?.url || gif.images.original?.url} alt={gif.title} className="w-full h-32 object-cover" loading="lazy" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="bg-black/90 rounded-full p-2"><Image className="h-4 w-4 text-blue-400" /></div>
+                    <div className="bg-black/90 rounded-full p-2"><Image className="h-4 w-4 text-[var(--hrk-info)]" /></div>
                   </div>
                 </button>
               ))}
             </div>
           )}
           {!isLoading && gifs.length === 0 && searchTerm && (
-            <div className="text-center py-8 text-gray-400">No GIFs found for &quot;{searchTerm}&quot;</div>
+            <div className="text-center py-8 text-[var(--hrk-text-tertiary)]">No GIFs found for &quot;{searchTerm}&quot;</div>
           )}
         </div>
       </div>

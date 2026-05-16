@@ -112,7 +112,7 @@ const LIGHTEST_RED = "#f87171";
 
 const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
   backgroundColor = "#020617",
-  textColor = "#e5e7eb",
+  textColor = "var(--hrk-text-primary)",
   cardBackgroundColor = "rgba(15,23,42,0.85)",
   isDividerShow = true,
   dividerColor = "rgba(148,163,184,0.4)",
@@ -513,7 +513,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-                        style={{ backgroundColor: "#e31337" }}
+                        style={{ backgroundColor: "var(--hrk-brand)" }}
                       >
                         {s.buttonText}
                         <ExternalLink className="w-4 h-4" />
@@ -544,7 +544,7 @@ const HiveContributionsLanding: React.FC<HiveContributionsLandingProps> = ({
                   <div className="mt-4">
                     <span
                       className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-                      style={{ backgroundColor: "#e31337" }}
+                      style={{ backgroundColor: "var(--hrk-brand)" }}
                     >
                       Join
                       <ExternalLink className="w-4 h-4" />

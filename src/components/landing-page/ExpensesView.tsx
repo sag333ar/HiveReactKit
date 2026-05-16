@@ -286,7 +286,7 @@ interface ExpensesViewProps {
 const ExpensesView: React.FC<ExpensesViewProps> = ({
   onBack,
   backgroundColor = "#111827",
-  textColor = "#e5e7eb",
+  textColor = "var(--hrk-text-primary)",
   cardBackgroundColor = "rgba(15,23,42,0.85)",
   dividerColor = "rgba(148,163,184,0.4)",
 }) => {

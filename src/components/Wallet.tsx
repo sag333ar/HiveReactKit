@@ -111,20 +111,20 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
   const otherUser = isSent ? tx.to : tx.from;
 
   return (
-    <div className="flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+    <div className="flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
       {/* Avatar with directional badge — replaces the separate arrow column
           so narrow rows don't burn 32px on metadata. */}
       <div className="relative flex-shrink-0">
         <img
           src={`https://images.hive.blog/u/${otherUser}/avatar`}
           alt={otherUser}
-          className="w-9 h-9 rounded-full border border-gray-700"
+          className="w-9 h-9 rounded-full border border-[var(--hrk-border-subtle)]"
           onError={(e) => {
             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${otherUser}&background=random&size=36`;
           }}
         />
         <span
-          className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 flex items-center justify-center ${
+          className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[var(--hrk-border-subtle)] flex items-center justify-center ${
             isSent ? "bg-red-500/90 text-white" : "bg-emerald-500/90 text-white"
           }`}
         >
@@ -136,7 +136,7 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
         {/* Top line — username & amount share the row so neither gets
             squashed by a fixed-width sibling. */}
         <div className="flex items-baseline justify-between gap-2 min-w-0">
-          <span className="text-sm font-semibold text-gray-200 truncate">
+          <span className="text-sm font-semibold text-[var(--hrk-text-primary)] truncate">
             {otherUser}
           </span>
           <span
@@ -148,7 +148,7 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
           </span>
         </div>
         {/* Sub line — single line, truncates if the timestamp ever grows. */}
-        <div className="text-[11px] text-gray-500 mt-0.5 truncate">
+        <div className="text-[11px] text-[var(--hrk-text-tertiary)] mt-0.5 truncate">
           {isSent ? "Sent" : "Received"} &middot; {formatTimeAgo(tx.timestamp)}
         </div>
       </div>
@@ -205,29 +205,29 @@ const CurrencyDropdown: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-1 right-0 w-56 max-h-64 overflow-y-auto rounded-lg bg-gray-800 border border-gray-600 shadow-xl z-50 scrollbar-hide">
+        <div className="absolute top-full mt-1 right-0 w-56 max-h-64 overflow-y-auto rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] shadow-xl z-50 scrollbar-hide">
           {orderedCurrencies.map((currency, index) => (
             <React.Fragment key={currency.code}>
               {/* Divider after pinned currencies */}
               {index === (localCurrency !== "USD" ? 3 : 2) && (
-                <div className="border-t border-gray-600 my-1" />
+                <div className="border-t border-[var(--hrk-border-default)] my-1" />
               )}
               <button
                 onClick={() => {
                   setSelectedCurrency(currency.code);
                   setIsOpen(false);
                 }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-700 ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--hrk-bg-surface-raised)] ${
                   selectedCurrency === currency.code
                     ? "bg-blue-500/20 text-blue-300"
-                    : "text-gray-300"
+                    : "text-[var(--hrk-text-secondary)]"
                 }`}
               >
-                <span className="w-6 text-center font-medium text-gray-400">
+                <span className="w-6 text-center font-medium text-[var(--hrk-text-tertiary)]">
                   {getCurrencySymbol(currency.code)}
                 </span>
                 <span className="font-medium">{currency.code}</span>
-                <span className="text-xs text-gray-500 truncate">{currency.name}</span>
+                <span className="text-xs text-[var(--hrk-text-tertiary)] truncate">{currency.name}</span>
               </button>
             </React.Fragment>
           ))}
@@ -250,13 +250,13 @@ interface BalanceRowProps {
 const BalanceRow: React.FC<BalanceRowProps> = ({
   icon, iconBg, iconText, label, value, valueText, actions,
 }) => (
-  <div className="p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+  <div className="p-3 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2.5 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
     <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBg} ${iconText}`}>
           {icon}
         </div>
-        <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
+        <span className="font-semibold text-xs sm:text-sm text-[var(--hrk-text-secondary)] truncate">{label}</span>
       </div>
       <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
         <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueText}`}>{value}</span>
@@ -266,10 +266,10 @@ const BalanceRow: React.FC<BalanceRowProps> = ({
               <button
                 key={a.label}
                 onClick={a.onClick}
-                className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
+                className={`px-3 py-1.5 rounded-[10px] text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
                   a.variant === "secondary"
-                    ? "bg-gray-700 text-gray-100 hover:bg-gray-600"
-                    : "bg-blue-600 text-white hover:bg-blue-500"
+                    ? "bg-[var(--hrk-bg-surface-sunken)] border border-[var(--hrk-border-subtle)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]"
+                    : "bg-[var(--hrk-info)] text-[var(--hrk-text-on-brand)] hover:brightness-110"
                 }`}
               >
                 {a.label}
@@ -326,16 +326,16 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
     <div>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600"
+        className="w-full flex items-center justify-between p-3 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2.5 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]"
       >
-        <span className="font-semibold text-sm text-gray-300">All Balances</span>
+        <span className="font-semibold text-sm text-[var(--hrk-text-secondary)]">All Balances</span>
         <FaChevronDown
           size={12}
-          className={`text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+          className={`text-[var(--hrk-text-tertiary)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
         />
       </button>
       {isExpanded && (
-        <div className="ml-2 border-l-2 border-gray-700 pl-2 space-y-0">
+        <div className="ml-2 border-l-2 border-[var(--hrk-border-subtle)] pl-2 space-y-0">
           <BalanceRow
             icon={<FaWallet />}
             iconBg="bg-blue-500/15"
@@ -363,20 +363,20 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
 
           {/* Pending HBD savings withdrawals — STOP per request (cancel_transfer_from_savings). */}
           {pending.length > 0 && (
-            <div className="ml-2 p-3 rounded-lg bg-gray-900 border border-gray-700 mb-2.5">
-              <div className="text-xs font-semibold text-gray-300 mb-2">
+            <div className="ml-2 p-3 rounded-lg bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)] mb-2.5">
+              <div className="text-xs font-semibold text-[var(--hrk-text-secondary)] mb-2">
                 Pending withdraws from savings
               </div>
               <div className="space-y-2">
                 {pending.map((w) => (
                   <div
                     key={w.request_id}
-                    className="flex items-center justify-between gap-2 text-xs text-gray-300 flex-wrap"
+                    className="flex items-center justify-between gap-2 text-xs text-[var(--hrk-text-secondary)] flex-wrap"
                   >
                     <span>
                       <span className="text-purple-300">{w.amount}</span>{" "}
                       withdraw will complete in{" "}
-                      <span className="text-gray-200">{formatDaysFromNow(w.complete)}</span>
+                      <span className="text-[var(--hrk-text-primary)]">{formatDaysFromNow(w.complete)}</span>
                     </span>
                     {isOwn && onCancelSavingsWithdrawal && (
                       <button
@@ -408,7 +408,7 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
           {/* Active power-down schedule banner. Shown alongside the STOP button
               so the user sees why STOP is offered. */}
           {powerDownActive && walletData?.power_down_hp_per_week && (
-            <div className="ml-2 p-3 rounded-lg bg-gray-900 border border-orange-500/30 mb-2.5 text-xs text-gray-300">
+            <div className="ml-2 p-3 rounded-lg bg-[var(--hrk-bg-app)] border border-orange-500/30 mb-2.5 text-xs text-[var(--hrk-text-secondary)]">
               An unstake (power down) is in progress —{" "}
               <span className="text-orange-300">
                 ~{walletData.power_down_hp_per_week} HIVE / week
@@ -416,7 +416,7 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
               {walletData.next_vesting_withdrawal && (
                 <>
                   ; next payout in{" "}
-                  <span className="text-gray-200">
+                  <span className="text-[var(--hrk-text-primary)]">
                     {formatDaysFromNow(walletData.next_vesting_withdrawal)}
                   </span>
                 </>
@@ -610,10 +610,10 @@ export const Wallet: React.FC<WalletProps> = ({
     icon,
     iconBgClass = "bg-blue-500/15",
     iconTextClass = "text-blue-400",
-    valueClass = "text-gray-200",
+    valueClass = "text-[var(--hrk-text-primary)]",
     actions,
   }) => (
-    <div className="p-3 sm:p-3.5 rounded-lg bg-gray-800 border border-gray-700 mb-2.5 transition-all duration-200 hover:bg-gray-750 hover:border-gray-600 min-w-0">
+    <div className="p-3 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2.5 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
       <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {icon && (
@@ -621,7 +621,7 @@ export const Wallet: React.FC<WalletProps> = ({
               {icon}
             </div>
           )}
-          <span className="font-semibold text-xs sm:text-sm text-gray-300 truncate">{label}</span>
+          <span className="font-semibold text-xs sm:text-sm text-[var(--hrk-text-secondary)] truncate">{label}</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
           <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
@@ -633,7 +633,7 @@ export const Wallet: React.FC<WalletProps> = ({
                   onClick={a.onClick}
                   className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
                     a.variant === "secondary"
-                      ? "bg-gray-700 text-gray-100 hover:bg-gray-600"
+                      ? "bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)]"
                       : "bg-blue-600 text-white hover:bg-blue-500"
                   }`}
                 >
@@ -657,14 +657,14 @@ export const Wallet: React.FC<WalletProps> = ({
 
   const subTabBtn = (active: boolean) =>
     `flex-1 py-2 sm:py-2.5 px-2 text-[11px] sm:text-xs font-semibold tracking-wide rounded transition-colors whitespace-nowrap ${
-      active ? "bg-teal-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+      active ? "bg-teal-600 text-white" : "bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)]"
     }`;
 
   return (
     <div className={`p-2 sm:p-4 transition-all duration-300 min-w-0 ${className}`}>
       <div className="max-w-3xl mx-auto min-w-0">
         {/* Profile Header */}
-        <div className="flex flex-col items-center p-4 sm:p-5 mb-4 sm:mb-5 rounded-xl bg-gray-800 border border-gray-700">
+        <div className="flex flex-col items-center p-4 sm:p-5 mb-4 sm:mb-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)]">
           {username && (
             <img
               src={`https://images.hive.blog/u/${username}/avatar`}
@@ -676,7 +676,7 @@ export const Wallet: React.FC<WalletProps> = ({
             />
           )}
           <div className="text-base font-bold text-white">{username}</div>
-          <div className="text-xs text-gray-400">Hive Wallet Overview</div>
+          <div className="text-xs text-[var(--hrk-text-tertiary)]">Hive Wallet Overview</div>
         </div>
 
         {/* Estimated Value Card */}
@@ -817,13 +817,13 @@ export const Wallet: React.FC<WalletProps> = ({
         )}
 
         {subTab === "transactions" && (
-          <div className="rounded-xl bg-gray-800 border border-gray-700 p-2 sm:p-4 min-w-0">
+          <div className="rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] p-2 sm:p-4 min-w-0">
             <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-sm font-bold text-gray-300 tracking-wide uppercase">
+              <h3 className="text-sm font-bold text-[var(--hrk-text-secondary)] tracking-wide uppercase">
                 Transaction History
               </h3>
               {transactions.length > 0 && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-[var(--hrk-text-tertiary)]">
                   {transactions.length} transactions
                 </span>
               )}
@@ -832,8 +832,8 @@ export const Wallet: React.FC<WalletProps> = ({
             {isLoadingTransactions && (
               <div className="flex items-center justify-center p-8">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin"></div>
-                  <span className="text-sm text-gray-400">Loading transactions...</span>
+                  <div className="w-5 h-5 border-2 border-[var(--hrk-border-default)] border-t-blue-400 rounded-full animate-spin"></div>
+                  <span className="text-sm text-[var(--hrk-text-tertiary)]">Loading transactions...</span>
                 </div>
               </div>
             )}
@@ -846,8 +846,8 @@ export const Wallet: React.FC<WalletProps> = ({
             )}
 
             {!isLoadingTransactions && !transactionError && transactions.length === 0 && (
-              <div className="text-center p-8 rounded-lg bg-gray-900 border border-gray-700">
-                <p className="text-sm text-gray-500">No transactions found</p>
+              <div className="text-center p-8 rounded-lg bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)]">
+                <p className="text-sm text-[var(--hrk-text-tertiary)]">No transactions found</p>
               </div>
             )}
 
@@ -865,17 +865,17 @@ export const Wallet: React.FC<WalletProps> = ({
               <div ref={txSentinelRef} className="py-3 flex items-center justify-center">
                 {isLoadingMoreTransactions ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin"></div>
-                    <span className="text-xs text-gray-400">Loading more…</span>
+                    <div className="w-4 h-4 border-2 border-[var(--hrk-border-default)] border-t-blue-400 rounded-full animate-spin"></div>
+                    <span className="text-xs text-[var(--hrk-text-tertiary)]">Loading more…</span>
                   </div>
                 ) : (
-                  <span className="text-[11px] text-gray-600">Scroll for more</span>
+                  <span className="text-[11px] text-[var(--hrk-text-tertiary)]">Scroll for more</span>
                 )}
               </div>
             )}
 
             {!isLoadingTransactions && transactions.length > 0 && !hasMoreTransactions && (
-              <div className="py-3 text-center text-[11px] text-gray-600">
+              <div className="py-3 text-center text-[11px] text-[var(--hrk-text-tertiary)]">
                 No more transactions
               </div>
             )}

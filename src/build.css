@@ -3,6 +3,74 @@
 /* Library build: scan src so all component classes are included in dist/build.css */
 @source "./**/*.{ts,tsx}";
 
+/* ─────────────────────────────────────────────────────────────────────────
+   HiveReactKit theme tokens
+   ─────────────────────────────────────────────────────────────────────────
+
+   The kit ships with sensible dark defaults that match HiveSuite. Consumers
+   (HiveSuite, Distriator, etc.) can override any token by redeclaring it on
+   `:root` AFTER importing `hive-react-kit/build.css`.
+
+   When the consumer already exposes the HiveSuite design tokens
+   (`--hs-bg-surface`, `--hs-text-primary`, etc.), they automatically flow
+   into the kit via the `var(--hs-*, fallback)` pattern below — no extra
+   wiring needed.
+
+   Naming: `--hrk-{role}-{variant}`. Use these in components instead of
+   hardcoded hex values so the theme stays consistent across consumers.
+*/
+
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────────── */
+  --hrk-bg-app:             var(--hs-bg-app, #0e1014);
+  --hrk-bg-surface:         var(--hs-bg-surface, #16181d);
+  --hrk-bg-surface-raised:  var(--hs-bg-surface-raised, #1c1f25);
+  --hrk-bg-surface-sunken:  var(--hs-bg-surface-sunken, #0b0d11);
+  --hrk-bg-hover:           var(--hs-bg-hover, rgba(255, 255, 255, 0.04));
+  --hrk-bg-active:          var(--hs-bg-active, rgba(255, 255, 255, 0.07));
+  --hrk-bg-selected:        var(--hs-bg-selected, rgba(227, 19, 55, 0.10));
+
+  /* ── Borders / dividers ───────────────────────────────────────────── */
+  --hrk-border-subtle:      var(--hs-border-subtle, rgba(255, 255, 255, 0.06));
+  --hrk-border-default:     var(--hs-border-default, rgba(255, 255, 255, 0.10));
+  --hrk-border-strong:      var(--hs-border-strong, rgba(255, 255, 255, 0.16));
+  --hrk-border-focus:       var(--hs-border-focus, rgba(227, 19, 55, 0.55));
+
+  /* ── Text ─────────────────────────────────────────────────────────── */
+  --hrk-text-primary:       var(--hs-text-primary, #f4f5f8);
+  --hrk-text-secondary:     var(--hs-text-secondary, #b6bac4);
+  --hrk-text-tertiary:      var(--hs-text-tertiary, #7e838f);
+  --hrk-text-disabled:      var(--hs-text-disabled, #555964);
+  --hrk-text-on-brand:      var(--hs-text-on-brand, #ffffff);
+
+  /* ── Brand ────────────────────────────────────────────────────────── */
+  --hrk-brand:              var(--hs-brand, #e31337);
+  --hrk-brand-hover:        var(--hs-brand-hover, #ff2a4d);
+  --hrk-brand-active:       var(--hs-brand-active, #c41030);
+  --hrk-brand-soft:         var(--hs-brand-soft, rgba(227, 19, 55, 0.12));
+  --hrk-brand-soft-hover:   var(--hs-brand-soft-hover, rgba(227, 19, 55, 0.18));
+  --hrk-brand-fg-soft:      var(--hs-brand-fg-soft, #ff7a92);
+
+  /* ── Status ───────────────────────────────────────────────────────── */
+  --hrk-success:            var(--hs-success, #22c55e);
+  --hrk-warning:            var(--hs-warning, #f59e0b);
+  --hrk-danger:             var(--hs-danger, #ef4444);
+  --hrk-info:               var(--hs-info, #3b82f6);
+  --hrk-success-soft:       var(--hs-success-soft, rgba(34, 197, 94, 0.14));
+  --hrk-warning-soft:       var(--hs-warning-soft, rgba(245, 158, 11, 0.14));
+  --hrk-danger-soft:        var(--hs-danger-soft, rgba(239, 68, 68, 0.14));
+  --hrk-info-soft:          var(--hs-info-soft, rgba(59, 130, 246, 0.14));
+
+  /* ── Radii / shadows ──────────────────────────────────────────────── */
+  --hrk-radius-sm:          var(--hs-radius-sm, 6px);
+  --hrk-radius-md:          var(--hs-radius-md, 8px);
+  --hrk-radius-lg:          var(--hs-radius-lg, 12px);
+  --hrk-radius-xl:          var(--hs-radius-xl, 16px);
+  --hrk-shadow-sm:          var(--hs-shadow-sm, 0 1px 2px rgba(0,0,0,0.30), 0 2px 4px rgba(0,0,0,0.20));
+  --hrk-shadow-md:          var(--hs-shadow-md, 0 2px 6px rgba(0,0,0,0.30), 0 6px 16px rgba(0,0,0,0.25));
+  --hrk-shadow-lg:          var(--hs-shadow-lg, 0 4px 14px rgba(0,0,0,0.35), 0 14px 32px rgba(0,0,0,0.30));
+}
+
 /* Custom utilities used by HiveReactKit components */
 @utility glass-effect {
   backdrop-filter: blur(12px);
@@ -29,7 +97,7 @@
 
 /* ─── Hive Post Body — scoped styles for @hiveio/content-renderer output ─── */
 .hive-post-body {
-  color: #e5e7eb;
+  color: var(--hrk-text-primary);
   font-size: 1rem;
   line-height: 1.75;
   word-break: break-word;
@@ -52,7 +120,7 @@
 .hive-post-body h3 { font-size: 1.25rem; }
 .hive-post-body h4 { font-size: 1.125rem; }
 .hive-post-body p {
-  color: #d1d5db;
+  color: var(--hrk-text-secondary);
   margin-bottom: 1em;
   line-height: 1.75;
 }
@@ -78,7 +146,7 @@
   padding: 0.75rem 1rem;
   margin: 1rem 0;
   border-radius: 0 0.5rem 0.5rem 0;
-  color: #d1d5db;
+  color: var(--hrk-text-secondary);
   font-style: italic;
 }
 .hive-post-body blockquote p { margin-bottom: 0.25em; }
@@ -86,7 +154,7 @@
 .hive-post-body ol {
   padding-left: 1.5em;
   margin-bottom: 1em;
-  color: #d1d5db;
+  color: var(--hrk-text-secondary);
 }
 .hive-post-body ul { list-style: disc; }
 .hive-post-body ol { list-style: decimal; }
@@ -109,7 +177,7 @@
 }
 .hive-post-body pre {
   background: #111827;
-  border: 1px solid #374151;
+  border: 1px solid var(--hrk-border-default);
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
   overflow-x: auto;
@@ -118,7 +186,7 @@
   line-height: 1.6;
 }
 .hive-post-body pre code {
-  color: #e5e7eb;
+  color: var(--hrk-text-primary);
   background: transparent;
   padding: 0;
   border-radius: 0;
@@ -126,7 +194,7 @@
 }
 .hive-post-body hr {
   border: none;
-  border-top: 1px solid #374151;
+  border-top: 1px solid var(--hrk-border-default);
   margin: 1.5rem 0;
 }
 .hive-post-body table {
@@ -137,22 +205,22 @@
 }
 .hive-post-body th {
   background: #1f2937;
-  color: #e5e7eb;
+  color: var(--hrk-text-primary);
   padding: 0.5rem 0.75rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #374151;
+  border-bottom: 2px solid var(--hrk-border-default);
 }
 .hive-post-body td {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #1f2937;
-  color: #d1d5db;
+  color: var(--hrk-text-secondary);
 }
 .hive-post-body tr:hover td { background: #1f293740; }
 .hive-post-body strong,
 .hive-post-body b { color: #fff; font-weight: 700; }
 .hive-post-body em,
-.hive-post-body i { color: #d1d5db; }
+.hive-post-body i { color: var(--hrk-text-secondary); }
 .hive-post-body iframe {
   width: 100%;
   max-width: 100%;
@@ -266,7 +334,7 @@
   object-fit: contain;
 }
 .threeSpeakNativeMessage {
-  color: #9ca3b0;
+  color: var(--hrk-text-tertiary);
   font-size: 0.875rem;
 }
 /* Audio embeds — show only the player bar, clip everything else */
@@ -299,7 +367,7 @@
   margin-bottom: 0.375rem;
 }
 .hive-post-body .hive-img-figure figcaption {
-  color: #9ca3af;
+  color: var(--hrk-text-tertiary);
   font-size: 0.8125rem;
   font-style: italic;
   line-height: 1.4;
@@ -319,7 +387,7 @@
    on mobile, narrow column on desktop) so block-level elements need to be
    denser than the full-page `.hive-post-body`. */
 .snaps-feed-body {
-  color: #e7e7f1;
+  color: var(--hrk-text-secondary);
   font-size: 0.875rem;
   line-height: 1.55;
   word-break: break-word;
@@ -336,7 +404,7 @@
 .snaps-feed-body h6 {
   margin: 0.5rem 0 0.25rem;
   font-weight: 600;
-  color: #f0f0f8;
+  color: var(--hrk-text-primary);
   line-height: 1.3;
 }
 .snaps-feed-body h1 { font-size: 1rem; }
@@ -346,17 +414,17 @@
 .snaps-feed-body h5,
 .snaps-feed-body h6 { font-size: 0.875rem; }
 .snaps-feed-body strong,
-.snaps-feed-body b { font-weight: 600; color: #f0f0f8; }
+.snaps-feed-body b { font-weight: 600; color: var(--hrk-text-primary); }
 .snaps-feed-body em,
 .snaps-feed-body i { font-style: italic; }
 .snaps-feed-body ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
 .snaps-feed-body ol { list-style: decimal; padding-left: 1.25rem; margin: 0.25rem 0; }
 .snaps-feed-body li { margin: 0.125rem 0; }
 .snaps-feed-body blockquote {
-  border-left: 3px solid #3a424a;
+  border-left: 3px solid var(--hrk-border-default);
   padding: 0.125rem 0.5rem;
   margin: 0.5rem 0;
-  color: #c8cad6;
+  color: var(--hrk-text-secondary);
 }
 .snaps-feed-body code {
   background: #2b3138;
@@ -373,8 +441,8 @@
   font-size: 0.8125rem;
 }
 .snaps-feed-body pre code { background: transparent; padding: 0; }
-.snaps-feed-body hr { border: none; border-top: 1px solid #3a424a; margin: 0.75rem 0; }
-.snaps-feed-body a { color: #ff5b78; text-decoration: underline; word-break: break-all; }
+.snaps-feed-body hr { border: none; border-top: 1px solid var(--hrk-border-default); margin: 0.75rem 0; }
+.snaps-feed-body a { color: var(--hrk-brand-fg-soft); text-decoration: underline; word-break: break-all; }
 
 /* Tables — `display: block` + `overflow-x: auto` so wide tables scroll
    horizontally inside the small card instead of breaking the layout. */
@@ -390,13 +458,13 @@
 .snaps-feed-body thead { background: #2b3138; }
 .snaps-feed-body th,
 .snaps-feed-body td {
-  border: 1px solid #3a424a;
+  border: 1px solid var(--hrk-border-default);
   padding: 0.25rem 0.5rem;
   text-align: left;
   vertical-align: top;
   white-space: nowrap;
 }
-.snaps-feed-body th { font-weight: 600; color: #f0f0f8; }
+.snaps-feed-body th { font-weight: 600; color: var(--hrk-text-primary); }
 
 /* Inline images embedded inside the rendered markdown — keep them
    contained within the card width, but small (full-size previews live

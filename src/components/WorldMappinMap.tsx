@@ -42,7 +42,7 @@ const STYLE_TEXT = `
   padding: 2px 6px;
   border-radius: 4px;
 }
-.hive-worldmappin .leaflet-control-attribution a { color: #ffd166; }
+.hive-worldmappin .leaflet-control-attribution a { color: var(--hrk-warning); }
 .hive-worldmappin .leaflet-bar {
   border: 1px solid rgba(0, 0, 0, 0.5);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -81,8 +81,8 @@ export interface WorldMappinMapProps {
 // Identical to hivesuite/src/pages/MapPage.tsx so the inline post map and
 // the full Map screen render the same pin glyph.
 const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="24" height="32">
-  <path d="M12 0 C5.4 0 0 5.4 0 12 c0 9 12 20 12 20 s12 -11 12 -20 C24 5.4 18.6 0 12 0 z" fill="#e31337" stroke="#1c1f29" stroke-width="1.5"/>
-  <circle cx="12" cy="11.5" r="4.4" fill="#fff8e0"/>
+  <path d="M12 0 C5.4 0 0 5.4 0 12 c0 9 12 20 12 20 s12 -11 12 -20 C24 5.4 18.6 0 12 0 z" fill="var(--hrk-brand)" stroke="#1c1f29" stroke-width="1.5"/>
+  <circle cx="12" cy="11.5" r="4.4" fill="var(--hrk-warning-soft)"/>
 </svg>`;
 
 const pinIcon = L.divIcon({
@@ -112,7 +112,7 @@ export const WorldMappinMap: React.FC<WorldMappinMapProps> = ({
 
   return (
     <div
-      className={`hive-worldmappin rounded-lg overflow-hidden border border-[rgba(255,255,255,0.08)] bg-[#0d1118] ${className}`}
+      className={`hive-worldmappin rounded-lg overflow-hidden border border-[rgba(255,255,255,0.08)] bg-[var(--hrk-bg-surface-sunken)] ${className}`}
     >
       <div style={{ height: heightStyle, width: "100%" }}>
         <MapContainer
@@ -120,7 +120,7 @@ export const WorldMappinMap: React.FC<WorldMappinMapProps> = ({
           zoom={zoom}
           scrollWheelZoom={false}
           zoomControl={false}
-          style={{ height: "100%", width: "100%", background: "#0d1118" }}
+          style={{ height: "100%", width: "100%", background: "var(--hrk-bg-surface-sunken)" }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -138,8 +138,8 @@ export const WorldMappinMap: React.FC<WorldMappinMapProps> = ({
           </Marker>
         </MapContainer>
       </div>
-      <div className="px-3 py-2 bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.08)] flex items-center gap-2 text-xs text-[#cfd3da]">
-        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-[#e31337]" />
+      <div className="px-3 py-2 bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.08)] flex items-center gap-2 text-xs text-[var(--hrk-text-secondary)]">
+        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-[var(--hrk-brand)]" />
         <span className="truncate">
           {description || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}
         </span>

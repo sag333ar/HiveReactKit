@@ -51,7 +51,7 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2 text-[#9ca3b0]">
+        <div className="flex items-center gap-2 text-[var(--hrk-text-tertiary)]">
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading community details...
         </div>
@@ -63,10 +63,10 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-[#f0f0f8] mb-2">
+          <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-2">
             Failed to load community details
           </h3>
-          <p className="text-[#9ca3b0] mb-4">{error}</p>
+          <p className="text-[var(--hrk-text-tertiary)] mb-4">{error}</p>
           <button
             onClick={fetchDetails}
             className="m-2 inline-flex items-center justify-center rounded-md border border-input bg-background p-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
@@ -82,7 +82,7 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
   if (!details?.result) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-[#9ca3b0]">
+        <p className="text-[var(--hrk-text-tertiary)]">
           No community details available
         </p>
       </div>
@@ -93,14 +93,14 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#262b30] border border-[#3a424a] rounded-xl p-6">
+      <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] rounded-xl p-6">
         {/* About Section */}
         {community.about && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-[#f0f0f8] mb-3">
+            <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-3">
               About
             </h3>
-            <p className="text-[#9ca3b0] text-[#e7e7f1] leading-relaxed">
+            <p className="text-[var(--hrk-text-tertiary)] text-[var(--hrk-text-secondary)] leading-relaxed">
               {removeHtmlTags(community.about)}
             </p>
           </div>
@@ -109,10 +109,10 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
         {/* Description Section */}
         {community.description && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-[#f0f0f8] mb-3">
+            <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-3">
               Information
             </h3>
-            <div className="text-[#9ca3b0] text-[#e7e7f1] leading-relaxed whitespace-pre-wrap">
+            <div className="text-[var(--hrk-text-tertiary)] text-[var(--hrk-text-secondary)] leading-relaxed whitespace-pre-wrap">
               {removeHtmlTags(community.description)}
             </div>
           </div>
@@ -121,10 +121,10 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
         {/* Rules Section */}
         {community.flag_text && (
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-[#f0f0f8] mb-3">
+            <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-3">
               Community Rules
             </h3>
-            <div className="text-[#9ca3b0] text-[#e7e7f1] leading-relaxed whitespace-pre-wrap">
+            <div className="text-[var(--hrk-text-tertiary)] text-[var(--hrk-text-secondary)] leading-relaxed whitespace-pre-wrap">
               {removeHtmlTags(community.flag_text)}
             </div>
           </div>
@@ -133,28 +133,28 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+            <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
               Total Authors
             </h4>
-            <p className="text-2xl font-bold text-[#f0f0f8]">
+            <p className="text-2xl font-bold text-[var(--hrk-text-primary)]">
               {community.num_authors?.toLocaleString() || "0"}
             </p>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+            <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
               Subscribers
             </h4>
-            <p className="text-2xl font-bold text-[#f0f0f8]">
+            <p className="text-2xl font-bold text-[var(--hrk-text-primary)]">
               {community.subscribers?.toLocaleString() || "0"}
             </p>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+            <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
               Created
             </h4>
-            <p className="text-lg font-semibold text-[#f0f0f8]">
+            <p className="text-lg font-semibold text-[var(--hrk-text-primary)]">
               {community.created_at
                 ? formatDate(community.created_at)
                 : "Unknown"}
@@ -163,29 +163,29 @@ const CommunityAbout = ({ communityId }: CommunityAboutProps) => {
 
           {community.lang && (
             <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+              <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
                 Language
               </h4>
-              <p className="text-lg font-semibold text-[#f0f0f8]">
+              <p className="text-lg font-semibold text-[var(--hrk-text-primary)]">
                 {community.lang.toUpperCase()}
               </p>
             </div>
           )}
 
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+            <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
               Pending Posts
             </h4>
-            <p className="text-lg font-semibold text-[#f0f0f8]">
+            <p className="text-lg font-semibold text-[var(--hrk-text-primary)]">
               {community.num_pending?.toLocaleString() || "0"}
             </p>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <h4 className="text-sm font-medium text-[#9ca3b0] mb-1">
+            <h4 className="text-sm font-medium text-[var(--hrk-text-tertiary)] mb-1">
               Type
             </h4>
-            <p className="text-lg font-semibold text-[#f0f0f8]">
+            <p className="text-lg font-semibold text-[var(--hrk-text-primary)]">
               {community.is_nsfw ? "NSFW" : "Safe"}
             </p>
           </div>

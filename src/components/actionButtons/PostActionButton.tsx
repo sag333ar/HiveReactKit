@@ -507,8 +507,11 @@ export function PostActionButton({
     }
   };
 
-  const tooltipClass =
-    "absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 text-xs font-medium text-white bg-gray-700 rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-[60]";
+  // Hover tooltips for the action buttons were too noisy in dense feeds —
+  // every icon hover was firing a small "Upvote / Comments / Reblog" pill.
+  // The button `aria-label`s carry the same intent for screen readers, so
+  // we suppress the visible tooltip entirely.
+  const tooltipClass = "hidden";
 
   return (
     <div className={`flex items-center justify-between gap-2 sm:gap-4 w-full ${countTextClass}`}>
@@ -531,7 +534,7 @@ export function PostActionButton({
               <ThumbsUp
                 className={`${iconSizeClass} ${
                   hasVoted
-                    ? "fill-[#e31337] text-[#e31337]"
+                    ? "fill-[var(--hrk-brand)] text-[var(--hrk-brand)]"
                     : "text-gray-300"
                 }`}
               />
@@ -576,25 +579,25 @@ export function PostActionButton({
             >
               <MessageCircle
                 className={`${iconSizeClass} ${
-                  hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
+                  hasCommented ? 'fill-[var(--hrk-brand)] text-[var(--hrk-brand)]' : ''
                 }`}
               />
             </button>
             {hasCommented && showCommentPreview && (
-              <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[#3a424a] bg-[#1f2429] p-3 shadow-xl">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#ff8fa3]">
+              <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] p-3 shadow-xl">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
                   Your comment
                 </p>
                 {loadingMyReply && (
-                  <p className="text-xs text-[#9ca3b0]">Loading…</p>
+                  <p className="text-xs text-[var(--hrk-text-tertiary)]">Loading…</p>
                 )}
                 {!loadingMyReply && myReplyPreviewText && (
-                  <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[#e7e7f1]">
+                  <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[var(--hrk-text-secondary)]">
                     {myReplyPreviewText}
                   </p>
                 )}
                 {!loadingMyReply && !myReplyPreviewText && myReplyBody !== null && (
-                  <p className="text-xs italic text-[#9ca3b0]">No preview available.</p>
+                  <p className="text-xs italic text-[var(--hrk-text-tertiary)]">No preview available.</p>
                 )}
               </div>
             )}
@@ -606,7 +609,7 @@ export function PostActionButton({
               else handleCommentClick();
             }}
             className={`rounded transition-colors ${actionBtnPadClass} ${
-              hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300 hover:text-blue-400'
+              hasCommented ? 'text-[var(--hrk-brand-fg-soft)]' : 'text-gray-300 hover:text-blue-400'
             }`}
             aria-label="Open comments"
           >
@@ -624,32 +627,32 @@ export function PostActionButton({
             type="button"
             onClick={handleCommentClick}
             className={`flex items-center transition-colors hover:text-blue-400 rounded ${inlineGapClass} ${actionBtnPadClass} ${
-              hasCommented ? 'text-[#ff8fa3]' : 'text-gray-300'
+              hasCommented ? 'text-[var(--hrk-brand-fg-soft)]' : 'text-gray-300'
             }`}
             aria-label="Comments"
           >
             <MessageCircle
               className={`${iconSizeClass} ${
-                hasCommented ? 'fill-[#e31337] text-[#e31337]' : ''
+                hasCommented ? 'fill-[var(--hrk-brand)] text-[var(--hrk-brand)]' : ''
               }`}
             />
             <span>{commentsCount}</span>
           </button>
           {hasCommented && showCommentPreview && (
-            <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[#3a424a] bg-[#1f2429] p-3 shadow-xl">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#ff8fa3]">
+            <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] p-3 shadow-xl">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
                 Your comment
               </p>
               {loadingMyReply && (
-                <p className="text-xs text-[#9ca3b0]">Loading…</p>
+                <p className="text-xs text-[var(--hrk-text-tertiary)]">Loading…</p>
               )}
               {!loadingMyReply && myReplyPreviewText && (
-                <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[#e7e7f1]">
+                <p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed text-[var(--hrk-text-secondary)]">
                   {myReplyPreviewText}
                 </p>
               )}
               {!loadingMyReply && !myReplyPreviewText && myReplyBody !== null && (
-                <p className="text-xs italic text-[#9ca3b0]">No preview available.</p>
+                <p className="text-xs italic text-[var(--hrk-text-tertiary)]">No preview available.</p>
               )}
             </div>
           )}

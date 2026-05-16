@@ -606,7 +606,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
           fileInputRef.current?.click()
         }}
         disabled={disabled}
-        className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+        className="p-2 rounded-lg hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50"
         title={isUploading ? 'View upload progress' : 'Upload Video'}
       >
         {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
@@ -629,11 +629,11 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
           <div
             className={
               inline
-                ? 'w-full rounded-xl border border-gray-700 bg-gray-900 shadow-2xl'
-                : 'w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 shadow-2xl'
+                ? 'w-full rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] shadow-2xl'
+                : 'w-full max-w-lg rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] shadow-2xl'
             }
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--hrk-border-subtle)]">
               <h3 className="text-sm sm:text-base font-semibold text-white">
                 {isUploading ? 'Uploading video…' : 'Upload Video'}
               </h3>
@@ -652,22 +652,22 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                     resetAll()
                   }
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-800 hover:text-white"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface)] hover:text-[var(--hrk-text-primary)]"
                 title={inline && isUploading ? 'Minimize (upload continues)' : 'Close'}
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="p-4">
-              {error && <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
+              {error && <div className="mb-3 rounded-lg border border-[var(--hrk-danger)]/40 bg-[var(--hrk-danger-soft)] px-3 py-2 text-sm text-[var(--hrk-danger)]">{error}</div>}
               <div className="flex gap-3 mb-4">
-                <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-lg bg-gray-800 border border-gray-700">
-                  {thumbnailDataUrl ? <img src={thumbnailDataUrl} alt="Thumbnail" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Video className="h-7 w-7 text-gray-500" /></div>}
+                <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)]">
+                  {thumbnailDataUrl ? <img src={thumbnailDataUrl} alt="Thumbnail" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Video className="h-7 w-7 text-[var(--hrk-text-tertiary)]" /></div>}
                   {!isUploading && !error && <div className="absolute inset-0 flex items-center justify-center bg-black/30"><Play className="h-5 w-5 text-white ml-0.5" /></div>}
                 </div>
                 <div className="flex flex-col justify-center min-w-0">
                   <p className="text-sm font-medium text-white truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatFileSize(selectedFile.size)}{videoDuration > 0 && ` · ${formatDuration(videoDuration)}`}</p>
+                  <p className="text-xs text-[var(--hrk-text-tertiary)] mt-0.5">{formatFileSize(selectedFile.size)}{videoDuration > 0 && ` · ${formatDuration(videoDuration)}`}</p>
                 </div>
               </div>
 
@@ -683,25 +683,25 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
               {isUploading && uploadProgress && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-400">Uploading…</span>
+                    <span className="text-xs text-[var(--hrk-text-tertiary)]">Uploading…</span>
                     <span className="text-xs font-medium text-white">{uploadProgress.percentage.toFixed(0)}%</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-gray-700 overflow-hidden">
-                    <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress.percentage}%` }} />
+                  <div className="h-2 w-full rounded-full bg-[var(--hrk-bg-surface-raised)] overflow-hidden">
+                    <div className="h-full rounded-full bg-[var(--hrk-info)] transition-all duration-300" style={{ width: `${uploadProgress.percentage}%` }} />
                   </div>
-                  <p className="mt-1 text-xs text-gray-400">{formatFileSize(uploadProgress.bytesUploaded)} / {formatFileSize(uploadProgress.bytesTotal)}</p>
+                  <p className="mt-1 text-xs text-[var(--hrk-text-tertiary)]">{formatFileSize(uploadProgress.bytesUploaded)} / {formatFileSize(uploadProgress.bytesTotal)}</p>
                 </div>
               )}
 
               <div className="flex gap-2">
                 {isUploading ? (
-                  <button type="button" onClick={cancelUpload} className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700">Cancel</button>
+                  <button type="button" onClick={cancelUpload} className="flex-1 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-bg-surface-raised)]">Cancel</button>
                 ) : (
                   <>
-                    <button type="button" onClick={removeFile} className="flex items-center justify-center gap-1.5 flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700">
+                    <button type="button" onClick={removeFile} className="flex items-center justify-center gap-1.5 flex-1 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-bg-surface-raised)]">
                       <Trash2 className="h-3.5 w-3.5" />Remove
                     </button>
-                    <button type="button" onClick={() => void startUpload()} disabled={!!error} className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50">Upload Video</button>
+                    <button type="button" onClick={() => void startUpload()} disabled={!!error} className="flex-1 rounded-lg bg-[var(--hrk-brand)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-brand-hover)] disabled:opacity-50">Upload Video</button>
                   </>
                 )}
               </div>

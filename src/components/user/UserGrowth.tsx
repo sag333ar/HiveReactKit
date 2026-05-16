@@ -100,8 +100,8 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
   if (error) {
     return (
       <div className={`text-center py-12 ${className || ""}`}>
-        <TrendingUp className="h-10 w-10 text-gray-500 mx-auto mb-2" />
-        <p className="text-gray-400 text-sm">{error}</p>
+        <TrendingUp className="h-10 w-10 text-[var(--hrk-text-tertiary)] mx-auto mb-2" />
+        <p className="text-[var(--hrk-text-tertiary)] text-sm">{error}</p>
       </div>
     );
   }
@@ -110,16 +110,16 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
     return (
       <div className={`max-w-3xl mx-auto space-y-4 animate-pulse ${className || ""}`}>
         <div className="flex gap-2">
-          <div className="h-8 bg-gray-700 rounded w-20" />
-          <div className="h-8 bg-gray-700 rounded w-20" />
+          <div className="h-8 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
+          <div className="h-8 bg-[var(--hrk-bg-surface-raised)] rounded w-20" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-gray-800 rounded-lg border border-gray-700" />
+            <div key={i} className="h-16 bg-[var(--hrk-bg-surface)] rounded-lg border border-[var(--hrk-border-subtle)]" />
           ))}
         </div>
-        <div className="h-56 bg-gray-800 rounded-lg border border-gray-700" />
-        <div className="h-56 bg-gray-800 rounded-lg border border-gray-700" />
+        <div className="h-56 bg-[var(--hrk-bg-surface)] rounded-lg border border-[var(--hrk-border-subtle)]" />
+        <div className="h-56 bg-[var(--hrk-bg-surface)] rounded-lg border border-[var(--hrk-border-subtle)]" />
       </div>
     );
   }
@@ -137,8 +137,8 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
               onClick={() => setRange(r.value)}
               className={`px-3 py-1.5 text-xs sm:text-sm rounded-full font-medium transition-colors ${
                 range === r.value
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700"
+                  ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
+                  : "bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] border border-[var(--hrk-border-subtle)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] hover:text-[var(--hrk-text-primary)]"
               }`}
             >
               {r.label}
@@ -146,7 +146,7 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
           ))}
         </div>
         {loading && (
-          <span className="text-xs text-gray-400 animate-pulse">Refreshing…</span>
+          <span className="text-xs text-[var(--hrk-text-tertiary)] animate-pulse">Refreshing…</span>
         )}
       </div>
 
@@ -184,7 +184,7 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
         <GrowthChart series={data.series} />
         <ChartLegend
           items={[
-            { color: "#22c55e", label: "Account HP" },
+            { color: "var(--hrk-success)", label: "Account HP" },
             { color: "rgba(34,197,94,0.6)", label: "Power Up" },
             { color: "rgba(239,68,68,0.7)", label: "Power Down" },
             { color: "rgba(125,211,252,0.7)", label: "Author + Curation" },
@@ -212,7 +212,7 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
         <div className="overflow-x-auto -mx-2 px-2">
           <table className="w-full text-xs sm:text-sm text-left">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-700">
+              <tr className="text-[var(--hrk-text-tertiary)] border-b border-[var(--hrk-border-subtle)]">
                 <th className="py-2 pr-3 font-medium">Day</th>
                 <th className="py-2 pr-3 font-medium text-right">Author</th>
                 <th className="py-2 pr-3 font-medium text-right">Curation</th>
@@ -222,8 +222,8 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
             </thead>
             <tbody>
               {data.series.slice().reverse().map((d) => (
-                <tr key={d.key} className="border-b border-gray-800 last:border-0">
-                  <td className="py-1.5 pr-3 text-gray-300 whitespace-nowrap">{d.label}</td>
+                <tr key={d.key} className="border-b border-[var(--hrk-border-subtle)] last:border-0">
+                  <td className="py-1.5 pr-3 text-[var(--hrk-text-secondary)] whitespace-nowrap">{d.label}</td>
                   <td className="py-1.5 pr-3 text-right text-green-300">{d.authorHp ? fmtHp(d.authorHp) : "—"}</td>
                   <td className="py-1.5 pr-3 text-right text-sky-300">{d.curationHp ? fmtHp(d.curationHp) : "—"}</td>
                   <td className="py-1.5 pr-3 text-right text-purple-300">{d.witnessHp ? fmtHp(d.witnessHp) : "—"}</td>
@@ -249,27 +249,27 @@ const SummaryCard: React.FC<{
   subValue?: string;
   tone?: "up" | "down";
 }> = ({ icon, label, value, subValue, tone }) => (
-  <div className="bg-gray-800 border border-gray-700 rounded-lg p-2.5">
-    <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-0.5">
+  <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-2.5">
+    <div className="flex items-center gap-1.5 text-[11px] text-[var(--hrk-text-tertiary)] mb-0.5">
       {icon}
       <span className="truncate">{label}</span>
     </div>
     <div className={`text-sm sm:text-base font-semibold truncate ${
       tone === "up" ? "text-green-400" : tone === "down" ? "text-red-400" : "text-white"
     }`}>{value}</div>
-    {subValue && <div className="text-[11px] text-gray-400 truncate">{subValue}</div>}
+    {subValue && <div className="text-[11px] text-[var(--hrk-text-tertiary)] truncate">{subValue}</div>}
   </div>
 );
 
 const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 sm:p-4">
-    <div className="text-xs sm:text-sm font-medium text-gray-300 mb-2">{title}</div>
+  <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-3 sm:p-4">
+    <div className="text-xs sm:text-sm font-medium text-[var(--hrk-text-secondary)] mb-2">{title}</div>
     {children}
   </div>
 );
 
 const ChartLegend: React.FC<{ items: { color: string; label: string }[] }> = ({ items }) => (
-  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-gray-400">
+  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-[var(--hrk-text-tertiary)]">
     {items.map((it) => (
       <span key={it.label} className="flex items-center gap-1">
         <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: it.color }} />
@@ -359,7 +359,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
     return { n, xStep, yLine, yBar, xAt, linePath, barWidth, ticks, yBarsMin, yBarsMax };
   }, [series]);
 
-  if (!view) return <div className="h-32 flex items-center justify-center text-xs text-gray-400">No data</div>;
+  if (!view) return <div className="h-32 flex items-center justify-center text-xs text-[var(--hrk-text-tertiary)]">No data</div>;
 
   return (
     <div className="relative" onMouseLeave={() => setHover(null)}>
@@ -370,7 +370,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
           return (
             <g key={i}>
               <line x1={PAD_L} y1={y} x2={CHART_W - PAD_R} y2={y} stroke="rgba(255,255,255,0.06)" />
-              <text x={PAD_L - 4} y={y + 3} fontSize="9" fill="#a9b3c1" textAnchor="end">{formatTick(t)}</text>
+              <text x={PAD_L - 4} y={y + 3} fontSize="9" fill="var(--hrk-text-secondary)" textAnchor="end">{formatTick(t)}</text>
             </g>
           );
         })}
@@ -409,14 +409,14 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         })}
 
         {/* line */}
-        <path d={view.linePath} fill="none" stroke="#22c55e" strokeWidth={2} />
+        <path d={view.linePath} fill="none" stroke="var(--hrk-success)" strokeWidth={2} />
 
         {/* x-axis labels (sparse) */}
         {series.map((d, i) => {
           const stride = Math.max(1, Math.ceil(series.length / 7));
           if (i % stride !== 0 && i !== series.length - 1) return null;
           return (
-            <text key={`xl-${i}`} x={view.xAt(i)} y={CHART_H - 6} fontSize="9" fill="#a9b3c1" textAnchor="middle">{d.label}</text>
+            <text key={`xl-${i}`} x={view.xAt(i)} y={CHART_H - 6} fontSize="9" fill="var(--hrk-text-secondary)" textAnchor="middle">{d.label}</text>
           );
         })}
 
@@ -434,7 +434,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
               y: view.yLine(d.cumulativeHp),
               index: i,
               lines: [
-                { color: "#22c55e", label: "Account HP", value: fmtHp(d.cumulativeHp) },
+                { color: "var(--hrk-success)", label: "Account HP", value: fmtHp(d.cumulativeHp) },
                 { color: "rgba(34,197,94,0.6)", label: "Power Up", value: fmtHp(d.powerUp) },
                 { color: "rgba(239,68,68,0.7)", label: "Power Down", value: fmtHp(d.powerDown) },
                 { color: "rgba(125,211,252,0.7)", label: "Author + Curation", value: fmtHp(d.authorHp + d.curationHp) },
@@ -448,7 +448,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         {hover && (
           <g pointerEvents="none">
             <line x1={hover.x} y1={PAD_T} x2={hover.x} y2={CHART_H - PAD_B} stroke="rgba(255,255,255,0.15)" />
-            <circle cx={hover.x} cy={hover.y} r={3.5} fill="#22c55e" stroke="white" strokeWidth={1} />
+            <circle cx={hover.x} cy={hover.y} r={3.5} fill="var(--hrk-success)" stroke="white" strokeWidth={1} />
           </g>
         )}
       </svg>
@@ -482,7 +482,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
     return { n, xStep, y, xAt, barW, ticks, max };
   }, [series]);
 
-  if (!view) return <div className="h-32 flex items-center justify-center text-xs text-gray-400">No data</div>;
+  if (!view) return <div className="h-32 flex items-center justify-center text-xs text-[var(--hrk-text-tertiary)]">No data</div>;
 
   return (
     <div className="relative" onMouseLeave={() => setHover(null)}>
@@ -490,7 +490,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         {view.ticks.map((t, i) => (
           <g key={i}>
             <line x1={PAD_L} y1={view.y(t)} x2={CHART_W - PAD_R} y2={view.y(t)} stroke="rgba(255,255,255,0.06)" />
-            <text x={PAD_L - 4} y={view.y(t) + 3} fontSize="9" fill="#a9b3c1" textAnchor="end">${formatTick(t)}</text>
+            <text x={PAD_L - 4} y={view.y(t) + 3} fontSize="9" fill="var(--hrk-text-secondary)" textAnchor="end">${formatTick(t)}</text>
           </g>
         ))}
 
@@ -520,7 +520,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
           const stride = Math.max(1, Math.ceil(series.length / 7));
           if (i % stride !== 0 && i !== series.length - 1) return null;
           return (
-            <text key={`x-${i}`} x={view.xAt(i)} y={CHART_H - 6} fontSize="9" fill="#a9b3c1" textAnchor="middle">{d.label}</text>
+            <text key={`x-${i}`} x={view.xAt(i)} y={CHART_H - 6} fontSize="9" fill="var(--hrk-text-secondary)" textAnchor="middle">{d.label}</text>
           );
         })}
 
@@ -574,15 +574,15 @@ const Tooltip: React.FC<{
   const leftPct = Math.min(85, Math.max(2, (x / chartW) * 100));
   return (
     <div
-      className="absolute top-1 z-10 pointer-events-none rounded-md bg-gray-900/95 border border-gray-700 px-2 py-1.5 shadow-lg text-[11px]"
+      className="absolute top-1 z-10 pointer-events-none rounded-md bg-[var(--hrk-bg-app)]/95 border border-[var(--hrk-border-subtle)] px-2 py-1.5 shadow-lg text-[11px]"
       style={{ left: `${leftPct}%`, transform: "translateX(-50%)" }}
     >
-      {dayLabel && <div className="text-gray-300 font-semibold mb-0.5">{dayLabel}</div>}
+      {dayLabel && <div className="text-[var(--hrk-text-secondary)] font-semibold mb-0.5">{dayLabel}</div>}
       {lines.map((ln) => (
         <div key={ln.label} className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="inline-block w-2 h-2 rounded-sm" style={{ background: ln.color }} />
-          <span className="text-gray-400">{ln.label}:</span>
-          <span className="text-gray-100 font-medium">{ln.value}</span>
+          <span className="text-[var(--hrk-text-tertiary)]">{ln.label}:</span>
+          <span className="text-[var(--hrk-text-primary)] font-medium">{ln.value}</span>
         </div>
       ))}
     </div>

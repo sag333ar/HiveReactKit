@@ -130,7 +130,7 @@ const POST_SORT_TABS: { id: PostSort; label: string }[] = [
 
 const ACTIVITY_TYPE_META: Record<string, { icon: typeof Bell; tone: string }> = {
   vote: { icon: Heart, tone: 'text-pink-400' },
-  mention: { icon: AtSign, tone: 'text-[#e31337]' },
+  mention: { icon: AtSign, tone: 'text-[var(--hrk-brand)]' },
   reply: { icon: MessageCircle, tone: 'text-blue-400' },
   reply_comment: { icon: MessageCircle, tone: 'text-blue-400' },
   reblog: { icon: Repeat2, tone: 'text-green-400' },
@@ -360,35 +360,35 @@ const CommunityDetail = ({
   }, [activeTab])
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#212529] text-[#f0f0f8]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--hrk-bg-app)] text-[var(--hrk-text-primary)]">
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {/* Community header — compact on mobile, larger on desktop.
             Lives inside the scroller so it scrolls away as the user
             moves down through the feed. */}
         {loading ? (
-          <div className="m-3 rounded-xl border border-[#3a424a] bg-[#262b30] p-3 animate-pulse sm:m-0 sm:p-5">
+          <div className="m-3 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 animate-pulse sm:m-0 sm:p-5">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="h-12 w-12 rounded-full bg-[#2f353d] sm:h-16 sm:w-16" />
+              <div className="h-12 w-12 rounded-full bg-[var(--hrk-bg-hover)] sm:h-16 sm:w-16" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 w-1/3 rounded bg-[#3a424a] sm:h-5" />
-                <div className="h-2.5 w-2/3 rounded bg-[#2f353d] sm:h-3" />
+                <div className="h-4 w-1/3 rounded bg-[var(--hrk-border-default)] sm:h-5" />
+                <div className="h-2.5 w-2/3 rounded bg-[var(--hrk-bg-hover)] sm:h-3" />
               </div>
             </div>
           </div>
         ) : (
-          <div className="m-3 rounded-xl border border-[#3a424a] bg-[#262b30] p-3 sm:m-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-5">
+          <div className="m-3 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 sm:m-0 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-5">
             <div className="flex items-start gap-3 sm:items-center sm:gap-4">
               <img
                 src={communityService.userOwnerThumb(communityId)}
                 alt={community?.title || communityId}
-                className="h-12 w-12 flex-shrink-0 rounded-full bg-[#2f353d] object-cover sm:h-16 sm:w-16"
+                className="h-12 w-12 flex-shrink-0 rounded-full bg-[var(--hrk-bg-hover)] object-cover sm:h-16 sm:w-16"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${community?.title || communityId}/avatar`
                 }}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-2">
-                  <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[#f0f0f8] sm:text-xl">
+                  <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[var(--hrk-text-primary)] sm:text-xl">
                     {community?.title || communityId}
                   </h1>
                   <div className="flex shrink-0 items-center gap-1">
@@ -396,18 +396,18 @@ const CommunityDetail = ({
                       onClick={onShare || handleShare}
                       title="Share"
                       aria-label="Share"
-                      className="rounded-md border border-[#3a424a] p-1.5 text-[#9ca3b0] transition-colors hover:bg-[#2f353d] hover:text-[#f0f0f8] sm:p-2"
+                      className="rounded-md border border-[var(--hrk-border-default)] p-1.5 text-[var(--hrk-text-tertiary)] transition-colors hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)] sm:p-2"
                     >
                       <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 </div>
                 {community?.about && (
-                  <p className="mt-0.5 line-clamp-2 text-xs text-[#9ca3b0] sm:mt-1 sm:line-clamp-none sm:text-sm">
+                  <p className="mt-0.5 line-clamp-2 text-xs text-[var(--hrk-text-tertiary)] sm:mt-1 sm:line-clamp-none sm:text-sm">
                     {community.about}
                   </p>
                 )}
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#9ca3b0] sm:mt-3 sm:gap-x-4 sm:text-xs">
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--hrk-text-tertiary)] sm:mt-3 sm:gap-x-4 sm:text-xs">
                   <span className="inline-flex items-center gap-1">
                     <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     {(community?.subscribers || 0).toLocaleString()} members
@@ -427,7 +427,7 @@ const CommunityDetail = ({
         {/* Sticky tab strip — pinned to the top of the scroll container
             with a blurred background, so the user can always see the
             active tab while moving through the feed below. */}
-        <div className="sticky top-0 z-10 border-b border-[#3a424a]/60 bg-[#212529]/95 px-3 py-2 backdrop-blur sm:px-0 sm:py-2.5">
+        <div className="sticky top-0 z-10 border-b border-[var(--hrk-border-default)]/60 bg-[var(--hrk-bg-app)]/95 px-3 py-2 backdrop-blur sm:px-0 sm:py-2.5">
           <div className="flex items-center gap-1.5 overflow-x-auto md:overflow-visible">
             {TABS.map((t) => {
               const Icon = t.icon
@@ -439,8 +439,8 @@ const CommunityDetail = ({
                   onClick={() => setActiveTab(t.id)}
                   className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs transition ${
                     active
-                      ? 'bg-[#e31337] text-white'
-                      : 'border border-[#3a424a] text-[#e7e7f1] hover:bg-[#2f353d]'
+                      ? 'bg-[var(--hrk-brand)] text-white'
+                      : 'border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)]'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -456,7 +456,7 @@ const CommunityDetail = ({
             stays pinned. */}
         <div className="px-3 py-3 sm:px-0 sm:py-4">
         {postsError && (activeTab === 'posts' || activeTab === 'snaps') && (
-          <div className="mb-3 rounded-md border border-[#e31337] bg-red-900/20 p-2 text-xs font-medium text-red-400">
+          <div className="mb-3 rounded-md border border-[var(--hrk-brand)] bg-red-900/20 p-2 text-xs font-medium text-red-400">
             {postsError}
           </div>
         )}
@@ -471,8 +471,8 @@ const CommunityDetail = ({
                   onClick={() => setPostSort(s.id)}
                   className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition ${
                     postSort === s.id
-                      ? 'bg-[#e31337] text-white'
-                      : 'border border-[#3a424a] text-[#e7e7f1] hover:bg-[#2f353d]'
+                      ? 'bg-[var(--hrk-brand)] text-white'
+                      : 'border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)]'
                   }`}
                 >
                   {s.label}
@@ -484,7 +484,7 @@ const CommunityDetail = ({
                 title="Refresh"
                 aria-label="Refresh"
                 disabled={postsLoading}
-                className="ml-auto inline-flex items-center gap-1 rounded-md border border-[#3a424a] px-2 py-1 text-xs text-[#e7e7f1] hover:bg-[#2f353d] disabled:opacity-50"
+                className="ml-auto inline-flex items-center gap-1 rounded-md border border-[var(--hrk-border-default)] px-2 py-1 text-xs text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)] disabled:opacity-50"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${postsLoading ? 'animate-spin' : ''}`} />
               </button>
@@ -581,18 +581,18 @@ const ActivitiesList = ({
 }: ActivitiesListProps) => {
   if (loading && items.length === 0) {
     return (
-      <ul className="divide-y divide-[#3a424a]">
+      <ul className="divide-y divide-[var(--hrk-border-default)]">
         {Array.from({ length: 8 }).map((_, i) => (
           <li key={i} className="flex items-start gap-3 px-3 py-2.5 animate-pulse">
-            <div className="h-8 w-8 shrink-0 rounded-full bg-[#2f353d]" />
+            <div className="h-8 w-8 shrink-0 rounded-full bg-[var(--hrk-bg-hover)]" />
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-[#3a424a]" />
-                <div className="h-3 w-16 rounded bg-[#3a424a]" />
-                <div className="h-2 w-12 rounded bg-[#2f353d]" />
+                <div className="h-3 w-3 rounded bg-[var(--hrk-border-default)]" />
+                <div className="h-3 w-16 rounded bg-[var(--hrk-border-default)]" />
+                <div className="h-2 w-12 rounded bg-[var(--hrk-bg-hover)]" />
               </div>
-              <div className="h-3 w-11/12 rounded bg-[#3a424a]" />
-              <div className="h-3 w-3/5 rounded bg-[#2f353d]" />
+              <div className="h-3 w-11/12 rounded bg-[var(--hrk-border-default)]" />
+              <div className="h-3 w-3/5 rounded bg-[var(--hrk-bg-hover)]" />
             </div>
           </li>
         ))}
@@ -606,7 +606,7 @@ const ActivitiesList = ({
         <p className="mb-3 text-sm text-red-400">{error}</p>
         <button
           onClick={onRetry}
-          className="inline-flex items-center gap-2 rounded-md border border-[#3a424a] px-3 py-1.5 text-xs text-[#e7e7f1] hover:bg-[#2f353d]"
+          className="inline-flex items-center gap-2 rounded-md border border-[var(--hrk-border-default)] px-3 py-1.5 text-xs text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)]"
         >
           <Loader2 className="h-3.5 w-3.5" /> Try again
         </button>
@@ -617,16 +617,16 @@ const ActivitiesList = ({
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Activity className="h-10 w-10 text-[#3a424a] mb-3" />
-        <p className="text-sm text-[#9ca3b0]">No recent activities.</p>
+        <Activity className="h-10 w-10 text-[var(--hrk-border-default)] mb-3" />
+        <p className="text-sm text-[var(--hrk-text-tertiary)]">No recent activities.</p>
       </div>
     )
   }
 
   return (
-    <ul className="divide-y divide-[#3a424a]">
+    <ul className="divide-y divide-[var(--hrk-border-default)]">
       {items.map((n) => {
-        const meta = ACTIVITY_TYPE_META[n.type] ?? { icon: Bell, tone: 'text-[#9ca3b0]' }
+        const meta = ACTIVITY_TYPE_META[n.type] ?? { icon: Bell, tone: 'text-[var(--hrk-text-tertiary)]' }
         const Icon = meta.icon
         const author = n.url.replace(/^@/, '').split('/')[0] || 'hive'
         const handleClick = () => {
@@ -643,24 +643,24 @@ const ActivitiesList = ({
             <button
               type="button"
               onClick={handleClick}
-              className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#262b30]"
+              className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--hrk-bg-surface)]"
             >
               <img
                 src={`https://images.hive.blog/u/${author}/avatar`}
                 alt=""
-                className="h-8 w-8 shrink-0 rounded-full bg-[#2f353d] object-cover"
+                className="h-8 w-8 shrink-0 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden' }}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-xs">
                   <Icon className={`h-3.5 w-3.5 ${meta.tone}`} />
-                  <span className="font-medium text-[#e7e7f1] capitalize">
+                  <span className="font-medium text-[var(--hrk-text-secondary)] capitalize">
                     {n.type.replace('_', ' ')}
                   </span>
-                  <span className="text-[#9ca3b0]">·</span>
-                  <span className="text-[#9ca3b0]">{formatTimeAgo(`${n.date}Z`)}</span>
+                  <span className="text-[var(--hrk-text-tertiary)]">·</span>
+                  <span className="text-[var(--hrk-text-tertiary)]">{formatTimeAgo(`${n.date}Z`)}</span>
                 </div>
-                <p className="mt-0.5 text-sm text-[#f0f0f8] line-clamp-2">{n.msg}</p>
+                <p className="mt-0.5 text-sm text-[var(--hrk-text-primary)] line-clamp-2">{n.msg}</p>
               </div>
             </button>
           </li>

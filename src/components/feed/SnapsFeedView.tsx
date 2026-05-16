@@ -352,7 +352,7 @@ export function SnapsFeedView({
     return (
       <>
         {slot.error && (
-          <div className="mb-3 rounded-md border border-[#e31337] bg-red-900/20 p-2 text-xs font-medium text-red-400">
+          <div className="mb-3 rounded-md border border-[var(--hrk-brand)] bg-red-900/20 p-2 text-xs font-medium text-red-400">
             {slot.error}
           </div>
         )}
@@ -374,7 +374,7 @@ export function SnapsFeedView({
     return (
       <div className="mx-auto flex max-w-[720px] flex-col gap-3">
         {toolbar}
-        <div className="sticky top-0 z-20 -mx-2 overflow-x-auto bg-[#212529]/85 px-2 py-1 backdrop-blur">
+        <div className="sticky top-0 z-20 -mx-2 overflow-x-auto bg-[var(--hrk-bg-app)]/85 px-2 py-1 backdrop-blur">
           <FeedSegmentControl
             options={feedOptions.map(segOpt)}
             value={activeFeed}
@@ -404,11 +404,11 @@ export function SnapsFeedView({
         <div className="grid grid-cols-4 gap-4">
           {feedOptions.map((k) => (
             <div key={k} className="flex flex-col">
-              <h2 className="sticky top-0 z-10 mb-3 flex shrink-0 items-center gap-2 bg-[#212529]/95 py-1 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0] backdrop-blur">
+              <h2 className="sticky top-0 z-10 mb-3 flex shrink-0 items-center gap-2 bg-[var(--hrk-bg-app)]/95 py-1 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)] backdrop-blur">
                 <img
                   src={finalAvatars[k]}
                   alt=""
-                  className="h-6 w-6 rounded-full object-cover ring-1 ring-[#3a424a]"
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
                 />
                 {finalLabels[k]}
               </h2>
@@ -473,11 +473,11 @@ export function SnapsFeedView({
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-4">
         {feedOptions.map((k) => (
           <div key={k} className="flex h-full min-h-0 flex-col">
-            <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[#9ca3b0]">
+            <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
               <img
                 src={finalAvatars[k]}
                 alt=""
-                className="h-6 w-6 rounded-full object-cover ring-1 ring-[#3a424a]"
+                className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
               />
               {finalLabels[k]}
             </h2>

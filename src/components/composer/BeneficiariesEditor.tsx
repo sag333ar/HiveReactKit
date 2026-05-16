@@ -72,7 +72,7 @@ const BeneficiaryAvatar: React.FC<{ account: string; size?: number; className?: 
     width={size}
     height={size}
     style={{ width: size, height: size }}
-    className={`rounded-full bg-gray-700 border border-gray-600 object-cover shrink-0 ${className}`}
+    className={`rounded-full bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-default)] object-cover shrink-0 ${className}`}
     onError={(e) => {
       const img = e.target as HTMLImageElement;
       if (!img.dataset.fallback) {
@@ -198,7 +198,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
         type="button"
         onClick={onDec}
         disabled={disabled || value <= minVal}
-        className="h-8 w-8 rounded bg-gray-800 text-gray-100 hover:bg-gray-700 disabled:opacity-40 flex items-center justify-center shrink-0"
+        className="h-8 w-8 rounded bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-40 flex items-center justify-center shrink-0"
         aria-label="Decrease"
       >
         <Minus className="h-3.5 w-3.5" />
@@ -211,14 +211,14 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
         value={value}
         disabled={disabled}
         onChange={(e) => onChangeValue(Number(e.target.value))}
-        className="h-8 w-12 rounded border border-gray-700 bg-gray-900 px-1 text-center text-xs text-white focus:border-blue-500 outline-none disabled:opacity-50"
+        className="h-8 w-12 rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-1 text-center text-xs text-white focus:border-[var(--hrk-info)] outline-none disabled:opacity-50"
       />
-      <span className="text-xs text-gray-400 w-3">%</span>
+      <span className="text-xs text-[var(--hrk-text-tertiary)] w-3">%</span>
       <button
         type="button"
         onClick={onInc}
         disabled={disabled || value >= maxVal}
-        className="h-8 w-8 rounded bg-gray-800 text-gray-100 hover:bg-gray-700 disabled:opacity-40 flex items-center justify-center shrink-0"
+        className="h-8 w-8 rounded bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-40 flex items-center justify-center shrink-0"
         aria-label="Increase"
       >
         <Plus className="h-3.5 w-3.5" />
@@ -229,14 +229,14 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   return (
     <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-2 sm:p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl rounded-t-2xl sm:rounded-xl border border-gray-700 bg-[#15181c] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="relative w-full max-w-2xl rounded-t-2xl sm:rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-800">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--hrk-border-subtle)]">
           <h2 className="text-base sm:text-lg font-semibold text-white">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800"
+            className="p-1.5 rounded-md text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)]"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
@@ -245,11 +245,11 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-4">
-          <p className="text-xs sm:text-sm text-gray-300">{description}</p>
+          <p className="text-xs sm:text-sm text-[var(--hrk-text-secondary)]">{description}</p>
 
           {/* Column headers — desktop only. The mobile layout stacks each row,
               so a column header would only confuse the eye. */}
-          <div className="hidden sm:flex items-center text-xs uppercase tracking-wide text-gray-400 border-b border-gray-800 pb-2">
+          <div className="hidden sm:flex items-center text-xs uppercase tracking-wide text-[var(--hrk-text-tertiary)] border-b border-[var(--hrk-border-subtle)] pb-2">
             <span className="flex-1">Username</span>
             <span className="w-44 text-center">Reward</span>
             <span className="w-10" />
@@ -264,11 +264,11 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               return (
                 <div
                   key={b.account}
-                  className="flex flex-col sm:flex-row sm:items-center gap-2 border-b border-gray-800/60 pb-2"
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 border-b border-[var(--hrk-border-subtle)]/60 pb-2"
                 >
-                  <span className="flex-1 min-w-0 text-sm text-gray-100 inline-flex items-center gap-2 truncate">
+                  <span className="flex-1 min-w-0 text-sm text-[var(--hrk-text-primary)] inline-flex items-center gap-2 truncate">
                     <BeneficiaryAvatar account={b.account} size={24} />
-                    {locked && <Lock className="h-3 w-3 text-amber-400 shrink-0" />}
+                    {locked && <Lock className="h-3 w-3 text-[var(--hrk-warning)] shrink-0" />}
                     <span className="truncate">@{b.account}</span>
                   </span>
                   <div className="flex items-center justify-between sm:justify-end gap-2">
@@ -283,7 +283,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                       type="button"
                       onClick={() => removeRow(b.account)}
                       disabled={locked}
-                      className="h-8 w-8 rounded text-red-400 hover:bg-red-500/10 disabled:opacity-30 flex items-center justify-center shrink-0"
+                      className="h-8 w-8 rounded text-[var(--hrk-danger)] hover:bg-[var(--hrk-danger-soft)] disabled:opacity-30 flex items-center justify-center shrink-0"
                       aria-label={locked ? 'Locked' : 'Remove'}
                       title={locked ? '10% to threespeakfund is required for video posts' : 'Remove'}
                     >
@@ -299,10 +299,10 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               second line with stepper on the left and a wide labeled Add
               button on the right (so it never overflows). Desktop: single row
               like before. */}
-          <div className="rounded-lg border border-dashed border-gray-700 p-3">
+          <div className="rounded-lg border border-dashed border-[var(--hrk-border-subtle)] p-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex-1 min-w-0 flex items-center gap-1 rounded border border-gray-700 bg-gray-900 px-2 h-9">
-                <span className="text-gray-500 text-sm shrink-0">@</span>
+              <div className="flex-1 min-w-0 flex items-center gap-1 rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-2 h-9">
+                <span className="text-[var(--hrk-text-tertiary)] text-sm shrink-0">@</span>
                 <input
                   type="text"
                   value={draftAccount}
@@ -314,7 +314,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                     }
                   }}
                   placeholder="Account"
-                  className="flex-1 min-w-0 bg-transparent outline-none text-sm text-white placeholder-gray-500"
+                  className="flex-1 min-w-0 bg-transparent outline-none text-sm text-white placeholder-[var(--hrk-text-tertiary)]"
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -337,7 +337,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                   type="button"
                   onClick={handleAddDraft}
                   disabled={!draftAccount.trim() || remaining <= 0}
-                  className="h-8 inline-flex items-center justify-center gap-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-40 px-3 sm:w-10 sm:px-0 shrink-0"
+                  className="h-8 inline-flex items-center justify-center gap-1 rounded bg-[var(--hrk-success)] hover:brightness-110 text-white text-xs font-medium disabled:opacity-40 px-3 sm:w-10 sm:px-0 shrink-0"
                   aria-label="Add beneficiary"
                   title="Add beneficiary"
                 >
@@ -347,17 +347,17 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               </div>
             </div>
             <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
-              <span className={`${error ? 'text-red-400' : 'text-gray-500'}`}>
+              <span className={`${error ? 'text-[var(--hrk-danger)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
                 {error || `Remaining: ${remaining}%${hasVideo ? ` (capped at ${userCap}% — 10% reserved for threespeakfund)` : ''}`}
               </span>
-              <span className="text-gray-500">Total used: {userTotal + (hasVideo ? THREESPEAK_FUND_PERCENT : 0)}%</span>
+              <span className="text-[var(--hrk-text-tertiary)]">Total used: {userTotal + (hasVideo ? THREESPEAK_FUND_PERCENT : 0)}%</span>
             </div>
           </div>
 
           {/* Favorites */}
           {sortedFavorites.length > 0 && (
-            <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-3">
-              <div className="text-xs font-semibold text-gray-300 mb-2">Favorites</div>
+            <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)]/40 p-3">
+              <div className="text-xs font-semibold text-[var(--hrk-text-secondary)] mb-2">Favorites</div>
               <div className="flex flex-wrap gap-2">
                 {sortedFavorites.map((f) => {
                   const account = normalizeBeneficiaryAccount(f.account);
@@ -367,7 +367,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                       key={`${account}-${weight}`}
                       type="button"
                       onClick={() => addBeneficiary(account, weight)}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-blue-600/80 hover:bg-blue-600 pl-1 pr-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white max-w-full"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--hrk-brand)]/80 hover:bg-[var(--hrk-brand)] pl-1 pr-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white max-w-full"
                     >
                       <BeneficiaryAvatar account={account} size={18} className="border-blue-300/40" />
                       <span className="truncate">{account} ({weight}%)</span>
@@ -380,18 +380,18 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
         </div>
 
         {/* Footer — buttons are full-width on mobile so they're easy to tap. */}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-4 sm:px-6 py-3 border-t border-gray-800 bg-[#15181c]">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-4 sm:px-6 py-3 border-t border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)]">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-100 text-sm flex items-center justify-center gap-1"
+            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-primary)] text-sm flex items-center justify-center gap-1"
           >
             <X className="h-4 w-4" /> {cancelLabel}
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="w-full sm:w-auto px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"
+            className="w-full sm:w-auto px-5 py-2 rounded-lg bg-[var(--hrk-brand)] hover:bg-[var(--hrk-brand-hover)] text-white text-sm font-medium"
           >
             {saveLabel}
           </button>

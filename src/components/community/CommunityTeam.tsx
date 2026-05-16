@@ -41,7 +41,7 @@ const CommunityTeam = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2 text-[#9ca3b0]">
+        <div className="flex items-center gap-2 text-[var(--hrk-text-tertiary)]">
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading team members...
         </div>
@@ -53,11 +53,11 @@ const CommunityTeam = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-[#f0f0f8] mb-2">
+          <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-2">
             Failed to load team details
           </h3>
-          <p className="text-[#9ca3b0] mb-4">{error}</p>
-          <button onClick={fetchDetails} className="m-2 inline-flex items-center justify-center rounded-md border border-input text-[#9ca3b0] cursor-pointer bg-background p-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+          <p className="text-[var(--hrk-text-tertiary)] mb-4">{error}</p>
+          <button onClick={fetchDetails} className="m-2 inline-flex items-center justify-center rounded-md border border-input text-[var(--hrk-text-tertiary)] cursor-pointer bg-background p-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Try Again
@@ -70,7 +70,7 @@ const CommunityTeam = ({
   if (team.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-[#9ca3b0]">
+        <p className="text-[var(--hrk-text-tertiary)]">
           No team members found
         </p>
       </div>
@@ -88,9 +88,7 @@ const CommunityTeam = ({
             <div
               key={`${username}-${index}`}
               onClick={() => onSelectTeamMember && onSelectTeamMember(username)} // ✅ navigate on click
-              className="bg-[#262b30] border border-[#3a424a] 
-                         rounded-xl p-4 hover:bg-[#2f353d] dark:hover:bg-[#2f353d] 
-                         transition-colors cursor-pointer"
+              className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-xl p-4 transition-colors duration-150 ease-out hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <img
@@ -104,11 +102,11 @@ const CommunityTeam = ({
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-[#f0f0f8] truncate">
+                  <h3 className="font-semibold text-[var(--hrk-text-primary)] truncate">
                     @{username}
                   </h3>
                   {role && (
-                    <p className="text-sm text-[#9ca3b0] capitalize truncate">
+                    <p className="text-sm text-[var(--hrk-text-tertiary)] capitalize truncate">
                       {role}
                     </p>
                   )}

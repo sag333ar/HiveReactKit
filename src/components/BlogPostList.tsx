@@ -13,7 +13,7 @@
  * implementations in UserDetailProfile and can be lifted to a shared util
  * module later if more lists need them.
  */
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Loader2, ChevronLeft, ChevronRight, FileText, Play, X } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
@@ -155,8 +155,8 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
   }
   if (media.kind === 'threespeak') {
     return (
-      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#1a1d22]">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e31337]/15 text-[#e31337]">
+      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)]">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
           <Play className="h-5 w-5 fill-current" />
         </span>
         <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
@@ -167,7 +167,7 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
   }
   // twitter
   return (
-    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0f1419] text-white">
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-white">
       <span className="text-3xl font-semibold">𝕏</span>
       <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium">
         Tweet
@@ -279,7 +279,7 @@ const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
     <>
       {/* Mobile renders a fixed landscape thumbnail (28 × 20 ≈ 7:5);
           tablet+ stretches to fill the row height again. */}
-      <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-[#2f353d] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
+      <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-[10px] bg-[var(--hrk-bg-surface-sunken)] ring-1 ring-[var(--hrk-border-subtle)] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
         <button
           onClick={onTileClick}
           className="absolute inset-0 block cursor-pointer"
@@ -355,26 +355,26 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="overflow-hidden rounded-lg border border-[#3a424a] bg-[#262b30] animate-pulse"
+            className="overflow-hidden rounded-[14px] border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] animate-pulse"
           >
             <div className="flex items-stretch">
               <div className="min-w-0 flex-1 space-y-1.5 p-2.5 sm:space-y-2 sm:p-4">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="h-7 w-7 rounded-full bg-[#2f353d] sm:h-9 sm:w-9" />
-                  <div className="h-2.5 w-20 rounded bg-[#2f353d] sm:h-3 sm:w-24" />
-                  <div className="h-2 w-10 rounded bg-[#2f353d]/70 sm:w-12" />
+                  <div className="h-7 w-7 rounded-full bg-[var(--hrk-bg-surface-sunken)] sm:h-9 sm:w-9" />
+                  <div className="h-2.5 w-20 rounded bg-[var(--hrk-bg-surface-sunken)] sm:h-3 sm:w-24" />
+                  <div className="h-2 w-10 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70 sm:w-12" />
                 </div>
-                <div className="h-3 w-5/6 rounded bg-[#2f353d] sm:h-4" />
-                <div className="h-2.5 w-full rounded bg-[#2f353d]/70 sm:h-3" />
-                <div className="h-2.5 w-4/6 rounded bg-[#2f353d]/70 sm:h-3" />
+                <div className="h-3 w-5/6 rounded bg-[var(--hrk-bg-surface-sunken)] sm:h-4" />
+                <div className="h-2.5 w-full rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70 sm:h-3" />
+                <div className="h-2.5 w-4/6 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70 sm:h-3" />
               </div>
-              <div className="my-2 mr-2 h-20 w-28 flex-shrink-0 rounded-lg bg-[#2f353d]/70 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48" />
+              <div className="my-2 mr-2 h-20 w-28 flex-shrink-0 rounded-[10px] bg-[var(--hrk-bg-surface-sunken)] opacity-80 sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48" />
             </div>
-            <div className="flex gap-3 border-t border-[#3a424a]/60 px-2.5 py-2 sm:px-4">
-              <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
-              <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
-              <div className="h-3 w-10 rounded bg-[#2f353d]/70" />
-              <div className="ml-auto h-3 w-10 rounded bg-[#2f353d]/70" />
+            <div className="flex gap-3 border-t border-[var(--hrk-border-subtle)] px-2.5 py-2 sm:px-4">
+              <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70" />
+              <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70" />
+              <div className="h-3 w-10 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70" />
+              <div className="ml-auto h-3 w-10 rounded bg-[var(--hrk-bg-surface-sunken)] opacity-70" />
             </div>
           </div>
         ))}
@@ -384,9 +384,11 @@ export const BlogPostList: FC<BlogPostListProps> = ({
 
   if (!loading && posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <FileText className="h-10 w-10 text-[#6f7780] mb-3" />
-        <p className="text-sm text-[#9ca3b0]">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-tertiary)]">
+          <FileText className="h-5 w-5" />
+        </div>
+        <p className="text-sm text-[var(--hrk-text-secondary)]">{emptyMessage}</p>
       </div>
     );
   }
@@ -459,7 +461,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         return (
           <div
             key={`${item.author}/${item.permlink}`}
-            className={`overflow-hidden rounded-lg border border-[#3a424a] bg-[#262b30] transition-colors hover:bg-[#2f353d] ${handleClick ? 'cursor-pointer' : ''}`}
+            className={`group overflow-hidden rounded-[14px] border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-[background-color,border-color] duration-150 ease-out hover:border-[var(--hrk-border-default)] hover:bg-[var(--hrk-bg-surface-raised)] ${handleClick ? 'cursor-pointer' : ''}`}
             onClick={handleClick}
           >
             {/* Body row: text on the left, image on the right. The image
@@ -472,7 +474,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   <img
                     src={`https://images.hive.blog/u/${item.author}/avatar`}
                     alt={item.author}
-                    className="h-7 w-7 flex-shrink-0 rounded-full bg-[#2f353d] sm:h-9 sm:w-9"
+                    className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover ring-1 ring-[var(--hrk-border-subtle)] sm:h-9 sm:w-9"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
                     }}
@@ -480,13 +482,13 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
-                      className="text-[11px] font-medium text-white hover:text-[#e31337] sm:text-sm"
+                      className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
                       @{item.author}
                     </button>
-                    <span className="text-[10px] text-[#9ca3b0] sm:text-xs">{formatTimeAgo(item.created)}</span>
+                    <span className="text-[10px] text-[var(--hrk-text-tertiary)] sm:text-xs">{formatTimeAgo(item.created)}</span>
                     {item.community_title && (
-                      <span className="text-[10px] font-medium text-[#e31337] sm:text-xs">
+                      <span className="text-[10px] font-medium text-[var(--hrk-brand)] sm:text-xs">
                         #{item.community_title}
                       </span>
                     )}
@@ -496,14 +498,14 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 {item.title && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
-                    className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-[#e31337] sm:mb-1 sm:text-base"
+                    className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-[var(--hrk-brand)] sm:mb-1 sm:text-base"
                   >
                     <TranslatedText text={item.title} />
                   </button>
                 )}
 
                 {previewText && (
-                  <p className="line-clamp-2 text-[11px] leading-snug text-[#9ca3b0] sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
+                  <p className="line-clamp-2 text-[11px] leading-snug text-[var(--hrk-text-tertiary)] sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
                     <TranslatedText text={previewText.substring(0, 240)} />
                   </p>
                 )}
@@ -512,7 +514,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
               <PostMediaCarousel media={postMedia} />
             </div>
 
-            <div className="border-t border-[#3a424a]/60 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
+            <div className="border-t border-[var(--hrk-border-subtle)] px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
               <PostActionButton
                 author={item.author}
                 permlink={item.permlink}
@@ -556,23 +558,71 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         );
       })}
 
+      {/* Infinite-scroll sentinel — replaces the explicit "Load more"
+          button. An IntersectionObserver fires `onLoadMore` automatically
+          when this row scrolls into view (with a 600px rootMargin so the
+          fetch starts well before the user actually hits the bottom and
+          the next page is usually in place by the time they need it). */}
       {hasMore && onLoadMore && (
-        <div className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={onLoadMore}
-            disabled={loadingMore}
-            className="inline-flex items-center gap-2 rounded-md border border-[#3a424a] px-4 py-2 text-sm text-[#f0f0f8] hover:bg-[#262b30] disabled:opacity-50"
-          >
-            {loadingMore ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-              </>
-            ) : (
-              'Load more'
-            )}
-          </button>
-        </div>
+        <LoadMoreSentinel
+          onLoadMore={onLoadMore}
+          loadingMore={loadingMore}
+        />
+      )}
+    </div>
+  );
+};
+
+interface LoadMoreSentinelProps {
+  onLoadMore: () => void;
+  loadingMore?: boolean;
+}
+
+const LoadMoreSentinel: FC<LoadMoreSentinelProps> = ({ onLoadMore, loadingMore }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  // Hold the latest callback in a ref so re-firing the observer doesn't
+  // trip on a stale closure (the consumer recreates `onLoadMore` each
+  // render). Read inside the observer callback instead of capturing.
+  const callbackRef = useRef(onLoadMore);
+  const loadingMoreRef = useRef(!!loadingMore);
+  useEffect(() => { callbackRef.current = onLoadMore; }, [onLoadMore]);
+  useEffect(() => { loadingMoreRef.current = !!loadingMore; }, [loadingMore]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !loadingMoreRef.current) {
+          callbackRef.current();
+        }
+      },
+      // Trigger 600px BEFORE the sentinel becomes visible — the
+      // network round-trip usually lands before the user gets to the
+      // bottom of the visible list, so scrolling feels seamless.
+      { root: null, rootMargin: '600px', threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="flex justify-center py-3 text-xs text-[var(--hrk-text-tertiary)]"
+      aria-hidden={!loadingMore}
+    >
+      {loadingMore ? (
+        <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading more…
+        </span>
+      ) : (
+        // 1px high "tripwire" — invisible to the user but the
+        // observer's rootMargin: 600px ensures it triggers from
+        // well above the fold.
+        <span className="block h-px w-full" />
       )}
     </div>
   );

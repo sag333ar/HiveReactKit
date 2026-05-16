@@ -315,7 +315,7 @@ const Avatar: React.FC<{ account: string; size?: number; className?: string }> =
     width={size}
     height={size}
     style={{ width: size, height: size }}
-    className={`rounded-full bg-gray-700 border border-gray-600 object-cover shrink-0 ${className}`}
+    className={`rounded-full bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-default)] object-cover shrink-0 ${className}`}
     onError={(e) => {
       const img = e.target as HTMLImageElement;
       if (!img.dataset.fallback) {
@@ -1273,18 +1273,18 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   };
 
   const toolbarBtnClass =
-    'p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50';
+    'p-2 rounded-lg hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#15181c] text-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--hrk-bg-surface-sunken)] text-white">
       {/* ── Sticky header ─────────────────────────────────────────────── */}
-      <header className="shrink-0 border-b border-gray-800 bg-[#1a1e22]">
+      <header className="shrink-0 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)]">
         <div className="mx-auto flex max-w-screen-2xl items-center gap-2 sm:gap-3 px-3 sm:px-6 py-2.5">
           <button
             type="button"
             onClick={onCancel}
             disabled={isDisabled}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white disabled:opacity-50 shrink-0"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50 shrink-0"
             aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -1293,19 +1293,19 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             <h1 className="text-sm sm:text-base font-semibold text-white truncate">
               {pageTitle}
             </h1>
-            <p className="text-[11px] text-gray-400 truncate flex items-center gap-2">
+            <p className="text-[11px] text-[var(--hrk-text-tertiary)] truncate flex items-center gap-2">
               {currentUser && <span>Posting as @{currentUser}</span>}
               {draftKey && draftSavedAt && (
                 <>
-                  <span aria-hidden className="text-gray-600">•</span>
-                  <span className="inline-flex items-center gap-1 text-emerald-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span aria-hidden className="text-[var(--hrk-text-tertiary)]">•</span>
+                  <span className="inline-flex items-center gap-1 text-[var(--hrk-success)]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--hrk-success)]" />
                     Draft saved
                   </span>
                   <button
                     type="button"
                     onClick={clearDraftManually}
-                    className="text-gray-500 hover:text-red-400 underline-offset-2 hover:underline"
+                    className="text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-danger)] underline-offset-2 hover:underline"
                   >
                     Clear
                   </button>
@@ -1318,7 +1318,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#e31337] px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold text-white hover:bg-[#c51231] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hrk-brand)] px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold text-white hover:bg-[var(--hrk-brand-active)] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
             {isSubmitting ? (
               <>
@@ -1339,8 +1339,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       </header>
 
       {(isAwaitingApproval || awaitingWalletApproval) && (
-        <div className="shrink-0 border-b border-amber-700/40 bg-amber-500/10 px-4 py-1.5 text-center">
-          <span className="text-xs font-medium text-amber-300 animate-pulse">
+        <div className="shrink-0 border-b border-[var(--hrk-warning)]/40 bg-[var(--hrk-warning-soft)] px-4 py-1.5 text-center">
+          <span className="text-xs font-medium text-[var(--hrk-warning)] animate-pulse">
             {walletApprovalLabel}
           </span>
         </div>
@@ -1360,15 +1360,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               the textarea). The overlay below is sticky-positioned inside
               the scroll container so it stays visible while the user drags. */}
           <section
-            className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-gray-800 lg:flex-1 lg:min-h-0 lg:overflow-y-auto"
+            className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-[var(--hrk-border-subtle)] lg:flex-1 lg:min-h-0 lg:overflow-y-auto"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
             {isDragging && canUploadImages && (
-              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-blue-500 bg-blue-900/30 backdrop-blur-[1px]">
-                <div className="rounded-lg bg-[#1a1e22]/90 px-4 py-2 text-sm text-blue-200 shadow-lg">
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-[var(--hrk-info)] bg-[var(--hrk-info-soft)]">
+                <div className="rounded-[10px] bg-[var(--hrk-bg-surface-sunken)] px-4 py-2 text-sm text-[var(--hrk-info)] shadow-lg">
                   Drop image to upload
                 </div>
               </div>
@@ -1383,16 +1383,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsVideoUploaderOpen(true)}
-                className="sticky top-0 z-10 flex items-center gap-3 border-b border-blue-500/30 bg-[#0c1014]/95 px-3 sm:px-6 py-2 text-left text-xs text-gray-200 backdrop-blur transition-colors hover:bg-[#10161c]"
+                className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--hrk-info)]/30 bg-[var(--hrk-bg-app)] px-3 sm:px-6 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-surface)]"
               >
-                <span className="flex items-center gap-2 shrink-0 text-blue-300">
-                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                <span className="flex items-center gap-2 shrink-0 text-[var(--hrk-info)]">
+                  <span className="h-2 w-2 rounded-full bg-[var(--hrk-info)] animate-pulse" />
                   Uploading video
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="h-1.5 w-full rounded-full bg-gray-700/70 overflow-hidden">
+                  <div className="h-1.5 w-full rounded-full bg-[var(--hrk-bg-surface-raised)]/70 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                      className="h-full rounded-full bg-[var(--hrk-info)] transition-all duration-300"
                       style={{ width: `${videoUploadProgress.percentage}%` }}
                     />
                   </div>
@@ -1400,7 +1400,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 <span className="shrink-0 tabular-nums text-blue-200">
                   {videoUploadProgress.percentage.toFixed(0)}%
                 </span>
-                <span className="shrink-0 text-gray-500 underline-offset-2 hover:underline">
+                <span className="shrink-0 text-[var(--hrk-text-tertiary)] underline-offset-2 hover:underline">
                   Show
                 </span>
               </button>
@@ -1414,7 +1414,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">{communitySlot}</div>
                 {reblogToggle && (
-                  <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-gray-300">
+                  <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-[var(--hrk-text-secondary)]">
                     <span>{reblogToggleLabel}:</span>
                     <button
                       type="button"
@@ -1428,7 +1428,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       }}
                       disabled={isDisabled}
                       className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors ${
-                        reblog ? 'bg-blue-500' : 'bg-gray-600'
+                        reblog ? 'bg-[var(--hrk-info)]' : 'bg-[var(--hrk-bg-hover)]'
                       } disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       <span
@@ -1437,7 +1437,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                         }`}
                       />
                     </button>
-                    <span className={`font-medium ${reblog ? 'text-blue-300' : 'text-gray-400'}`}>
+                    <span className={`font-medium ${reblog ? 'text-[var(--hrk-info)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
                       {reblog ? 'yes' : 'no'}
                     </span>
                   </div>
@@ -1451,7 +1451,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
                 placeholder="Title"
                 disabled={isDisabled}
-                className="w-full bg-transparent text-2xl sm:text-3xl font-semibold text-white placeholder-gray-500 outline-none border-b border-gray-800 pb-2 focus:border-blue-500 transition-colors"
+                className="w-full bg-transparent text-2xl sm:text-3xl font-semibold text-white placeholder-[var(--hrk-text-tertiary)] outline-none border-b border-[var(--hrk-border-subtle)] pb-2 focus:border-[var(--hrk-info)] transition-colors"
               />
 
               {/* Consumer-rendered video slot (e.g. video-encoder uploader).
@@ -1461,7 +1461,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               {videoSlot}
 
               {/* Toolbar */}
-              <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-800 pb-2">
+              <div className="flex flex-wrap items-center gap-0.5 border-b border-[var(--hrk-border-subtle)] pb-2">
                 <button
                   type="button"
                   onClick={() => insertAtCursor('**', '**')}
@@ -1508,7 +1508,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   <AtSign className="h-4 w-4" />
                 </button>
 
-                <div className="w-px h-5 bg-gray-700 mx-1" />
+                <div className="w-px h-5 bg-[var(--hrk-bg-surface-raised)] mx-1" />
 
                 {canUploadImages && (
                   <ImageUploader
@@ -1599,7 +1599,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsPollOpen(true)}
-                    className={`${toolbarBtnClass} ${pollData ? 'text-blue-400' : ''}`}
+                    className={`${toolbarBtnClass} ${pollData ? 'text-[var(--hrk-info)]' : ''}`}
                     title={pollData ? 'Edit poll' : 'Create poll'}
                     disabled={isDisabled}
                   >
@@ -1607,10 +1607,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   </button>
                 )}
 
-                <div className="w-px h-5 bg-gray-700 mx-1" />
+                <div className="w-px h-5 bg-[var(--hrk-bg-surface-raised)] mx-1" />
 
                 {!hideTags && (
-                  <span className="text-xs text-gray-500 ml-1 hidden sm:inline">
+                  <span className="text-xs text-[var(--hrk-text-tertiary)] ml-1 hidden sm:inline">
                     {mergedTags.length}/{maxTags}
                   </span>
                 )}
@@ -1619,7 +1619,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     ref={rewardBtnRef}
                     type="button"
                     onClick={toggleRewardOpen}
-                    className={`${toolbarBtnClass} ${reward !== 'default' ? 'text-blue-400' : ''}`}
+                    className={`${toolbarBtnClass} ${reward !== 'default' ? 'text-[var(--hrk-info)]' : ''}`}
                     title={`Rewards: ${REWARD_OPTION_LABELS[reward]}`}
                     disabled={isDisabled}
                   >
@@ -1630,7 +1630,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsBeneficiariesOpen(true)}
-                    className={`${toolbarBtnClass} ${beneficiaries.length > 0 ? 'text-blue-400' : ''}`}
+                    className={`${toolbarBtnClass} ${beneficiaries.length > 0 ? 'text-[var(--hrk-info)]' : ''}`}
                     title={
                       beneficiaries.length > 0
                         ? `Beneficiaries (${beneficiaries.length})`
@@ -1645,7 +1645,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
               {/* Audio preview */}
               {audioEmbedUrl && (
-                <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+                <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
                   <div className="relative" style={{ height: '60px', overflow: 'hidden' }}>
                     <iframe
                       src={audioEmbedUrl}
@@ -1656,8 +1656,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       loading="lazy"
                     />
                   </div>
-                  <div className="flex items-center gap-2 border-t border-gray-700 px-3 py-1.5">
-                    <span className="flex-1 truncate text-xs text-gray-400">
+                  <div className="flex items-center gap-2 border-t border-[var(--hrk-border-subtle)] px-3 py-1.5">
+                    <span className="flex-1 truncate text-xs text-[var(--hrk-text-tertiary)]">
                       Audio attached
                       {audioDuration > 0 &&
                         ` (${Math.floor(audioDuration / 60)}:${String(audioDuration % 60).padStart(2, '0')})`}
@@ -1665,7 +1665,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     <button
                       type="button"
                       onClick={removeAudio}
-                      className="shrink-0 rounded p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700"
+                      className="shrink-0 rounded p-1.5 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-danger)] hover:bg-[var(--hrk-bg-surface-raised)]"
                       title="Remove audio"
                     >
                       <X className="h-4 w-4" />
@@ -1680,7 +1680,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   the block on `videoEmbedUrl` alone hid the preview the
                   moment the upload finished. */}
               {(videoEmbedUrl || videoUploadDetails) && (
-                <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+                <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
                   {videoPreviewUrl ? (
                     <video
                       src={videoPreviewUrl}
@@ -1691,12 +1691,12 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       style={{ maxHeight: '240px' }}
                     />
                   ) : (
-                    <div className="h-20 flex items-center justify-center text-gray-400 text-xs">
+                    <div className="h-20 flex items-center justify-center text-[var(--hrk-text-tertiary)] text-xs">
                       Video attached
                     </div>
                   )}
-                  <div className="flex items-center gap-2 border-t border-gray-700 px-3 py-1.5">
-                    <span className="flex-1 truncate text-xs text-gray-400">
+                  <div className="flex items-center gap-2 border-t border-[var(--hrk-border-subtle)] px-3 py-1.5">
+                    <span className="flex-1 truncate text-xs text-[var(--hrk-text-tertiary)]">
                       {videoUploadDetails ? (
                         <>
                           {videoUploadDetails.originalFilename} ·{' '}
@@ -1716,7 +1716,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     <button
                       type="button"
                       onClick={removeVideo}
-                      className="shrink-0 rounded p-1 text-gray-400 hover:text-red-400"
+                      className="shrink-0 rounded p-1 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-danger)]"
                       title="Remove video"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -1725,16 +1725,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   {/* NSFW toggle — surfaced only when a video is present.
                       3Speak's `/update_info` API takes an `isNsfwContent`
                       boolean; we pass it through in the submit payload. */}
-                  <label className="flex items-start gap-2 border-t border-gray-700 px-3 py-2 text-xs text-gray-300 cursor-pointer hover:bg-gray-800/40">
+                  <label className="flex items-start gap-2 border-t border-[var(--hrk-border-subtle)] px-3 py-2 text-xs text-[var(--hrk-text-secondary)] cursor-pointer hover:bg-[var(--hrk-bg-surface)]/40">
                     <input
                       type="checkbox"
                       checked={isNsfw}
                       onChange={(e) => setIsNsfw(e.target.checked)}
-                      className="mt-0.5 h-3.5 w-3.5 rounded border-gray-600 bg-gray-900 text-[#e31337] focus:ring-[#e31337]"
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-app)] text-[var(--hrk-brand)] focus:ring-[var(--hrk-brand)]"
                     />
                     <span>
-                      Mark this video as <span className="text-red-400 font-medium">NSFW</span>
-                      <span className="block text-[10px] text-gray-500">
+                      Mark this video as <span className="text-[var(--hrk-danger)] font-medium">NSFW</span>
+                      <span className="block text-[10px] text-[var(--hrk-text-tertiary)]">
                         Hidden behind a content warning on 3Speak.
                       </span>
                     </span>
@@ -1750,13 +1750,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPollOpen(true)}
-                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200 hover:bg-amber-500/15"
+                  className="w-full flex items-center justify-between gap-2 rounded-lg border border-[var(--hrk-warning)]/40 bg-[var(--hrk-warning-soft)] px-3 py-2 text-left text-xs text-[var(--hrk-warning)] hover:bg-[var(--hrk-warning-soft)]"
                 >
                   <span className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 shrink-0" />
                     A poll is required for this post — tap to add one.
                   </span>
-                  <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                  <span className="rounded bg-[var(--hrk-warning-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                     Required
                   </span>
                 </button>
@@ -1764,17 +1764,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
               {/* Poll preview */}
               {pollData && (
-                <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+                <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
                   <div className="px-3 py-2">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <BarChart3 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                      <BarChart3 className="h-3.5 w-3.5 shrink-0 text-[var(--hrk-info)]" />
                       <span className="flex-1 truncate text-xs font-medium text-white">
                         {pollData.question}
                       </span>
                       <button
                         type="button"
                         onClick={() => setIsPollOpen(true)}
-                        className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white"
+                        className="shrink-0 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)]"
                         title="Edit poll"
                       >
                         <Code className="h-3.5 w-3.5" />
@@ -1782,14 +1782,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       <button
                         type="button"
                         onClick={() => setPollData(null)}
-                        className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                        className="shrink-0 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-danger)]"
                         title="Remove poll"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     {pollData.description && (
-                      <p className="mb-1.5 text-[11px] text-gray-400 italic line-clamp-2">
+                      <p className="mb-1.5 text-[11px] text-[var(--hrk-text-tertiary)] italic line-clamp-2">
                         {pollData.description}
                       </p>
                     )}
@@ -1797,7 +1797,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       {pollData.choices.map((c, i) => (
                         <span
                           key={i}
-                          className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300"
+                          className="rounded-full bg-[var(--hrk-bg-surface-raised)] px-2 py-0.5 text-xs text-[var(--hrk-text-secondary)]"
                         >
                           {c}
                         </span>
@@ -1811,17 +1811,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       pollData.max_choices_voted > 1) && (
                       <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
                         {pollData.preferred_interpretation && (
-                          <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-300">
+                          <span className="rounded bg-[var(--hrk-info)]/15 px-1.5 py-0.5 text-[var(--hrk-info)]">
                             {pollData.preferred_interpretation.replace(/_/g, ' ')}
                           </span>
                         )}
                         {pollData.max_choices_voted > 1 && (
-                          <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
+                          <span className="rounded bg-[var(--hrk-success-soft)] px-1.5 py-0.5 text-[var(--hrk-success)]">
                             multi-choice ×{pollData.max_choices_voted}
                           </span>
                         )}
                         {pollData.community_restricted && (
-                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-300">
+                          <span className="rounded bg-[var(--hrk-warning-soft)] px-1.5 py-0.5 text-[var(--hrk-warning)]">
                             community-restricted
                           </span>
                         )}
@@ -1835,13 +1835,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   drag visual; this wrapper only needs the paste/upload spinner. */}
               <div className="relative">
                 {uploadingPaste && (
-                  <div className="absolute inset-0 z-10 bg-gray-900/80 rounded-lg flex flex-col items-center justify-center gap-3 p-4 text-center">
+                  <div className="absolute inset-0 z-10 bg-[var(--hrk-bg-app)]/80 rounded-lg flex flex-col items-center justify-center gap-3 p-4 text-center">
                     {isAwaitingApproval ? (
-                      <span className="text-sm text-amber-400 animate-pulse">
+                      <span className="text-sm text-[var(--hrk-warning)] animate-pulse">
                         {walletApprovalLabel}
                       </span>
                     ) : (
-                      <div className="flex items-center gap-2 text-blue-400 text-sm">
+                      <div className="flex items-center gap-2 text-[var(--hrk-info)] text-sm">
                         <span className="h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                         Uploading image...
                       </div>
@@ -1849,7 +1849,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     <button
                       type="button"
                       onClick={cancelPasteUpload}
-                      className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs"
+                      className="px-3 py-1 rounded border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface)] text-xs"
                     >
                       Cancel
                     </button>
@@ -1872,15 +1872,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   // user's hand. Height steps up at `sm:` and `lg:` so the
                   // editor feels generous on tablet/desktop without crowding
                   // the screen on phones.
-                  className="block w-full h-[480px] sm:h-[560px] lg:h-[640px] p-3 border border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-800 text-white placeholder-gray-500 disabled:opacity-50 text-sm font-mono leading-relaxed overflow-y-auto"
+                  className="block w-full h-[480px] sm:h-[560px] lg:h-[640px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] disabled:opacity-50 text-sm font-mono leading-relaxed overflow-y-auto"
                 />
               </div>
 
               {/* Tag manager */}
               {!hideTags && (
-                <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-2.5">
-                  <div className="flex items-center gap-2 mb-2 text-xs text-gray-400">
-                    <Tag className="h-3.5 w-3.5 text-gray-500" />
+                <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)]/40 p-2.5">
+                  <div className="flex items-center gap-2 mb-2 text-xs text-[var(--hrk-text-tertiary)]">
+                    <Tag className="h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />
                     <span className="font-semibold uppercase tracking-wide">Tags</span>
                     <span className="ml-auto">
                       {mergedTags.length} / {maxTags}
@@ -1890,23 +1890,23 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     {lockedTagList.map((t) => (
                       <span
                         key={`locked-${t}`}
-                        className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-[11px] text-gray-200"
+                        className="inline-flex items-center gap-1 rounded-full bg-[var(--hrk-bg-surface-raised)]/70 px-2 py-0.5 text-[11px] text-[var(--hrk-text-primary)]"
                         title="Default tag — cannot be removed"
                       >
-                        <Lock className="h-2.5 w-2.5 text-gray-400" />
+                        <Lock className="h-2.5 w-2.5 text-[var(--hrk-text-tertiary)]" />
                         {t}
                       </span>
                     ))}
                     {userTags.map((t) => (
                       <span
                         key={`user-${t}`}
-                        className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-[11px] text-blue-200"
+                        className="inline-flex items-center gap-1 rounded-full bg-[var(--hrk-brand)]/20 px-2 py-0.5 text-[11px] text-blue-200"
                       >
                         {t}
                         <button
                           type="button"
                           onClick={() => removeUserTag(t)}
-                          className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white"
+                          className="rounded-full p-0.5 text-blue-200 hover:bg-[var(--hrk-brand)]/40 hover:text-[var(--hrk-text-primary)]"
                           disabled={isDisabled}
                           aria-label={`Remove ${t}`}
                         >
@@ -1952,7 +1952,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       autoComplete="off"
                       autoCapitalize="none"
                       spellCheck={false}
-                      className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 placeholder-gray-500 outline-none focus:border-blue-500 disabled:opacity-50"
+                      className="flex-1 rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-2 py-1 text-xs text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] outline-none focus:border-[var(--hrk-info)] disabled:opacity-50"
                     />
                     <button
                       type="button"
@@ -1961,7 +1961,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                         setTagDraft('');
                       }}
                       disabled={remainingTagSlots === 0 || !tagDraft.trim() || isDisabled}
-                      className="rounded border border-gray-700 bg-gray-800 px-3 py-1 text-xs text-gray-100 hover:bg-gray-700 disabled:opacity-50"
+                      className="rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-1 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50"
                     >
                       Add
                     </button>
@@ -1981,16 +1981,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   placeholder="Short description (shown in feeds, max 120 chars)"
                   rows={2}
                   disabled={isDisabled}
-                  className="w-full bg-transparent text-sm text-gray-200 placeholder-gray-500 outline-none border-b border-gray-800 py-2 focus:border-blue-500 transition-colors resize-none"
+                  className="w-full bg-transparent text-sm text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] outline-none border-b border-[var(--hrk-border-subtle)] py-2 focus:border-[var(--hrk-info)] transition-colors resize-none"
                 />
                 <div className="flex items-center justify-end">
                   <span
                     className={`text-[11px] ${
                       description.length >= DESCRIPTION_MAX
-                        ? 'text-red-400'
+                        ? 'text-[var(--hrk-danger)]'
                         : description.length > DESCRIPTION_MAX * 0.85
-                          ? 'text-amber-400'
-                          : 'text-gray-500'
+                          ? 'text-[var(--hrk-warning)]'
+                          : 'text-[var(--hrk-text-tertiary)]'
                     }`}
                   >
                     {description.length} / {DESCRIPTION_MAX}
@@ -2000,16 +2000,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
               {/* Beneficiary strip */}
               {!hideBeneficiaries && beneficiaries.length > 0 && (
-                <div className="rounded-lg border border-gray-800 bg-gray-900/40 p-2.5">
-                  <div className="flex items-center gap-2 mb-2 text-xs text-gray-400">
-                    <Users className="h-3.5 w-3.5 text-gray-500" />
+                <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)]/40 p-2.5">
+                  <div className="flex items-center gap-2 mb-2 text-xs text-[var(--hrk-text-tertiary)]">
+                    <Users className="h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />
                     <span className="font-semibold uppercase tracking-wide">
                       Beneficiaries
                     </span>
                     <button
                       type="button"
                       onClick={() => setIsBeneficiariesOpen(true)}
-                      className="ml-auto rounded border border-gray-700 px-2 py-0.5 text-[11px] text-gray-300 hover:bg-gray-800 hover:text-blue-300"
+                      className="ml-auto rounded border border-[var(--hrk-border-subtle)] px-2 py-0.5 text-[11px] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface)] hover:text-[var(--hrk-info)]"
                       disabled={isDisabled}
                     >
                       Edit
@@ -2023,8 +2023,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                           key={`bene-${b.account}`}
                           className={`inline-flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-[11px] ${
                             locked
-                              ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30'
-                              : 'bg-blue-600/20 text-blue-200 border border-blue-500/30'
+                              ? 'bg-[var(--hrk-warning-soft)] text-[var(--hrk-warning)] border border-[var(--hrk-warning)]/40'
+                              : 'bg-[var(--hrk-brand)]/20 text-blue-200 border border-[var(--hrk-info)]/30'
                           }`}
                         >
                           <Avatar account={b.account} size={16} />
@@ -2042,18 +2042,18 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
           {/* Preview pane — always visible. Independent scroll only on `lg:`;
               on mobile it expands to its full height inside the outer scroll. */}
-          <section className="bg-[#0f1216] lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          <section className="bg-[var(--hrk-bg-surface-sunken)] lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
             <div className="px-3 sm:px-6 py-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-gray-400">
-                  <Check className="h-3 w-3 text-emerald-400" />
+                <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
+                  <Check className="h-3 w-3 text-[var(--hrk-success)]" />
                   Live preview
                 </span>
-                <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                  <span className="rounded-md border border-gray-800 px-2 py-0.5">
+                <div className="flex items-center gap-2 text-[11px] text-[var(--hrk-text-tertiary)]">
+                  <span className="rounded-md border border-[var(--hrk-border-subtle)] px-2 py-0.5">
                     {readMinutes} min read
                   </span>
-                  <span className="rounded-md border border-gray-800 px-2 py-0.5">
+                  <span className="rounded-md border border-[var(--hrk-border-subtle)] px-2 py-0.5">
                     {wordCount} words
                   </span>
                 </div>
@@ -2064,12 +2064,12 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 {title.trim() || 'Untitled post'}
               </h2>
               {description.trim() && (
-                <p className="mt-2 text-sm text-gray-400 italic">
+                <p className="mt-2 text-sm text-[var(--hrk-text-tertiary)] italic">
                   {description.trim()}
                 </p>
               )}
               {currentUser && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                <div className="mt-3 flex items-center gap-2 text-xs text-[var(--hrk-text-tertiary)]">
                   <Avatar account={currentUser} size={20} />
                   <span>@{currentUser}</span>
                   {mergedTags.length > 0 && (
@@ -2077,13 +2077,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       {mergedTags.slice(0, 5).map((t) => (
                         <span
                           key={`prev-tag-${t}`}
-                          className="rounded-full bg-blue-900/40 text-blue-300 px-2 py-0.5 text-[10px]"
+                          className="rounded-full bg-[var(--hrk-info-soft)] text-[var(--hrk-info)] px-2 py-0.5 text-[10px]"
                         >
                           #{t}
                         </span>
                       ))}
                       {mergedTags.length > 5 && (
-                        <span className="text-[10px] text-gray-500">
+                        <span className="text-[10px] text-[var(--hrk-text-tertiary)]">
                           +{mergedTags.length - 5}
                         </span>
                       )}
@@ -2092,7 +2092,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 </div>
               )}
 
-              <div className="mt-4 border-t border-gray-800 pt-4">
+              <div className="mt-4 border-t border-[var(--hrk-border-subtle)] pt-4">
                 {/* Metadata-pinned 3Speak player — same single-player
                     treatment HiveDetailPost uses when `json_metadata.video`
                     is set, so the preview matches the published surface
@@ -2141,7 +2141,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                       html={renderedBody}
                     />
                   ) : (
-                    <p className="text-gray-400 text-sm italic">
+                    <p className="text-[var(--hrk-text-tertiary)] text-sm italic">
                       Your post preview will appear here as you type. Markdown,
                       images, audio and video embeds all render live.
                     </p>
@@ -2222,7 +2222,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               left: rewardAnchor.left,
               width: rewardAnchor.width,
             }}
-            className="z-[9999] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+            className="z-[9999] rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] py-1 shadow-xl"
           >
             {REWARD_OPTIONS.map((opt) => (
               <button
@@ -2232,10 +2232,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   setReward(opt);
                   setIsRewardOpen(false);
                 }}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)]"
               >
                 <span>{REWARD_OPTION_LABELS[opt]}</span>
-                {reward === opt && <Check className="h-4 w-4 text-blue-400" />}
+                {reward === opt && <Check className="h-4 w-4 text-[var(--hrk-info)]" />}
               </button>
             ))}
           </div>,

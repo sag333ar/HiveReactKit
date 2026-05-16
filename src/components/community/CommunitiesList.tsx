@@ -3,24 +3,48 @@
  * Hive communities directory — searchable, infinite-scrolling list backed
  * by `bridge.list_communities`.
  *
- * Theme: hivesuite dark tokens (#212529 / #262b30 / #2f353d / #3a424a /
- *        #e31337). Pass `theme="light"` for the legacy light variant.
+ * Theme: kit tokens (`--hrk-*`). Pass `theme="light"` for the legacy light
+ *        variant; both variants share the same component structure.
+ *
+ * Search behaviour:
+ *  - 350ms debounce on every keystroke (was: instant fire on ≥3 chars,
+ *    which caused a flood of in-flight requests as the user typed).
+ *  - Stale-response guard via a request-id counter. Only the latest fetch
+ *    is allowed to write to state, so fast typing can't let an earlier
+ *    response overwrite a later one.
+ *  - Search query is sent when length ≥3 (bridge API constraint); shorter
+ *    queries fall back to the unfiltered list.
+ *  - Pagination state resets cleanly when the query changes.
  *
  * Scrolling: the list scrolls inside its own container (the parent decides
- * the height via `flex-1 overflow-hidden`); we no longer attach a global
- * window-scroll listener, so the component is safe to drop into a
- * dashboard layout where the page itself doesn't scroll.
+ * the height via `flex-1 overflow-hidden`); no global window-scroll
+ * listener, so this drops cleanly into a dashboard layout.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, Loader2, RefreshCw, Users2 } from "lucide-react";
+import { Search, Loader2, RefreshCw, Users2, X, Users } from "lucide-react";
 
 import { communityService } from "../../services/communityService";
 import { CommunityItem } from "../../types/community";
 
 interface CommunitiesListProps {
   onSelectCommunity: (communityId: string) => void;
-  /** Visual variant. Default `"dark"` — uses hivesuite Hive-red tokens. */
+  /** Visual variant. Default `"dark"` — uses kit tokens. */
   theme?: "light" | "dark";
+}
+
+const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 350;
+const MIN_QUERY_LENGTH = 3;
+
+/** Compact member-count formatter: 1234 → "1.2k", 12345 → "12.3k". */
+function formatCount(n: number): string {
+  if (!n || n < 1000) return String(n ?? 0);
+  if (n < 1_000_000) {
+    const k = n / 1000;
+    return k >= 10 ? `${k.toFixed(0)}k` : `${k.toFixed(1)}k`;
+  }
+  const m = n / 1_000_000;
+  return m >= 10 ? `${m.toFixed(0)}M` : `${m.toFixed(1)}M`;
 }
 
 const CommunitiesList = ({
@@ -30,236 +54,360 @@ const CommunitiesList = ({
   const isDark = theme === "dark";
 
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [lastCommunityName, setLastCommunityName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pageSize = 20;
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  const lastNameRef = useRef<string | null>(null);
+  // Monotonically-increasing fetch id; the latest one wins. Earlier
+  // responses that race in later are dropped on arrival.
+  const fetchIdRef = useRef(0);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ── Debounce the input field ─────────────────────────────────────────
+  // We debounce ALL keystrokes uniformly (350ms). Previously ≥3-char
+  // queries fired instantly per keystroke, causing 8+ parallel requests
+  // for a single word and the resulting flicker.
+  useEffect(() => {
+    if (searchInput === debouncedQuery) return;
+    setIsDebouncing(true);
+    const t = setTimeout(() => {
+      setDebouncedQuery(searchInput);
+      setIsDebouncing(false);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput, debouncedQuery]);
+
+  // ── Fetch a page ─────────────────────────────────────────────────────
   const loadCommunities = useCallback(
     async (initial = false) => {
       if (!initial && (isLoadingMore || !hasMore)) return;
-      try {
-        if (initial) {
-          setIsLoading(true);
-          setError(null);
-          setCommunities([]);
-          setLastCommunityName(null);
-          setHasMore(true);
-        } else {
-          setIsLoadingMore(true);
-        }
 
-        const query = searchQuery.trim();
+      const myFetchId = ++fetchIdRef.current;
+
+      if (initial) {
+        setIsLoading(true);
+        setError(null);
+        setCommunities([]);
+        lastNameRef.current = null;
+        setHasMore(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      try {
+        const q = debouncedQuery.trim();
+        const apiQuery = q.length >= MIN_QUERY_LENGTH ? q : undefined;
         const result = await communityService.getListOfCommunities(
-          query.length >= 3 ? query : undefined,
-          pageSize,
-          initial ? undefined : lastCommunityName || undefined,
+          apiQuery,
+          PAGE_SIZE,
+          initial ? undefined : lastNameRef.current || undefined,
         );
+
+        // Stale-response guard: drop everything that arrives after a
+        // newer fetch has been issued (e.g. user typed faster than the
+        // network responded).
+        if (myFetchId !== fetchIdRef.current) return;
 
         setCommunities((prev) => (initial ? result : [...prev, ...result]));
 
+        const last = result[result.length - 1]?.name ?? null;
         if (
-          result.length < pageSize ||
-          (result.length > 0 && result[result.length - 1].name === lastCommunityName)
+          result.length < PAGE_SIZE ||
+          (last !== null && last === lastNameRef.current)
         ) {
           setHasMore(false);
-        } else if (result.length > 0) {
-          setLastCommunityName(result[result.length - 1].name || null);
+        } else if (last) {
+          lastNameRef.current = last;
         }
       } catch (err) {
+        if (myFetchId !== fetchIdRef.current) return;
         setError(err instanceof Error ? err.message : "Failed to load communities");
         setHasMore(false);
       } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+        if (myFetchId === fetchIdRef.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
       }
     },
-    [searchQuery, isLoadingMore, hasMore, lastCommunityName],
+    [debouncedQuery, isLoadingMore, hasMore],
   );
 
+  // ── Re-fetch from page 1 whenever the debounced query settles ─────────
   useEffect(() => {
-    const timeoutId = setTimeout(
-      () => {
-        loadCommunities(true);
-      },
-      searchQuery.length >= 3 || searchQuery.length === 0 ? 0 : 500,
-    );
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+    void loadCommunities(true);
+  }, [debouncedQuery]);
 
-  // Container-scoped infinite scroll — fires when the user nears the
-  // bottom of THIS list's scroll container, not the window. Works inside
-  // dashboards where the page itself is `overflow-hidden`.
+  // ── Container-scoped infinite scroll ────────────────────────────────
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const el = e.currentTarget;
       const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
       if (nearBottom && !isLoadingMore && !isLoading && hasMore) {
-        loadCommunities();
+        void loadCommunities();
       }
     },
     [loadCommunities, isLoadingMore, isLoading, hasMore],
   );
 
-  const handleRefresh = () => loadCommunities(true);
+  const handleRefresh = () => {
+    setSearchInput("");
+    setDebouncedQuery("");
+    void loadCommunities(true);
+  };
 
-  // ── Theme tokens ──────────────────────────────────────────────────────
-  const surface = isDark ? "bg-[#212529]" : "bg-white";
-  const card = isDark
-    ? "bg-[#262b30] border-[#3a424a] hover:bg-[#2f353d]"
-    : "bg-white border-gray-200 hover:bg-gray-100";
-  const cardSkeleton = isDark
-    ? "bg-[#262b30] border-[#3a424a]"
-    : "bg-white border-gray-200";
-  const skeletonInner = isDark ? "bg-[#2f353d]" : "bg-gray-200";
-  const inputCls = isDark
-    ? "bg-[#262b30] border-[#3a424a] text-[#f0f0f8] placeholder-[#9ca3b0] focus:ring-[#e31337]"
-    : "bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-blue-500";
-  const muted = isDark ? "text-[#9ca3b0]" : "text-gray-500";
-  const textPrimary = isDark ? "text-[#f0f0f8]" : "text-gray-900";
-  const buttonCls = isDark
-    ? "border-[#3a424a] bg-[#262b30] text-[#e7e7f1] hover:bg-[#2f353d] hover:text-[#f0f0f8]"
-    : "border-gray-200 bg-white text-gray-500 hover:bg-gray-100 hover:text-gray-900";
+  const handleClearSearch = () => {
+    setSearchInput("");
+    searchInputRef.current?.focus();
+  };
 
-  // ── Sub-renders ───────────────────────────────────────────────────────
+  // ── Theme classes ────────────────────────────────────────────────────
+  const cls = {
+    root: isDark ? "bg-[var(--hrk-bg-app)]" : "bg-white",
+    card: isDark
+      ? "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-subtle)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]"
+      : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300",
+    cardSkeleton: isDark
+      ? "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-subtle)]"
+      : "bg-white border-gray-200",
+    skeletonBar: isDark ? "bg-[var(--hrk-bg-hover)]" : "bg-gray-200",
+    input: isDark
+      ? "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] focus:border-[var(--hrk-border-focus)] focus:ring-[var(--hrk-brand)]/30"
+      : "bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-blue-500/30",
+    muted: isDark ? "text-[var(--hrk-text-tertiary)]" : "text-gray-500",
+    secondary: isDark ? "text-[var(--hrk-text-secondary)]" : "text-gray-600",
+    primary: isDark ? "text-[var(--hrk-text-primary)]" : "text-gray-900",
+    iconBtn: isDark
+      ? "border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)]"
+      : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+    counterPill: isDark
+      ? "bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-secondary)]"
+      : "bg-gray-100 text-gray-700",
+    emptyDisc: isDark
+      ? "bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-tertiary)]"
+      : "bg-gray-100 text-gray-500",
+  };
+
+  // ── Sub-renders ──────────────────────────────────────────────────────
+  const showSearchSpinner = isDebouncing || (isLoading && !!debouncedQuery);
+
   const SearchBar = (
-    <div className="relative flex shrink-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <div className="relative flex-1">
-        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${muted}`} />
+        {showSearchSpinner ? (
+          <Loader2
+            className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin ${cls.muted}`}
+            aria-hidden
+          />
+        ) : (
+          <Search
+            className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${cls.muted}`}
+            aria-hidden
+          />
+        )}
         <input
-          type="text"
-          placeholder="Search communities..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
           ref={searchInputRef}
-          className={`w-full rounded-lg border pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-1 ${inputCls}`}
+          type="text"
+          inputMode="search"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="Search communities…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          aria-label="Search communities"
+          className={`w-full rounded-[10px] border pl-9 pr-9 py-2 text-sm transition-colors focus:outline-none focus:ring-2 ${cls.input}`}
         />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={handleClearSearch}
+            aria-label="Clear search"
+            className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 ${cls.muted} hover:text-[var(--hrk-text-primary)]`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       <button
         onClick={handleRefresh}
         title="Refresh"
-        aria-label="Refresh"
-        className={`inline-flex items-center justify-center rounded-md border p-2 text-sm font-medium transition-colors ${buttonCls}`}
+        aria-label="Refresh communities"
+        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border transition-colors ${cls.iconBtn}`}
       >
-        <RefreshCw className="h-4 w-4" />
+        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       </button>
     </div>
   );
 
+  const SearchHint = searchInput.length > 0 && searchInput.length < MIN_QUERY_LENGTH && (
+    <p className={`text-xs ${cls.muted}`}>
+      Type at least {MIN_QUERY_LENGTH} characters to search.
+    </p>
+  );
+
   const Skeleton = (
-    <div className="space-y-3">
+    <div className="space-y-2.5" aria-hidden>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className={`rounded-xl border p-4 animate-pulse ${cardSkeleton}`}>
-          <div className="flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-full ${skeletonInner}`} />
+        <div key={i} className={`rounded-[14px] border p-4 ${cls.cardSkeleton}`}>
+          <div className="flex items-center gap-3.5">
+            <div className={`h-11 w-11 rounded-full ${cls.skeletonBar} animate-pulse`} />
             <div className="flex-1 space-y-2">
-              <div className={`h-4 rounded w-3/4 ${skeletonInner}`} />
-              <div className={`h-3 rounded w-1/2 ${skeletonInner}`} />
+              <div className={`h-3.5 w-2/5 rounded ${cls.skeletonBar} animate-pulse`} />
+              <div className={`h-3 w-3/4 rounded ${cls.skeletonBar} animate-pulse opacity-70`} />
             </div>
-            <div className={`h-3 w-16 rounded ${skeletonInner}`} />
+            <div className={`h-5 w-14 rounded-full ${cls.skeletonBar} animate-pulse`} />
           </div>
         </div>
       ))}
     </div>
   );
 
+  const isInitialEmpty = !isLoading && !error && communities.length === 0;
+
   return (
-    <div className={`flex h-full min-h-0 flex-col gap-3 ${surface}`}>
+    <div
+      className={`flex h-full min-h-0 flex-col gap-2.5 ${cls.root}`}
+      aria-busy={isLoading || isDebouncing || undefined}
+    >
       {SearchBar}
+      {SearchHint}
 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"
       >
         {isLoading && communities.length === 0 ? (
           Skeleton
         ) : error && communities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <h3 className={`text-base font-semibold ${textPrimary} mb-2`}>
-              Failed to load communities
-            </h3>
-            <p className={`${muted} mb-4 text-sm`}>{error}</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-full ${cls.emptyDisc}`}>
+              <RefreshCw className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-semibold ${cls.primary}`}>
+                Couldn't load communities
+              </h3>
+              <p className={`mt-1 text-xs ${cls.muted}`}>{error}</p>
+            </div>
             <button
               onClick={handleRefresh}
-              className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${buttonCls}`}
+              className={`inline-flex items-center gap-2 rounded-[10px] border px-3 py-1.5 text-xs font-medium transition-colors ${cls.iconBtn}`}
             >
-              <RefreshCw className="h-4 w-4" />
-              Try Again
+              <RefreshCw className="h-3.5 w-3.5" />
+              Try again
             </button>
           </div>
-        ) : communities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users2 className={`h-10 w-10 mb-3 ${muted}`} />
-            <h3 className={`text-base font-semibold ${textPrimary} mb-2`}>
-              No communities found
-            </h3>
-            <p className={muted}>
-              {searchQuery
-                ? "Try adjusting your search terms"
-                : "Check back later for new communities"}
-            </p>
+        ) : isInitialEmpty ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-full ${cls.emptyDisc}`}>
+              <Users2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className={`text-sm font-semibold ${cls.primary}`}>
+                {debouncedQuery ? "No communities match" : "No communities yet"}
+              </h3>
+              <p className={`mt-1 text-xs ${cls.muted}`}>
+                {debouncedQuery
+                  ? `Nothing found for "${debouncedQuery}". Try a different term.`
+                  : "Check back later for new communities."}
+              </p>
+            </div>
+            {debouncedQuery && (
+              <button
+                onClick={handleClearSearch}
+                className={`inline-flex items-center gap-1.5 rounded-[10px] border px-3 py-1.5 text-xs font-medium transition-colors ${cls.iconBtn}`}
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-3 pb-2">
-            {communities.map((community) => (
-              <button
-                key={community.id}
-                type="button"
-                onClick={() => onSelectCommunity(community.name || "")}
-                className={`w-full rounded-xl border p-4 text-left transition-colors ${card}`}
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={communityService.communityIcon(community.name || "")}
-                    alt={community.title}
-                    className="h-12 w-12 rounded-full object-cover bg-[#2f353d]"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${community.title}&background=random`;
-                    }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className={`font-semibold truncate ${textPrimary}`}>
-                      {community.title}
-                    </h3>
-                    {community.about && (
-                      <p className={`text-sm line-clamp-2 ${muted}`}>
-                        {community.about}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`text-xs ${muted}`}>
-                      {(community.subscribers || 0).toLocaleString()} members
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
+          <ul className="space-y-2 pb-3" role="list" aria-label="Communities">
+            {communities.map((community) => {
+              const name = community.name || "";
+              const title = community.title || name;
+              const members = community.subscribers || 0;
+              return (
+                <li key={community.id ?? name}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectCommunity(name)}
+                    className={`group w-full rounded-[14px] border p-3.5 text-left transition-colors ${cls.card}`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <img
+                        src={communityService.communityIcon(name)}
+                        alt=""
+                        loading="lazy"
+                        className="h-11 w-11 shrink-0 rounded-full bg-[var(--hrk-bg-hover)] object-cover ring-1 ring-[var(--hrk-border-subtle)]"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=random`;
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className={`truncate text-[15px] font-semibold tracking-tight ${cls.primary}`}>
+                            {title}
+                          </h3>
+                          <span className={`shrink-0 text-[11px] ${cls.muted}`}>
+                            @{name.replace(/^hive-/, "hive-")}
+                          </span>
+                        </div>
+                        {community.about ? (
+                          <p className={`mt-0.5 line-clamp-1 text-[13px] leading-relaxed ${cls.secondary}`}>
+                            {community.about}
+                          </p>
+                        ) : (
+                          <p className={`mt-0.5 text-[13px] italic ${cls.muted}`}>
+                            No description
+                          </p>
+                        )}
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${cls.counterPill}`}
+                        title={`${members.toLocaleString()} members`}
+                      >
+                        <Users className="h-3 w-3" />
+                        {formatCount(members)}
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
 
             {hasMore && (
-              <div className="flex justify-center pt-2">
+              <li className="flex justify-center py-2">
                 {isLoadingMore ? (
-                  <div className={`flex items-center gap-2 ${muted}`}>
+                  <div className={`flex items-center gap-2 text-xs ${cls.muted}`}>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading more communities...
+                    Loading more…
                   </div>
                 ) : (
                   <button
-                    onClick={() => loadCommunities()}
-                    className={`inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition-colors ${buttonCls}`}
+                    onClick={() => void loadCommunities()}
+                    className={`inline-flex items-center justify-center rounded-[10px] border px-4 py-1.5 text-xs font-medium transition-colors ${cls.iconBtn}`}
                   >
                     Load more
                   </button>
                 )}
-              </div>
+              </li>
             )}
-          </div>
+            {!hasMore && communities.length > 0 && (
+              <li className={`pt-2 text-center text-[11px] ${cls.muted}`}>
+                You've reached the end.
+              </li>
+            )}
+          </ul>
         )}
       </div>
     </div>

@@ -171,7 +171,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         type="button"
         onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
         disabled={disabled || isUploading}
-        className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+        className="p-2 rounded-lg hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50"
         title="Upload Image"
       >
         {isUploading ? (
@@ -182,27 +182,27 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       </button>
       {(previewUrl || error) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl shadow-xl max-w-md w-full mx-4">
-            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div className="bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)] rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--hrk-border-subtle)]">
               <h3 className="text-lg font-semibold text-white">{error ? "Upload Error" : "Image Preview"}</h3>
-              <button type="button" onClick={clearPreview} className="p-1 hover:bg-gray-800 rounded">
-                <X className="h-5 w-5 text-gray-300" />
+              <button type="button" onClick={clearPreview} className="p-1 hover:bg-[var(--hrk-bg-surface)] rounded">
+                <X className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
               </button>
             </div>
             <div className="p-4">
               {error ? (
-                <div className="text-red-400 text-sm">{error}</div>
+                <div className="text-[var(--hrk-danger)] text-sm">{error}</div>
               ) : previewUrl ? (
                 <div className="space-y-4">
                   <img src={previewUrl} alt="Preview" className="w-full max-h-64 object-contain rounded" />
                   {isAwaitingApproval ? (
                     <div className="text-center">
-                      <p className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</p>
+                      <p className="text-sm text-[var(--hrk-warning)] animate-pulse">{walletApprovalLabel}</p>
                     </div>
                   ) : isUploading ? (
                     <div className="text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-400" />
-                      <p className="text-sm text-gray-400">Uploading image...</p>
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-[var(--hrk-info)]" />
+                      <p className="text-sm text-[var(--hrk-text-tertiary)]">Uploading image...</p>
                     </div>
                   ) : null}
                 </div>

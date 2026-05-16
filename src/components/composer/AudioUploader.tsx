@@ -297,7 +297,7 @@ const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username
         type="button"
         onClick={() => !disabled && !isUploading && setModalView('pick')}
         disabled={disabled || isUploading}
-        className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+        className="p-2 rounded-lg hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50"
         title="Add Audio"
       >
         {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
@@ -305,83 +305,83 @@ const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username
 
       {modalView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+          <div className="w-full max-w-md rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--hrk-border-subtle)]">
               <h3 className="text-base font-semibold text-white">
                 {modalView === 'pick' && 'Add Audio'}
                 {modalView === 'record' && 'Record Audio'}
                 {modalView === 'gallery-preview' && 'Upload Audio'}
               </h3>
-              <button type="button" onClick={resetAll} disabled={isUploading} className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-800 hover:text-white disabled:opacity-50">
+              <button type="button" onClick={resetAll} disabled={isUploading} className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="p-4">
-              {error && <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
+              {error && <div className="mb-3 rounded-lg border border-[var(--hrk-danger)]/40 bg-[var(--hrk-danger-soft)] px-3 py-2 text-sm text-[var(--hrk-danger)]">{error}</div>}
 
               {modalView === 'pick' && (
                 <div className="flex flex-col gap-3">
-                  <button type="button" onClick={() => { setError(null); setModalView('record') }} className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-4 text-left transition-colors hover:border-blue-500/40 hover:bg-gray-800/80">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/15">
-                      <Mic className="h-5 w-5 text-blue-400" />
+                  <button type="button" onClick={() => { setError(null); setModalView('record') }} className="flex items-center gap-3 rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-4 text-left transition-colors hover:border-[var(--hrk-info)]/40 hover:bg-[var(--hrk-bg-surface)]/80">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--hrk-info)]/15">
+                      <Mic className="h-5 w-5 text-[var(--hrk-info)]" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">Record Audio</p>
-                      <p className="text-xs text-gray-400">Record up to 5 minutes from your microphone</p>
+                      <p className="text-xs text-[var(--hrk-text-tertiary)]">Record up to 5 minutes from your microphone</p>
                     </div>
                   </button>
-                  <button type="button" onClick={() => { setError(null); fileInputRef.current?.click() }} className="flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-4 text-left transition-colors hover:border-blue-500/40 hover:bg-gray-800/80">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
-                      <Upload className="h-5 w-5 text-emerald-400" />
+                  <button type="button" onClick={() => { setError(null); fileInputRef.current?.click() }} className="flex items-center gap-3 rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-4 text-left transition-colors hover:border-[var(--hrk-info)]/40 hover:bg-[var(--hrk-bg-surface)]/80">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--hrk-success-soft)]">
+                      <Upload className="h-5 w-5 text-[var(--hrk-success)]" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-white">Upload from Gallery</p>
-                      <p className="text-xs text-gray-400">Select an audio file (MP3, WAV, OGG, etc.)</p>
+                      <p className="text-xs text-[var(--hrk-text-tertiary)]">Select an audio file (MP3, WAV, OGG, etc.)</p>
                     </div>
                   </button>
-                  <p className="text-center text-xs text-gray-500">Max 50 MB per audio file</p>
+                  <p className="text-center text-xs text-[var(--hrk-text-tertiary)]">Max 50 MB per audio file</p>
                 </div>
               )}
 
               {modalView === 'record' && (
                 <div className="flex flex-col items-center gap-4">
                   <div className="text-center">
-                    <p className={`text-3xl font-mono font-semibold tabular-nums ${isRecording ? 'text-red-400' : 'text-white'}`}>{formatTime(recordSeconds)}</p>
-                    <p className="mt-1 text-xs text-gray-400">{isRecording ? 'Recording...' : recordedBlob ? 'Recording complete' : 'Tap to start recording'}</p>
+                    <p className={`text-3xl font-mono font-semibold tabular-nums ${isRecording ? 'text-[var(--hrk-danger)]' : 'text-white'}`}>{formatTime(recordSeconds)}</p>
+                    <p className="mt-1 text-xs text-[var(--hrk-text-tertiary)]">{isRecording ? 'Recording...' : recordedBlob ? 'Recording complete' : 'Tap to start recording'}</p>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-                    <div className="h-full rounded-full bg-red-500 transition-all duration-1000" style={{ width: `${Math.min(progressPercent, 100)}%` }} />
+                  <div className="h-1.5 w-full rounded-full bg-[var(--hrk-bg-surface-raised)] overflow-hidden">
+                    <div className="h-full rounded-full bg-[var(--hrk-danger)] transition-all duration-1000" style={{ width: `${Math.min(progressPercent, 100)}%` }} />
                   </div>
-                  <p className="text-xs text-gray-400">Max {formatTime(MAX_RECORD_SECONDS)}</p>
+                  <p className="text-xs text-[var(--hrk-text-tertiary)]">Max {formatTime(MAX_RECORD_SECONDS)}</p>
 
                   {!recordedBlob ? (
                     <div className="flex items-center gap-4">
-                      <button type="button" onClick={isRecording ? stopRecording : startRecording} className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
+                      <button type="button" onClick={isRecording ? stopRecording : startRecording} className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--hrk-danger)] text-white shadow-lg transition-transform hover:scale-105 active:scale-95">
                         {isRecording ? <Square className="h-6 w-6 fill-current" /> : <Mic className="h-6 w-6" />}
                       </button>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4 w-full">
                       <div className="flex items-center gap-3">
-                        <button type="button" onClick={togglePlayback} className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 border border-gray-700 text-white transition-colors hover:bg-gray-700">
+                        <button type="button" onClick={togglePlayback} className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] text-white transition-colors hover:bg-[var(--hrk-bg-surface-raised)]">
                           {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
                         </button>
-                        <button type="button" onClick={deleteRecording} disabled={isUploading} className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 border border-gray-700 text-gray-400 transition-colors hover:bg-gray-700 hover:text-red-400 disabled:opacity-50">
+                        <button type="button" onClick={deleteRecording} disabled={isUploading} className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] text-[var(--hrk-text-tertiary)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-danger)] disabled:opacity-50">
                           <Trash2 className="h-5 w-5" />
                         </button>
-                        <button type="button" onClick={() => { deleteRecording(); void startRecording() }} disabled={isUploading} className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 border border-gray-700 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50">
+                        <button type="button" onClick={() => { deleteRecording(); void startRecording() }} disabled={isUploading} className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] text-[var(--hrk-text-tertiary)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50">
                           <RotateCcw className="h-5 w-5" />
                         </button>
                       </div>
-                      <button type="button" onClick={() => void uploadRecording()} disabled={isUploading} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
+                      <button type="button" onClick={() => void uploadRecording()} disabled={isUploading} className="w-full rounded-lg bg-[var(--hrk-brand)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-brand-hover)] disabled:opacity-50">
                         {isUploading ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Uploading...</span> : 'Upload Recording'}
                       </button>
                     </div>
                   )}
 
                   {!isRecording && !isUploading && (
-                    <button type="button" onClick={() => { deleteRecording(); setModalView('pick') }} className="text-xs text-gray-400 hover:text-white transition-colors">Back to options</button>
+                    <button type="button" onClick={() => { deleteRecording(); setModalView('pick') }} className="text-xs text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors">Back to options</button>
                   )}
                 </div>
               )}
@@ -389,19 +389,19 @@ const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username
               {modalView === 'gallery-preview' && (
                 <div className="flex flex-col gap-3">
                   {galleryFileName && (
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <Music className="h-4 w-4 shrink-0 text-blue-400" />
+                    <div className="flex items-center gap-2 text-sm text-[var(--hrk-text-tertiary)]">
+                      <Music className="h-4 w-4 shrink-0 text-[var(--hrk-info)]" />
                       <span className="truncate">{galleryFileName}</span>
                     </div>
                   )}
                   {galleryPreviewUrl && <audio src={galleryPreviewUrl} controls className="w-full rounded-lg" preload="metadata" />}
                   <div className="flex gap-2">
-                    <button type="button" onClick={removeGalleryFile} disabled={isUploading} className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50">Remove</button>
-                    <button type="button" onClick={() => void uploadGalleryFile()} disabled={isUploading} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
+                    <button type="button" onClick={removeGalleryFile} disabled={isUploading} className="flex-1 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50">Remove</button>
+                    <button type="button" onClick={() => void uploadGalleryFile()} disabled={isUploading} className="flex-1 rounded-lg bg-[var(--hrk-brand)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[var(--hrk-brand-hover)] disabled:opacity-50">
                       {isUploading ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Uploading...</span> : 'Upload'}
                     </button>
                   </div>
-                  {!isUploading && <button type="button" onClick={removeGalleryFile} className="text-center text-xs text-gray-400 hover:text-white transition-colors">Back to options</button>}
+                  {!isUploading && <button type="button" onClick={removeGalleryFile} className="text-center text-xs text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors">Back to options</button>}
                 </div>
               )}
             </div>

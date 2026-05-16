@@ -89,7 +89,7 @@ function parseAsset(value: unknown): number {
  *  reference's "rainbow distribution" feel. Cycles when the post has
  *  more voters than colours. */
 const SLICE_COLORS = [
-  "#e31337",
+  "var(--hrk-brand)",
   "#f59e0b",
   "#facc15",
   "#22c55e",
@@ -256,7 +256,7 @@ const UpvoteListModal = ({
     if (rest.length > 0) {
       const restSum = rest.reduce((s, v) => s + v.value, 0);
       segs.push({
-        color: "#4b5563",
+        color: "var(--hrk-border-strong)",
         widthPct: (restSum / totalPayout) * 100,
         voter: `+${rest.length} more`,
       });
@@ -293,19 +293,19 @@ const UpvoteListModal = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-3 sm:px-4 h-screen"
+      className="fixed inset-0 bg-black/60 flex items-end items-center justify-center z-50 px-3 sm:items-center sm:px-4 h-screen"
       onClick={onOverlayClick}
     >
-      <div className="relative bg-[#1f2429] rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-[#3a424a]">
+      <div className="relative bg-[var(--hrk-bg-surface-raised)] rounded-t-[16px] sm:rounded-[16px] shadow-[var(--hrk-shadow-lg)] w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-[var(--hrk-border-default)]">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-[#3a424a] bg-[#1a1e22]/80 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--hrk-border-subtle)] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex flex-1 items-center gap-3 min-w-0">
             <h2 className="text-base sm:text-lg font-semibold text-white truncate">
               Votes (Hive Rewards)
             </h2>
             {isRefreshing && (
               <span className="inline-flex items-center" aria-label="Refreshing">
-                <span className="w-3.5 h-3.5 border-2 border-[#e31337] border-t-transparent rounded-full animate-spin" />
+                <span className="w-3.5 h-3.5 border-2 border-[var(--hrk-brand)] border-t-transparent rounded-full animate-spin" />
               </span>
             )}
           </div>
@@ -315,7 +315,7 @@ const UpvoteListModal = ({
             <button
               type="button"
               onClick={() => setSortMenuOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-[#3a424a] bg-[#262b30] px-2.5 py-1 text-xs font-medium text-[#e7e7f1] hover:bg-[#2f353d]"
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)]"
               aria-haspopup="menu"
               aria-expanded={sortMenuOpen}
             >
@@ -326,7 +326,7 @@ const UpvoteListModal = ({
             {sortMenuOpen && (
               <ul
                 role="menu"
-                className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-[#3a424a] bg-[#1f2429] shadow-xl"
+                className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
@@ -338,8 +338,8 @@ const UpvoteListModal = ({
                         setSort(mode);
                         setSortMenuOpen(false);
                       }}
-                      className={`w-full px-3 py-2 text-left text-xs hover:bg-[#2f353d] ${
-                        sort === mode ? "text-[#e31337]" : "text-[#e7e7f1]"
+                      className={`w-full px-3 py-2 text-left text-xs hover:bg-[var(--hrk-bg-hover)] ${
+                        sort === mode ? "text-[var(--hrk-brand)]" : "text-[var(--hrk-text-secondary)]"
                       }`}
                     >
                       {SORT_LABELS[mode]}
@@ -368,14 +368,14 @@ const UpvoteListModal = ({
                 }
               }}
               aria-label="Upvote this post"
-              className="rounded p-1 hover:bg-[#2f353d]"
+              className="rounded p-1 hover:bg-[var(--hrk-bg-hover)]"
               type="button"
             >
               <ThumbsUp
                 className={`w-4 h-4 ${
                   hasAlreadyVoted
-                    ? "text-[#e31337] fill-current"
-                    : "text-gray-300"
+                    ? "text-[var(--hrk-brand)] fill-current"
+                    : "text-[var(--hrk-text-secondary)]"
                 }`}
               />
             </button>
@@ -384,20 +384,20 @@ const UpvoteListModal = ({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded p-1 hover:bg-[#2f353d]"
+            className="rounded p-1 hover:bg-[var(--hrk-bg-hover)]"
           >
-            <X className="w-4 h-4 text-gray-300" />
+            <X className="w-4 h-4 text-[var(--hrk-text-secondary)]" />
           </button>
         </div>
 
         {/* Breakdown */}
         {!loading && !showVoteSlider && votes.length > 0 && (
-          <div className="border-b border-[#3a424a] bg-[#1a1e22]/40 px-4 py-3 sm:px-5">
-            <p className="text-xs text-[#9ca3b0] mb-1.5">
+          <div className="border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/40 px-4 py-3 sm:px-5">
+            <p className="text-xs text-[var(--hrk-text-tertiary)] mb-1.5">
               Breakdown for {votes.length} {votes.length === 1 ? "vote" : "votes"}
             </p>
             <div
-              className="flex h-2.5 w-full overflow-hidden rounded-md bg-[#262b30]"
+              className="flex h-2.5 w-full overflow-hidden rounded-md bg-[var(--hrk-bg-surface)]"
               role="img"
               aria-label="Vote value distribution"
             >
@@ -420,7 +420,7 @@ const UpvoteListModal = ({
         <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
           {loading ? (
             <div className="flex justify-center items-center h-full p-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e31337]" />
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--hrk-brand)]" />
             </div>
           ) : showVoteSlider && !hasAlreadyVoted ? (
             <VoteSlider
@@ -430,7 +430,7 @@ const UpvoteListModal = ({
               onCancel={() => setShowVoteSlider(false)}
             />
           ) : votes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-[#9ca3b0]">
+            <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-[var(--hrk-text-tertiary)]">
               No votes yet.
             </div>
           ) : (
@@ -442,12 +442,12 @@ const UpvoteListModal = ({
                 return (
                   <li
                     key={vote.voter}
-                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[#262b30]"
+                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[var(--hrk-bg-surface)]"
                   >
                     <img
                       src={`https://images.hive.blog/u/${vote.voter}/avatar`}
                       alt={vote.voter}
-                      className="w-9 h-9 rounded-full bg-gray-700 shrink-0"
+                      className="w-9 h-9 rounded-full bg-[var(--hrk-bg-surface-raised)] shrink-0"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${vote.voter}&background=random`;
                       }}
@@ -463,10 +463,10 @@ const UpvoteListModal = ({
                         <span className="min-w-0 flex-1 truncate text-white">
                           {vote.voter}
                         </span>
-                        <span className="shrink-0 rounded bg-[#262b30] px-1.5 py-0.5 text-[10px] font-medium text-[#9ca3b0]">
+                        <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
                           {formatReputation(vote.reputation)}
                         </span>
-                        <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-[#22c55e]">
+                        <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-[var(--hrk-success)]">
                           {valueShown.toFixed(3)}
                           <img
                             src={resolvedHiveIcon}
@@ -476,7 +476,7 @@ const UpvoteListModal = ({
                           />
                         </span>
                       </div>
-                      <div className="text-[11px] text-[#9ca3b0]">
+                      <div className="text-[11px] text-[var(--hrk-text-tertiary)]">
                         {percent}%
                         {/* Append a literal `Z` to the timestamp so it
                             parses as UTC. condenser_api.get_active_votes
@@ -497,7 +497,7 @@ const UpvoteListModal = ({
 
       {toastOpen && (
         <div className="fixed bottom-4 right-4 w-[280px] z-50">
-          <div className="bg-[#1f2429] border border-[#3a424a] text-white rounded px-3 py-2 shadow-lg text-sm">
+          <div className="bg-[var(--hrk-bg-surface-sunken)] border border-[var(--hrk-border-default)] text-white rounded px-3 py-2 shadow-lg text-sm">
             {toastMessage}
           </div>
         </div>

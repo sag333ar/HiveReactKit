@@ -175,19 +175,19 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
       onClick={onOverlayClick}
     >
       <div
-        className="relative bg-[#1f2429] rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden border border-[#3a424a]"
+        className="relative bg-[var(--hrk-bg-surface-sunken)] rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden border border-[var(--hrk-border-default)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-[#3a424a] bg-[#1a1e22]/80 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/80 px-4 py-3 sm:px-5 sm:py-4">
           <div className="min-w-0">
             <h2 className="truncate text-base sm:text-lg font-semibold text-white">Rewards</h2>
-            <p className="truncate text-[11px] text-[#9ca3b0]">{modeLabel}</p>
+            <p className="truncate text-[11px] text-[var(--hrk-text-tertiary)]">{modeLabel}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9ca3b0] transition-colors hover:bg-[#2f353d] hover:text-[#f0f0f8]"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--hrk-text-tertiary)] transition-colors hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)]"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -195,12 +195,12 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
         </div>
 
         {/* Total panel — liquid HBD (when applicable) + total Hive Power. */}
-        <div className="border-b border-[#3a424a] px-5 py-4 space-y-2">
+        <div className="border-b border-[var(--hrk-border-default)] px-5 py-4 space-y-2">
           {!isPoweredUp && (
             <div className="flex items-center justify-between gap-2">
               <div>
-                <div className="text-[11px] uppercase tracking-wide text-[#9ca3b0]">HBD (liquid)</div>
-                <div className="text-[10px] text-[#7c8694]">Hive Backed Dollars paid out</div>
+                <div className="text-[11px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">HBD (liquid)</div>
+                <div className="text-[10px] text-[var(--hrk-text-tertiary)]">Hive Backed Dollars paid out</div>
               </div>
               <span className="text-xl font-semibold text-emerald-400 tabular-nums">
                 {fmt(totalHbdLiquid)}
@@ -209,10 +209,10 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
           )}
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#9ca3b0]">
+              <div className="text-[11px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
                 {isPoweredUp ? 'Total Hive Power' : 'Hive Power Total'}
               </div>
-              <div className="text-[10px] text-[#7c8694]">
+              <div className="text-[10px] text-[var(--hrk-text-tertiary)]">
                 {isPoweredUp ? '100% of payout staked as HP' : 'Staked Hive paid out'}
               </div>
             </div>
@@ -225,7 +225,7 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
               )}
             </div>
           </div>
-          <div className="pt-1 text-xs text-[#9ca3b0]">
+          <div className="pt-1 text-xs text-[var(--hrk-text-tertiary)]">
             {isPaidout ? 'Paid out' : remaining ? `Payout ${remaining}` : 'Pending'}
           </div>
         </div>
@@ -241,11 +241,11 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
             fmt={fmt}
           />
 
-          <div className="rounded-lg border border-[#3a424a] bg-[#262b30] p-3">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-[#e7e7f1]">
+          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-[var(--hrk-text-secondary)]">
               <span>Author (50%)</span>
               {totalBeneficiaryWeight > 0 && (
-                <span className="text-[10px] font-normal text-[#9ca3b0]">
+                <span className="text-[10px] font-normal text-[var(--hrk-text-tertiary)]">
                   − {(totalBeneficiaryWeight / 100).toFixed(2)}% to beneficiaries
                 </span>
               )}
@@ -253,7 +253,7 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
 
             {/* Gross author share (before beneficiary cuts) */}
             {totalBeneficiaryWeight > 0 && (
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-[#7c8694]">
+              <div className="mb-2 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
                 Gross share
               </div>
             )}
@@ -282,15 +282,15 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
                 they receive, computed from the author's share. */}
             {beneficiaryRows.length > 0 && (
               <>
-                <div className="my-2 border-t border-[#3a424a]" />
-                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[#7c8694]">
+                <div className="my-2 border-t border-[var(--hrk-border-default)]" />
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
                   Beneficiaries take their cut
                 </div>
                 <ul className="space-y-1.5">
                   {beneficiaryRows.map((b) => (
                     <li
                       key={`${b.account}-${b.weight}`}
-                      className="flex items-center gap-2.5 rounded-md bg-[#1f2429]/60 px-2 py-1.5"
+                      className="flex items-center gap-2.5 rounded-md bg-[var(--hrk-bg-surface-sunken)]/60 px-2 py-1.5"
                     >
                       <img
                         src={(avatarUrlFn ?? ((a) => `https://images.hive.blog/u/${a}/avatar`))(b.account)}
@@ -303,11 +303,11 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate text-xs text-white">{b.account}</span>
-                          <span className="shrink-0 text-[10px] font-medium text-[#9ca3b0]">
+                          <span className="shrink-0 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
                             {b.pct.toFixed(2)}%
                           </span>
                         </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[10px] text-[#9ca3b0]">
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[10px] text-[var(--hrk-text-tertiary)]">
                           {!isPoweredUp && b.hbd > 0 && (
                             <span className="tabular-nums">{fmt(b.hbd)} HBD</span>
                           )}
@@ -321,8 +321,8 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
                 </ul>
 
                 {/* Author's net take after beneficiary deductions */}
-                <div className="my-2 border-t border-[#3a424a]" />
-                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[#7c8694]">
+                <div className="my-2 border-t border-[var(--hrk-border-default)]" />
+                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
                   Author take (net)
                 </div>
                 {isPoweredUp ? (
@@ -357,8 +357,8 @@ interface PartyCardProps {
 
 const PartyCard: React.FC<PartyCardProps> = ({ label, isPoweredUp, hbd, hpHive, hbdFraction, fmt }) => {
   return (
-    <div className="rounded-lg border border-[#3a424a] bg-[#262b30] p-3">
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#e7e7f1]">{label}</div>
+    <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--hrk-text-secondary)]">{label}</div>
       {isPoweredUp ? (
         <Row
           label="Hive Power"
@@ -387,10 +387,10 @@ const PartyCard: React.FC<PartyCardProps> = ({ label, isPoweredUp, hbd, hpHive, 
 const Row: React.FC<{ label: string; value: string; subtle?: string; bold?: boolean }> = ({ label, value, subtle, bold }) => (
   <div className="flex items-start justify-between gap-2 py-0.5">
     <div className="min-w-0">
-      <div className="text-[#9ca3b0]">{label}</div>
-      {subtle && <div className="text-[10px] text-[#7c8694]">{subtle}</div>}
+      <div className="text-[var(--hrk-text-tertiary)]">{label}</div>
+      {subtle && <div className="text-[10px] text-[var(--hrk-text-tertiary)]">{subtle}</div>}
     </div>
-    <span className={`shrink-0 tabular-nums ${bold ? 'text-white font-semibold' : 'text-[#e7e7f1]'}`}>
+    <span className={`shrink-0 tabular-nums ${bold ? 'text-white font-semibold' : 'text-[var(--hrk-text-secondary)]'}`}>
       {value}
     </span>
   </div>

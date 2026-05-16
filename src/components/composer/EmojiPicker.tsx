@@ -193,11 +193,11 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ isOpen, onClose, onSelectEmoj
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <style>{`.emoji-no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
-      <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-md h-[460px] flex flex-col">
+      <div className="relative bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)] rounded-xl shadow-xl w-full max-w-md h-[460px] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-700">
+        <div className="flex items-center justify-between p-3 border-b border-[var(--hrk-border-subtle)]">
           <h3 className="text-sm font-semibold text-white">Emoji Picker</h3>
-          <button type="button" onClick={onClose} className="p-1 hover:bg-gray-800 rounded text-gray-400">
+          <button type="button" onClick={onClose} className="p-1 hover:bg-[var(--hrk-bg-surface)] rounded text-[var(--hrk-text-tertiary)]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -205,14 +205,14 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ isOpen, onClose, onSelectEmoj
         {/* Search */}
         <div className="px-3 pt-3">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />
             <input
               ref={searchRef}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search emoji…"
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full pl-8 pr-3 py-1.5 text-sm bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg text-white placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--hrk-info)]"
             />
           </div>
         </div>
@@ -230,8 +230,8 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ isOpen, onClose, onSelectEmoj
                 }}
                 className={`p-1.5 text-lg rounded-md transition-colors ${
                   activeCategory === cat
-                    ? 'bg-blue-600/20 ring-1 ring-blue-500'
-                    : 'hover:bg-gray-800'
+                    ? 'bg-[var(--hrk-brand)]/20 ring-1 ring-blue-500'
+                    : 'hover:bg-[var(--hrk-bg-surface)]'
                 }`}
                 title={cat}
               >
@@ -251,14 +251,14 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ isOpen, onClose, onSelectEmoj
                     key={`${emoji}-${i}`}
                     type="button"
                     onClick={() => onSelectEmoji(emoji)}
-                    className="p-1.5 hover:bg-gray-800 rounded text-xl transition-colors text-center"
+                    className="p-1.5 hover:bg-[var(--hrk-bg-surface)] rounded text-xl transition-colors text-center"
                   >
                     {emoji}
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-500 text-sm py-8">No emoji found</p>
+              <p className="text-center text-[var(--hrk-text-tertiary)] text-sm py-8">No emoji found</p>
             )
           ) : (
             <div className="grid grid-cols-8 gap-1">
@@ -267,7 +267,7 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ isOpen, onClose, onSelectEmoj
                   key={`${emoji}-${i}`}
                   type="button"
                   onClick={() => onSelectEmoji(emoji)}
-                  className="p-1.5 hover:bg-gray-800 rounded text-xl transition-colors text-center"
+                  className="p-1.5 hover:bg-[var(--hrk-bg-surface)] rounded text-xl transition-colors text-center"
                 >
                   {emoji}
                 </button>

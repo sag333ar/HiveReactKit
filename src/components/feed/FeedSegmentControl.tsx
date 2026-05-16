@@ -26,7 +26,7 @@ export function FeedSegmentControl({
 }: FeedSegmentControlProps) {
   return (
     <div
-      className={`inline-flex rounded-lg border border-[#3a424a] bg-[#262b30] p-0.5 ${className}`}
+      className={`inline-flex rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-0.5 ${className}`}
       role="tablist"
       aria-label="Feed"
     >
@@ -39,8 +39,8 @@ export function FeedSegmentControl({
           onClick={() => onChange(opt.id)}
           className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors md:gap-2 md:px-3 md:py-1.5 md:text-sm ${
             value === opt.id
-              ? 'bg-[#e31337] text-white'
-              : 'text-[#9ca3b0] hover:text-[#f0f0f8]'
+              ? 'bg-[var(--hrk-brand)] text-white'
+              : 'text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]'
           }`}
         >
           {opt.avatarUrl && (

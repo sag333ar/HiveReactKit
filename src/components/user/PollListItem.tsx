@@ -194,7 +194,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
 
   return (
     <div
-      className="border border-gray-700 rounded-lg bg-gray-800 hover:bg-gray-700/50 transition-colors cursor-pointer"
+      className="border border-[var(--hrk-border-subtle)] rounded-[14px] bg-[var(--hrk-bg-surface)] transition-[background-color,border-color] duration-150 ease-out hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] cursor-pointer"
       onClick={() => onPollClick?.(poll.author, poll.permlink, poll.question)}
     >
       <div className="p-4">
@@ -204,7 +204,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
             <img
               src={`https://images.hive.blog/u/${poll.author}/avatar`}
               alt={poll.author}
-              className="w-8 h-8 rounded-full bg-gray-700"
+              className="w-8 h-8 rounded-full bg-[var(--hrk-bg-surface-raised)]"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${poll.author}&background=random&size=32`;
               }}
@@ -216,10 +216,10 @@ const PollListItem: React.FC<PollListItemProps> = ({
               >
                 @{poll.author}
               </button>
-              <p className="text-[10px] text-gray-500">{formatTimeAgo(poll.created)}</p>
+              <p className="text-[10px] text-[var(--hrk-text-tertiary)]">{formatTimeAgo(poll.created)}</p>
             </div>
           </div>
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${!pollEnded ? "bg-green-500/20 text-green-400" : "bg-gray-600/30 text-gray-400"}`}>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${!pollEnded ? "bg-green-500/20 text-green-400" : "bg-[var(--hrk-bg-hover)]/30 text-[var(--hrk-text-tertiary)]"}`}>
             {!pollEnded ? t("status.active") : t("status.ended")}
           </span>
         </div>
@@ -231,13 +231,13 @@ const PollListItem: React.FC<PollListItemProps> = ({
 
         {/* Body preview */}
         {previewText && (
-          <p className="text-gray-400 text-xs line-clamp-2 mb-2">
+          <p className="text-[var(--hrk-text-tertiary)] text-xs line-clamp-2 mb-2">
             <TranslatedText text={previewText.substring(0, 150)} />
           </p>
         )}
 
         {/* Stats row */}
-        <div className="flex items-center gap-3 text-[11px] text-gray-500 mb-3">
+        <div className="flex items-center gap-3 text-[11px] text-[var(--hrk-text-tertiary)] mb-3">
           <span>{totalVoters} {totalVoters !== 1 ? t("poll.voters") : t("poll.voter")}</span>
           <span>{choices.length} {choices.length !== 1 ? t("poll.options") : t("poll.option")}</span>
           {poll.poll_stats?.total_hive_hp != null && poll.poll_stats.total_hive_hp > 0 && (
@@ -254,7 +254,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
 
         {/* Selection hint */}
         {showVoteUI && (
-          <p className="mb-2 text-[11px] text-gray-400">
+          <p className="mb-2 text-[11px] text-[var(--hrk-text-tertiary)]">
             {isChangingVote ? t("poll.changeYourVote") : ""}
             {isMulti
               ? t("poll.selectUpTo", { count: maxChoices })
@@ -280,8 +280,8 @@ const PollListItem: React.FC<PollListItemProps> = ({
             const isMaxed = isMulti && selectedChoices.length >= maxChoices && !isSelected;
             const isClickable = showVoteUI && !isMaxed;
 
-            let borderColor = "border-gray-700";
-            let iconEl = <Circle className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />;
+            let borderColor = "border-[var(--hrk-border-subtle)]";
+            let iconEl = <Circle className="w-3.5 h-3.5 text-[var(--hrk-text-tertiary)] flex-shrink-0" />;
             let fillColor = "bg-blue-600/20";
 
             if (isSelected) {
@@ -300,7 +300,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
             return (
               <div
                 key={choice.choice_num}
-                className={`relative rounded-lg overflow-hidden border ${borderColor} bg-gray-900/50 transition-colors ${isClickable ? "cursor-pointer hover:border-blue-500/40" : isMaxed ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`relative rounded-[10px] overflow-hidden border ${borderColor} bg-[var(--hrk-bg-surface-sunken)] transition-colors duration-150 ease-out ${isClickable ? "cursor-pointer hover:border-[var(--hrk-info)]" : isMaxed ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={(e) => handleChoiceClick(choice.choice_num, e)}
               >
                 {pct > 0 && (
@@ -320,15 +320,15 @@ const PollListItem: React.FC<PollListItemProps> = ({
                             ? "text-green-300 font-medium"
                             : isVoted && isChangingVote
                               ? "text-green-700"
-                              : "text-gray-200"
+                              : "text-[var(--hrk-text-primary)]"
                       }`}
                     >
                       <TranslatedText text={choice.choice_text} />
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-gray-400">
+                  <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-[var(--hrk-text-tertiary)]">
                     <span>{pct}%</span>
-                    <span className="text-gray-600">·</span>
+                    <span className="text-[var(--hrk-text-tertiary)]">·</span>
                     <span>{votes} vote{votes !== 1 ? "s" : ""}</span>
                   </div>
                 </div>
@@ -343,7 +343,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
             <button
               onClick={handleSubmit}
               disabled={selectedChoices.length === 0 || isSubmittingVote}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm rounded-lg transition-colors w-full justify-center font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--hrk-brand)] hover:bg-[var(--hrk-brand-hover)] disabled:bg-[var(--hrk-bg-surface-raised)] disabled:text-[var(--hrk-text-tertiary)] text-[var(--hrk-text-on-brand)] text-sm font-medium rounded-[10px] transition-colors w-full justify-center"
             >
               <Send className="w-3.5 h-3.5" />
               {isSubmittingVote
@@ -366,7 +366,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
       </div>
 
       {/* PostActionButton */}
-      <div className="px-4 pb-3 pt-1 border-t border-gray-700/50" onClick={(e) => e.stopPropagation()}>
+      <div className="px-4 pb-3 pt-1 border-t border-[var(--hrk-border-subtle)]/50" onClick={(e) => e.stopPropagation()}>
         <PostActionButton
           author={poll.author}
           permlink={poll.permlink}

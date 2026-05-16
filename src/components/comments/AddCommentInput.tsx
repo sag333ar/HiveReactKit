@@ -163,9 +163,9 @@ export interface PostComposerProps {
   submitRef?: React.MutableRefObject<{ submit: () => Promise<void>; getFinalBody: () => string; clear: () => void } | null>;
   /** Hide the avatar and username header (default false) */
   hideUserHeader?: boolean;
-  /** Custom background color for the composer container (e.g. "#262b30", "transparent") */
+  /** Custom background color for the composer container (e.g. "var(--hrk-bg-surface)", "transparent") */
   bgColor?: string;
-  /** Custom border color for the composer container (e.g. "#3a424a", "transparent") */
+  /** Custom border color for the composer container (e.g. "var(--hrk-border-default)", "transparent") */
   borderColor?: string;
   /** Disable auto-focus on mount (default false). Use when the composer is always visible and shouldn't steal scroll. */
   disableAutoFocus?: boolean;
@@ -735,16 +735,16 @@ const PostComposer = ({
             const blockIdx = codeBlockIdx++;
             return (
               <div key={i} className="relative group rounded-lg overflow-hidden">
-                <pre className="bg-gray-950 text-green-400 p-3 rounded-lg text-xs overflow-x-auto font-mono">
+                <pre className="bg-gray-950 text-[var(--hrk-success)] p-3 rounded-lg text-xs overflow-x-auto font-mono">
                   <code>{code.trim() || ' '}</code>
                 </pre>
                 <button
                   type="button"
                   onClick={() => handleCopyCode(code.trim(), blockIdx)}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors opacity-0 group-hover:opacity-100"
                   title="Copy code"
                 >
-                  {copiedBlock === blockIdx ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedBlock === blockIdx ? <Check className="h-3.5 w-3.5 text-[var(--hrk-success)]" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
             );
@@ -758,7 +758,7 @@ const PostComposer = ({
                   return (
                     <code
                       key={j}
-                      className="bg-gray-800 text-amber-400 px-1.5 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-700 transition-colors"
+                      className="bg-[var(--hrk-bg-surface)] text-[var(--hrk-warning)] px-1.5 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-[var(--hrk-bg-surface-raised)] transition-colors"
                       title="Click to copy"
                       onClick={() => navigator.clipboard.writeText(code)}
                     >
@@ -766,7 +766,7 @@ const PostComposer = ({
                     </code>
                   );
                 }
-                return ip.trim() ? <span key={j} className="text-gray-300 text-sm">{ip}</span> : null;
+                return ip.trim() ? <span key={j} className="text-[var(--hrk-text-secondary)] text-sm">{ip}</span> : null;
               })}
             </span>
           );
@@ -775,14 +775,14 @@ const PostComposer = ({
     );
   }, [body, copiedBlock, handleCopyCode]);
 
-  const toolbarBtnClass = "p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50";
+  const toolbarBtnClass = "p-2 rounded-lg hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50";
 
   return (
     <div
-      className={`p-4 md:p-6 space-y-3 rounded-xl border transition-colors ${isDragging ? 'border-blue-500 bg-blue-900/10' : ''}`}
+      className={`p-4 md:p-6 space-y-3 rounded-[14px] border transition-colors ${isDragging ? 'border-[var(--hrk-info)] bg-[var(--hrk-info-soft)]' : ''}`}
       style={{
-        backgroundColor: isDragging ? undefined : (bgColor || '#111827'),
-        borderColor: isDragging ? undefined : (borderColor || '#374151'),
+        backgroundColor: isDragging ? undefined : (bgColor || 'var(--hrk-bg-surface-sunken)'),
+        borderColor: isDragging ? undefined : (borderColor || 'var(--hrk-border-subtle)'),
       }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -800,29 +800,29 @@ const PostComposer = ({
               <img
                 src={`https://images.hive.blog/u/${currentUser}/avatar`}
                 alt={currentUser}
-                className="w-10 h-10 rounded-full object-cover border-2 border-gray-600"
+                className="w-10 h-10 rounded-full object-cover border-2 border-[var(--hrk-border-default)]"
                 onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`; }}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                <User className="w-6 h-6 text-gray-400" />
+              <div className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] flex items-center justify-center">
+                <User className="w-6 h-6 text-[var(--hrk-text-tertiary)]" />
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0 text-left">
             <div className="text-sm text-white font-medium">{currentUser ? `@${currentUser}` : 'Anonymous'}</div>
-            {parentAuthor && <div className="text-xs text-gray-400">Replying to @{parentAuthor}</div>}
+            {parentAuthor && <div className="text-xs text-[var(--hrk-text-tertiary)]">Replying to @{parentAuthor}</div>}
           </div>
         </div>
       )}
 
       {/* Hive Content Renderer Preview — above everything */}
       {showPreview && body.trim() && (
-        <div className="rounded-lg border border-gray-700 bg-gray-800/50 overflow-hidden max-h-[300px] flex flex-col">
-          <div className="px-3 py-2 text-xs uppercase tracking-wide text-gray-400 bg-gray-800 border-b border-gray-700 flex items-center justify-between shrink-0">
+        <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/50 overflow-hidden max-h-[300px] flex flex-col">
+          <div className="px-3 py-2 text-xs uppercase tracking-wide text-[var(--hrk-text-tertiary)] bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] flex items-center justify-between shrink-0">
             <span>Preview</span>
             {(body.includes('```') || /`[^`]+`/.test(body)) && (
-              <span className="text-[10px] text-gray-500 normal-case">Hover code blocks to copy</span>
+              <span className="text-[10px] text-[var(--hrk-text-tertiary)] normal-case">Hover code blocks to copy</span>
             )}
           </div>
           <div className="p-3 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
@@ -840,7 +840,7 @@ const PostComposer = ({
 
       {/* Audio attachment preview */}
       {audioEmbedUrl && (
-        <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+        <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
           <div className="relative" style={{ height: '60px', overflow: 'hidden' }}>
             <iframe
               src={audioEmbedUrl}
@@ -851,11 +851,11 @@ const PostComposer = ({
               loading="lazy"
             />
           </div>
-          <div className="flex items-center gap-2 border-t border-gray-700 px-3 py-1.5">
-            <span className="flex-1 truncate text-xs text-gray-400">
+          <div className="flex items-center gap-2 border-t border-[var(--hrk-border-subtle)] px-3 py-1.5">
+            <span className="flex-1 truncate text-xs text-[var(--hrk-text-tertiary)]">
               Audio attached{audioDuration > 0 ? ` (${Math.floor(audioDuration / 60)}:${String(audioDuration % 60).padStart(2, '0')})` : ''}
             </span>
-            <button type="button" onClick={removeAudio} className="shrink-0 rounded p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-colors" title="Remove audio">
+            <button type="button" onClick={removeAudio} className="shrink-0 rounded p-1.5 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-danger)] hover:bg-[var(--hrk-bg-surface-raised)] transition-colors" title="Remove audio">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -864,15 +864,15 @@ const PostComposer = ({
 
       {/* Video attachment preview */}
       {videoEmbedUrl && (
-        <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+        <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
           {videoPreviewUrl ? (
             <video src={videoPreviewUrl} controls playsInline preload="metadata" className="w-full" style={{ maxHeight: '200px' }} />
           ) : (
-            <div className="h-20 flex items-center justify-center text-gray-400 text-xs">Video attached</div>
+            <div className="h-20 flex items-center justify-center text-[var(--hrk-text-tertiary)] text-xs">Video attached</div>
           )}
-          <div className="flex items-center gap-2 border-t border-gray-700 px-3 py-1.5">
-            <span className="flex-1 truncate text-xs text-gray-400">Video attached</span>
-            <button type="button" onClick={removeVideo} className="shrink-0 rounded p-0.5 text-gray-400 hover:text-red-400" title="Remove video">
+          <div className="flex items-center gap-2 border-t border-[var(--hrk-border-subtle)] px-3 py-1.5">
+            <span className="flex-1 truncate text-xs text-[var(--hrk-text-tertiary)]">Video attached</span>
+            <button type="button" onClick={removeVideo} className="shrink-0 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-danger)]" title="Remove video">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -881,18 +881,18 @@ const PostComposer = ({
 
       {/* Poll preview */}
       {pollData && (
-        <div className="rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+        <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] overflow-hidden">
           <div className="px-3 py-2">
             <div className="flex items-center gap-2 mb-1.5">
-              <BarChart3 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+              <BarChart3 className="h-3.5 w-3.5 shrink-0 text-[var(--hrk-info)]" />
               <span className="flex-1 truncate text-xs font-medium text-white">{pollData.question}</span>
-              <button type="button" onClick={() => setIsPollOpen(true)} className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-white" title="Edit poll">
+              <button type="button" onClick={() => setIsPollOpen(true)} className="shrink-0 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)]" title="Edit poll">
                 <Code className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => { setPollData(null); onPollChange?.(null); }}
-                className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-700 hover:text-red-400"
+                className="shrink-0 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-danger)]"
                 title="Remove poll"
               >
                 <X className="h-3.5 w-3.5" />
@@ -900,10 +900,10 @@ const PostComposer = ({
             </div>
             <div className="flex flex-wrap gap-1">
               {pollData.choices.map((c, i) => (
-                <span key={i} className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">{c}</span>
+                <span key={i} className="rounded-full bg-[var(--hrk-bg-surface-raised)] px-2 py-0.5 text-xs text-[var(--hrk-text-secondary)]">{c}</span>
               ))}
             </div>
-            <div className="mt-1.5 text-[10px] text-gray-500">
+            <div className="mt-1.5 text-[10px] text-[var(--hrk-text-tertiary)]">
               Ends {new Date(pollData.end_time * 1000).toLocaleDateString()} &middot; Max {pollData.max_choices_voted} choice{pollData.max_choices_voted > 1 ? 's' : ''}
             </div>
           </div>
@@ -911,13 +911,13 @@ const PostComposer = ({
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-700 pb-2">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-[var(--hrk-border-subtle)] pb-2">
         {/* Preview toggle */}
         {!hidePreview && (
           <button
             type="button"
             onClick={() => setShowPreview(v => !v)}
-            className={`${toolbarBtnClass} ${showPreview ? 'bg-gray-700 text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${showPreview ? 'bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-info)]' : ''}`}
             title={showPreview ? 'Hide preview' : 'Show preview'}
             disabled={isDisabled}
           >
@@ -925,7 +925,7 @@ const PostComposer = ({
           </button>
         )}
 
-        <div className="w-px h-5 bg-gray-700 mx-1" />
+        <div className="w-px h-5 bg-[var(--hrk-bg-surface-raised)] mx-1" />
 
         {!hideBold && (
           <button type="button" onClick={() => insertAtCursor('**', '**')} className={toolbarBtnClass} title="Bold" disabled={isDisabled}>
@@ -953,7 +953,7 @@ const PostComposer = ({
           </button>
         )}
 
-        <div className="w-px h-5 bg-gray-700 mx-1" />
+        <div className="w-px h-5 bg-[var(--hrk-bg-surface-raised)] mx-1" />
 
         {!hideImage && canUploadImages && (
           <ImageUploader
@@ -1007,7 +1007,7 @@ const PostComposer = ({
           <button
             type="button"
             onClick={() => setIsPollOpen(true)}
-            className={`${toolbarBtnClass} ${pollData ? 'text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${pollData ? 'text-[var(--hrk-info)]' : ''}`}
             title={pollData ? 'Edit poll' : 'Create poll'}
             disabled={isDisabled}
           >
@@ -1019,7 +1019,7 @@ const PostComposer = ({
           <button
             type="button"
             onClick={toggleTagsOpen}
-            className={`${toolbarBtnClass} ${isTagsOpen ? 'bg-gray-700 text-blue-400' : userTags.length > 0 ? 'text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${isTagsOpen ? 'bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-info)]' : userTags.length > 0 ? 'text-[var(--hrk-info)]' : ''}`}
             title={isTagsOpen ? 'Hide tag editor' : `Tags (${mergedTags.length}/${maxTags})`}
             disabled={isDisabled}
           >
@@ -1032,7 +1032,7 @@ const PostComposer = ({
             ref={rewardBtnRef}
             type="button"
             onClick={toggleRewardOpen}
-            className={`${toolbarBtnClass} ${currentReward !== 'default' ? 'text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${currentReward !== 'default' ? 'text-[var(--hrk-info)]' : ''}`}
             title={`Rewards: ${REWARD_OPTION_LABELS[currentReward]}`}
             disabled={isDisabled}
           >
@@ -1044,7 +1044,7 @@ const PostComposer = ({
           <button
             type="button"
             onClick={() => setIsBeneficiariesOpen(true)}
-            className={`${toolbarBtnClass} ${currentBeneficiaries.length > 0 ? 'text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${currentBeneficiaries.length > 0 ? 'text-[var(--hrk-info)]' : ''}`}
             title={
               currentBeneficiaries.length > 0
                 ? `Beneficiaries (${currentBeneficiaries.length})`
@@ -1060,7 +1060,7 @@ const PostComposer = ({
           <button
             type="button"
             onClick={() => setVoteEnabled(v => !v)}
-            className={`${toolbarBtnClass} ${voteEnabled ? 'text-blue-400' : ''}`}
+            className={`${toolbarBtnClass} ${voteEnabled ? 'text-[var(--hrk-info)]' : ''}`}
             title={voteEnabled ? `Upvote on publish: ${formatPercent(votePercent)}%` : 'Upvote parent on publish'}
             disabled={isDisabled}
           >
@@ -1071,10 +1071,10 @@ const PostComposer = ({
 
       {/* Inline upvote slider — visible only when the toggle is on. */}
       {showVoteButton && voteEnabled && (
-        <div className="rounded-lg border border-gray-700 bg-gray-800/60 px-3 pt-4 pb-2">
+        <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/60 px-3 pt-4 pb-2">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-gray-300">{voteLabel}</span>
-            <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+            <span className="text-xs text-[var(--hrk-text-secondary)]">{voteLabel}</span>
+            <span className="rounded-md bg-[var(--hrk-brand)] px-2 py-0.5 text-[11px] font-semibold text-white">
               {formatPercent(votePercent)}%
             </span>
           </div>
@@ -1086,17 +1086,17 @@ const PostComposer = ({
             value={votePercent}
             onChange={(e) => setVotePercent(clampPercent(Number(e.target.value)))}
             disabled={isDisabled}
-            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:h-2 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white disabled:opacity-50"
-            style={{ background: `linear-gradient(to right, #2563eb ${votePercent}%, #374151 ${votePercent}%)` }}
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:h-2 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--hrk-brand)] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--hrk-brand)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white disabled:opacity-50"
+            style={{ background: `linear-gradient(to right, var(--hrk-info) ${votePercent}%, var(--hrk-border-default) ${votePercent}%)` }}
           />
-          <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+          <div className="mt-1 flex justify-between text-[10px] text-[var(--hrk-text-tertiary)]">
             {[1, 25, 50, 75, 100].map((stop) => (
               <button
                 key={stop}
                 type="button"
                 onClick={() => setVotePercent(stop)}
                 disabled={isDisabled}
-                className={`rounded px-1 transition hover:text-blue-300 disabled:opacity-50 ${votePercent === stop ? 'font-bold text-blue-400' : ''}`}
+                className={`rounded px-1 transition hover:text-[var(--hrk-info)] disabled:opacity-50 ${votePercent === stop ? 'font-bold text-[var(--hrk-info)]' : ''}`}
               >
                 {stop}
               </button>
@@ -1115,23 +1115,23 @@ const PostComposer = ({
               broadcast, not whenever the composer is open. */}
       {(isAwaitingApproval || (awaitingWalletApproval && isSubmitting)) && (
         <div className="px-1 py-0.5">
-          <span className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</span>
+          <span className="text-sm text-[var(--hrk-warning)] animate-pulse">{walletApprovalLabel}</span>
         </div>
       )}
 
       {/* Textarea with drag-drop overlay */}
       <div className="relative">
         {isDragging && (
-          <div className="absolute inset-0 z-10 bg-blue-900/30 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center">
-            <span className="text-blue-300 font-medium text-sm">Drop image to upload</span>
+          <div className="absolute inset-0 z-10 bg-[var(--hrk-info-soft)] border-2 border-dashed border-[var(--hrk-info)] rounded-lg flex items-center justify-center">
+            <span className="text-[var(--hrk-info)] font-medium text-sm">Drop image to upload</span>
           </div>
         )}
         {uploadingPaste && (
-          <div className="absolute inset-0 z-10 bg-gray-900/80 rounded-lg flex flex-col items-center justify-center gap-3 p-4 text-center">
+          <div className="absolute inset-0 z-10 bg-[var(--hrk-bg-app)]/80 rounded-lg flex flex-col items-center justify-center gap-3 p-4 text-center">
             {isAwaitingApproval ? (
-              <span className="text-sm text-amber-400 animate-pulse">{walletApprovalLabel}</span>
+              <span className="text-sm text-[var(--hrk-warning)] animate-pulse">{walletApprovalLabel}</span>
             ) : (
-              <div className="flex items-center gap-2 text-blue-400 text-sm">
+              <div className="flex items-center gap-2 text-[var(--hrk-info)] text-sm">
                 <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 Uploading image...
               </div>
@@ -1139,7 +1139,7 @@ const PostComposer = ({
             <button
               type="button"
               onClick={cancelPasteUpload}
-              className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs"
+              className="px-3 py-1 rounded border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface)] text-xs"
             >
               Cancel
             </button>
@@ -1154,7 +1154,7 @@ const PostComposer = ({
           placeholder={canUploadImages ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
           disabled={isDisabled}
           rows={4}
-          className="w-full min-h-[100px] max-h-[300px] p-3 border border-gray-700 rounded-lg resize-y focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-800 text-white placeholder-gray-500 transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
+          className="w-full min-h-[100px] max-h-[300px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-y focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
           onInput={(e) => {
             const target = e.target as HTMLTextAreaElement;
             target.style.height = 'auto';
@@ -1170,23 +1170,23 @@ const PostComposer = ({
                 {lockedTags.map((t) => (
                   <span
                     key={`strip-locked-${t}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-700/70 px-2 py-0.5 text-[11px] text-gray-200"
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--hrk-bg-surface-raised)]/70 px-2 py-0.5 text-[11px] text-[var(--hrk-text-primary)]"
                     title="Default tag — cannot be removed"
                   >
-                    <Lock className="h-2.5 w-2.5 text-gray-400" />
+                    <Lock className="h-2.5 w-2.5 text-[var(--hrk-text-tertiary)]" />
                     {t}
                   </span>
                 ))}
                 {userTags.map((t) => (
                   <span
                     key={`strip-user-${t}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-blue-600/20 px-2 py-0.5 text-[11px] text-blue-200"
+                    className="inline-flex items-center gap-1 rounded-full bg-[var(--hrk-brand)]/20 px-2 py-0.5 text-[11px] text-blue-200"
                   >
                     {t}
                     <button
                       type="button"
                       onClick={() => removeUserTag(t)}
-                      className="rounded-full p-0.5 text-blue-200 hover:bg-blue-600/40 hover:text-white disabled:opacity-50"
+                      className="rounded-full p-0.5 text-blue-200 hover:bg-[var(--hrk-brand)]/40 hover:text-[var(--hrk-text-primary)] disabled:opacity-50"
                       title={`Remove ${t}`}
                       disabled={isDisabled}
                     >
@@ -1194,7 +1194,7 @@ const PostComposer = ({
                     </button>
                   </span>
                 ))}
-                <span className="ml-auto text-[10px] text-gray-500">{mergedTags.length}/{maxTags}</span>
+                <span className="ml-auto text-[10px] text-[var(--hrk-text-tertiary)]">{mergedTags.length}/{maxTags}</span>
               </div>
             )}
             {isTagsOpen && (
@@ -1215,13 +1215,13 @@ const PostComposer = ({
                   placeholder={remainingTagSlots > 0 ? 'Add a tag (Enter to save)' : 'Max tags reached'}
                   disabled={remainingTagSlots === 0 || isDisabled}
                   autoFocus
-                  className="flex-1 rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 placeholder-gray-500 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-2 py-1 text-xs text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] outline-none focus:border-[var(--hrk-info)] disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <button
                   type="button"
                   onClick={() => { addUserTag(tagDraft); setTagDraft(''); }}
                   disabled={remainingTagSlots === 0 || !tagDraft.trim() || isDisabled}
-                  className="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-2 py-1 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Add
                 </button>
@@ -1234,7 +1234,7 @@ const PostComposer = ({
             the editor; the locked threespeakfund chip carries a lock icon. */}
         {!hideBeneficiaries && currentBeneficiaries.length > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1 px-0.5">
-            <span className="text-[10px] uppercase tracking-wide text-gray-500 mr-1">Beneficiaries</span>
+            <span className="text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)] mr-1">Beneficiaries</span>
             {currentBeneficiaries.map((b) => {
               const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
               return (
@@ -1244,8 +1244,8 @@ const PostComposer = ({
                   onClick={() => setIsBeneficiariesOpen(true)}
                   className={`inline-flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-[11px] ${
                     locked
-                      ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30'
-                      : 'bg-blue-600/20 text-blue-200 border border-blue-500/30'
+                      ? 'bg-[var(--hrk-warning-soft)] text-[var(--hrk-warning)] border border-[var(--hrk-warning)]/40'
+                      : 'bg-[var(--hrk-brand)]/20 text-blue-200 border border-[var(--hrk-info)]/30'
                   }`}
                   title={locked ? '10% to threespeakfund (locked for video posts)' : `Edit beneficiaries`}
                   disabled={isDisabled}
@@ -1255,7 +1255,7 @@ const PostComposer = ({
                     alt={`@${b.account}`}
                     width={16}
                     height={16}
-                    className="rounded-full bg-gray-700 border border-gray-600 object-cover shrink-0"
+                    className="rounded-full bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-default)] object-cover shrink-0"
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;
                       if (!img.dataset.fallback) {
@@ -1272,7 +1272,7 @@ const PostComposer = ({
             <button
               type="button"
               onClick={() => setIsBeneficiariesOpen(true)}
-              className="ml-1 rounded-full border border-dashed border-gray-600 px-2 py-0.5 text-[11px] text-gray-400 hover:border-blue-400 hover:text-blue-300"
+              className="ml-1 rounded-full border border-dashed border-[var(--hrk-border-default)] px-2 py-0.5 text-[11px] text-[var(--hrk-text-tertiary)] hover:border-blue-400 hover:text-[var(--hrk-info)]"
               disabled={isDisabled}
               title="Edit beneficiaries"
             >
@@ -1285,20 +1285,20 @@ const PostComposer = ({
       {/* Actions */}
       {!hideSubmitArea && (
         <div className="flex items-center justify-between pt-1">
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-[var(--hrk-text-tertiary)]">
             {navigator.platform?.includes('Mac') ? 'Cmd' : 'Ctrl'}+Enter to post
             {canUploadImages && <span className="ml-2">| Paste/drop images</span>}
           </div>
           <div className="flex items-center space-x-3">
             {showCancel && onCancel && (
-              <button onClick={onCancel} disabled={isDisabled} className="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50">
+              <button onClick={onCancel} disabled={isDisabled} className="px-4 py-2 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)] transition-colors disabled:opacity-50">
                 Cancel
               </button>
             )}
             <button
               onClick={handleSubmit}
               disabled={isDisabled || !body.trim()}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white rounded-lg font-medium transition-all disabled:opacity-50 flex items-center space-x-2"
+              className="px-6 py-2 bg-[var(--hrk-brand)] hover:bg-[var(--hrk-brand-hover)] disabled:bg-[var(--hrk-bg-surface-raised)] text-white rounded-lg font-medium transition-all disabled:opacity-50 flex items-center space-x-2"
             >
               {isSubmitting ? (
                 <>
@@ -1355,17 +1355,17 @@ const PostComposer = ({
         <div
           ref={rewardPopoverRef}
           style={{ position: 'fixed', top: rewardAnchor.top, left: rewardAnchor.left, width: rewardAnchor.width }}
-          className="z-[9999] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
+          className="z-[9999] rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] py-1 shadow-xl"
         >
           {REWARD_OPTIONS.map((opt) => (
             <button
               key={opt}
               type="button"
               onClick={() => selectReward(opt)}
-              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)]"
             >
               <span>{REWARD_OPTION_LABELS[opt]}</span>
-              {currentReward === opt && <Check className="h-4 w-4 text-blue-400" />}
+              {currentReward === opt && <Check className="h-4 w-4 text-[var(--hrk-info)]" />}
             </button>
           ))}
         </div>,

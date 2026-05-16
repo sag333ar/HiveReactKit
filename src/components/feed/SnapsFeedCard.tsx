@@ -319,7 +319,7 @@ const InlineBody: FC<{
           key={i}
           type="button"
           onClick={(e) => { e.stopPropagation(); onUserClick?.(seg.username); }}
-          className="text-[#e31337] hover:underline"
+          className="text-[var(--hrk-brand)] hover:underline"
         >
           @{seg.username}
         </button>,
@@ -330,7 +330,7 @@ const InlineBody: FC<{
           key={i}
           type="button"
           onClick={(e) => { e.stopPropagation(); onTagClick?.(seg.tag); }}
-          className="text-[#e31337] hover:underline"
+          className="text-[var(--hrk-brand)] hover:underline"
         >
           #{seg.tag}
         </button>,
@@ -343,7 +343,7 @@ const InlineBody: FC<{
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="break-all text-[#e31337] underline hover:text-[#c51231]"
+          className="break-all text-[var(--hrk-brand)] underline hover:text-[var(--hrk-brand-active)]"
         >
           {seg.url}
         </a>,
@@ -354,7 +354,7 @@ const InlineBody: FC<{
   // single card never grows tall enough to dominate the column. Tapping
   // the card still navigates to the full post via `onPostClick`.
   return (
-    <p className="line-clamp-6 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#e7e7f1]">
+    <p className="line-clamp-6 whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--hrk-text-secondary)]">
       {out}
     </p>
   );
@@ -447,13 +447,13 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
 
       {/* Content card — fullscreen on mobile, fitted on sm+ */}
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#1a1e22] shadow-2xl sm:flex-initial sm:overflow-visible sm:rounded-2xl sm:border sm:border-[#3a424a] ${
+        className={`flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--hrk-bg-surface-sunken)] shadow-2xl sm:flex-initial sm:overflow-visible sm:rounded-2xl sm:border sm:border-[var(--hrk-border-default)] ${
           isCompact ? 'sm:max-w-md' : 'sm:max-w-3xl'
         } sm:w-full`}
         onClick={stop}
       >
         {/* Desktop close header */}
-        <div className="hidden shrink-0 items-center justify-between border-b border-[#3a424a]/60 px-4 py-2.5 sm:flex">
+        <div className="hidden shrink-0 items-center justify-between border-b border-[var(--hrk-border-default)]/60 px-4 py-2.5 sm:flex">
           <span className="text-sm font-medium text-white/70">{attachmentLabel(attachment)}</span>
           <button
             type="button"
@@ -508,7 +508,7 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
                 href={attachment.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-[#e31337] underline"
+                className="text-sm text-[var(--hrk-brand)] underline"
               >
                 Open on 3Speak
               </a>
@@ -516,9 +516,9 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
           })()}
 
           {attachment.kind === 'audio' && (
-            <div className="w-full overflow-hidden rounded-xl border border-[#3a424a] bg-[#1a1d21] p-3">
-              <div className="mb-2 flex items-center gap-2 text-sm text-[#9ca3b0]">
-                <Music className="h-4 w-4 shrink-0 text-[#e31337]" />
+            <div className="w-full overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[#1a1d21] p-3">
+              <div className="mb-2 flex items-center gap-2 text-sm text-[var(--hrk-text-tertiary)]">
+                <Music className="h-4 w-4 shrink-0 text-[var(--hrk-brand)]" />
                 <span className="truncate">
                   {decodeURIComponent(attachment.url.split('/').pop()?.split('?')[0] ?? 'Audio')}
                 </span>
@@ -562,7 +562,7 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
           <button
             type="button"
             onClick={(e) => e.stopPropagation()}
-            className="flex h-full w-full items-center justify-center bg-[#212529] text-[#9ca3b0]"
+            className="flex h-full w-full items-center justify-center bg-[var(--hrk-bg-app)] text-[var(--hrk-text-tertiary)]"
           >
             <ImageOff className="h-6 w-6" />
           </button>
@@ -572,7 +572,7 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
         <button
           type="button"
           onClick={(e) => open(e, current)}
-          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-[#1a1e22]"
+          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-sunken)]"
           aria-label="Open image preview"
         >
           {/* Scale-to-fit image (matches hSnaps' ImageThumbnail). The
@@ -616,13 +616,13 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
         <button
           type="button"
           onClick={(e) => open(e, current)}
-          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#1a1d22] text-sm text-[#e7e7f1]"
+          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-sm text-[var(--hrk-text-secondary)]"
           aria-label="Play 3Speak video"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e31337]/15 text-[#e31337]">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
             <Play className="h-6 w-6" />
           </span>
-          <span className="text-xs text-[#9ca3b0]">3Speak · Tap to play</span>
+          <span className="text-xs text-[var(--hrk-text-tertiary)]">3Speak · Tap to play</span>
         </button>
       );
     }
@@ -631,20 +631,20 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
       <button
         type="button"
         onClick={(e) => open(e, current)}
-        className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#1a1d22] text-sm text-[#e7e7f1]"
+        className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-sm text-[var(--hrk-text-secondary)]"
         aria-label="Play audio"
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e31337]/15 text-[#e31337]">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
           <Music className="h-6 w-6" />
         </span>
-        <span className="text-xs text-[#9ca3b0]">Audio · Tap to play</span>
+        <span className="text-xs text-[var(--hrk-text-tertiary)]">Audio · Tap to play</span>
       </button>
     );
   };
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-lg border border-[#3a424a] bg-[#212529]">
+      <div className="relative overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-app)]">
         {/* Fixed strip height matching hSnaps' STRIP_HEIGHT=280px so
             scale-to-fit images get a stable container instead of an
             aspect-ratio box that varied with card width. */}
@@ -882,7 +882,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   };
 
   return (
-    <article className="overflow-hidden rounded-xl border border-[#3a424a] bg-[#262b30]">
+    <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
       {/* Header */}
       <header className="flex items-center gap-3 px-4 pt-4 pb-2">
         <button
@@ -893,7 +893,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           <img
             src={`https://images.hive.blog/u/${post.author}/avatar`}
             alt={post.author}
-            className="h-9 w-9 rounded-full bg-[#2f353d] object-cover"
+            className="h-9 w-9 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=36`;
             }}
@@ -903,12 +903,12 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
-            className="truncate text-sm font-semibold text-[#f0f0f8] hover:text-[#e31337]"
+            className="truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
           >
             @{post.author}
           </button>
-          <span className="shrink-0 text-xs text-[#9ca3b0]">·</span>
-          <span className="shrink-0 text-xs text-[#9ca3b0]">{formatTimeAgo(post.created)}</span>
+          <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
+          <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">{formatTimeAgo(post.created)}</span>
           {/* Unified "hivesuite" pill — fires for any post whose
               json_metadata.tags include `hsnaps`, `hreplier`, or
               `hivesuite` (the historic + canonical family tags).
@@ -916,14 +916,14 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
               strip stays uncluttered, and so posts created from
               older sibling apps still get attributed correctly. */}
           {isHivesuitePost && (
-            <span className="shrink-0 rounded-full bg-[#e31337]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#e31337]">
+            <span className="shrink-0 rounded-full bg-[var(--hrk-brand)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--hrk-brand)]">
               hivesuite
             </span>
           )}
           {post.community_title && (
             <>
-              <span className="shrink-0 text-xs text-[#9ca3b0]">·</span>
-              <span className="shrink-0 truncate text-xs font-medium text-[#e31337]">
+              <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
+              <span className="shrink-0 truncate text-xs font-medium text-[var(--hrk-brand)]">
                 #{post.community_title}
               </span>
             </>
@@ -1042,7 +1042,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       })()}
 
       {/* Action bar */}
-      <div className="border-t border-[#3a424a]/60 px-2 py-1.5">
+      <div className="border-t border-[var(--hrk-border-default)]/60 px-2 py-1.5">
         <PostActionButton
           author={post.author}
           permlink={post.permlink}

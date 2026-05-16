@@ -169,8 +169,8 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
   }
 
   const inputClass =
-    'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none'
-  const labelClass = 'block text-xs font-medium text-gray-400 mb-1'
+    'w-full rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-2 text-sm text-white placeholder-[var(--hrk-text-tertiary)] focus:border-[var(--hrk-info)] focus:outline-none'
+  const labelClass = 'block text-xs font-medium text-[var(--hrk-text-tertiary)] mb-1'
 
   // Plain function call — keep it out of `useMemo` so the hook count stays
   // identical regardless of `isOpen` (the modal returns early when closed,
@@ -180,11 +180,11 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
-      <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col">
+      <div className="relative bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)] rounded-xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--hrk-border-subtle)]">
           <h3 className="text-sm font-semibold text-white">Create Poll</h3>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded text-gray-400">
+          <button type="button" onClick={onClose} className="p-1.5 hover:bg-[var(--hrk-bg-surface)] rounded text-[var(--hrk-text-tertiary)]">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -199,7 +199,7 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
           <div>
             <label className={labelClass}>
               Short preview description{' '}
-              <span className="text-gray-500">({description.length}/{MAX_DESCRIPTION})</span>
+              <span className="text-[var(--hrk-text-tertiary)]">({description.length}/{MAX_DESCRIPTION})</span>
             </label>
             <input
               type="text"
@@ -218,7 +218,7 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
                 <div key={idx} className="flex items-center gap-2">
                   <input type="text" value={choice} onChange={(e) => updateChoice(idx, e.target.value)} placeholder={`Option ${idx + 1}`} className={inputClass} maxLength={128} />
                   {choices.length > MIN_CHOICES && (
-                    <button type="button" onClick={() => removeChoice(idx)} className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-gray-800 hover:text-red-400" title="Remove option">
+                    <button type="button" onClick={() => removeChoice(idx)} className="shrink-0 rounded p-1.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface)] hover:text-red-400" title="Remove option">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -242,7 +242,7 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
             <label className={labelClass}>
               <span className="inline-flex items-center gap-1">
                 Vote interpretation
-                <Info className="h-3 w-3 text-gray-500" />
+                <Info className="h-3 w-3 text-[var(--hrk-text-tertiary)]" />
               </span>
             </label>
             <button
@@ -252,11 +252,11 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
             >
               <span className="truncate">{interpretationLabel}</span>
               {isInterpOpen
-                ? <ChevronUp className="h-4 w-4 text-gray-400" />
-                : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                ? <ChevronUp className="h-4 w-4 text-[var(--hrk-text-tertiary)]" />
+                : <ChevronDown className="h-4 w-4 text-[var(--hrk-text-tertiary)]" />}
             </button>
             {isInterpOpen && (
-              <div className="absolute z-10 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-gray-700 bg-gray-900 shadow-xl">
+              <div className="absolute z-10 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] shadow-xl">
                 {POLL_VOTE_INTERPRETATIONS.map((opt) => (
                   <button
                     key={opt.key}
@@ -266,8 +266,8 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
                       setIsInterpOpen(false)
                       setShowHeInterpOptions(false)
                     }}
-                    className={`block w-full text-left px-3 py-2 text-sm hover:bg-gray-800 ${
-                      interpretation === opt.key ? 'text-blue-400' : 'text-gray-200'
+                    className={`block w-full text-left px-3 py-2 text-sm hover:bg-[var(--hrk-bg-surface)] ${
+                      interpretation === opt.key ? 'text-blue-400' : 'text-[var(--hrk-text-primary)]'
                     }`}
                   >
                     {opt.label}
@@ -276,15 +276,15 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
                 <button
                   type="button"
                   onClick={() => setShowHeInterpOptions((v) => !v)}
-                  className="flex w-full items-center justify-between border-t border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+                  className="flex w-full items-center justify-between border-t border-[var(--hrk-border-subtle)] px-3 py-2 text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)]"
                 >
                   <span>Token: Hive-Engine</span>
                   {showHeInterpOptions
-                    ? <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
-                    : <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
+                    ? <ChevronUp className="h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />}
                 </button>
                 {showHeInterpOptions && (
-                  <div className="border-t border-gray-700 bg-gray-950">
+                  <div className="border-t border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)]">
                     {POLL_HE_VOTE_INTERPRETATIONS.map((opt) => (
                       <button
                         key={opt.key}
@@ -294,8 +294,8 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
                           setIsInterpOpen(false)
                           setShowHeInterpOptions(false)
                         }}
-                        className={`block w-full text-left px-5 py-1.5 text-xs hover:bg-gray-800 ${
-                          interpretation === opt.key ? 'text-blue-400' : 'text-gray-300'
+                        className={`block w-full text-left px-5 py-1.5 text-xs hover:bg-[var(--hrk-bg-surface)] ${
+                          interpretation === opt.key ? 'text-blue-400' : 'text-[var(--hrk-text-secondary)]'
                         }`}
                       >
                         {opt.label}
@@ -311,14 +311,14 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 hover:text-gray-200"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]"
           >
             {showAdvanced ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
             Advanced settings
           </button>
 
           {showAdvanced && (
-            <div className="space-y-4 border-t border-gray-800 pt-4">
+            <div className="space-y-4 border-t border-[var(--hrk-border-subtle)] pt-4">
               <div>
                 <label className={labelClass}>Max choices a voter can select ({maxChoicesVoted})</label>
                 <input
@@ -333,7 +333,7 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={allowVoteChanges} onChange={(e) => setAllowVoteChanges(e.target.checked)} className="accent-blue-500" />
-                <span className="text-xs text-gray-400">Allow voters to change their vote</span>
+                <span className="text-xs text-[var(--hrk-text-tertiary)]">Allow voters to change their vote</span>
               </label>
 
               <div>
@@ -350,7 +350,7 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
 
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={hideResultsUntilVoted} onChange={(e) => setHideResultsUntilVoted(e.target.checked)} className="accent-blue-500" />
-                <span className="text-xs text-gray-400">Hide results until user has voted</span>
+                <span className="text-xs text-[var(--hrk-text-tertiary)]">Hide results until user has voted</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -360,16 +360,16 @@ const PollCreator: React.FC<PollCreatorProps> = ({ isOpen, onClose, onSave, init
                   onChange={(e) => setCommunityRestricted(e.target.checked)}
                   className="accent-blue-500"
                 />
-                <span className="text-xs text-gray-400">Restrict voting to community members</span>
+                <span className="text-xs text-[var(--hrk-text-tertiary)]">Restrict voting to community members</span>
               </label>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-700">
-          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:bg-gray-800">Cancel</button>
-          <button type="button" onClick={handleSave} disabled={!isValid} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-blue-700">
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--hrk-border-subtle)]">
+          <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface)]">Cancel</button>
+          <button type="button" onClick={handleSave} disabled={!isValid} className="rounded-[10px] bg-[var(--hrk-brand)] px-4 py-2 text-sm font-medium text-[var(--hrk-text-on-brand)] disabled:opacity-50 hover:bg-[var(--hrk-brand-hover)]">
             Attach Poll
           </button>
         </div>

@@ -116,18 +116,18 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
-        <div className="text-gray-600 dark:text-gray-400">Loading proposals...</div>
+        <div className="text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">Loading proposals...</div>
       </div>
     );
   }
 
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
-      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
+      <div className={`space-y-6 p-2 ${theme === 'dark' ? 'bg-[var(--hrk-bg-app)]' : 'bg-white'}`}>
         {/* Filter Tabs */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {FILTERS.map(f => (
-            <button key={f} className={`px-3 py-1 rounded text-sm ${filter === f ? 'bg-blue-500 text-white' : `${theme === 'dark' ? 'bg-slate-900 text-gray-300' : 'bg-gray-200 text-gray-700'}`}`}
+            <button key={f} className={`px-3 py-1 rounded text-sm ${filter === f ? 'bg-[var(--hrk-info)] text-white' : `${theme === 'dark' ? 'bg-[var(--hrk-bg-app)] text-[var(--hrk-text-secondary)]' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-secondary)]'}`}`}
               onClick={() => setFilter(f)}>
               {f}
             </button>
@@ -136,8 +136,8 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
 
         {/* Sort Select */}
         <div className="mb-4">
-          <label className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mr-2`}>Sort by:</label>
-          <select value={sort} onChange={e => setSort(e.target.value)} className={`px-3 py-1 border rounded ${theme === 'dark' ? 'border-gray-600 bg-slate-900 text-gray-100' : 'border-gray-300 bg-white text-gray-900'}`}>
+          <label className={`${theme === 'dark' ? 'text-[var(--hrk-text-secondary)]' : 'text-[var(--hrk-text-secondary)]'} mr-2`}>Sort by:</label>
+          <select value={sort} onChange={e => setSort(e.target.value)} className={`px-3 py-1 border rounded ${theme === 'dark' ? 'border-[var(--hrk-border-default)] bg-[var(--hrk-bg-app)] text-[var(--hrk-text-primary)]' : 'border-gray-300 bg-white text-[var(--hrk-text-primary)]'}`}>
             {getSortOptions(filter).map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -153,7 +153,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
             return (
               <>
                 {activeProposals.map((p) => (
-                  <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-900' : 'border-gray-200 bg-white'}`}>
+                  <div key={p.proposal_id} className={`border rounded-[14px] mb-3 p-3 sm:p-4 transition-[background-color,border-color] duration-150 ease-out ${theme === 'dark' ? 'border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]' : 'border-[var(--hrk-border-subtle)] bg-white hover:bg-[var(--hrk-bg-hover)]'}`}>
                     {/* Existing proposal content */}
                     <div className="flex flex-col sm:flex-row">
                       {/* Left side content */}
@@ -163,21 +163,21 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                             <img src={`https://images.hive.blog/u/${p.creator}/avatar`} className="w-8 h-8 rounded-full inline" alt={`${p.creator} avatar`} />
                           </span>
                           <span
-                            className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                            className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                             onClick={() => onClickUser(p)}
                           >
                             by {p.creator}
                           </span>
-                          {p.receiver && <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{p.receiver}</strong></span>}
+                          {p.receiver && <span className={`ml-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{p.receiver}</strong></span>}
                         </div>
                         <div
-                          className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                          className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                           onClick={() => onClickSelect(p)}
                         >
-                          {p.subject} <span className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>#{p.proposal_id}</span>
+                          {p.subject} <span className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>#{p.proposal_id}</span>
                         </div>
-                        <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{getDaysInfo(p)}</span>
+                        <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)] dark:bg-[var(--hrk-bg-surface-raised)] dark:text-[var(--hrk-text-secondary)]'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>{getDaysInfo(p)}</span>
                         </div>
                         <div className="flex gap-2 mb-2">
                           <button
@@ -197,7 +197,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                         </div>
                         <div className="mb-2">
                           <span
-                            className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                            className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)]' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-secondary)]'}`}
                             onClick={() => onClickVoteValue(p)}
                           >
                             Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP
@@ -209,24 +209,24 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                       {/* Right side values */}
                       <div className="mt-4 sm:mt-0 sm:ml-4 w-full sm:w-48 flex flex-col space-y-1">
                         <div className="flex justify-between">
-                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Daily Pay:</span>
-                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
+                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Daily Pay:</span>
+                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
                         </div>
                         <div className="flex justify-between">
-                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Remaining:</span>
-                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.remaining_days || 0)} Days</strong>
+                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Remaining:</span>
+                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.remaining_days || 0)} Days</strong>
                         </div>
                         <div className="flex justify-between">
-                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Paid:</span>
-                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.total_hbd_received || 0)} HBD</strong>
+                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Paid:</span>
+                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.total_hbd_received || 0)} HBD</strong>
                         </div>
                         <div className="flex justify-between">
-                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>To Pay:</span>
-                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
+                          <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>To Pay:</span>
+                          <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
                         </div>
                         <div className="mt-2">
                           <button
-                            className="px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
+                            className="px-3 sm:px-5 py-2 bg-[var(--hrk-success)] hover:brightness-110 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
                             onClick={() => onClickSupport(p)}
                           >
                             Support
@@ -240,12 +240,12 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                 {upcomingProposals.length > 0 && (
                   <>
                     <div className="my-6 text-center">
-                      <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>Upcoming proposals</h3>
-                      <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>The proposals listed below will start in the future. You can already support them.</p>
+                      <h3 className={`text-xl font-bold mb-2 ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>Upcoming proposals</h3>
+                      <p className={`${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>The proposals listed below will start in the future. You can already support them.</p>
                     </div>
 
                     {upcomingProposals.map((p) => (
-                      <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-950' : 'border-gray-200 bg-white'}`}>
+                      <div key={p.proposal_id} className={`border rounded-[14px] mb-3 p-3 sm:p-4 transition-[background-color,border-color] duration-150 ease-out ${theme === 'dark' ? 'border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]' : 'border-[var(--hrk-border-subtle)] bg-white hover:bg-[var(--hrk-bg-hover)]'}`}>
                         {/* Existing proposal content */}
                         <div className="flex flex-col sm:flex-row">
                           {/* Left side content */}
@@ -255,21 +255,21 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                                 <img src={`https://images.hive.blog/u/${p.creator}/avatar`} className="w-8 h-8 rounded-full inline" alt={`${p.creator} avatar`} />
                               </span>
                               <span
-                                className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                                className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                                 onClick={() => onClickUser(p)}
                               >
                                 {p.creator}
                               </span>
-                              <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{p.receiver}</strong></span>
+                              <span className={`ml-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{p.receiver}</strong></span>
                             </div>
                             <div
-                              className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                              className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                               onClick={() => onClickSelect(p)}
                             >
                               {p.subject}
                             </div>
-                            <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{getDaysInfo(p)}</span>
+                            <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)] dark:bg-[var(--hrk-bg-surface-raised)] dark:text-[var(--hrk-text-secondary)]'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>{getDaysInfo(p)}</span>
                             </div>
                             <div className="flex gap-2 mb-2">
                               <button
@@ -289,7 +289,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                             </div>
                             <div className="mb-2">
                               <span
-                                className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                                className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)]' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-secondary)]'}`}
                                 onClick={() => onClickVoteValue(p)}
                               >
                                 Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP
@@ -301,24 +301,24 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                           {/* Right side values */}
                           <div className="mt-4 sm:mt-0 sm:ml-4 w-full sm:w-48 flex flex-col space-y-1">
                             <div className="flex justify-between">
-                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Daily Pay:</span>
-                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
+                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Daily Pay:</span>
+                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
                             </div>
                             <div className="flex justify-between">
-                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Remaining:</span>
-                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.remaining_days || 0)} Days</strong>
+                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Remaining:</span>
+                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.remaining_days || 0)} Days</strong>
                             </div>
                             <div className="flex justify-between">
-                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Paid:</span>
-                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.total_hbd_received || 0)} HBD</strong>
+                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Paid:</span>
+                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.total_hbd_received || 0)} HBD</strong>
                             </div>
                             <div className="flex justify-between">
-                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>To Pay:</span>
-                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
+                              <span className={`font-mono text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>To Pay:</span>
+                              <strong className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
                             </div>
                             <div className="mt-2">
                               <button
-                                className="px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
+                                className="px-3 sm:px-5 py-2 bg-[var(--hrk-success)] hover:brightness-110 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
                                 onClick={() => onClickSupport(p)}
                               >
                                 Support
@@ -335,7 +335,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
           })()}
 
           {filter !== 'All' && sortedProposals.map((p) => (
-            <div key={p.proposal_id} className={`border rounded-lg mb-4 p-2 sm:p-4 shadow ${theme === 'dark' ? 'border-gray-800 bg-slate-950' : 'border-gray-200 bg-white'}`}>
+            <div key={p.proposal_id} className={`border rounded-[14px] mb-3 p-3 sm:p-4 transition-[background-color,border-color] duration-150 ease-out ${theme === 'dark' ? 'border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]' : 'border-[var(--hrk-border-subtle)] bg-white hover:bg-[var(--hrk-bg-hover)]'}`}>
               <div className="flex flex-col sm:flex-row">
                 {/* Left side content */}
                 <div className="flex-1">
@@ -344,21 +344,21 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                       <img src={`https://images.hive.blog/u/${p.creator}/avatar`} className="w-8 h-8 rounded-full inline" alt={`${p.creator} avatar`} />
                     </span>
                     <span
-                      className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                      className={`font-bold cursor-pointer ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                       onClick={() => onClickUser(p)}
                     >
                       {p.creator}
                     </span>
-                    <span className={`ml-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}>{p.receiver}</strong></span>
+                    <span className={`ml-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>with receiver <strong className={`${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}>{p.receiver}</strong></span>
                   </div>
                   <div
-                    className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-gray-100' : 'text-gray-900'}`}
+                    className={`cursor-pointer text-lg font-semibold mb-1 ${theme === 'dark' ? 'text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-primary)]'}`}
                     onClick={() => onClickSelect(p)}
                   >
                     {p.subject} #{p.proposal_id}
                   </div>
-                  <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{getDaysInfo(p)}</span>
+                  <div className={`text-sm mb-2 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
+                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${new Date(p.start_date + 'Z') > new Date() ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : new Date(p.end_date + 'Z') < new Date() ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : p.status === 'active' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)] dark:bg-[var(--hrk-bg-surface-raised)] dark:text-[var(--hrk-text-secondary)]'}`}>{new Date(p.start_date + 'Z') > new Date() ? 'upcoming' : new Date(p.end_date + 'Z') < new Date() ? 'expired' : p.status}</span>{' - ' + new Date(p.start_date + 'Z').toLocaleDateString() + ' - ' + new Date(p.end_date + 'Z').toLocaleDateString()} <span className={`text-xs ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>{getDaysInfo(p)}</span>
                   </div>
                   <div className="flex gap-2 mb-2">
                     <button
@@ -378,7 +378,7 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                   </div>
                   <div className="mb-2">
                     <span
-                      className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'}`}
+                      className={`inline-block cursor-pointer px-2 py-1 rounded ${theme === 'dark' ? 'bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)]' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-secondary)]'}`}
                       onClick={() => onClickVoteValue(p)}
                     >
                       Vote value: {p.vote_value_total ? formatNumber(p.vote_value_total) : 0} HP
@@ -390,26 +390,26 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                 {/* Right side values */}
                 <div className="mt-4 sm:mt-0 sm:ml-4 w-full sm:w-48 flex flex-col space-y-1">
                   <div className="flex justify-between">
-                    <span className="font-mono text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Daily Pay:</span>
-                    <strong className="text-gray-900 dark:text-gray-100 text-xs sm:text-sm">{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
+                    <span className="font-mono text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] text-xs sm:text-sm">Daily Pay:</span>
+                    <strong className="text-[var(--hrk-text-primary)] dark:text-[var(--hrk-text-primary)] text-xs sm:text-sm">{p.daily_pay_hbd ? formatNumber(p.daily_pay_hbd) : 0} HBD</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-mono text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Remaining:</span>
-                    <strong className="text-gray-900 dark:text-gray-100 text-xs sm:text-sm">{formatNumber(p.remaining_days || 0)} Days</strong>
+                    <span className="font-mono text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] text-xs sm:text-sm">Remaining:</span>
+                    <strong className="text-[var(--hrk-text-primary)] dark:text-[var(--hrk-text-primary)] text-xs sm:text-sm">{formatNumber(p.remaining_days || 0)} Days</strong>
                   </div>
                   {filter !== 'Expired' && (
                     <div className="flex justify-between">
-                      <span className="font-mono text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Paid:</span>
-                      <strong className="text-gray-900 dark:text-gray-100 text-xs sm:text-sm">{formatNumber(p.total_hbd_received || 0)} HBD</strong>
+                      <span className="font-mono text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] text-xs sm:text-sm">Paid:</span>
+                      <strong className="text-[var(--hrk-text-primary)] dark:text-[var(--hrk-text-primary)] text-xs sm:text-sm">{formatNumber(p.total_hbd_received || 0)} HBD</strong>
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="font-mono text-gray-600 dark:text-gray-400 text-xs sm:text-sm">To Pay:</span>
-                    <strong className="text-gray-900 dark:text-gray-100 text-xs sm:text-sm">{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
+                    <span className="font-mono text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] text-xs sm:text-sm">To Pay:</span>
+                    <strong className="text-[var(--hrk-text-primary)] dark:text-[var(--hrk-text-primary)] text-xs sm:text-sm">{formatNumber(p.max_hbd_remaining || 0)} HBD</strong>
                   </div>
                   <div className="mt-2">
                     <button
-                      className="px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
+                      className="px-3 sm:px-5 py-2 bg-[var(--hrk-success)] hover:brightness-110 text-white rounded cursor-pointer w-full text-xs sm:text-sm"
                       onClick={() => onClickSupport(p)}
                     >
                       Support

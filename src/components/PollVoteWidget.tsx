@@ -130,12 +130,12 @@ export function PollVoteWidget({
   };
 
   return (
-    <div className="mt-2 rounded-lg border border-gray-700 bg-gray-800/60 overflow-hidden">
+    <div className="mt-2 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/60 overflow-hidden">
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
         <BarChart2 className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
         <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-400">Poll</span>
         <span
-          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${pollEnded ? 'bg-gray-700 text-gray-400' : 'bg-green-900/50 text-green-400'}`}
+          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${pollEnded ? 'bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)]' : 'bg-green-900/50 text-green-400'}`}
         >
           {pollEnded
             ? 'Ended'
@@ -150,7 +150,7 @@ export function PollVoteWidget({
       </p>
 
       {showVoteUI && needsSubmitButton && (
-        <p className="px-3 pb-1.5 text-[11px] text-gray-400">
+        <p className="px-3 pb-1.5 text-[11px] text-[var(--hrk-text-tertiary)]">
           {isChangingVote ? 'Change your vote — ' : ''}Select up to {maxChoices} option
           {maxChoices > 1 ? 's' : ''}
           {selectedChoices.length > 0 && (
@@ -162,7 +162,7 @@ export function PollVoteWidget({
       <div className="space-y-1.5 px-3 pb-3">
         {loading ? (
           [1, 2, 3].map((i) => (
-            <div key={i} className="h-8 animate-pulse rounded-lg bg-gray-700/50" />
+            <div key={i} className="h-8 animate-pulse rounded-lg bg-[var(--hrk-bg-surface-raised)]/50" />
           ))
         ) : (
           choices.map((choice) => {
@@ -173,8 +173,8 @@ export function PollVoteWidget({
             const isMaxed = needsSubmitButton && selectedChoices.length >= maxChoices && !isSelected;
             const isClickable = showVoteUI && !isMaxed;
 
-            let borderColor = 'border-gray-700';
-            let iconEl = <Circle className="h-3 w-3 flex-shrink-0 text-gray-500" />;
+            let borderColor = 'border-[var(--hrk-border-subtle)]';
+            let iconEl = <Circle className="h-3 w-3 flex-shrink-0 text-[var(--hrk-text-tertiary)]" />;
             let fillColor = 'bg-blue-600/20';
 
             if (isSelected) {
@@ -198,7 +198,7 @@ export function PollVoteWidget({
                   e.stopPropagation();
                   handleChoiceClick(choice.choice_num);
                 }}
-                className={`relative w-full overflow-hidden rounded-md border bg-gray-900/50 text-left transition-colors ${borderColor} ${isClickable ? 'cursor-pointer hover:border-blue-500/40' : isMaxed ? 'cursor-not-allowed opacity-50' : 'cursor-default'}`}
+                className={`relative w-full overflow-hidden rounded-md border bg-[var(--hrk-bg-app)]/50 text-left transition-colors ${borderColor} ${isClickable ? 'cursor-pointer hover:border-blue-500/40' : isMaxed ? 'cursor-not-allowed opacity-50' : 'cursor-default'}`}
                 disabled={!isClickable}
               >
                 {pct > 0 && (
@@ -211,14 +211,14 @@ export function PollVoteWidget({
                   <div className="flex min-w-0 items-center gap-1.5">
                     {iconEl}
                     <span
-                      className={`truncate text-xs ${isSelected ? 'font-medium text-blue-300' : isVoted && !isChangingVote ? 'font-medium text-green-300' : isVoted && isChangingVote ? 'text-green-700' : 'text-gray-200'}`}
+                      className={`truncate text-xs ${isSelected ? 'font-medium text-blue-300' : isVoted && !isChangingVote ? 'font-medium text-green-300' : isVoted && isChangingVote ? 'text-green-700' : 'text-[var(--hrk-text-primary)]'}`}
                     >
                       {choice.choice_text}
                     </span>
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-1.5 text-[10px] text-gray-400">
+                  <div className="flex flex-shrink-0 items-center gap-1.5 text-[10px] text-[var(--hrk-text-tertiary)]">
                     <span>{pct}%</span>
-                    <span className="text-gray-600">·</span>
+                    <span className="text-[var(--hrk-text-tertiary)]">·</span>
                     <span>{votes} vote{votes !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
@@ -237,7 +237,7 @@ export function PollVoteWidget({
               handleSubmit();
             }}
             disabled={selectedChoices.length === 0 || submitting}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500"
+            className="flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-[var(--hrk-brand)] px-3 py-1.5 text-xs font-medium text-[var(--hrk-text-on-brand)] transition-colors hover:bg-[var(--hrk-brand-hover)] disabled:bg-[var(--hrk-bg-surface-raised)] disabled:text-[var(--hrk-text-tertiary)]"
           >
             <Send className="h-3 w-3" />
             {submitting
@@ -249,7 +249,7 @@ export function PollVoteWidget({
         </div>
       )}
 
-      <div className="flex items-center gap-2 border-t border-gray-700/50 px-3 py-2 text-[10px] text-gray-500">
+      <div className="flex items-center gap-2 border-t border-[var(--hrk-border-subtle)]/50 px-3 py-2 text-[10px] text-[var(--hrk-text-tertiary)]">
         <span>
           {poll?.poll_stats?.total_voting_accounts_num ?? 0} voter
           {(poll?.poll_stats?.total_voting_accounts_num ?? 0) !== 1 ? 's' : ''} total

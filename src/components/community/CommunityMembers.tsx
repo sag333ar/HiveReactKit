@@ -88,7 +88,7 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
   if (loading && members.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-2 text-[#9ca3b0]">
+        <div className="flex items-center gap-2 text-[var(--hrk-text-tertiary)]">
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading members...
         </div>
@@ -100,10 +100,10 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-[#f0f0f8] mb-2">
+          <h3 className="text-lg font-semibold text-[var(--hrk-text-primary)] mb-2">
             Failed to load members
           </h3>
-          <p className="text-[#9ca3b0] mb-4">{error}</p>
+          <p className="text-[var(--hrk-text-tertiary)] mb-4">{error}</p>
           <button onClick={() => fetchMembers(true)} className="m-2 inline-flex items-center justify-center rounded-md border border-input bg-background p-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -117,7 +117,7 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
   if (members.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-[#9ca3b0]">
+        <p className="text-[var(--hrk-text-tertiary)]">
           No community members found
         </p>
       </div>
@@ -130,7 +130,7 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
         {members.map((member, index) => (
           <div
             key={`${member.username}-${index}`}
-            className="bg-[#262b30] border border-[#3a424a] rounded-xl p-4 hover:bg-[#2f353d] dark:hover:bg-[#2f353d] transition-colors cursor-pointer"
+            className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-xl p-4 transition-colors duration-150 ease-out hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] cursor-pointer"
             onClick={() => onSelectCommunityMember?.(member.username)}
           >
             <div className="flex items-center gap-3">
@@ -145,11 +145,11 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
                 }}
               />
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-[#f0f0f8] truncate">
+                <h3 className="font-semibold text-[var(--hrk-text-primary)] truncate">
                   @{member.username}
                 </h3>
                 {member.role && (
-                  <p className="text-sm text-[#9ca3b0] capitalize truncate">
+                  <p className="text-sm text-[var(--hrk-text-tertiary)] capitalize truncate">
                     {member.role}
                   </p>
                 )}
@@ -162,7 +162,7 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
       {hasMore && (
         <div className="flex justify-center pt-4">
           {loadingMore ? (
-            <div className="flex items-center gap-2 text-[#9ca3b0]">
+            <div className="flex items-center gap-2 text-[var(--hrk-text-tertiary)]">
               <Loader2 className="w-4 h-4 animate-spin" />
               Loading more members...
             </div>
