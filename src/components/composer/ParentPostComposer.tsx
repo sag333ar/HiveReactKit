@@ -56,6 +56,7 @@ import ImageUploader from './ImageUploader';
 import AudioUploader from './AudioUploader';
 import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
+import MemePicker from './MemePicker';
 import EmojiPicker from './EmojiPicker';
 import TemplatePicker from './TemplatePicker';
 import PollCreator from './PollCreator';
@@ -151,6 +152,10 @@ export interface ParentPostComposerProps {
   hideEmoji?: boolean;
   hideTemplate?: boolean;
   hidePoll?: boolean;
+  /** Hide the meme-editor button (defaults to showing it when an image
+   *  upload path is configured). The picker fetches free templates from
+   *  memegen.link and renders + uploads the captioned PNG client-side. */
+  hideMeme?: boolean;
   hideTags?: boolean;
   hideReward?: boolean;
   hideBeneficiaries?: boolean;
@@ -352,6 +357,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideEmoji,
   hideTemplate,
   hidePoll,
+  hideMeme,
   hideTags,
   hideReward,
   hideBeneficiaries,
@@ -495,6 +501,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
+  const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
@@ -1584,6 +1591,20 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     GIF
                   </button>
                 )}
+                {/* Meme picker — visible when the composer has any image
+                    upload path configured (ecency token or hive signer).
+                    Sits beside the GIF button so users discover both. */}
+                {!hideMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMemeOpen(true)}
+                    className={`${toolbarBtnClass} text-xs font-bold px-2`}
+                    title="Meme"
+                    disabled={isDisabled}
+                  >
+                    MEME
+                  </button>
+                )}
                 {!hideTemplate && templateToken && templates.length > 0 && (
                   <button
                     type="button"
@@ -2180,6 +2201,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           setIsGiphyOpen(false);
         }}
         giphyApiKey={giphyApiKey}
+      />
+      <MemePicker
+        isOpen={isMemeOpen}
+        onClose={() => setIsMemeOpen(false)}
+        onSelectMeme={(url) => {
+          insertText(`![Meme](${url})`);
+          setIsMemeOpen(false);
+        }}
+        ecencyToken={ecencyToken}
+        onSignMessage={onSignMessage}
+        signingUsername={signingUsername}
       />
       <EmojiPicker
         isOpen={isEmojiOpen}
