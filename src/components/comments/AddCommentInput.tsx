@@ -15,6 +15,7 @@ import VideoUploader from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
 import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
+import MemePicker from '../composer/MemePicker';
 import PollCreator from '../composer/PollCreator';
 import BeneficiariesEditor from '../composer/BeneficiariesEditor';
 import type { PollData } from '../composer/PollCreator';
@@ -57,6 +58,11 @@ export interface PostComposerProps {
   hideCode?: boolean;
   hideMention?: boolean;
   hideTemplate?: boolean;
+  /** Hide the meme-maker button. Defaults to showing it whenever the
+   *  composer has an image-upload path configured (ecency token or
+   *  hive-signer). Pulls templates from memegen.link and renders the
+   *  captioned PNG via MemePicker, then inserts it as an image. */
+  hideMeme?: boolean;
   hidePreview?: boolean;
   hidePoll?: boolean;
 
@@ -203,6 +209,7 @@ const PostComposer = ({
   hideCode,
   hideMention,
   hideTemplate,
+  hideMeme,
   hidePreview,
   hidePoll,
   onPollChange,
@@ -252,6 +259,7 @@ const PostComposer = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = disabled || isSubmitting;
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
+  const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(defaultPreviewOn);
@@ -998,6 +1006,20 @@ const PostComposer = ({
             GIF
           </button>
         )}
+        {/* Meme maker — visible when the composer has any image-upload
+            path configured (ecency token or hive-signer). Sits beside
+            the GIF button so users discover both. */}
+        {!hideMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+          <button
+            type="button"
+            onClick={() => setIsMemeOpen(true)}
+            className={`${toolbarBtnClass} text-xs font-bold px-2`}
+            title="Meme"
+            disabled={isDisabled}
+          >
+            MEME
+          </button>
+        )}
         {!hideTemplate && templateToken && templates.length > 0 && (
           <button type="button" onClick={() => setIsTemplateOpen(true)} className={toolbarBtnClass} title="Insert template" disabled={isDisabled}>
             <FileText className="h-4 w-4" />
@@ -1322,6 +1344,15 @@ const PostComposer = ({
         onClose={() => setIsGiphyOpen(false)}
         onSelectGif={(url) => { insertText(`![GIF](${url})`); setIsGiphyOpen(false); }}
         giphyApiKey={giphyApiKey}
+      />
+      <MemePicker
+        isOpen={isMemeOpen}
+        onClose={() => setIsMemeOpen(false)}
+        onSelectMeme={(url) => { insertText(`![Meme](${url})`); setIsMemeOpen(false); }}
+        ecencyToken={ecencyToken}
+        onSignMessage={onSignMessage}
+        signingUsername={signingUsername}
+        onSigningStateChange={setIsAwaitingApproval}
       />
       <EmojiPicker
         isOpen={isEmojiOpen}

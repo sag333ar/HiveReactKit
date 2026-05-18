@@ -72,3 +72,87 @@ export async function uploadToHiveImages(
   if (!data.url) throw new Error('No URL returned from Hive image upload')
   return data.url
 }
+
+/**
+ * POST a blob to Ecency's hosted image service. No wallet signing — the
+ * `ecencyToken` is the auth handle Ecency issues after Hive Signer login,
+ * so the call returns instantly with a public URL.
+ */
+export async function uploadToEcencyImages(
+  ecencyToken: string,
+  file: Blob,
+  signal?: AbortSignal,
+): Promise<string> {
+  if (!ecencyToken) throw new Error('Ecency token not provided')
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`https://images.ecency.com/hs/${ecencyToken}`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json, text/plain, */*',
+      origin: 'https://ecency.com',
+      referer: 'https://ecency.com/',
+    },
+    body: formData,
+    signal,
+  })
+  if (!response.ok) throw new Error(`Ecency upload failed: ${response.statusText}`)
+  const data = (await response.json()) as { url?: string }
+  if (!data.url) throw new Error('No URL returned from Ecency upload')
+  return data.url
+}
+
+export interface UploadImageWithFallbackOptions {
+  /** Ecency token — when present, the fast no-signing path is tried first. */
+  ecencyToken?: string
+  /** Signer for the signed `images.hive.blog` fallback. */
+  onSignMessage?: PostingSignMessageFn
+  /** Hive username used for the signed `images.hive.blog` fallback. */
+  signingUsername?: string
+  /** Filename to send with the multipart body on the hive.blog fallback. */
+  filename?: string
+  /** Abort signal applied to both upload requests. */
+  signal?: AbortSignal
+  /** Mirrors `UploadToHiveImagesOptions` — fires while the wallet sign
+   *  step is in flight on the fallback path so the caller can flash the
+   *  "Open Keychain App & Approve" UX. */
+  onSignStart?: () => void
+  onSignEnd?: () => void
+}
+
+/**
+ * Shared "try Ecency first, then images.hive.blog as a signed fallback"
+ * helper. Used by `ImageUploader` and `MemePicker` so the same code path
+ * handles every meme + image upload across the composer.
+ *
+ *   • If `ecencyToken` is set → POST to images.ecency.com (no signing).
+ *   • If that fails (or no token), and a signer + username are
+ *     available → sign + POST to images.hive.blog.
+ *   • If neither path works → throw.
+ *
+ * Returns the public URL of the uploaded image.
+ */
+export async function uploadImageWithFallback(
+  file: Blob,
+  options: UploadImageWithFallbackOptions,
+): Promise<string> {
+  const { ecencyToken, onSignMessage, signingUsername, filename, signal } = options
+  const canHiveFallback = Boolean(onSignMessage && signingUsername)
+  if (!ecencyToken && !canHiveFallback) {
+    throw new Error('No upload method configured')
+  }
+  if (ecencyToken) {
+    try {
+      return await uploadToEcencyImages(ecencyToken, file, signal)
+    } catch (ecencyErr) {
+      if (signal?.aborted) throw ecencyErr
+      if (!canHiveFallback) throw ecencyErr
+      // Fall through to the signed fallback below.
+    }
+  }
+  return uploadToHiveImages(onSignMessage!, signingUsername!, file, filename, {
+    onSignStart: options.onSignStart,
+    onSignEnd: options.onSignEnd,
+    signal,
+  })
+}

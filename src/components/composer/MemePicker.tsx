@@ -21,7 +21,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Search, ImageIcon, Upload, Loader2, ArrowLeft, Wand2 } from 'lucide-react';
-import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
+import { uploadImageWithFallback, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 
 // Memegen returns dozens of fields per template; we only use a handful.
 interface MemegenTemplate {
@@ -253,29 +253,23 @@ function MemePicker({
       if (!blob) throw new Error('Failed to render the meme image.');
       const file = new File([blob], `meme-${Date.now()}.png`, { type: 'image/png' });
 
-      const canHive = Boolean(onSignMessage && signingUsername);
-      if (!ecencyToken && !canHive) {
-        throw new Error(
-          'No image-upload path configured. Add `ecencyToken` or `onSignMessage` + `signingUsername`.',
-        );
-      }
-
-      let url: string;
-      try {
-        url = await uploadToEcency(file);
-      } catch (ecencyErr) {
-        if (!canHive) throw ecencyErr;
-        url = await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
-          onSignStart: () => {
-            setIsAwaitingApproval(true);
-            onSigningStateChange?.(true);
-          },
-          onSignEnd: () => {
-            setIsAwaitingApproval(false);
-            onSigningStateChange?.(false);
-          },
-        });
-      }
+      // Same Ecency-first, signed `images.hive.blog`-fallback chain the
+      // composer's "Upload image" button uses. Centralised in
+      // `uploadImageWithFallback` so both paths stay in lockstep.
+      const url = await uploadImageWithFallback(file, {
+        ecencyToken,
+        onSignMessage,
+        signingUsername,
+        filename: file.name,
+        onSignStart: () => {
+          setIsAwaitingApproval(true);
+          onSigningStateChange?.(true);
+        },
+        onSignEnd: () => {
+          setIsAwaitingApproval(false);
+          onSigningStateChange?.(false);
+        },
+      });
       onSelectMeme(url);
       onClose();
     } catch (err) {
@@ -291,25 +285,6 @@ function MemePicker({
       setIsAwaitingApproval(false);
       onSigningStateChange?.(false);
     }
-  };
-
-  const uploadToEcency = async (file: File): Promise<string> => {
-    if (!ecencyToken) throw new Error('Ecency token not provided');
-    const formData = new FormData();
-    formData.append('file', file);
-    const r = await fetch('https://images.ecency.com/hs/' + ecencyToken, {
-      method: 'POST',
-      headers: {
-        accept: 'application/json, text/plain, */*',
-        origin: 'https://ecency.com',
-        referer: 'https://ecency.com/',
-      },
-      body: formData,
-    });
-    if (!r.ok) throw new Error(`Ecency upload failed: ${r.statusText}`);
-    const data = (await r.json()) as { url?: string };
-    if (!data.url) throw new Error('No URL returned from Ecency upload');
-    return data.url;
   };
 
   // ── Filtered templates ──────────────────────────────────────────────────

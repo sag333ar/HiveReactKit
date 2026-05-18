@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
-import { uploadToHiveImages, type PostingSignMessageFn } from "../../services/hiveImageUpload";
+import { uploadImageWithFallback, type PostingSignMessageFn } from "../../services/hiveImageUpload";
 
 /** Dig a human-readable message out of whatever an upload helper (or provider SDK) might throw. */
 function extractUploadErrorMessage(err: unknown): string {
@@ -90,26 +90,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     uploadImage(file);
   };
 
-  const uploadToEcency = async (file: File, signal: AbortSignal): Promise<string> => {
-    if (!ecencyToken) throw new Error("Ecency token not provided");
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await fetch("https://images.ecency.com/hs/" + ecencyToken, {
-      method: "POST",
-      headers: {
-        accept: "application/json, text/plain, */*",
-        origin: "https://ecency.com",
-        referer: "https://ecency.com/",
-      },
-      body: formData,
-      signal,
-    });
-    if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
-    const data = await response.json();
-    if (!data.url) throw new Error("No URL returned from upload");
-    return data.url as string;
-  };
-
   const uploadImage = async (file: File) => {
     const controller = new AbortController();
     abortRef.current = controller;
@@ -117,23 +97,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     setIsUploading(true);
     setError(null);
     try {
-      const canHiveFallback = Boolean(onSignMessage && signingUsername);
-      if (!ecencyToken && !canHiveFallback) {
-        throw new Error("No upload method configured");
-      }
-
-      let url: string;
-      try {
-        url = await uploadToEcency(file, signal);
-      } catch (ecencyErr) {
-        if (signal.aborted) return;
-        if (!canHiveFallback) throw ecencyErr;
-        url = await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
-          onSignStart: () => { if (!signal.aborted) { setIsAwaitingApproval(true); onSigningStateChange?.(true); } },
-          onSignEnd: () => { setIsAwaitingApproval(false); onSigningStateChange?.(false); },
-          signal,
-        });
-      }
+      const url = await uploadImageWithFallback(file, {
+        ecencyToken,
+        onSignMessage,
+        signingUsername,
+        signal,
+        onSignStart: () => { if (!signal.aborted) { setIsAwaitingApproval(true); onSigningStateChange?.(true); } },
+        onSignEnd: () => { setIsAwaitingApproval(false); onSigningStateChange?.(false); },
+      });
       if (signal.aborted) return;
       onImageUploaded(url);
       setPreviewUrl(null);
