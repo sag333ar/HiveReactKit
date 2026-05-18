@@ -8,6 +8,8 @@ import { Discussion } from '@/types/comment';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import UpvoteListModal from '../UpvoteListModal';
+import { RewardsModal } from '../RewardsModal';
+import type { RewardsModalPayoutDetails } from '../RewardsModal';
 import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
@@ -119,6 +121,7 @@ export default function InlineCommentItem({
   const [showReplies, setShowReplies] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
   const [isUpvoted, setIsUpvoted] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -265,6 +268,39 @@ export default function InlineCommentItem({
     if (total > 0) return total.toFixed(3);
     return '';
   }, [comment.payout, comment.pending_payout_value, comment.author_payout_value, comment.curator_payout_value]);
+
+  // Structured payout breakdown consumed by the RewardsModal when the
+  // user taps the payout chip on a comment. Mirrors the same shape
+  // HiveDetailPost builds for its parent-post action bar so the modal
+  // shows pending / realised amounts and beneficiaries the same way.
+  const payoutDetails = useMemo<RewardsModalPayoutDetails | undefined>(() => {
+    if (!payoutValue) return undefined;
+    const pendingValue = parseFloat(String(comment.pending_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    const authorValue = parseFloat(String(comment.author_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    const curatorValue = parseFloat(String(comment.curator_payout_value ?? '0').replace(/[^\d.]/g, '')) || 0;
+    const totalValue = comment.payout && comment.payout > 0
+      ? comment.payout
+      : (pendingValue > 0 ? pendingValue : authorValue + curatorValue);
+    const c = comment as unknown as {
+      is_paidout?: boolean;
+      payout_at?: string;
+      percent_hbd?: number;
+      beneficiaries?: { account: string; weight: number }[];
+    };
+    return {
+      pendingValue,
+      authorValue,
+      curatorValue,
+      totalValue,
+      isPaidout: !!c.is_paidout,
+      payoutAt: c.payout_at,
+      percentHbd: c.percent_hbd ?? 10000,
+      beneficiaries: (c.beneficiaries ?? []).map((b) => ({
+        account: b.account,
+        weight: b.weight,
+      })),
+    };
+  }, [payoutValue, comment]);
 
   const handlePerformUpvote = async (percent: number) => {
     if (onClickCommentUpvote) {
@@ -508,12 +544,26 @@ export default function InlineCommentItem({
                   </button>
                 )}
 
-                {/* Hive payout value — pushed to end */}
+                {/* Hive payout value — pushed to end. Tapping opens the
+                    full RewardsModal (pending/realised split, beneficiaries),
+                    mirroring the parent-post chip on HiveDetailPost. */}
                 {payoutValue && (
-                  <div className="flex items-center gap-1 ml-auto">
-                    <span className="font-semibold text-green-400 text-[11px]">{payoutValue}</span>
-                    {hiveIconUrl && <img src={hiveIconUrl} alt="Hive" className="w-3 h-3 rounded-full" />}
-                  </div>
+                  payoutDetails ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setShowRewardsModal(true); }}
+                      className="ml-auto flex items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-white/5"
+                      aria-label="Show rewards breakdown"
+                    >
+                      <span className="font-semibold text-green-400 text-[11px]">{payoutValue}</span>
+                      {hiveIconUrl && <img src={hiveIconUrl} alt="Hive" className="w-3 h-3 rounded-full" />}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1 ml-auto">
+                      <span className="font-semibold text-green-400 text-[11px]">{payoutValue}</span>
+                      {hiveIconUrl && <img src={hiveIconUrl} alt="Hive" className="w-3 h-3 rounded-full" />}
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -530,6 +580,17 @@ export default function InlineCommentItem({
                   setShowUpvoteListModal(false);
                   handleUpvoteClick();
                 }}
+              />
+            )}
+
+            {/* Rewards / beneficiaries modal — opened by tapping the
+                payout chip above. Same component HiveDetailPost uses
+                for the parent post so the visual treatment matches. */}
+            {showRewardsModal && payoutDetails && (
+              <RewardsModal
+                onClose={() => setShowRewardsModal(false)}
+                details={payoutDetails}
+                hiveIconUrl={hiveIconUrl}
               />
             )}
 
