@@ -123,6 +123,7 @@ type Attachment =
   | { kind: 'image'; url: string }
   | { kind: 'youtube'; id: string }
   | { kind: 'threespeak'; url: string }
+  | { kind: 'twitter'; id: string }
   | { kind: 'audio'; url: string };
 
 const TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/gi;
@@ -230,10 +231,14 @@ function parseBody(post: Post): ParsedBody {
   const audioUrls: string[] = [];
   while ((m = AUDIO_FILE_REGEX.exec(raw))) audioUrls.push(m[0]);
 
+  const twitterIds: string[] = [];
+  while ((m = TWITTER_REGEX.exec(raw))) twitterIds.push(m[1]);
+
   const attachments: Attachment[] = [
     ...uniq(imageUrls).map((url) => ({ kind: 'image' as const, url })),
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
+    ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
     ...uniq(audioUrls).map((url) => ({ kind: 'audio' as const, url })),
   ];
 
@@ -395,7 +400,56 @@ const attachmentLabel = (a: Attachment): string => {
   if (a.kind === 'image') return a.url.toLowerCase().includes('.gif') ? 'GIF' : 'Image';
   if (a.kind === 'youtube') return 'YouTube';
   if (a.kind === 'threespeak') return '3Speak';
+  if (a.kind === 'twitter') return 'Tweet';
   return 'Audio';
+};
+
+// ── Twitter embed ────────────────────────────────────────────────────────
+// Mirrors the hSnaps `TwitterEmbed` — listens for resize postMessages from
+// platform.twitter.com so the iframe height matches the rendered tweet
+// (text-only tweets are short; tweets with media expand).
+
+const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
+  const [height, setHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      try {
+        const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (!d || typeof d !== 'object') return;
+        let h: number | undefined;
+        if (d.method === 'resize' && Array.isArray(d.params)) {
+          for (const p of d.params) {
+            if (typeof p === 'number' && p > 0) h = p;
+            if (p && typeof p === 'object' && typeof p.height === 'number') h = p.height;
+          }
+        }
+        if (d['twttr.private.resize']?.height) h = d['twttr.private.resize'].height;
+        if (!h && typeof d.height === 'number') h = d.height;
+        if (!h && d.msg_type === 'resize' && d.msg_data?.height) h = d.msg_data.height;
+        if (h && h > 50) setHeight(Math.ceil(h));
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  return (
+    <div
+      className="twitter-embed-wrapper w-full overflow-hidden rounded-lg bg-black/60"
+      style={height ? { maxHeight: '80vh', overflowY: 'auto' } : undefined}
+    >
+      <iframe
+        src={`https://platform.twitter.com/embed/Tweet.html?id=${id}&theme=dark&dnt=true&origin=${encodeURIComponent(origin)}`}
+        title={`Tweet ${id}`}
+        className="twitter-embed-iframe w-full border-0 bg-black"
+        scrolling="yes"
+        style={{ height: height ?? '60vh' }}
+      />
+    </div>
+  );
 };
 
 const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
@@ -494,6 +548,12 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
                 <Play className="h-4 w-4 fill-current" />
                 Watch on YouTube
               </a>
+            </div>
+          )}
+
+          {attachment.kind === 'twitter' && (
+            <div className="w-full">
+              <TwitterEmbed id={attachment.id} />
             </div>
           )}
 
@@ -623,6 +683,24 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             <Play className="h-6 w-6" />
           </span>
           <span className="text-xs text-[var(--hrk-text-tertiary)]">3Speak · Tap to play</span>
+        </button>
+      );
+    }
+    if (current.kind === 'twitter') {
+      return (
+        <button
+          type="button"
+          onClick={(e) => open(e, current)}
+          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-sky-900/40 to-slate-950/60 text-sm text-[var(--hrk-text-secondary)]"
+          aria-label="Open tweet"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+          </span>
+          <span className="text-xs font-medium text-white/70">Tweet</span>
+          <span className="text-[10px] text-white/40">Tap to preview</span>
         </button>
       );
     }
@@ -800,6 +878,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     body = body.replace(YOUTUBE_REGEX, '');
     body = body.replace(THREE_SPEAK_REGEX, '');
     body = body.replace(AUDIO_FILE_REGEX, '');
+    body = body.replace(TWITTER_REGEX, '');
 
     // Tighten — collapse runs of 3+ blank lines to exactly one, trim
     // edges. (Without this the rendered HTML can pick up huge blank
