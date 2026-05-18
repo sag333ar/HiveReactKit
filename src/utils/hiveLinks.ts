@@ -80,3 +80,37 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   if (atIdx === -1) return null;
   return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
 }
+
+/**
+ * Pre-convert bare `@username` mentions in a markdown body into explicit
+ * markdown links so `@hiveio/content-renderer` never sees them as bare
+ * mentions.
+ *
+ * Why: that library's `HtmlDOMParser.processTextNode` linkifies a text
+ * node containing an `@mention` by building a new `<span>` and
+ * **appending** it to the parent (instead of inserting at the original
+ * position) — which shuffles the first paragraph line to the end of the
+ * rendered output. The bug shows up whenever a comment body starts with
+ * `Hello @user,` followed by `<br>`-separated lines.
+ *
+ * Pre-linking sidesteps the buggy path: the renderer sees a proper
+ * markdown link and emits a regular `<a>` inline, no DOM reordering.
+ *
+ * Conservative regex — only matches `@account` patterns Hive allows
+ * (lower-case, dot/dash, 3–17 chars), and only when the `@` is at the
+ * start of the body or preceded by a non-identifier char.
+ */
+export function preLinkMentions(
+  body: string,
+  usertagUrlFn?: (username: string) => string,
+): string {
+  if (!body) return body;
+  const buildUrl = usertagUrlFn ?? ((u: string) => `https://peakd.com/@${u}`);
+  return body.replace(
+    /(^|[^A-Za-z0-9_!#$%&*@/＠])@([a-z][a-z0-9.-]{1,15}[a-z0-9])(?![a-z0-9.-])/gi,
+    (_m, pre: string, user: string) => {
+      const lower = user.toLowerCase();
+      return `${pre}[@${user}](${buildUrl(lower)})`;
+    },
+  );
+}

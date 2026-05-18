@@ -19,7 +19,7 @@ import {
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
-import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { WorldMappinMap } from './WorldMappinMap';
 import { extractWorldMappinPin } from '../utils/worldMappin';
@@ -425,7 +425,11 @@ export function HiveDetailPost({
   const renderedBody = useMemo(() => {
     if (!processedBody || !renderMarkdown) return '';
     try {
-      let html = renderMarkdown(processedBody);
+      // Pre-link bare @mentions to markdown links so the underlying
+      // content-renderer doesn't reorder lines — see preLinkMentions for
+      // the bug it works around.
+      const safeBody = preLinkMentions(processedBody, renderOptions?.userLinkUrlFn);
+      let html = renderMarkdown(safeBody);
 
       // Replace 3Speak embed references in the body. Two cases:
       //   1. The renderer emitted an <iframe src="…/embed?v=…">.
