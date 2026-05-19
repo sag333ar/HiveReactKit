@@ -32,6 +32,7 @@ import {
   Italic,
   Link as LinkIcon,
   Lock,
+  Save,
   Send,
   Smile,
   Tag,
@@ -58,6 +59,10 @@ import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
 import MemePicker from './MemePicker';
 import EmojiPicker from './EmojiPicker';
+import PostTemplatesPanel, {
+  type PostTemplate,
+  type PostTemplatePayload,
+} from './PostTemplatesPanel';
 import TemplatePicker from './TemplatePicker';
 import PollCreator from './PollCreator';
 import BeneficiariesEditor from './BeneficiariesEditor';
@@ -144,6 +149,25 @@ export interface ParentPostComposerProps {
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
+
+  /** Save-draft callback — when set, a "Save draft" button appears in the
+   *  header. The kit passes the current form snapshot; the host writes it
+   *  to whatever store it owns (e.g. POST /data/v2/drafts). */
+  onSaveDraft?: (payload: PostTemplatePayload) => Promise<unknown> | unknown;
+  /** Named, reusable post templates (e.g. fetched from
+   *  /data/v2/post-templates). When this prop is provided, a "Templates"
+   *  button appears next to Save draft. Empty array still shows the
+   *  button — users need somewhere to save the first template. */
+  postTemplates?: PostTemplate[];
+  /** Host stores a new template under the user-supplied name. */
+  onSavePostTemplate?: (name: string, payload: PostTemplatePayload) => Promise<unknown> | unknown;
+  /** Host removes the named template. */
+  onDeletePostTemplate?: (name: string) => Promise<unknown> | unknown;
+  /** Hook fired AFTER the user has confirmed they want to replace the
+   *  composer with a template. The kit refills its own title / description
+   *  / body / tags before this fires; the host can use this to mirror the
+   *  community in its external picker. */
+  onApplyPostTemplate?: (template: PostTemplate) => void;
 
   /** Toolbar visibility flags — mirror PostComposer for consistency. */
   hideAudio?: boolean;
@@ -351,6 +375,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
+  onSaveDraft,
+  postTemplates,
+  onSavePostTemplate,
+  onDeletePostTemplate,
+  onApplyPostTemplate,
   hideAudio,
   hideVideo,
   hideGif,
@@ -503,6 +532,12 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  // Save-draft + post-templates UI state — additive, opted into by hosts
+  // that provide the corresponding callbacks. `isPostTemplatesBusy` reflects
+  // an in-flight save/delete from the panel.
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isPostTemplatesOpen, setIsPostTemplatesOpen] = useState(false);
+  const [isPostTemplatesBusy, setIsPostTemplatesBusy] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   useEffect(() => {
@@ -1265,6 +1300,79 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     reblogToggle,
   ]);
 
+  // ── Save Draft / Post Templates ──────────────────────────────────────────
+  // Shared snapshot — both Save Draft and Save-as-Template need the same
+  // shape. Computed at call time so the latest field values flow through.
+  const currentPostPayload: PostTemplatePayload = {
+    title: title.trim(),
+    description: description.trim().slice(0, DESCRIPTION_MAX),
+    body: body,
+    tags: mergedTags,
+  };
+
+  const handleSaveDraft = useCallback(async () => {
+    if (!onSaveDraft || isSavingDraft) return;
+    setIsSavingDraft(true);
+    try {
+      await Promise.resolve(
+        onSaveDraft({
+          title: title.trim(),
+          description: description.trim().slice(0, DESCRIPTION_MAX),
+          body,
+          tags: mergedTags,
+        }),
+      );
+    } catch (err) {
+      console.error('[ParentPostComposer] save draft error:', err);
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }, [onSaveDraft, isSavingDraft, title, description, body, mergedTags]);
+
+  const handleSavePostTemplate = useCallback(
+    async (name: string, payload: PostTemplatePayload) => {
+      if (!onSavePostTemplate) return;
+      setIsPostTemplatesBusy(true);
+      try {
+        await Promise.resolve(onSavePostTemplate(name, payload));
+      } finally {
+        setIsPostTemplatesBusy(false);
+      }
+    },
+    [onSavePostTemplate],
+  );
+
+  const handleDeletePostTemplate = useCallback(
+    async (name: string) => {
+      if (!onDeletePostTemplate) return;
+      setIsPostTemplatesBusy(true);
+      try {
+        await Promise.resolve(onDeletePostTemplate(name));
+      } finally {
+        setIsPostTemplatesBusy(false);
+      }
+    },
+    [onDeletePostTemplate],
+  );
+
+  /** User confirmed they want to replace the composer with a template's
+   *  contents. We refill the form locally and ALSO notify the host so its
+   *  own state (e.g. community picker) can mirror the template. */
+  const handleApplyPostTemplate = useCallback(
+    (template: PostTemplate) => {
+      setTitle(template.title || '');
+      setDescription(template.description || '');
+      setBody(template.body || '');
+      const normalised = (template.tags || [])
+        .map((t) => (typeof t === 'string' ? t.trim().toLowerCase() : ''))
+        .filter((t): t is string => Boolean(t) && !lockedTagList.includes(t));
+      setUserTags(normalised);
+      setTagDraft('');
+      onApplyPostTemplate?.(template);
+    },
+    [lockedTagList, onApplyPostTemplate],
+  );
+
   const removeAudio = () => {
     setAudioEmbedUrl(null);
     setAudioDuration(0);
@@ -1321,6 +1429,45 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             </p>
           </div>
           {currentUser && <Avatar account={currentUser} size={32} className="hidden sm:block" />}
+          {/* Save draft — opt-in via `onSaveDraft`. Sits beside Publish so
+              users always have a "keep working on this later" path. The
+              snapshot includes title / description / body / tags; community
+              is the host's responsibility because it's owned outside the
+              kit. */}
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={() => void handleSaveDraft()}
+              disabled={isSavingDraft || isSubmitting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Save as draft"
+              aria-label="Save as draft"
+            >
+              {isSavingDraft ? (
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              <span className="hidden sm:inline">{isSavingDraft ? 'Saving…' : 'Save draft'}</span>
+            </button>
+          )}
+          {/* Templates — opt-in via `postTemplates`. Opens the panel that
+              lists existing templates and lets the user save the current
+              post as a new template. Apply asks for confirmation before
+              overwriting the in-flight post. */}
+          {postTemplates !== undefined && (
+            <button
+              type="button"
+              onClick={() => setIsPostTemplatesOpen(true)}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              title="Browse or save post templates"
+              aria-label="Open post templates"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Templates</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSubmit}
@@ -2227,6 +2374,18 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         onSelectTemplate={insertText}
         templates={templates}
       />
+      {postTemplates !== undefined && (
+        <PostTemplatesPanel
+          isOpen={isPostTemplatesOpen}
+          onClose={() => setIsPostTemplatesOpen(false)}
+          templates={postTemplates}
+          currentPayload={currentPostPayload}
+          busy={isPostTemplatesBusy}
+          onSaveTemplate={handleSavePostTemplate}
+          onDeleteTemplate={handleDeletePostTemplate}
+          onApplyTemplate={handleApplyPostTemplate}
+        />
+      )}
       <PollCreator
         isOpen={isPollOpen}
         onClose={() => setIsPollOpen(false)}

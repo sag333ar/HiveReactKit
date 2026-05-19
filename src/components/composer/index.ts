@@ -13,6 +13,13 @@ export type { GiphyPickerProps } from './GiphyPicker'
 export { default as MemePicker } from './MemePicker'
 export type { MemePickerProps } from './MemePicker'
 
+export { default as PostTemplatesPanel } from './PostTemplatesPanel'
+export type {
+  PostTemplatesPanelProps,
+  PostTemplate,
+  PostTemplatePayload,
+} from './PostTemplatesPanel'
+
 export { default as EmojiPicker } from './EmojiPicker'
 export type { EmojiPickerProps } from './EmojiPicker'
 
