@@ -94,6 +94,10 @@ export interface PostActionButtonProps {
   onEdit?: () => void;
   /** Called when reblog is clicked (when logged in). */
   onReblog?: () => void;
+  /** Called when re-snap is clicked (when logged in). Re-snap appends
+   *  a new snap to the latest peak.snaps container whose body is a URL
+   *  to the original snap — receivers render the original inline. */
+  onReSnap?: () => void;
   /** Called when share is clicked. */
   onShare?: () => void;
   /** Called when tip is clicked (when logged in). */
@@ -168,6 +172,7 @@ export function PostActionButton({
   onComments,
   onEdit,
   onReblog,
+  onReSnap,
   onShare,
   onTip,
   onReport,
@@ -450,6 +455,10 @@ export function PostActionButton({
     requireLogin("Reblog", () => onReblog?.());
   };
 
+  const handleReSnapClick = () => {
+    requireLogin("Re-snap", () => onReSnap?.());
+  };
+
   const handleReportClick = () => {
     requireLogin("Report", () => onReport?.());
   };
@@ -665,6 +674,7 @@ export function PostActionButton({
         <MoreActionsMenu
           onEdit={onEdit}
           onReblog={onReblog ? handleReblogClick : undefined}
+          onReSnap={onReSnap ? handleReSnapClick : undefined}
           onShare={handleShareClick}
           onTip={onTip ? handleTipClick : undefined}
           onReport={onReport ? handleReportClick : undefined}

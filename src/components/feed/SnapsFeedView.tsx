@@ -62,6 +62,16 @@ export interface SnapsFeedViewProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  /** Called when the viewer taps "Re-snap" in a snap's more menu.
+   *  Host implements the broadcast — see SnapsFeedCard's `onReSnap`.
+   *  The `parentTags` argument carries the original snap's
+   *  `json_metadata.tags` so the broadcast can stay under the same
+   *  community / topic. */
+  onReSnap?: (
+    author: string,
+    permlink: string,
+    parentTags?: string[],
+  ) => void;
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
@@ -209,6 +219,7 @@ export function SnapsFeedView({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  onReSnap,
   onTip,
   onSharePost,
   onCommentClick,
@@ -319,6 +330,7 @@ export function SnapsFeedView({
     onSubmitComment,
     onClickCommentUpvote,
     onReblog,
+    onReSnap,
     onTip,
     onSharePost,
     onCommentClick,

@@ -32,6 +32,7 @@ import { PollVoteWidget } from '../PollVoteWidget';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import ReSnapEmbed from './ReSnapEmbed';
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -41,6 +42,18 @@ export interface SnapsFeedCardProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  /** Called when the viewer taps "Re-snap" in the snap's more menu.
+   *  Host implements the broadcast — body is a URL pointing at the
+   *  original snap (`http(s)://<frontend>/@<author>/<permlink>`) so
+   *  consumers detect it and render the original inline. The
+   *  `parentTags` argument carries the original snap's
+   *  `json_metadata.tags` so the host can keep the new re-snap under
+   *  the same community / topic. */
+  onReSnap?: (
+    author: string,
+    permlink: string,
+    parentTags?: string[],
+  ) => void;
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
@@ -206,6 +219,38 @@ function stripViaAppsCredit(body: string): string {
       /\s*(?:<br\s*\/?>)?\s*via Apps from\s+https?:\/\/\S+\s*$/i,
       '',
     );
+}
+
+/**
+ * Detect "re-snap" — a snap whose body is essentially just a URL
+ * pointing at another snap on a Hive frontend (peakd, hive.blog,
+ * ecency, inleo, snapie.io, hivesuite.app). When that's the case we
+ * render the original post inline via <ReSnapEmbed/> instead of the
+ * normal body, with a "RE-SNAP" badge in the top-right.
+ *
+ * Returns the referenced { author, permlink } when the body matches,
+ * or `null` to render the body normally.
+ */
+function detectReSnapTarget(body: string): { author: string; permlink: string } | null {
+  const trimmed = (body || '').trim();
+  if (!trimmed) return null;
+  // Allow optional surrounding markdown link `[label](url)` shape, plain
+  // `<a href>`, or a bare URL. Reject anything with extra text outside.
+  const tryUrl = (raw: string): { author: string; permlink: string } | null => {
+    const target = parseHiveFrontendUrl(raw);
+    return target && target.kind === 'post'
+      ? { author: target.author, permlink: target.permlink }
+      : null;
+  };
+  // Bare URL only (most common case — matches the reference payload).
+  if (/^https?:\/\/\S+$/.test(trimmed)) return tryUrl(trimmed);
+  // Markdown link only.
+  const md = trimmed.match(/^\[[^\]]*\]\((https?:\/\/[^)\s]+)\)$/);
+  if (md) return tryUrl(md[1]);
+  // Anchor tag only.
+  const a = trimmed.match(/^<a\s[^>]*href=["'](https?:\/\/[^"']+)["'][^>]*>[^<]*<\/a>$/i);
+  if (a) return tryUrl(a[1]);
+  return null;
 }
 
 function parseBody(post: Post): ParsedBody {
@@ -771,6 +816,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  onReSnap,
   onTip,
   onSharePost,
   onCommentClick,
@@ -796,6 +842,11 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   actionsAsMenu,
 }) => {
   const parsed = useMemo(() => parseBody(post), [post.body, post.json_metadata]);
+  // When the body is just a URL pointing at another snap, switch the
+  // body region over to <ReSnapEmbed/> instead of the normal media
+  // strip + markdown render. The original snap then appears inline
+  // with a "RE-SNAP" badge — exactly matches the Snapie behaviour.
+  const reSnapTarget = useMemo(() => detectReSnapTarget(post.body ?? ''), [post.body]);
   const isHivesuitePost = useMemo(
     () => hasHivesuiteFamilyTag(post),
     [post.json_metadata],
@@ -1030,6 +1081,19 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         className="cursor-pointer space-y-2 overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
+        {reSnapTarget ? (
+          // Body was just a URL pointing at another snap — render the
+          // original inline as a compact embed with a "RE-SNAP" badge.
+          // Tapping the embed opens the original snap's detail page.
+          <ReSnapEmbed
+            author={reSnapTarget.author}
+            permlink={reSnapTarget.permlink}
+            observer={currentUser}
+            onPostClick={onPostClick}
+            onUserClick={onUserClick}
+          />
+        ) : (
+          <>
         <AttachmentStrip attachments={parsed.attachments} />
         {renderedBodyHtml ? (
           // No `line-clamp-6` here: webkit-line-clamp is an
@@ -1093,6 +1157,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             onTagClick={onTagClick}
           />
         ) : null}
+          </>
+        )}
       </div>
 
       {/* Poll widget — rendered when the snap's json_metadata declares
@@ -1142,6 +1208,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
           onReblog={post.author !== currentUser && onReblog ? () => onReblog(post.author, post.permlink) : undefined}
+          onReSnap={onReSnap ? () => onReSnap(post.author, post.permlink, parentMetaTags) : undefined}
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
