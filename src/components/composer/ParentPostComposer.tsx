@@ -32,6 +32,7 @@ import {
   Italic,
   Link as LinkIcon,
   Lock,
+  Play,
   Save,
   Send,
   Smile,
@@ -57,6 +58,7 @@ import ImageUploader from './ImageUploader';
 import AudioUploader from './AudioUploader';
 import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
+import YoutubePicker from './YoutubePicker';
 import MemePicker from './MemePicker';
 import EmojiPicker from './EmojiPicker';
 import PostTemplatesPanel, {
@@ -147,6 +149,8 @@ export interface ParentPostComposerProps {
   signingUsername?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
+  /** YouTube Data API v3 key — enables the YouTube video picker */
+  youtubeApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
 
@@ -173,6 +177,8 @@ export interface ParentPostComposerProps {
   hideAudio?: boolean;
   hideVideo?: boolean;
   hideGif?: boolean;
+  /** Hide the YouTube search/embed button. */
+  hideYoutube?: boolean;
   hideEmoji?: boolean;
   hideTemplate?: boolean;
   hidePoll?: boolean;
@@ -373,6 +379,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   signingUsername,
   threeSpeakApiKey,
   giphyApiKey,
+  youtubeApiKey,
   templateToken,
   templateApiBaseUrl,
   onSaveDraft,
@@ -383,6 +390,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideAudio,
   hideVideo,
   hideGif,
+  hideYoutube,
   hideEmoji,
   hideTemplate,
   hidePoll,
@@ -530,6 +538,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
+  const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   // Save-draft + post-templates UI state — additive, opted into by hosts
@@ -1738,6 +1747,19 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     GIF
                   </button>
                 )}
+                {!hideYoutube && youtubeApiKey && (
+                  <button
+                    type="button"
+                    onClick={() => setIsYoutubeOpen(true)}
+                    className={toolbarBtnClass}
+                    title="Insert YouTube video"
+                    disabled={isDisabled}
+                  >
+                    <span className="inline-flex h-4 w-[22px] items-center justify-center rounded-sm bg-[#ff0000]">
+                      <Play className="h-2.5 w-2.5 fill-white text-white" />
+                    </span>
+                  </button>
+                )}
                 {/* Meme picker — visible when the composer has any image
                     upload path configured (ecency token or hive signer).
                     Sits beside the GIF button so users discover both. */}
@@ -2348,6 +2370,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           setIsGiphyOpen(false);
         }}
         giphyApiKey={giphyApiKey}
+      />
+      <YoutubePicker
+        isOpen={isYoutubeOpen}
+        onClose={() => setIsYoutubeOpen(false)}
+        onSelectVideo={(url) => {
+          insertText(`\n${url}\n`);
+          setIsYoutubeOpen(false);
+        }}
+        youtubeApiKey={youtubeApiKey}
       />
       <MemePicker
         isOpen={isMemeOpen}

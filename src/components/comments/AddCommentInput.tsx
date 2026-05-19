@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users } from 'lucide-react';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users, Play } from 'lucide-react';
 import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
 import {
   THREESPEAK_FUND_ACCOUNT,
@@ -13,6 +13,7 @@ import ImageUploader from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
 import VideoUploader from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
+import YoutubePicker from '../composer/YoutubePicker';
 import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
 import MemePicker from '../composer/MemePicker';
@@ -41,6 +42,8 @@ export interface PostComposerProps {
   threeSpeakApiKey?: string;
   /** GIPHY API key — enables GIF search */
   giphyApiKey?: string;
+  /** YouTube Data API v3 key — enables the YouTube video picker */
+  youtubeApiKey?: string;
   /** HReplier API token — enables template picker */
   templateToken?: string;
   /** Custom template API endpoint (defaults to https://hreplier-api.sagarkothari88.one/data/templates) */
@@ -55,6 +58,8 @@ export interface PostComposerProps {
   hideVideo?: boolean;
   hideEmoji?: boolean;
   hideGif?: boolean;
+  /** Hide the YouTube search/embed button. */
+  hideYoutube?: boolean;
   hideCode?: boolean;
   hideMention?: boolean;
   hideTemplate?: boolean;
@@ -196,6 +201,7 @@ const PostComposer = ({
   signingUsername,
   threeSpeakApiKey,
   giphyApiKey,
+  youtubeApiKey,
   templateToken,
   templateApiBaseUrl,
   hideBold,
@@ -206,6 +212,7 @@ const PostComposer = ({
   hideVideo,
   hideEmoji,
   hideGif,
+  hideYoutube,
   hideCode,
   hideMention,
   hideTemplate,
@@ -259,6 +266,7 @@ const PostComposer = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = disabled || isSubmitting;
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
+  const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
@@ -1006,6 +1014,19 @@ const PostComposer = ({
             GIF
           </button>
         )}
+        {!hideYoutube && youtubeApiKey && (
+          <button
+            type="button"
+            onClick={() => setIsYoutubeOpen(true)}
+            className={toolbarBtnClass}
+            title="Insert YouTube video"
+            disabled={isDisabled}
+          >
+            <span className="inline-flex h-4 w-[22px] items-center justify-center rounded-sm bg-[#ff0000]">
+              <Play className="h-2.5 w-2.5 fill-white text-white" />
+            </span>
+          </button>
+        )}
         {/* Meme maker — visible when the composer has any image-upload
             path configured (ecency token or hive-signer). Sits beside
             the GIF button so users discover both. */}
@@ -1344,6 +1365,12 @@ const PostComposer = ({
         onClose={() => setIsGiphyOpen(false)}
         onSelectGif={(url) => { insertText(`![GIF](${url})`); setIsGiphyOpen(false); }}
         giphyApiKey={giphyApiKey}
+      />
+      <YoutubePicker
+        isOpen={isYoutubeOpen}
+        onClose={() => setIsYoutubeOpen(false)}
+        onSelectVideo={(url) => { insertText(`\n${url}\n`); setIsYoutubeOpen(false); }}
+        youtubeApiKey={youtubeApiKey}
       />
       <MemePicker
         isOpen={isMemeOpen}

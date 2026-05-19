@@ -53,8 +53,8 @@ export { PostComposer, default as AddCommentInput } from './components/comments/
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
 // Composer components (Image, Audio, Video uploaders, GIF picker, Meme picker, Emoji picker, Template picker, Post Templates panel)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, MemePicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, MemePickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload } from './components/composer';
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

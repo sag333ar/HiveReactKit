@@ -56,6 +56,10 @@ export interface MemePickerProps {
 const TEMPLATES_URL = 'https://api.memegen.link/templates';
 const MAX_CANVAS_WIDTH = 720; // generated PNG width cap — keeps uploads light
 const DEFAULT_FONT_SIZE = 56;
+const DEFAULT_TEXT_COLOR = '#ffffff';
+// Quick-pick swatches in addition to the freeform <input type="color"> — covers
+// the colors users reach for most often without forcing them through the picker.
+const TEXT_COLOR_SWATCHES = ['#ffffff', '#000000', '#ffeb3b', '#ff1744', '#00e676', '#2979ff'];
 
 // Classic meme defaults — Impact ranks first; the fallback chain matches
 // what most native browsers actually have available.
@@ -83,6 +87,7 @@ function MemePicker({
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
+  const [textColor, setTextColor] = useState<string>(DEFAULT_TEXT_COLOR);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
@@ -101,6 +106,7 @@ function MemePicker({
       setTopText('');
       setBottomText('');
       setFontSize(DEFAULT_FONT_SIZE);
+      setTextColor(DEFAULT_TEXT_COLOR);
       setGenError(null);
       setGenerating(false);
       setIsAwaitingApproval(false);
@@ -174,11 +180,11 @@ function MemePicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
-  // Re-draw whenever caption / size changes (image is already cached).
+  // Re-draw whenever caption / size / color changes (image is already cached).
   useEffect(() => {
     if (imageRef.current) drawMemeOntoCanvas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topText, bottomText, fontSize]);
+  }, [topText, bottomText, fontSize, textColor]);
 
   // ── Canvas renderer ─────────────────────────────────────────────────────
   const drawMemeOntoCanvas = () => {
@@ -201,7 +207,7 @@ function MemePicker({
     ctx.font = `900 ${px}px ${MEME_FONT_STACK}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = textColor;
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = Math.max(2, Math.round(px / 12));
     ctx.lineJoin = 'round';
@@ -367,6 +373,8 @@ function MemePicker({
             setBottomText={setBottomText}
             fontSize={fontSize}
             setFontSize={setFontSize}
+            textColor={textColor}
+            setTextColor={setTextColor}
             generating={generating}
             isAwaitingApproval={isAwaitingApproval}
             walletApprovalLabel={walletApprovalLabel}
@@ -529,6 +537,8 @@ interface EditorBodyProps {
   setBottomText: (s: string) => void;
   fontSize: number;
   setFontSize: (n: number) => void;
+  textColor: string;
+  setTextColor: (c: string) => void;
   generating: boolean;
   isAwaitingApproval: boolean;
   walletApprovalLabel: string;
@@ -545,6 +555,8 @@ function EditorBody(props: EditorBodyProps): React.JSX.Element {
     setBottomText,
     fontSize,
     setFontSize,
+    textColor,
+    setTextColor,
     generating,
     isAwaitingApproval,
     walletApprovalLabel,
@@ -603,6 +615,37 @@ function EditorBody(props: EditorBodyProps): React.JSX.Element {
             {fontSize}
           </span>
         </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
+        <span className="shrink-0 font-semibold uppercase tracking-wide text-[10px]">Text color</span>
+        <div className="flex items-center gap-1.5">
+          {TEXT_COLOR_SWATCHES.map((c) => {
+            const selected = c.toLowerCase() === textColor.toLowerCase();
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setTextColor(c)}
+                aria-label={`Use ${c}`}
+                title={c}
+                className={`h-6 w-6 rounded-full border transition ${selected ? 'border-[var(--hs-brand,#e31337)] ring-2 ring-[var(--hs-brand,#e31337)]/40' : 'border-[var(--hs-border-default,#3a424a)] hover:border-[var(--hs-text-secondary,#cfd3da)]'}`}
+                style={{ backgroundColor: c }}
+              />
+            );
+          })}
+        </div>
+        <label className="inline-flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-[var(--hs-text-tertiary,#9ca3b0)]">Custom</span>
+          <input
+            type="color"
+            value={textColor}
+            onChange={(e) => setTextColor(e.target.value)}
+            className="h-6 w-8 cursor-pointer rounded border border-[var(--hs-border-default,#3a424a)] bg-transparent p-0"
+            aria-label="Pick a custom text color"
+          />
+        </label>
+        <span className="font-mono tabular-nums text-[var(--hs-text-tertiary,#9ca3b0)]">{textColor.toUpperCase()}</span>
       </div>
 
       {genError && (

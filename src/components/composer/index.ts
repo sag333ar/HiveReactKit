@@ -10,6 +10,9 @@ export type { VideoUploaderProps, VideoUploadDetails } from './VideoUploader'
 export { default as GiphyPicker } from './GiphyPicker'
 export type { GiphyPickerProps } from './GiphyPicker'
 
+export { default as YoutubePicker } from './YoutubePicker'
+export type { YoutubePickerProps } from './YoutubePicker'
+
 export { default as MemePicker } from './MemePicker'
 export type { MemePickerProps } from './MemePicker'
 
