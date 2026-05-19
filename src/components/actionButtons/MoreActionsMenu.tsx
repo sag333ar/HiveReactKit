@@ -16,7 +16,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Repeat2, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { MoreVertical, Repeat2, Repeat, Share2, Gift, Flag, Pencil } from 'lucide-react';
 
 export interface MoreActionsMenuProps {
   /** Show the Edit item (rendered first, gated by the caller to the
@@ -24,6 +24,10 @@ export interface MoreActionsMenuProps {
   onEdit?: () => void;
   /** Show the Reblog item. */
   onReblog?: () => void;
+  /** Show the Re-snap item. Re-snap broadcasts a new snap whose body is
+   *  a URL pointing back at this snap — receivers render the original
+   *  inline with a "RE-SNAP" badge. */
+  onReSnap?: () => void;
   /** Show the Share item. */
   onShare?: () => void;
   /** Show the Tip item. */
@@ -43,6 +47,7 @@ const GAP = 4;
 export function MoreActionsMenu({
   onEdit,
   onReblog,
+  onReSnap,
   onShare,
   onTip,
   onReport,
@@ -108,7 +113,7 @@ export function MoreActionsMenu({
 
   // No registered actions → render nothing (mirrors how the inline icons
   // disappear when their callbacks aren't passed).
-  if (!onEdit && !onReblog && !onShare && !onTip && !onReport) return null;
+  if (!onEdit && !onReblog && !onReSnap && !onShare && !onTip && !onReport) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -151,6 +156,17 @@ export function MoreActionsMenu({
               >
                 <Repeat2 className="h-3.5 w-3.5 text-gray-300" />
                 <span>Reblog</span>
+              </button>
+            )}
+            {onReSnap && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onReSnap)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Repeat className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Re-snap</span>
               </button>
             )}
             {onShare && (

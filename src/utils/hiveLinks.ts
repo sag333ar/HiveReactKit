@@ -12,6 +12,13 @@ const HIVE_FRONTEND_HOSTS = new Set([
   'www.ecency.com',
   'inleo.io',
   'www.inleo.io',
+  // Snap-specific frontends — needed so re-snap bodies (a single URL
+  // to a snap on snapie.io / hivesuite.app) get recognised as a Hive
+  // post target and trigger the embedded re-snap card.
+  'snapie.io',
+  'www.snapie.io',
+  'hivesuite.app',
+  'www.hivesuite.app',
 ]);
 
 export type HiveLinkTarget =
