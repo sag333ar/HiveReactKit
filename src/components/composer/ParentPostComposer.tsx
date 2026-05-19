@@ -86,6 +86,13 @@ export interface ParentPostSubmitPayload {
   reward: RewardOption;
   beneficiaries: Beneficiary[];
   poll: PollData | null;
+  /** When the host exposes the app picker (`apps` prop), this carries
+   *  the id the user selected at publish time — e.g. `'blog'`,
+   *  `'snaps'`, `'waves'`, `'threads'`, `'moments'`. Hosts branch their
+   *  broadcast path on this so the same composer can publish either a
+   *  top-level blog post or a snap-style comment under the right
+   *  container account. `undefined` when `apps` is not provided. */
+  appId?: string;
   audioEmbedUrl: string | null;
   videoEmbedUrl: string | null;
   videoUploadUrl: string | null;
@@ -153,6 +160,20 @@ export interface ParentPostComposerProps {
   youtubeApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
+
+  /** Optional "publish to" picker. When provided, a small pill row
+   *  appears at the top of the composer letting the user pick which
+   *  front-end ecosystem the post should broadcast to (e.g. Blog,
+   *  Snaps, Ecency Waves, Threads, LikeTu Moments). The kit only
+   *  renders the picker and threads the selection through
+   *  `ParentPostSubmitPayload.appId`; the host's `onSubmit` decides
+   *  what each id does (community post, snap-style comment, etc.). */
+  apps?: { id: string; label: string; avatarUrl?: string }[];
+  /** Controlled selected app id. Falls back to the first entry of
+   *  `apps` when undefined. Pair with `onAppChange`. */
+  selectedApp?: string;
+  /** Fired when the user taps a different app pill. */
+  onAppChange?: (id: string) => void;
 
   /** Save-draft callback — when set, a "Save draft" button appears in the
    *  header. The kit passes the current form snapshot; the host writes it
@@ -382,6 +403,9 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   youtubeApiKey,
   templateToken,
   templateApiBaseUrl,
+  apps,
+  selectedApp,
+  onAppChange,
   onSaveDraft,
   postTemplates,
   onSavePostTemplate,
@@ -468,6 +492,26 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // ── Reward routing ────────────────────────────────────────────────────────
   const [reward, setReward] = useState<RewardOption>(defaultReward);
   const [isRewardOpen, setIsRewardOpen] = useState(false);
+  // Internal app-picker state. When the host passes `selectedApp` we
+  // honour it (controlled mode); otherwise we track the picked id
+  // ourselves and surface changes via `onAppChange`. Default to the
+  // first entry in `apps` so the picker always has a selected pill.
+  const [internalAppId, setInternalAppId] = useState<string>(
+    () => selectedApp ?? apps?.[0]?.id ?? '',
+  );
+  // Keep internal state in sync if the host swaps the controlled value
+  // out from under us.
+  useEffect(() => {
+    if (selectedApp !== undefined && selectedApp !== internalAppId) {
+      setInternalAppId(selectedApp);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApp]);
+  const activeAppId = selectedApp ?? internalAppId;
+  const handleAppPick = (id: string) => {
+    if (selectedApp === undefined) setInternalAppId(id);
+    onAppChange?.(id);
+  };
   const rewardBtnRef = useRef<HTMLButtonElement>(null);
   const rewardPopoverRef = useRef<HTMLDivElement>(null);
   const [rewardAnchor, setRewardAnchor] = useState<{
@@ -1276,6 +1320,9 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         hasVideo: Boolean(videoUploadDetails),
         isNsfw,
         reblog: reblogToggle ? reblog : false,
+        // Pass the picked app through to the host so it can route
+        // the broadcast appropriately (blog vs snap-style comment).
+        appId: apps && apps.length > 0 ? activeAppId : undefined,
       };
       const result = await Promise.resolve(onSubmit(payload));
       if (result === false) return; // cancelled — preserve draft
@@ -1500,6 +1547,49 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           </button>
         </div>
       </header>
+
+      {/* App picker — shown when the host exposed `apps`. Lets the
+          user pick which front-end ecosystem to publish to (Blog,
+          Snaps, Ecency, Threads, LikeTu). The kit only renders the
+          row; the selected id flows to `onSubmit` via the payload's
+          `appId` so the host's handler can pick the right broadcast
+          path. */}
+      {apps && apps.length > 0 && (
+        <div className="shrink-0 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)] px-4 py-2">
+          <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
+              Publish to
+            </span>
+            <div className="inline-flex flex-wrap gap-1.5">
+              {apps.map((opt) => {
+                const isActive = activeAppId === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => handleAppPick(opt.id)}
+                    aria-pressed={isActive}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'border-[var(--hrk-brand)] bg-[var(--hrk-brand)] text-white'
+                        : 'border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-brand)]/60'
+                    }`}
+                  >
+                    {opt.avatarUrl && (
+                      <img
+                        src={opt.avatarUrl}
+                        alt=""
+                        className="h-4 w-4 shrink-0 rounded-full object-cover"
+                      />
+                    )}
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {(isAwaitingApproval || awaitingWalletApproval) && (
         <div className="shrink-0 border-b border-[var(--hrk-warning)]/40 bg-[var(--hrk-warning-soft)] px-4 py-1.5 text-center">
