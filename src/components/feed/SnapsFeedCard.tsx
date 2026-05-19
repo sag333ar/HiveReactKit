@@ -137,13 +137,20 @@ type Attachment =
   | { kind: 'youtube'; id: string }
   | { kind: 'threespeak'; url: string }
   | { kind: 'twitter'; id: string }
-  | { kind: 'audio'; url: string };
+  | { kind: 'audio'; url: string }
+  | { kind: '3speak-audio'; url: string };
 
 const TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/gi;
 const YOUTUBE_REGEX =
   /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([^&\s]+)|https?:\/\/youtu\.be\/([^?\s]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([^?\s]+)/gi;
 const THREE_SPEAK_REGEX = /https?:\/\/(?:play\.)?3speak\.tv\/[^\s"'<>)]+/gi;
-const AUDIO_FILE_REGEX = /https?:\/\/[^\s"'<>)]+\.(?:mp3|wav|ogg|m4a)\b/gi;
+// Direct audio file URLs — widened to mirror hSnaps (extra container
+// formats + tolerate trailing query strings after the extension).
+const AUDIO_FILE_REGEX =
+  /https?:\/\/[^\s"'<>)]+?\.(?:mp3|wav|ogg|m4a|aac|flac|webm|opus)(?:\?[^\s"'<>)]*)?/gi;
+// 3Speak's hosted audio player — `audio.3speak.tv/play?a=...&v=...`.
+// Rendered inline as the same iframe shape hSnaps uses.
+const THREE_SPEAK_AUDIO_REGEX = /https?:\/\/audio\.3speak\.tv\/play\?[^\s"'<>)]+/gi;
 const IMG_MD_REGEX = /!\[[^\]]*\]\(([^\s)]+)\)/g;
 const IMG_HTML_REGEX = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
 /** Bare image URLs the markdown renderer would auto-promote into <img>
@@ -273,8 +280,15 @@ function parseBody(post: Post): ParsedBody {
   const threeSpeakUrls: string[] = [];
   while ((m = THREE_SPEAK_REGEX.exec(raw))) threeSpeakUrls.push(m[0]);
 
+  // Audio — both direct file URLs (mp3/wav/…) AND the hosted 3Speak
+  // audio player (`audio.3speak.tv/play?…`). Extract 3Speak first so
+  // the catch-all file regex doesn't accidentally grab the same URL.
+  const threeSpeakAudioUrls: string[] = [];
+  while ((m = THREE_SPEAK_AUDIO_REGEX.exec(raw))) threeSpeakAudioUrls.push(m[0]);
   const audioUrls: string[] = [];
-  while ((m = AUDIO_FILE_REGEX.exec(raw))) audioUrls.push(m[0]);
+  while ((m = AUDIO_FILE_REGEX.exec(raw))) {
+    if (!threeSpeakAudioUrls.includes(m[0])) audioUrls.push(m[0]);
+  }
 
   const twitterIds: string[] = [];
   while ((m = TWITTER_REGEX.exec(raw))) twitterIds.push(m[1]);
@@ -284,6 +298,7 @@ function parseBody(post: Post): ParsedBody {
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
     ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
+    ...uniq(threeSpeakAudioUrls).map((url) => ({ kind: '3speak-audio' as const, url })),
     ...uniq(audioUrls).map((url) => ({ kind: 'audio' as const, url })),
   ];
 
@@ -293,6 +308,7 @@ function parseBody(post: Post): ParsedBody {
   text = text.replace(IMG_HTML_REGEX, '');
   text = text.replace(YOUTUBE_REGEX, '');
   text = text.replace(THREE_SPEAK_REGEX, '');
+  text = text.replace(THREE_SPEAK_AUDIO_REGEX, '');
   text = text.replace(AUDIO_FILE_REGEX, '');
   text = text.replace(TWITTER_REGEX, '');
   text = text.replace(/<[^>]+>/g, ''); // strip remaining HTML
@@ -446,6 +462,7 @@ const attachmentLabel = (a: Attachment): string => {
   if (a.kind === 'youtube') return 'YouTube';
   if (a.kind === 'threespeak') return '3Speak';
   if (a.kind === 'twitter') return 'Tweet';
+  if (a.kind === '3speak-audio') return '3Speak audio';
   return 'Audio';
 };
 
@@ -515,7 +532,7 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const closeAndStop = (e: React.SyntheticEvent) => { e.stopPropagation(); onClose(); };
-  const isCompact = attachment.kind === 'audio';
+  const isCompact = attachment.kind === 'audio' || attachment.kind === '3speak-audio';
 
   return (
     <div
@@ -629,6 +646,19 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
                 </span>
               </div>
               <audio src={attachment.url} controls preload="metadata" autoPlay className="h-10 w-full" />
+            </div>
+          )}
+
+          {attachment.kind === '3speak-audio' && (
+            // Hosted 3Speak audio — renders inline via the official
+            // player iframe. Same iframe shape hSnaps uses.
+            <div className="w-full overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[#1a1d21]">
+              <iframe
+                src={attachment.url}
+                title="3Speak audio"
+                className="h-24 w-full border-0"
+                allow="autoplay"
+              />
             </div>
           )}
         </div>
@@ -749,18 +779,35 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
         </button>
       );
     }
+    if (current.kind === '3speak-audio') {
+      return (
+        <button
+          type="button"
+          onClick={(e) => open(e, current)}
+          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-violet-900/40 to-violet-950/60 text-sm text-[var(--hrk-text-secondary)]"
+          aria-label="Play 3Speak audio"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
+            <Music className="h-6 w-6" />
+          </span>
+          <span className="text-xs font-medium text-white/70">3Speak audio</span>
+          <span className="text-[10px] text-white/40">Tap to preview</span>
+        </button>
+      );
+    }
     // audio
     return (
       <button
         type="button"
         onClick={(e) => open(e, current)}
-        className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-sm text-[var(--hrk-text-secondary)]"
+        className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-900/40 to-emerald-950/60 text-sm text-[var(--hrk-text-secondary)]"
         aria-label="Play audio"
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
           <Music className="h-6 w-6" />
         </span>
-        <span className="text-xs text-[var(--hrk-text-tertiary)]">Audio · Tap to play</span>
+        <span className="text-xs font-medium text-white/70">Audio</span>
+        <span className="text-[10px] text-white/40">Tap to preview</span>
       </button>
     );
   };
@@ -928,6 +975,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     body = body.replace(IMG_URL_REGEX, '');
     body = body.replace(YOUTUBE_REGEX, '');
     body = body.replace(THREE_SPEAK_REGEX, '');
+    body = body.replace(THREE_SPEAK_AUDIO_REGEX, '');
     body = body.replace(AUDIO_FILE_REGEX, '');
     body = body.replace(TWITTER_REGEX, '');
 
