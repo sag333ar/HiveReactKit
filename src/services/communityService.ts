@@ -292,10 +292,10 @@ class CommunityService {
 
   /**
    * Snap references for a community, sourced from our `hreplier-api`
-   * `/snaps` endpoint with the `tag=<communityId>` filter. Mirrors
-   * peakd.com's public `/api/public/snaps/tags?container=…&tags=…`
-   * query but routes through our own backend. Returns the unsorted
-   * list of `{ id, author, permlink }` references; full post data is
+   * `/snaps/tags` endpoint. The query mirrors peakd.com's public
+   * `/api/public/snaps/tags?container=…&tags=…` shape exactly, just
+   * pointed at our backend. Returns the unsorted list of
+   * `{ id, author, permlink }` references; full post data is
    * materialised by `getCommunitySnaps` via batched bridge.get_post.
    */
   async getCommunitySnapReferences(
@@ -304,9 +304,9 @@ class CommunityService {
     signal?: AbortSignal,
   ): Promise<{ id: number; author: string; permlink: string }[]> {
     const url =
-      `https://hreplier-api.sagarkothari88.one/snaps` +
-      `?parent=${encodeURIComponent(parent)}` +
-      `&tag=${encodeURIComponent(communityId)}`;
+      `https://hreplier-api.sagarkothari88.one/snaps/tags` +
+      `?container=${encodeURIComponent(parent)}` +
+      `&tags=${encodeURIComponent(communityId)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: { Accept: 'application/json' },
