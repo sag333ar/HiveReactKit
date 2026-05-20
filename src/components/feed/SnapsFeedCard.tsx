@@ -28,6 +28,7 @@ import {
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
+import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
@@ -1155,7 +1156,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           // tables / lists / blockquotes / code blocks. Letting the
           // body render at its natural height keeps tables intact;
           // the card stays clickable for anything inside that isn't
-          // an anchor / button / media element.
+          // an anchor / button / media element. Wrapped in
+          // SelectionTranslator so users can highlight any passage
+          // and get a one-tap Google translation.
+          <SelectionTranslator>
           <div
             className="snaps-feed-body"
             // The renderer already sanitises and rewrites Hive URLs;
@@ -1201,6 +1205,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
               if (t.closest('button, img, video, iframe')) e.stopPropagation();
             }}
           />
+          </SelectionTranslator>
         ) : parsed.segments.length > 0 ? (
           // Fallback when the renderer is unavailable or returns empty
           // (e.g. body was entirely media): keep the old plain-text

@@ -16,6 +16,14 @@ export type PostMedia =
 
 const IMG_MD = /!\[[^\]]*\]\(([^\s)]+)\)/g;
 const IMG_HTML = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+// Bare image URLs embedded directly in the body (no markdown / no
+// <img> tag) — common in posts that lean on the renderer to expand
+// raw URLs into images. Without this the post-card thumbnail strip
+// silently drops vertical / portfolio-style posts whose bodies are
+// just sequences of plain URLs inside <center> tags. Accepts the
+// usual web image extensions with an optional query string.
+const IMG_BARE_URL =
+  /https?:\/\/[^\s"'<>)]+\.(?:jpe?g|png|gif|webp|avif)(?:\?[^\s"'<>)]*)?/gi;
 const YOUTUBE =
   /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([^&\s]+)|https?:\/\/youtu\.be\/([^?\s]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([^?\s]+)/gi;
 const THREE_SPEAK = /https?:\/\/(?:play\.)?3speak\.tv\/[^\s"'<>)]+/gi;
@@ -55,9 +63,12 @@ export function extractPostMedia(post: Post): PostMedia[] {
   const body = post.body ?? '';
   let m: RegExpExecArray | null;
 
-  // Inline markdown / HTML images embedded in the body.
+  // Inline markdown / HTML images embedded in the body, plus bare
+  // URL images (dedup() collapses any URL captured by more than one
+  // pattern).
   while ((m = IMG_MD.exec(body))) media.push({ kind: 'image', url: m[1] });
   while ((m = IMG_HTML.exec(body))) media.push({ kind: 'image', url: m[1] });
+  while ((m = IMG_BARE_URL.exec(body))) media.push({ kind: 'image', url: m[0] });
 
   // YouTube videos.
   while ((m = YOUTUBE.exec(body))) {

@@ -143,6 +143,15 @@ export {
 } from './i18n';
 export { default as TranslatedBody, type TranslatedBodyProps } from './components/TranslatedBody';
 export { default as TranslatedText, type TranslatedTextProps } from './components/TranslatedText';
+export { default as SelectionTranslator } from './components/SelectionTranslator';
+export { LanguagePickerButton } from './components/LanguagePickerButton';
+export {
+  translateSelection,
+  DEFAULT_TRANSLATE_LANGUAGES,
+  getPreferredTranslateLanguage,
+  setPreferredTranslateLanguage,
+  type SelectionTranslateLanguage,
+} from './i18n/selectionTranslate';
 export {
   buildCommentOptions,
   REWARD_OPTIONS,

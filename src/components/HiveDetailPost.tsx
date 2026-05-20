@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
+import { SelectionTranslator } from './SelectionTranslator';
+import { LanguagePickerButton } from './LanguagePickerButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
@@ -240,6 +242,19 @@ export interface HiveDetailPostProps {
   /** Called when the user taps Report in the header kebab. When
    *  omitted, falls back to `onReport`. */
   onHeaderReport?: () => void;
+
+  // ── Header language picker (whole-post auto-translate) ────────────
+  /** Currently active language for the page (BCP-47, e.g. "en",
+   *  "es", "hi"). Consumer should pass the value it hands to
+   *  `<HiveLanguageProvider language=…>` so the picker's tick mark
+   *  reflects the actual state. */
+  language?: string;
+  /** Called when the user picks a language from the header globe.
+   *  Consumer should update its `<HiveLanguageProvider>`'s
+   *  `language` prop — the existing `<TranslatedBody>` /
+   *  `<TranslatedText>` / inline-comment translators inside the
+   *  page will then re-render with the new language. */
+  onSelectLanguage?: (code: string) => void;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -328,6 +343,8 @@ export function HiveDetailPost({
   onToggleBookmark,
   onHeaderShare,
   onHeaderReport,
+  language,
+  onSelectLanguage,
   onVotePoll,
   showVoteButton,
   processBody,
@@ -1048,6 +1065,18 @@ export function HiveDetailPost({
               </div>
             </div>
 
+            {/* Whole-page language picker. Rendered only when the
+                consumer wires both the controlled language and the
+                setter — pairing it with a parent
+                <HiveLanguageProvider> turns this into a one-tap
+                "translate the entire post + all comments" affordance. */}
+            {language !== undefined && onSelectLanguage && (
+              <LanguagePickerButton
+                language={language}
+                onSelectLanguage={onSelectLanguage}
+              />
+            )}
+
             {/* Header kebab — Bookmark · Share · Report. Each item is
                 conditional on its handler; the trigger itself only
                 appears when at least one handler is registered.
@@ -1091,10 +1120,15 @@ export function HiveDetailPost({
               </button>
             )}
 
-            {/* Post title + meta */}
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
-              {translatedTitle || post.title}
-            </h1>
+            {/* Post title + meta. Title gets its own
+                SelectionTranslator so selecting words from the
+                heading raises the Translate pill — the body's
+                wrapper below doesn't include the H1. */}
+            <SelectionTranslator>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
+                {translatedTitle || post.title}
+              </h1>
+            </SelectionTranslator>
             <div className="text-xs text-[var(--hrk-text-tertiary)] mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
@@ -1126,14 +1160,18 @@ export function HiveDetailPost({
               </div>
             )}
 
-            {/* Rendered body — full width */}
+            {/* Rendered body — full width. Wrapped in
+                SelectionTranslator so the user can highlight any
+                passage and get a one-tap Google translation. */}
             <div className="pb-6">
               {renderedBody ? (
-                <TranslatedBody
-                  ref={postBodyRef}
-                  className="hive-post-body"
-                  html={renderedBody}
-                />
+                <SelectionTranslator>
+                  <TranslatedBody
+                    ref={postBodyRef}
+                    className="hive-post-body"
+                    html={renderedBody}
+                  />
+                </SelectionTranslator>
               ) : (
                 <p className="text-[var(--hrk-text-tertiary)] text-sm italic">No content available.</p>
               )}
@@ -1413,8 +1451,11 @@ export function HiveDetailPost({
               />
             </div>
 
-            {/* Inline comments section */}
+            {/* Inline comments section — wrapped so highlighting any
+                comment body triggers the same translate popover the
+                post body uses. */}
             <div ref={commentsSectionRef}>
+              <SelectionTranslator>
               <InlineCommentSection
                 author={post.author}
                 permlink={post.permlink}
@@ -1447,6 +1488,7 @@ export function HiveDetailPost({
                 awaitingWalletApproval={awaitingWalletApproval}
                 renderOptions={renderOptions}
               />
+              </SelectionTranslator>
             </div>
           </div>
         </div>
