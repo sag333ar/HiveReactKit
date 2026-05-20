@@ -106,9 +106,100 @@ function formatTimeAgo(timestamp: string): string {
   return "just now";
 }
 
+/** Try to parse a transfer memo as a structured tip payload (peak.snaps
+ *  / commentrewarder / etc.). Recognises `key: value` lines and only
+ *  returns a result if the typical tip markers (`author:` AND either
+ *  `sender:` or `app:`) are present — so a regular promo memo with
+ *  one stray colon doesn't get mis-rendered as a tip block. */
+function parseTipMemo(memo: string): Record<string, string> | null {
+  if (!memo || memo.indexOf(':') === -1) return null;
+  const lines = memo.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const out: Record<string, string> = {};
+  for (const line of lines) {
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+    if (!key || !value) continue;
+    // Only collect a known whitelist of tip keys so a sentence like
+    // "Hello: visit our site" doesn't blow open into the structured
+    // renderer.
+    if (['author', 'post', 'sender', 'app', 'message'].includes(key)) {
+      out[key] = value;
+    }
+  }
+  if (!out.author) return null;
+  if (!out.sender && !out.app) return null;
+  return out;
+}
+
+/** Map a Transaction onto a human title + presentation kind. Pulled
+ *  out of the row component so the logic stays inspectable. */
+function describeTx(tx: Transaction): {
+  title: string;
+  kind: 'tip' | 'transfer' | 'power' | 'reward' | 'market' | 'delegation' | 'other';
+  tipData?: Record<string, string>;
+  badge?: 'in' | 'out';
+} {
+  const memo = tx.memo || '';
+  // Memo-driven flavour markers (set by the mapper for non-transfer
+  // ops). Detect them first so the generic transfer branch doesn't
+  // wrongly fire on, e.g., "Power up".
+  if (memo === 'Stopped power down' || memo === 'Started power down') {
+    return { title: memo, kind: 'power' };
+  }
+  if (memo.startsWith('Power up') || memo.startsWith('Power down')) {
+    return { title: memo, kind: 'power', badge: tx.type === 'sent' ? 'out' : 'in' };
+  }
+  if (memo === 'Claimed rewards') return { title: 'Claimed rewards', kind: 'reward' };
+  if (memo.startsWith('Author reward')) return { title: 'Author reward', kind: 'reward' };
+  if (memo === 'Producer reward') return { title: 'Producer reward', kind: 'reward' };
+  if (memo === 'Benefactor reward') return { title: 'Benefactor reward', kind: 'reward' };
+  if (memo.startsWith('Curation')) return { title: 'Curation reward', kind: 'reward' };
+  if (memo === 'Market fill') return { title: 'Market fill', kind: 'market' };
+  if (memo.startsWith('Delegate HP') || memo === 'Delegation returned') {
+    return { title: memo, kind: 'delegation' };
+  }
+  if (memo === 'Recurrent fill' || memo.startsWith('Recurrent')) {
+    return {
+      title: tx.type === 'sent' ? `Recurrent sent to ${tx.to}` : `Recurrent received from ${tx.from}`,
+      kind: 'transfer',
+      badge: tx.type === 'sent' ? 'out' : 'in',
+    };
+  }
+  if (memo.startsWith('Savings deposit')) {
+    return { title: 'Savings deposit', kind: 'transfer', badge: 'out' };
+  }
+  if (memo.startsWith('Savings withdraw')) {
+    return { title: 'Savings withdraw', kind: 'transfer', badge: 'in' };
+  }
+
+  // Regular transfer. Inspect the memo for tip-style key/value lines
+  // — peak.snaps / commentrewarder / etc. write structured memos so
+  // we render them in a code-style block rather than as one long
+  // string of "author: foo\nsender: bar".
+  const tipData = parseTipMemo(memo);
+  if (tipData) {
+    const sender = tipData.sender || tx.from;
+    return {
+      title: tx.type === 'received' ? `Tip received from ${sender}` : `Tip sent to ${tx.to}`,
+      kind: 'tip',
+      tipData,
+      badge: tx.type === 'sent' ? 'out' : 'in',
+    };
+  }
+  return {
+    title: tx.type === 'sent' ? `Sent to ${tx.to}` : `Received from ${tx.from}`,
+    kind: 'transfer',
+    badge: tx.type === 'sent' ? 'out' : 'in',
+  };
+}
+
 const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
   const isSent = tx.type === "sent";
   const otherUser = isSent ? tx.to : tx.from;
+  const meta = describeTx(tx);
+  const tip = meta.tipData;
 
   return (
     <div className="flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
@@ -133,11 +224,11 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
       </div>
 
       <div className="flex-1 min-w-0">
-        {/* Top line — username & amount share the row so neither gets
-            squashed by a fixed-width sibling. */}
+        {/* Top line — operation title & amount share the row so neither
+            gets squashed by a fixed-width sibling. */}
         <div className="flex items-baseline justify-between gap-2 min-w-0">
           <span className="text-sm font-semibold text-[var(--hrk-text-primary)] truncate">
-            {otherUser}
+            {meta.title}
           </span>
           <span
             className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
@@ -147,10 +238,34 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
             {isSent ? "-" : "+"}{tx.amount}
           </span>
         </div>
-        {/* Sub line — single line, truncates if the timestamp ever grows. */}
+        {/* Sub line — timestamp on its own row so the title above can
+            breathe at full width. */}
         <div className="text-[11px] text-[var(--hrk-text-tertiary)] mt-0.5 truncate">
-          {isSent ? "Sent" : "Received"} &middot; {formatTimeAgo(tx.timestamp)}
+          {formatTimeAgo(tx.timestamp)}
         </div>
+
+        {tip ? (
+          // Structured tip detail block — mirrors peakd's tip card so
+          // a glance tells the user which post was tipped and from
+          // which app. Values use the brand-blue accent to lift them
+          // off the muted keys.
+          <pre className="mt-2 max-w-full overflow-x-auto rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-2.5 py-2 font-mono text-[11px] leading-relaxed text-[var(--hrk-text-tertiary)] whitespace-pre-wrap break-words">
+            {(['author', 'post', 'sender', 'app', 'message'] as const).map((k) =>
+              tip[k] ? (
+                <div key={k}>
+                  <span className="text-[var(--hrk-text-tertiary)]">{k}:</span>{' '}
+                  <span className="text-blue-400">{tip[k]}</span>
+                </div>
+              ) : null,
+            )}
+          </pre>
+        ) : tx.memo && meta.kind === 'transfer' ? (
+          // Plain transfer with a non-structured memo — keep it short
+          // so promo spam doesn't dominate the row.
+          <p className="mt-1 text-[11px] text-[var(--hrk-text-tertiary)] line-clamp-2">
+            {tx.memo}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -477,87 +592,42 @@ export const Wallet: React.FC<WalletProps> = ({
 
   // Auto-load the next page of transactions when the user nears the
   // bottom of the scroll container holding the wallet. We attach a
-  // scroll listener to the closest scrollable ancestor so this works
-  // both standalone (window scroll) and embedded inside the profile
-  // page (the kit's nested scroll container).
+  // Infinite scroll via IntersectionObserver. `root: null` watches
+  // intersection with the document viewport but the observer ALSO
+  // fires for any scroll ancestor that clips the sentinel, so this
+  // works whether the wallet is rendered:
+  //   • standalone (window scrolls)
+  //   • inside the profile page (a nested overflow-y-auto pane scrolls)
+  //   • inside a HiveSuite dashboard panel (yet another nested pane)
+  // without us having to guess which ancestor is the right one.
+  // `rootMargin: '600px 0px'` pre-loads the next page when the
+  // sentinel is still ~600 px below the fold — same feel as the
+  // old scroll-listener implementation but driven by the browser
+  // instead of a polled bounding-rect check that needed the right
+  // scroll listener attached to work at all.
   useEffect(() => {
     const sentinel = txSentinelRef.current;
     if (!sentinel || !username) return;
     if (!hasMoreTransactions) return;
 
-    /**
-     * Walk up the DOM looking for any ancestor whose `overflow-y` is
-     * `auto`/`scroll`. We don't require `scrollHeight > clientHeight`
-     * because that gate falsely rejects the kit's `mainScrollRef`
-     * (overflow-y-auto + h-full) on the first render when the wallet
-     * hasn't grown past one viewport yet — we'd then fall back to the
-     * window, which never receives scroll events from a nested
-     * overflow container, and pagination would silently break.
-     */
-    const getScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
-      let current = node?.parentElement ?? null;
-      while (current) {
-        const style = window.getComputedStyle(current);
-        const overflowY = style.overflowY;
-        if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
-          return current;
+    // Wrap the load so a slow page doesn't queue multiple in-flight
+    // fetches — the store's own guard handles the rest.
+    let inFlight = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          if (inFlight || isLoadingMoreTransactions) continue;
+          inFlight = true;
+          Promise.resolve(fetchMoreTransactions(username)).finally(() => {
+            inFlight = false;
+          });
         }
-        current = current.parentElement;
-      }
-      return window;
-    };
-
-    // Attach to BOTH the closest overflow ancestor and the window. If a
-    // future layout change moves the scroll container elsewhere we still
-    // get notified — at worst we run an O(1) bounding-rect check twice
-    // per scroll. Cheap and bulletproof.
-    const scrollEl = getScrollParent(sentinel);
-
-    const THRESHOLD = 600;
-    let ticking = false;
-    const checkNearBottom = () => {
-      const rect = sentinel.getBoundingClientRect();
-      // Compare against whichever boundary is smaller — covers both the
-      // window viewport and the nested overflow container at the same
-      // time, so we trigger whether the user scrolls the page or the
-      // inner pane.
-      const winBottom = window.innerHeight;
-      const elBottom =
-        scrollEl === window
-          ? winBottom
-          : (scrollEl as HTMLElement).getBoundingClientRect().bottom;
-      const viewportBottom = Math.min(winBottom, elBottom);
-      if (rect.top - viewportBottom <= THRESHOLD) {
-        if (!isLoadingMoreTransactions) {
-          fetchMoreTransactions(username);
-        }
-      }
-    };
-
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        checkNearBottom();
-      });
-    };
-
-    // Fire once immediately in case the sentinel is already in view
-    // (short transaction history that didn't fill the page).
-    checkNearBottom();
-
-    // Listen to both candidates. Duplicate fires are deduped by `ticking`.
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    if (scrollEl !== window) {
-      window.addEventListener("scroll", onScroll, { passive: true });
-    }
-    return () => {
-      scrollEl.removeEventListener("scroll", onScroll);
-      if (scrollEl !== window) {
-        window.removeEventListener("scroll", onScroll);
-      }
-    };
+      },
+      { root: null, rootMargin: "600px 0px", threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, [username, hasMoreTransactions, isLoadingMoreTransactions, fetchMoreTransactions, transactions.length]);
 
   const isOwn = !!username && !!currentUsername &&

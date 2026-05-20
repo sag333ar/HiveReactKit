@@ -274,6 +274,50 @@ const fetchPendingSavingsWithdrawals = async (
 const OP_FILTER_LOW = "848647637693366652";
 const OP_FILTER_HIGH = "129639434";
 
+// Sync VESTS → HP conversion. Populated by `refreshHivePerVest()` and
+// reused by every entry in a transaction-history page so we don't
+// have to await the global-props RPC for each row. The number is
+// stable enough (changes once per block-cycle worth of inflation)
+// that a 5-minute re-fetch is more than sufficient.
+let cachedHivePerVest = 0;
+let lastHivePerVestAt = 0;
+const HIVE_PER_VEST_TTL_MS = 5 * 60 * 1000;
+async function refreshHivePerVest(force = false): Promise<number> {
+  const now = Date.now();
+  if (
+    !force &&
+    cachedHivePerVest > 0 &&
+    now - lastHivePerVestAt < HIVE_PER_VEST_TTL_MS
+  ) {
+    return cachedHivePerVest;
+  }
+  try {
+    const props = await dhiveClient.database.getDynamicGlobalProperties();
+    const tvs = parseFloat(String(props.total_vesting_shares).split(" ")[0]);
+    const tvf = parseFloat(String(props.total_vesting_fund_hive).split(" ")[0]);
+    if (tvs > 0 && tvf > 0) {
+      cachedHivePerVest = tvf / tvs;
+      lastHivePerVestAt = now;
+    }
+  } catch {
+    // Network blip — keep the old value rather than zero, so the UI
+    // doesn't switch to "0.000 HP" while a transient outage clears.
+  }
+  return cachedHivePerVest;
+}
+
+/** Format a VESTS string ("87.519019 VESTS") as the matching HP value
+ *  ("0.054 HP") using the cached vest-per-HIVE ratio. Returns the
+ *  original string if the ratio isn't loaded yet or the input
+ *  doesn't parse — caller can still render something. */
+function formatVestsAsHp(raw: string): string {
+  if (!raw || !raw.includes("VESTS")) return raw;
+  const num = parseFloat(raw.split(" ")[0]);
+  if (!Number.isFinite(num) || cachedHivePerVest <= 0) return raw;
+  const hp = num * cachedHivePerVest;
+  return `${hp.toFixed(3)} HP`;
+}
+
 /** Map a raw account-history entry to our Transaction shape. Returns null
  *  for op types we don't render. Captures the canonical financial ops
  *  peakd surfaces in its wallet timeline. */
@@ -357,7 +401,7 @@ function mapHistoryEntryToTransaction(
       const parts: string[] = [];
       if (op.reward_hive && parseFloat(op.reward_hive) > 0) parts.push(String(op.reward_hive));
       if (op.reward_hbd && parseFloat(op.reward_hbd) > 0) parts.push(String(op.reward_hbd));
-      if (op.reward_vests && parseFloat(op.reward_vests) > 0) parts.push(String(op.reward_vests));
+      if (op.reward_vests && parseFloat(op.reward_vests) > 0) parts.push(formatVestsAsHp(String(op.reward_vests)));
       return {
         ...base,
         type: "received",
@@ -371,7 +415,7 @@ function mapHistoryEntryToTransaction(
       return {
         ...base,
         type: op.delegator === username ? "sent" : "received",
-        amount: String(op.vesting_shares),
+        amount: formatVestsAsHp(String(op.vesting_shares)),
         from: op.delegator,
         to: op.delegatee,
         memo: `Delegate HP → @${op.delegatee}`,
@@ -380,16 +424,30 @@ function mapHistoryEntryToTransaction(
       return {
         ...base,
         type: "received",
-        amount: String(op.vesting_shares),
+        amount: formatVestsAsHp(String(op.vesting_shares)),
         from: "delegation",
         to: op.account,
         memo: "Delegation returned",
       };
+    case "withdraw_vesting": {
+      // Start / stop power down. Zero vests = "stopped"; non-zero =
+      // "started powering down this much per week (over 13 weeks)".
+      const vests = parseFloat(String(op.vesting_shares).split(" ")[0]);
+      const stopped = !Number.isFinite(vests) || vests === 0;
+      return {
+        ...base,
+        type: "sent",
+        amount: stopped ? "0.000 HP" : formatVestsAsHp(String(op.vesting_shares)),
+        from: op.account,
+        to: op.account,
+        memo: stopped ? "Stopped power down" : "Started power down",
+      };
+    }
     case "author_reward": {
       const parts: string[] = [];
       if (op.hive_payout && parseFloat(op.hive_payout) > 0) parts.push(String(op.hive_payout));
       if (op.hbd_payout && parseFloat(op.hbd_payout) > 0) parts.push(String(op.hbd_payout));
-      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(String(op.vesting_payout));
+      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(formatVestsAsHp(String(op.vesting_payout)));
       return {
         ...base,
         type: "received",
@@ -403,7 +461,7 @@ function mapHistoryEntryToTransaction(
       return {
         ...base,
         type: "received",
-        amount: String(op.reward),
+        amount: formatVestsAsHp(String(op.reward)),
         from: "curation",
         to: op.curator,
         memo: `Curation · @${op.comment_author}/${op.permlink}`,
@@ -412,7 +470,7 @@ function mapHistoryEntryToTransaction(
       const parts: string[] = [];
       if (op.hive_payout && parseFloat(op.hive_payout) > 0) parts.push(String(op.hive_payout));
       if (op.hbd_payout && parseFloat(op.hbd_payout) > 0) parts.push(String(op.hbd_payout));
-      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(String(op.vesting_payout));
+      if (op.vesting_payout && parseFloat(op.vesting_payout) > 0) parts.push(formatVestsAsHp(String(op.vesting_payout)));
       return {
         ...base,
         type: "received",
@@ -426,7 +484,7 @@ function mapHistoryEntryToTransaction(
       return {
         ...base,
         type: "received",
-        amount: String(op.vesting_shares),
+        amount: formatVestsAsHp(String(op.vesting_shares)),
         from: "producer",
         to: op.producer,
         memo: "Producer reward",
@@ -721,6 +779,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   fetchTransactions: async (username: string, limit: number = 100) => {
     set({ isLoadingTransactions: true, transactionError: null });
     try {
+      // Refresh the vests→HP ratio so the mapped page renders HP values
+      // (instead of raw VESTS) immediately. The promise resolves quickly
+      // when the cache is warm, so this barely costs us anything.
+      await refreshHivePerVest();
       const { transactions, oldestIndex } = await fetchAccountHistory(username, limit, -1);
       // No older pages once the oldest id returned is at the start of
       // the account's history. Using oldestIndex here instead of
@@ -746,6 +808,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     if (isLoadingMoreTransactions || !hasMoreTransactions) return [];
     set({ isLoadingMoreTransactions: true });
     try {
+      await refreshHivePerVest();
       // Smallest history id we already have — its value minus one is
       // the next `start` cursor. The bitmask filter means there may be
       // older non-matching ops between this id and the next matching
