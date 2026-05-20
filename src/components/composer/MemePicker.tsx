@@ -1,46 +1,41 @@
 /**
- * MemePicker — create a custom meme inside the composer.
+ * MemePicker — DecentMemes-powered meme inserter.
  *
- * Two flows:
- *   1. Pick a template from memegen.link's free, no-auth catalogue (~100s of
- *      classic meme blanks; CORS-permissive so canvases stay un-tainted).
- *   2. Use your own image — file upload or a pasted URL — for a fully custom
- *      meme.
+ * The previous implementation built our own canvas editor on top of
+ * memegen.link. It worked, but DecentMemes (https://decentmemes.com/widget/)
+ * is the Hive-native solution and ships a richer template library / editor,
+ * so we now embed their widget instead of duplicating it.
  *
- * Once an image is loaded, a canvas editor lets the user type Top / Bottom
- * captions in classic Impact-on-black-stroke style, tune the font size, and
- * generate the final PNG. The generated PNG is uploaded via Ecency first
- * (fastest, no signing), then `images.hive.blog` as a signed fallback
- * (mirrors `ImageUploader`'s behaviour). The picker calls `onSelectMeme`
- * with the public URL and the composer inserts it as a regular markdown
- * image — exactly like the GIF picker.
+ * Flow:
+ *   1. User opens the picker → DecentMemes loads in an iframe inside the modal.
+ *   2. User builds the meme on DecentMemes and taps their "Download" button.
+ *      The browser saves the rendered PNG/JPG to the user's downloads folder.
+ *   3. User taps "Use downloaded meme" in our modal footer → file picker.
+ *   4. The picked file is uploaded with `uploadImageWithFallback` (Ecency
+ *      first, signed images.hive.blog fallback — same pipeline the composer's
+ *      "Upload image" button uses) and the public URL is handed back via
+ *      `onSelectMeme` so the composer can insert it as a regular image.
  *
- * No external service stores the captioned image: everything is rendered
- * client-side and the only network call beyond the template list is the
- * Hive image upload.
+ * The user-facing prop surface is unchanged from the old MemePicker, so
+ * callers (`AddCommentInput`, `ParentPostComposer`) keep working without edits.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Search, ImageIcon, Upload, Loader2, ArrowLeft, Wand2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  X,
+  Upload,
+  Loader2,
+  Wand2,
+  ExternalLink,
+  AlertCircle,
+} from 'lucide-react';
 import { uploadImageWithFallback, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 
-// Memegen returns dozens of fields per template; we only use a handful.
-interface MemegenTemplate {
-  id: string;
-  name: string;
-  blank: string;
-  lines: number;
-  keywords?: string[];
-}
-
-type Source =
-  | { kind: 'template'; tpl: MemegenTemplate }
-  | { kind: 'upload'; objectUrl: string; file: File }
-  | { kind: 'url'; url: string };
+const DECENTMEMES_URL = 'https://decentmemes.com/widget/';
 
 export interface MemePickerProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Called with the public URL of the generated, uploaded meme. */
+  /** Called with the public URL of the uploaded meme image. */
   onSelectMeme: (url: string) => void;
   /** Ecency token for the no-signing upload path. */
   ecencyToken?: string;
@@ -53,18 +48,6 @@ export interface MemePickerProps {
   walletApprovalLabel?: string;
 }
 
-const TEMPLATES_URL = 'https://api.memegen.link/templates';
-const MAX_CANVAS_WIDTH = 720; // generated PNG width cap — keeps uploads light
-const DEFAULT_FONT_SIZE = 56;
-const DEFAULT_TEXT_COLOR = '#ffffff';
-// Quick-pick swatches in addition to the freeform <input type="color"> — covers
-// the colors users reach for most often without forcing them through the picker.
-const TEXT_COLOR_SWATCHES = ['#ffffff', '#000000', '#ffeb3b', '#ff1744', '#00e676', '#2979ff'];
-
-// Classic meme defaults — Impact ranks first; the fallback chain matches
-// what most native browsers actually have available.
-const MEME_FONT_STACK = 'Impact, "Anton", "Oswald", "Arial Black", system-ui, sans-serif';
-
 function MemePicker({
   isOpen,
   onClose,
@@ -75,193 +58,25 @@ function MemePicker({
   onSigningStateChange,
   walletApprovalLabel = 'Open Keychain App & Approve',
 }: MemePickerProps): React.JSX.Element | null {
-  // ── Catalog state ────────────────────────────────────────────────────────
-  const [templates, setTemplates] = useState<MemegenTemplate[]>([]);
-  const [tplLoading, setTplLoading] = useState(false);
-  const [tplError, setTplError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-
-  // ── Editor state ─────────────────────────────────────────────────────────
-  const [source, setSource] = useState<Source | null>(null);
-  const [urlInput, setUrlInput] = useState('');
-  const [topText, setTopText] = useState('');
-  const [bottomText, setBottomText] = useState('');
-  const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
-  const [textColor, setTextColor] = useState<string>(DEFAULT_TEXT_COLOR);
-  const [generating, setGenerating] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  // Holds the loaded HTMLImageElement so the canvas can re-render as the
-  // user types without paying the network cost again.
-  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // ── Reset transient state every time the dialog opens/closes ────────────
-  useEffect(() => {
-    if (!isOpen) {
-      setSource(null);
-      setUrlInput('');
-      setTopText('');
-      setBottomText('');
-      setFontSize(DEFAULT_FONT_SIZE);
-      setTextColor(DEFAULT_TEXT_COLOR);
-      setGenError(null);
-      setGenerating(false);
-      setIsAwaitingApproval(false);
-      imageRef.current = null;
-    }
-  }, [isOpen]);
+  if (!isOpen) return null;
 
-  // ── Templates fetch (lazy: only on first open) ──────────────────────────
-  useEffect(() => {
-    if (!isOpen || templates.length > 0) return;
-    const controller = new AbortController();
-    setTplLoading(true);
-    setTplError(null);
-    fetch(TEMPLATES_URL, { signal: controller.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Templates request failed: ${r.status}`);
-        return r.json() as Promise<MemegenTemplate[]>;
-      })
-      .then((rows) => {
-        // memegen serves templates in arbitrary order. Sort by name so the
-        // search-less default view is browsable.
-        const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name));
-        setTemplates(sorted);
-        setTplLoading(false);
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return;
-        setTplError(err instanceof Error ? err.message : 'Failed to load templates');
-        setTplLoading(false);
-      });
-    return () => controller.abort();
-  }, [isOpen, templates.length]);
-
-  // ── Load the chosen source image into <img> for the canvas pipeline ─────
-  useEffect(() => {
-    if (!source) {
-      imageRef.current = null;
-      return;
-    }
-    const url =
-      source.kind === 'template'
-        ? source.tpl.blank
-        : source.kind === 'upload'
-          ? source.objectUrl
-          : source.url;
-    const img = new window.Image();
-    // `crossOrigin = anonymous` is mandatory so the canvas stays un-tainted
-    // and `toBlob` works. memegen.link sends `access-control-allow-origin: *`,
-    // and ecency / hive image hosts do too. Pasted URLs that don't allow CORS
-    // will still draw on screen but `toBlob` will throw; we surface that as
-    // a friendly error rather than crashing.
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      imageRef.current = img;
-      // Trigger a re-render so the canvas effect below picks up the loaded
-      // image. State update with the same value is a no-op, so use a ref
-      // bump via fontSize.
-      setFontSize((s) => s); // force render
-      drawMemeOntoCanvas();
-    };
-    img.onerror = () => {
-      setGenError(
-        'Could not load that image. The host may not allow cross-origin use; try uploading the file instead.',
-      );
-    };
-    img.src = url;
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
-
-  // Re-draw whenever caption / size / color changes (image is already cached).
-  useEffect(() => {
-    if (imageRef.current) drawMemeOntoCanvas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topText, bottomText, fontSize, textColor]);
-
-  // ── Canvas renderer ─────────────────────────────────────────────────────
-  const drawMemeOntoCanvas = () => {
-    const img = imageRef.current;
-    const canvas = canvasRef.current;
-    if (!img || !canvas) return;
-    const aspect = img.naturalHeight / img.naturalWidth;
-    const w = Math.min(MAX_CANVAS_WIDTH, img.naturalWidth);
-    const h = Math.round(w * aspect);
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-
-    // Caption text — classic Impact-on-black-stroke style.
-    const px = Math.round((fontSize * w) / 720); // scale to canvas
-    ctx.font = `900 ${px}px ${MEME_FONT_STACK}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = textColor;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(2, Math.round(px / 12));
-    ctx.lineJoin = 'round';
-    ctx.miterLimit = 2;
-
-    drawWrappedCaption(ctx, topText.toUpperCase(), w / 2, px * 0.9, w * 0.92, px * 1.05);
-    drawWrappedCaption(
-      ctx,
-      bottomText.toUpperCase(),
-      w / 2,
-      h - px * 0.6,
-      w * 0.92,
-      px * 1.05,
-      /* alignBottom */ true,
-    );
-  };
-
-  // ── Source choosers ─────────────────────────────────────────────────────
-  const choosePastedUrl = () => {
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
-    setGenError(null);
-    setSource({ kind: 'url', url: trimmed });
-  };
-
-  const chooseUpload = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setGenError('Please pick an image file.');
+      setError('Please pick an image file (the meme you just downloaded).');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setGenError('File size must be under 10MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      setError('File size must be under 15MB.');
       return;
     }
-    setGenError(null);
-    setSource({ kind: 'upload', objectUrl: URL.createObjectURL(file), file });
-  };
-
-  // ── Generate + upload ───────────────────────────────────────────────────
-  const generate = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    setGenerating(true);
-    setGenError(null);
+    setError(null);
+    setUploading(true);
     try {
-      const blob: Blob | null = await new Promise((resolve) =>
-        canvas.toBlob((b) => resolve(b), 'image/png', 0.92),
-      );
-      if (!blob) throw new Error('Failed to render the meme image.');
-      const file = new File([blob], `meme-${Date.now()}.png`, { type: 'image/png' });
-
-      // Same Ecency-first, signed `images.hive.blog`-fallback chain the
-      // composer's "Upload image" button uses. Centralised in
-      // `uploadImageWithFallback` so both paths stay in lockstep.
       const url = await uploadImageWithFallback(file, {
         ecencyToken,
         onSignMessage,
@@ -279,448 +94,128 @@ function MemePicker({
       onSelectMeme(url);
       onClose();
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message === 'Tainted canvases may not be exported.'
-            ? 'That image host blocks cross-origin use, so the meme can\'t be exported. Upload the file instead.'
-            : err.message
-          : 'Failed to generate meme.';
-      setGenError(msg);
+      setError(err instanceof Error ? err.message : 'Upload failed.');
     } finally {
-      setGenerating(false);
+      setUploading(false);
       setIsAwaitingApproval(false);
       onSigningStateChange?.(false);
     }
   };
 
-  // ── Filtered templates ──────────────────────────────────────────────────
-  const filteredTemplates = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return templates;
-    return templates.filter((t) => {
-      if (t.name.toLowerCase().includes(q)) return true;
-      if (t.id.toLowerCase().includes(q)) return true;
-      if (t.keywords?.some((k) => k.toLowerCase().includes(q))) return true;
-      return false;
-    });
-  }, [templates, search]);
-
-  if (!isOpen) return null;
-
-  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 px-3 py-6"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-raised,#262b30)] shadow-2xl"
+        className="flex max-h-[95vh] w-full max-w-3xl flex-col rounded-2xl border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-raised,#262b30)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-[var(--hs-border-subtle,#3a424a)] px-4 py-3">
-          {source ? (
+        <header className="flex items-center justify-between gap-2 border-b border-[var(--hs-border-subtle,#3a424a)] px-4 py-3">
+          <h3 className="inline-flex items-center gap-2 text-base font-semibold text-[var(--hs-text-primary,#f0f0f8)]">
+            <Wand2 className="h-4 w-4 text-[var(--hs-warning,#f59e0b)]" />
+            Create a meme
+            <span className="ml-1 rounded-full bg-[var(--hs-bg-surface-sunken,#1c1f25)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--hs-text-tertiary,#9ca3b0)]">
+              DecentMemes
+            </span>
+          </h3>
+          <div className="flex shrink-0 items-center gap-1">
+            <a
+              href={DECENTMEMES_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[var(--hs-text-secondary,#cfd3da)] hover:bg-[var(--hs-bg-hover,#2f353d)]"
+              title="Open DecentMemes in a new tab"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open in tab
+            </a>
             <button
               type="button"
-              onClick={() => {
-                setSource(null);
-                setTopText('');
-                setBottomText('');
-                setGenError(null);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-[var(--hs-text-secondary,#cfd3da)] hover:bg-[var(--hs-bg-hover,#2f353d)]"
+              onClick={onClose}
+              className="rounded-lg p-1 text-[var(--hs-text-tertiary,#9ca3b0)] hover:bg-[var(--hs-bg-hover,#2f353d)] hover:text-[var(--hs-text-primary,#f0f0f8)]"
+              aria-label="Close"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Pick another
+              <X className="h-5 w-5" />
             </button>
-          ) : (
-            <h3 className="inline-flex items-center gap-2 text-base font-semibold text-[var(--hs-text-primary,#f0f0f8)]">
-              <Wand2 className="h-4 w-4 text-[var(--hs-warning,#f59e0b)]" />
-              Create a meme
-            </h3>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-[var(--hs-text-tertiary,#9ca3b0)] hover:bg-[var(--hs-bg-hover,#2f353d)] hover:text-[var(--hs-text-primary,#f0f0f8)]"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          </div>
         </header>
 
-        {/* Body switches between "pick a source" and "edit captions". */}
-        {!source ? (
-          <PickerBody
-            search={search}
-            setSearch={setSearch}
-            tplLoading={tplLoading}
-            tplError={tplError}
-            templates={filteredTemplates}
-            onTemplatePick={(tpl) => setSource({ kind: 'template', tpl })}
-            urlInput={urlInput}
-            setUrlInput={setUrlInput}
-            onPasteUrl={choosePastedUrl}
-            onUpload={chooseUpload}
-            fileInputRef={fileInputRef}
-            genError={genError}
-          />
-        ) : (
-          <EditorBody
-            canvasRef={canvasRef}
-            topText={topText}
-            setTopText={setTopText}
-            bottomText={bottomText}
-            setBottomText={setBottomText}
-            fontSize={fontSize}
-            setFontSize={setFontSize}
-            textColor={textColor}
-            setTextColor={setTextColor}
-            generating={generating}
-            isAwaitingApproval={isAwaitingApproval}
-            walletApprovalLabel={walletApprovalLabel}
-            genError={genError}
-            onGenerate={generate}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+          {/* Inline how-to. Two steps: (1) build + Download inside the
+              iframe, (2) hand the saved file back via "Use downloaded meme". */}
+          <ol className="flex flex-col gap-1 rounded-lg border border-dashed border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface,#1c1f25)] px-3 py-2 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
+            <li>
+              <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--hs-brand,#e31337)] text-[10px] font-bold text-white">1</span>
+              Build your meme below and tap <strong>Download</strong> inside DecentMemes.
+            </li>
+            <li>
+              <span className="mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--hs-brand,#e31337)] text-[10px] font-bold text-white">2</span>
+              Hit <strong>Use downloaded meme</strong> and pick the file from your downloads — it uploads to Hive and drops into your post.
+            </li>
+          </ol>
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-components — separated for readability rather than encapsulation; both
-// share the parent's local state via the props bag.
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface PickerBodyProps {
-  search: string;
-  setSearch: (s: string) => void;
-  tplLoading: boolean;
-  tplError: string | null;
-  templates: MemegenTemplate[];
-  onTemplatePick: (tpl: MemegenTemplate) => void;
-  urlInput: string;
-  setUrlInput: (s: string) => void;
-  onPasteUrl: () => void;
-  onUpload: (file: File) => void;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
-  genError: string | null;
-}
-
-function PickerBody(props: PickerBodyProps): React.JSX.Element {
-  const {
-    search,
-    setSearch,
-    tplLoading,
-    tplError,
-    templates,
-    onTemplatePick,
-    urlInput,
-    setUrlInput,
-    onPasteUrl,
-    onUpload,
-    fileInputRef,
-    genError,
-  } = props;
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-      {/* Top row — search + upload + URL paste */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--hs-text-tertiary,#9ca3b0)]" />
-          <input
-            type="text"
-            placeholder="Search templates (e.g. drake, distracted boyfriend)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-sunken,#2f353d)] py-2 pl-9 pr-3 text-sm text-[var(--hs-text-primary,#f0f0f8)] placeholder-[var(--hs-text-tertiary,#9ca3b0)] focus:outline-none focus:ring-2 focus:ring-[var(--hs-brand,#e31337)]"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-sunken,#2f353d)] px-3 py-2 text-sm font-medium text-[var(--hs-text-primary,#f0f0f8)] hover:bg-[var(--hs-bg-hover,#3a424a)]"
-        >
-          <Upload className="h-4 w-4" />
-          Upload image
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onUpload(f);
-            if (e.target) e.target.value = '';
-          }}
-        />
-      </div>
-
-      {/* Paste-URL row — collapsed but always available */}
-      <div className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface,#1c1f25)] p-2">
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--hs-text-tertiary,#9ca3b0)]">
-          Or paste URL:
-        </span>
-        <input
-          type="url"
-          placeholder="https://…/image.jpg"
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-[var(--hs-text-primary,#f0f0f8)] placeholder-[var(--hs-text-tertiary,#9ca3b0)] focus:border-[var(--hs-border-default,#3a424a)] focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={onPasteUrl}
-          disabled={!urlInput.trim()}
-          className="shrink-0 rounded-md bg-[var(--hs-brand,#e31337)] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[var(--hs-brand-hover,#c41030)] disabled:opacity-50"
-        >
-          Use
-        </button>
-      </div>
-
-      {genError && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-          {genError}
-        </div>
-      )}
-
-      {/* Templates grid */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {tplLoading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-sm text-[var(--hs-text-tertiary,#9ca3b0)]">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading templates…
+          <div
+            className="min-h-0 flex-1 overflow-hidden rounded-lg border border-[var(--hs-border-subtle,#3a424a)] bg-black/40"
+            style={{ minHeight: 380 }}
+          >
+            <iframe
+              src={DECENTMEMES_URL}
+              title="DecentMemes meme editor"
+              className="h-full w-full"
+              style={{ border: 0, minHeight: 380 }}
+              // `clipboard-write` lets DecentMemes offer "copy image";
+              // `downloads-without-user-activation` is harmless when unsupported
+              // and lets the download button fire without extra prompts on
+              // platforms that honour it.
+              allow="clipboard-write; downloads-without-user-activation"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
           </div>
-        ) : tplError ? (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {tplError}
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="py-10 text-center text-sm text-[var(--hs-text-tertiary,#9ca3b0)]">
-            No templates match “{search}”.
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-            {templates.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => onTemplatePick(tpl)}
-                className="group relative overflow-hidden rounded-lg border border-[var(--hs-border-subtle,#3a424a)] bg-[var(--hs-bg-surface-sunken,#1a1d21)] transition hover:border-[var(--hs-brand,#e31337)]"
-                title={tpl.name}
-              >
-                <img
-                  src={tpl.blank}
-                  alt={tpl.name}
-                  loading="lazy"
-                  className="aspect-square w-full object-cover transition group-hover:scale-105"
-                />
-                <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/85 to-transparent px-2 py-1 text-left text-[11px] font-medium text-white">
-                  {tpl.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
-interface EditorBodyProps {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  topText: string;
-  setTopText: (s: string) => void;
-  bottomText: string;
-  setBottomText: (s: string) => void;
-  fontSize: number;
-  setFontSize: (n: number) => void;
-  textColor: string;
-  setTextColor: (c: string) => void;
-  generating: boolean;
-  isAwaitingApproval: boolean;
-  walletApprovalLabel: string;
-  genError: string | null;
-  onGenerate: () => void;
-}
-
-function EditorBody(props: EditorBodyProps): React.JSX.Element {
-  const {
-    canvasRef,
-    topText,
-    setTopText,
-    bottomText,
-    setBottomText,
-    fontSize,
-    setFontSize,
-    textColor,
-    setTextColor,
-    generating,
-    isAwaitingApproval,
-    walletApprovalLabel,
-    genError,
-    onGenerate,
-  } = props;
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-lg border border-[var(--hs-border-subtle,#3a424a)] bg-black/55 p-2">
-        <canvas
-          ref={canvasRef}
-          className="max-h-[55vh] max-w-full"
-          style={{ imageRendering: 'auto' }}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
-          <span className="font-semibold uppercase tracking-wide text-[10px]">Top caption</span>
-          <input
-            type="text"
-            value={topText}
-            onChange={(e) => setTopText(e.target.value)}
-            placeholder="Top text"
-            maxLength={200}
-            className="rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-sunken,#2f353d)] px-3 py-2 text-sm text-[var(--hs-text-primary,#f0f0f8)] placeholder-[var(--hs-text-tertiary,#9ca3b0)] focus:outline-none focus:ring-2 focus:ring-[var(--hs-brand,#e31337)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
-          <span className="font-semibold uppercase tracking-wide text-[10px]">Bottom caption</span>
-          <input
-            type="text"
-            value={bottomText}
-            onChange={(e) => setBottomText(e.target.value)}
-            placeholder="Bottom text"
-            maxLength={200}
-            className="rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-sunken,#2f353d)] px-3 py-2 text-sm text-[var(--hs-text-primary,#f0f0f8)] placeholder-[var(--hs-text-tertiary,#9ca3b0)] focus:outline-none focus:ring-2 focus:ring-[var(--hs-brand,#e31337)]"
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="inline-flex flex-1 items-center gap-2 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
-          <span className="shrink-0 font-semibold uppercase tracking-wide text-[10px]">Font size</span>
-          <input
-            type="range"
-            min={28}
-            max={96}
-            step={2}
-            value={fontSize}
-            onChange={(e) => setFontSize(parseInt(e.target.value, 10) || DEFAULT_FONT_SIZE)}
-            className="min-w-0 flex-1 accent-[var(--hs-brand,#e31337)]"
-          />
-          <span className="w-8 shrink-0 text-right font-mono tabular-nums text-[var(--hs-text-tertiary,#9ca3b0)]">
-            {fontSize}
-          </span>
-        </label>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
-        <span className="shrink-0 font-semibold uppercase tracking-wide text-[10px]">Text color</span>
-        <div className="flex items-center gap-1.5">
-          {TEXT_COLOR_SWATCHES.map((c) => {
-            const selected = c.toLowerCase() === textColor.toLowerCase();
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setTextColor(c)}
-                aria-label={`Use ${c}`}
-                title={c}
-                className={`h-6 w-6 rounded-full border transition ${selected ? 'border-[var(--hs-brand,#e31337)] ring-2 ring-[var(--hs-brand,#e31337)]/40' : 'border-[var(--hs-border-default,#3a424a)] hover:border-[var(--hs-text-secondary,#cfd3da)]'}`}
-                style={{ backgroundColor: c }}
-              />
-            );
-          })}
-        </div>
-        <label className="inline-flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wide text-[var(--hs-text-tertiary,#9ca3b0)]">Custom</span>
-          <input
-            type="color"
-            value={textColor}
-            onChange={(e) => setTextColor(e.target.value)}
-            className="h-6 w-8 cursor-pointer rounded border border-[var(--hs-border-default,#3a424a)] bg-transparent p-0"
-            aria-label="Pick a custom text color"
-          />
-        </label>
-        <span className="font-mono tabular-nums text-[var(--hs-text-tertiary,#9ca3b0)]">{textColor.toUpperCase()}</span>
-      </div>
-
-      {genError && (
-        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-          {genError}
-        </div>
-      )}
-
-      {isAwaitingApproval && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 [animation:blink_1.4s_ease-in-out_infinite]">
-          {walletApprovalLabel}
-        </div>
-      )}
-
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={generating}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hs-brand,#e31337)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--hs-brand-hover,#c41030)] disabled:opacity-50"
-        >
-          {generating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ImageIcon className="h-4 w-4" />
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{error}</span>
+            </div>
           )}
-          {generating ? 'Generating…' : 'Add meme to post'}
-        </button>
+
+          {isAwaitingApproval && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-300 [animation:blink_1.4s_ease-in-out_infinite]">
+              {walletApprovalLabel}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFile(f);
+                if (e.target) e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hs-brand,#e31337)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--hs-brand-hover,#c41030)] disabled:opacity-50"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {uploading ? 'Uploading…' : 'Use downloaded meme'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Canvas helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Draw a caption with word-wrapping + Impact-on-stroke styling. Centred
- *  horizontally on `x`; `y` is the baseline of the first (top) line, or the
- *  baseline of the LAST line when `alignBottom` is true. */
-function drawWrappedCaption(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  alignBottom = false,
-) {
-  if (!text) return;
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return;
-
-  // Greedy word wrap.
-  const lines: string[] = [];
-  let cur = '';
-  for (const word of words) {
-    const candidate = cur ? `${cur} ${word}` : word;
-    if (ctx.measureText(candidate).width > maxWidth && cur) {
-      lines.push(cur);
-      cur = word;
-    } else {
-      cur = candidate;
-    }
-  }
-  if (cur) lines.push(cur);
-
-  // Draw bottom-up when aligning to the bottom edge, otherwise top-down.
-  const totalHeight = (lines.length - 1) * lineHeight;
-  const startY = alignBottom ? y - totalHeight : y;
-  lines.forEach((line, i) => {
-    const lineY = startY + i * lineHeight;
-    ctx.strokeText(line, x, lineY);
-    ctx.fillText(line, x, lineY);
-  });
 }
 
 export default MemePicker;
