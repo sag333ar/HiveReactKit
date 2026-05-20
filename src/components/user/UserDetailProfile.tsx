@@ -121,6 +121,23 @@ export interface UserDetailProfileProps {
   onReblog?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
+  /** Author-only — when the viewed profile is `currentUsername`,
+   *  each post card on the Blogs / Posts / Comments / Replies tabs
+   *  gets a red Delete entry in the kebab. Consumer owns the
+   *  confirm dialog + `delete_comment` broadcast. */
+  onDeletePost?: (author: string, permlink: string) => void;
+  /** Author-only — same gating as `onDeletePost`. Payload mirrors
+   *  HiveDetailPost.onEdit so the consumer can open an edit modal
+   *  without re-fetching the post body. */
+  onEditPost?: (data: {
+    author: string;
+    permlink: string;
+    body: string;
+    title: string;
+    parent_author: string;
+    parent_permlink: string;
+    json_metadata: string;
+  }) => void;
 
   /** Wallet tab — RC delegation update. `maxRc` is a raw RC integer string
    *  (e.g. "51000000000" for 51 b RC). Return `false` to indicate cancellation
@@ -378,6 +395,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onReblog,
   onTip,
   onReportPost,
+  onDeletePost,
+  onEditPost,
   onUpdateRcDelegation,
   onDeleteRcDelegation,
   onCreateHpDelegation,
@@ -1668,6 +1687,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
             onTip={item.author !== currentUsername && onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={item.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
+            onDelete={item.author === currentUsername && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
+            onEdit={item.author === currentUsername && onEditPost ? () => onEditPost({
+              author: item.author,
+              permlink: item.permlink,
+              body: item.body ?? '',
+              title: item.title ?? '',
+              parent_author: item.parent_author ?? '',
+              parent_permlink: item.parent_permlink ?? '',
+              json_metadata: typeof item.json_metadata === 'string'
+                ? item.json_metadata
+                : (item.json_metadata ? JSON.stringify(item.json_metadata) : ''),
+            }) : undefined}
             disableCommentsModal={!!onCommentClick}
             onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
             ecencyToken={ecencyToken}
@@ -2356,6 +2387,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onReportPost={onReportPost
               ? (author, permlink) => setReportPostTarget({ author, permlink })
               : undefined}
+            onDeletePost={onDeletePost}
             onVotePoll={onVotePoll}
             onEditSnap={onEditSnap}
             ecencyToken={ecencyToken}

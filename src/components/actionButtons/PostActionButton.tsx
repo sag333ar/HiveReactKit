@@ -104,6 +104,11 @@ export interface PostActionButtonProps {
   onTip?: () => void;
   /** Called when report is clicked (when logged in). */
   onReport?: () => void;
+  /** Called when delete is clicked. Pass only when the current user
+   *  is the post's author — the kit renders the Delete entry-point
+   *  iff this handler is provided. Lives inside the kebab popover
+   *  (always — not as a standalone inline action), styled in red. */
+  onDelete?: () => void;
   /** Called when user confirms comment upvote with (author, permlink, percent). Frontend handles signing. Voted comments show icon in blue. */
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   /** Ecency image hosting token — enables image upload in comment composer */
@@ -176,6 +181,7 @@ export function PostActionButton({
   onShare,
   onTip,
   onReport,
+  onDelete,
   onClickCommentUpvote,
   ecencyToken,
   threeSpeakApiKey,
@@ -678,6 +684,7 @@ export function PostActionButton({
           onShare={handleShareClick}
           onTip={onTip ? handleTipClick : undefined}
           onReport={onReport ? handleReportClick : undefined}
+          onDelete={onDelete}
         />
       ) : (
         <>
@@ -739,12 +746,17 @@ export function PostActionButton({
           </div>
           )}
 
-          {/* Owner kebab — small 3-dot menu containing the Edit action
-              for the author. Rendered alongside the inline icons when
-              `actionsAsMenu` is off (snap cards already collapse Edit
-              into their combined kebab via `onEdit` on MoreActionsMenu). */}
-          {onEdit && (
-            <MoreActionsMenu onEdit={onEdit} ariaLabel="More post actions" />
+          {/* Owner kebab — small 3-dot menu containing the Edit and
+              Delete actions for the author. Rendered alongside the
+              inline icons when `actionsAsMenu` is off (snap cards
+              already collapse both into their combined kebab via
+              the props on MoreActionsMenu above). */}
+          {(onEdit || onDelete) && (
+            <MoreActionsMenu
+              onEdit={onEdit}
+              onDelete={onDelete}
+              ariaLabel="More post actions"
+            />
           )}
         </>
       )}

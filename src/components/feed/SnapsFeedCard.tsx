@@ -71,6 +71,11 @@ export interface SnapsFeedCardProps {
    *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Called when the snap's author taps Delete on the action-bar
+   *  kebab. The kit only renders the entry-point when `currentUser`
+   *  matches `post.author`. Consumer is responsible for the confirm
+   *  dialog and the broadcast (`delete_comment`). */
+  onDeletePost?: (author: string, permlink: string) => void;
   /** Called when the snap's author taps Edit on the action-bar kebab.
    *  The kit only renders the entry-point when `currentUser` matches
    *  `post.author`. Payload mirrors HiveDetailPost.onEdit. */
@@ -870,6 +875,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onDeletePost,
   onEditSnap,
   onVotePoll,
   onUserClick,
@@ -1260,6 +1266,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
+          onDelete={onDeletePost && currentUser && post.author === currentUser ? () => onDeletePost(post.author, post.permlink) : undefined}
           onEdit={onEditSnap && currentUser && post.author === currentUser
             ? () => onEditSnap({
                 author: post.author,

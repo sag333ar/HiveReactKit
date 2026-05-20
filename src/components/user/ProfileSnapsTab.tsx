@@ -70,6 +70,10 @@ export interface ProfileSnapsTabProps {
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Author-only Delete entry — forwarded into <SnapsFeedView/> so
+   *  each snap's kebab gets a red Delete item when the viewed
+   *  profile is the current user. */
+  onDeletePost?: (author: string, permlink: string) => void;
   /** Edit entry-point inside each snap's 3-dot menu — gated to the
    *  snap's author. Forwarded directly to <SnapsFeedView/>. */
   onEditSnap?: (data: {

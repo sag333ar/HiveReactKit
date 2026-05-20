@@ -87,6 +87,10 @@ export interface SnapsFeedViewProps {
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Forwarded to every <SnapsFeedCard/> — Delete entry on the
+   *  action-bar kebab, gated to the snap's author. Consumer owns
+   *  the confirm dialog + broadcast. */
+  onDeletePost?: (author: string, permlink: string) => void;
   /** Forwarded to every <SnapsFeedCard/> — Edit entry on the action-bar
    *  kebab, gated to the snap's author. */
   onEditSnap?: (data: {
@@ -226,6 +230,7 @@ export function SnapsFeedView({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onDeletePost,
   onEditSnap,
   onVotePoll,
   onUserClick,
@@ -337,6 +342,7 @@ export function SnapsFeedView({
     onClickCommentIcon,
     onClickCommentCount,
     onReportPost,
+    onDeletePost,
     onEditSnap,
     onVotePoll,
     onUserClick,

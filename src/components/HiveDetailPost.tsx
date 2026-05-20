@@ -15,7 +15,12 @@ import {
   CheckCircle2,
   Circle,
   Send,
+  Bookmark,
+  MoreVertical,
+  Share2,
+  Flag,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
@@ -210,6 +215,31 @@ export interface HiveDetailPostProps {
   onUserClick?: (username: string) => void;
   /** Called when user clicks "View parent post" — navigate to the parent post. */
   onNavigateToPost?: (author: string, permlink: string) => void;
+
+  // ── Header kebab (in-app-bar more menu) ────────────────────────────
+  // Mirror of the per-card action bar's `onShare` / `onReport`, but
+  // surfaced in the top app bar via a 3-dot popover. Each item only
+  // appears when its handler is provided; rendered in this order:
+  // Bookmark · Share · Report. Pass `isBookmarked` to render the
+  // toggled-on state.
+  /** True when the post is bookmarked by the current user. Controls
+   *  the visual state of the header's Bookmark item (filled vs.
+   *  outline). The kit doesn't fetch this — pass it from the
+   *  consumer's bookmark store. */
+  isBookmarked?: boolean;
+  /** Called when the user taps Bookmark in the header kebab.
+   *  Consumer decides whether to add or remove based on
+   *  `isBookmarked`. The `meta` payload carries the post's
+   *  `title` and a `body` excerpt — useful for bookmark-storage
+   *  backends that require a non-empty body (e.g. hreplier's
+   *  `/data/v2/bookmarks` rejects empty `body`). */
+  onToggleBookmark?: (meta: { title: string; body: string }) => void;
+  /** Called when the user taps Share in the header kebab. When
+   *  omitted, falls back to `onShare`. */
+  onHeaderShare?: () => void;
+  /** Called when the user taps Report in the header kebab. When
+   *  omitted, falls back to `onReport`. */
+  onHeaderReport?: () => void;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -294,6 +324,10 @@ export function HiveDetailPost({
   onBack,
   onUserClick,
   onNavigateToPost,
+  isBookmarked,
+  onToggleBookmark,
+  onHeaderShare,
+  onHeaderReport,
   onVotePoll,
   showVoteButton,
   processBody,
@@ -1013,6 +1047,29 @@ export function HiveDetailPost({
                 </button>
               </div>
             </div>
+
+            {/* Header kebab — Bookmark · Share · Report. Each item is
+                conditional on its handler; the trigger itself only
+                appears when at least one handler is registered.
+                Bookmark toggle forwards the post's title + a body
+                excerpt so the consumer can hand them to backends
+                that need a non-empty body (e.g. hreplier). */}
+            <HeaderMoreMenu
+              isBookmarked={!!isBookmarked}
+              onToggleBookmark={
+                onToggleBookmark
+                  ? () => onToggleBookmark({
+                      title: post.title || '',
+                      // Cap at 500 chars so bookmark rows stay light
+                      // — the consumer can show a richer preview
+                      // by re-fetching the full body if needed.
+                      body: (post.body || '').slice(0, 500),
+                    })
+                  : undefined
+              }
+              onShare={onHeaderShare ?? onShare}
+              onReport={onHeaderReport ?? onReport}
+            />
           </div>
         </div>
 
@@ -1400,3 +1457,166 @@ export function HiveDetailPost({
 }
 
 export default HiveDetailPost;
+
+// ─── Header kebab popover ─────────────────────────────────────────
+// Standalone small menu rendered in the sticky app bar. Mirrors
+// MoreActionsMenu's portal-based positioning but ships only the
+// items relevant to the detail surface: Bookmark · Share · Report.
+// Each item is conditional on its handler.
+
+interface HeaderMoreMenuProps {
+  isBookmarked: boolean;
+  onToggleBookmark?: () => void;
+  onShare?: () => void;
+  onReport?: () => void;
+}
+
+const HEADER_MENU_WIDTH = 180;
+const HEADER_MENU_GAP = 4;
+
+function HeaderMoreMenu({
+  isBookmarked,
+  onToggleBookmark,
+  onShare,
+  onReport,
+}: HeaderMoreMenuProps) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const place = () => {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const top = rect.bottom + HEADER_MENU_GAP;
+      const vw = window.innerWidth;
+      // Right-align under the kebab; clamp to the viewport so the
+      // popover never falls off the edge on narrow screens.
+      const rawLeft = rect.right - HEADER_MENU_WIDTH;
+      const left = Math.max(8, Math.min(vw - HEADER_MENU_WIDTH - 8, rawLeft));
+      setPos({ top, left });
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onScroll = () => setOpen(false);
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open]);
+
+  // No handlers registered — render nothing (the trigger itself
+  // disappears, mirroring how the inline icons drop out when their
+  // callbacks aren't passed).
+  if (!onToggleBookmark && !onShare && !onReport) return null;
+
+  const run = (cb?: () => void) => () => {
+    setOpen(false);
+    cb?.();
+  };
+
+  const menu =
+    open && pos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: HEADER_MENU_WIDTH,
+              zIndex: 2000,
+            }}
+            className="overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onToggleBookmark && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onToggleBookmark)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Bookmark
+                  className={
+                    'h-3.5 w-3.5 ' +
+                    (isBookmarked
+                      ? 'fill-[var(--hrk-brand)] text-[var(--hrk-brand)]'
+                      : 'text-gray-300')
+                  }
+                />
+                <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
+              </button>
+            )}
+            {onShare && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onShare)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Share2 className="h-3.5 w-3.5 text-gray-300" />
+                <span>Share</span>
+              </button>
+            )}
+            {onReport && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onReport)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-300 transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                <span>Report post</span>
+              </button>
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0"
+      >
+        <MoreVertical className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
+      </button>
+      {menu}
+    </>
+  );
+}

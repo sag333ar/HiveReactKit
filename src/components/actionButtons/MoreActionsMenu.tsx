@@ -16,7 +16,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Repeat2, Repeat, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { MoreVertical, Repeat2, Repeat, Share2, Gift, Flag, Pencil, Trash2 } from 'lucide-react';
 
 export interface MoreActionsMenuProps {
   /** Show the Edit item (rendered first, gated by the caller to the
@@ -34,6 +34,9 @@ export interface MoreActionsMenuProps {
   onTip?: () => void;
   /** Show the Flag item. */
   onReport?: () => void;
+  /** Show the Delete item (rendered last, in red, gated by the caller
+   *  to the author themselves — the kit does no ownership check). */
+  onDelete?: () => void;
   /** Tailwind classes for the trigger button (defaults match the kit's
    *  inline action buttons). */
   buttonClassName?: string;
@@ -51,6 +54,7 @@ export function MoreActionsMenu({
   onShare,
   onTip,
   onReport,
+  onDelete,
   buttonClassName,
   ariaLabel = 'More actions',
 }: MoreActionsMenuProps) {
@@ -113,7 +117,7 @@ export function MoreActionsMenu({
 
   // No registered actions → render nothing (mirrors how the inline icons
   // disappear when their callbacks aren't passed).
-  if (!onEdit && !onReblog && !onReSnap && !onShare && !onTip && !onReport) return null;
+  if (!onEdit && !onReblog && !onReSnap && !onShare && !onTip && !onReport && !onDelete) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -200,6 +204,17 @@ export function MoreActionsMenu({
               >
                 <Flag className="h-3.5 w-3.5" />
                 <span>Flag</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onDelete)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-400 transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete</span>
               </button>
             )}
           </div>,

@@ -63,6 +63,9 @@ export interface CommunityDetailProps {
   onTip?: (author: string, permlink: string) => void
   onSharePost?: (author: string, permlink: string) => void
   onReportPost?: (author: string, permlink: string) => void
+  /** Author-only — forwarded into the embedded <BlogPostList/> so the
+   *  card kebab gets a red Delete entry when `currentUser === author`. */
+  onDeletePost?: (author: string, permlink: string) => void
 
   // Composer tokens
   ecencyToken?: string
@@ -196,6 +199,7 @@ const CommunityDetail = ({
   onTip,
   onSharePost,
   onReportPost,
+  onDeletePost,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -400,6 +404,7 @@ const CommunityDetail = ({
       onTip,
       onSharePost,
       onReportPost,
+      onDeletePost,
       onUserClick,
       onPostClick,
       onCommentClick,
@@ -424,6 +429,7 @@ const CommunityDetail = ({
       onTip,
       onSharePost,
       onReportPost,
+      onDeletePost,
       onUserClick,
       onPostClick,
       onCommentClick,
