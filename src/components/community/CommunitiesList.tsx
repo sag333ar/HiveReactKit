@@ -30,11 +30,30 @@ interface CommunitiesListProps {
   onSelectCommunity: (communityId: string) => void;
   /** Visual variant. Default `"dark"` — uses kit tokens. */
   theme?: "light" | "dark";
+  /** When `true`, the component restores its last cached state (the
+   *  loaded community list, the search query, the pagination cursor,
+   *  and the scroll position) on mount — used for Back-navigation so
+   *  tapping a community and then coming back lands the user on the
+   *  same scroll offset. When omitted/false, the list starts fresh. */
+  shouldRestoreScroll?: boolean;
 }
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 3;
+
+// Module-level cache so navigating into a community detail and back
+// rehydrates the directory without a fresh API roundtrip. Resets only
+// when the user hits the Refresh button.
+interface CommunitiesListCache {
+  items: CommunityItem[];
+  debouncedQuery: string;
+  searchInput: string;
+  hasMore: boolean;
+  lastName: string | null;
+  scrollTop: number;
+}
+let communitiesListCache: CommunitiesListCache | null = null;
 
 /** Compact member-count formatter: 1234 → "1.2k", 12345 → "12.3k". */
 function formatCount(n: number): string {
@@ -50,24 +69,37 @@ function formatCount(n: number): string {
 const CommunitiesList = ({
   onSelectCommunity,
   theme = "dark",
+  shouldRestoreScroll = false,
 }: CommunitiesListProps) => {
   const isDark = theme === "dark";
 
-  const [communities, setCommunities] = useState<CommunityItem[]>([]);
-  const [searchInput, setSearchInput] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  // Hydrate from the module-level cache when the consumer signals a
+  // Back-navigation (`shouldRestoreScroll`). For a forward visit we
+  // start with an empty list so the user sees fresh data.
+  const hydrated = shouldRestoreScroll ? communitiesListCache : null;
+
+  const [communities, setCommunities] = useState<CommunityItem[]>(
+    () => hydrated?.items ?? [],
+  );
+  const [searchInput, setSearchInput] = useState(() => hydrated?.searchInput ?? "");
+  const [debouncedQuery, setDebouncedQuery] = useState(
+    () => hydrated?.debouncedQuery ?? "",
+  );
+  const [isLoading, setIsLoading] = useState(() => !hydrated);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isDebouncing, setIsDebouncing] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(() => hydrated?.hasMore ?? true);
   const [error, setError] = useState<string | null>(null);
 
-  const lastNameRef = useRef<string | null>(null);
+  const lastNameRef = useRef<string | null>(hydrated?.lastName ?? null);
   // Monotonically-increasing fetch id; the latest one wins. Earlier
   // responses that race in later are dropped on arrival.
   const fetchIdRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  // Skip the first auto-fetch when we hydrated from cache.
+  const skipNextAutoFetchRef = useRef(!!hydrated);
+  const pendingScrollRef = useRef<number | null>(hydrated?.scrollTop ?? null);
 
   // ── Debounce the input field ─────────────────────────────────────────
   // We debounce ALL keystrokes uniformly (350ms). Previously ≥3-char
@@ -140,9 +172,81 @@ const CommunitiesList = ({
   );
 
   // ── Re-fetch from page 1 whenever the debounced query settles ─────────
+  // Skipped on the first mount when we hydrated from the cache —
+  // otherwise we'd throw away the restored list and immediately refetch.
   useEffect(() => {
+    if (skipNextAutoFetchRef.current) {
+      skipNextAutoFetchRef.current = false;
+      return;
+    }
     void loadCommunities(true);
   }, [debouncedQuery]);
+
+  // Mirror state to the module-level cache on every change, so the
+  // next Back-navigation has the latest list to rehydrate.
+  useEffect(() => {
+    communitiesListCache = {
+      items: communities,
+      debouncedQuery,
+      searchInput,
+      hasMore,
+      lastName: lastNameRef.current,
+      scrollTop: communitiesListCache?.scrollTop ?? 0,
+    };
+  }, [communities, debouncedQuery, searchInput, hasMore]);
+
+  // Track scrollTop so the cache stays current. rAF-throttled so
+  // scrolling stays smooth.
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    let scheduled = false;
+    const onScroll = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        if (communitiesListCache) {
+          communitiesListCache.scrollTop = node.scrollTop;
+        }
+      });
+    };
+    node.addEventListener("scroll", onScroll, { passive: true });
+    return () => { node.removeEventListener("scroll", onScroll); };
+  }, []);
+
+  // Restore the cached scroll once items have rendered. rAF retry
+  // loop because items lay out asynchronously (avatars + images load
+  // a beat after the initial paint), so setting scrollTop too early
+  // gets clamped to the smaller scrollHeight.
+  useEffect(() => {
+    const target = pendingScrollRef.current;
+    if (target == null || communities.length === 0) return;
+    if (target === 0) {
+      const node = scrollRef.current;
+      if (node) node.scrollTop = 0;
+      pendingScrollRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 120;
+    const tryRestore = () => {
+      if (cancelled) return;
+      const el = scrollRef.current;
+      if (!el) return;
+      el.scrollTop = target;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll >= target || attempts >= MAX_ATTEMPTS) {
+        pendingScrollRef.current = null;
+        return;
+      }
+      attempts += 1;
+      requestAnimationFrame(tryRestore);
+    };
+    requestAnimationFrame(tryRestore);
+    return () => { cancelled = true; };
+  }, [communities.length === 0 ? 0 : 1]);
 
   // ── Container-scoped infinite scroll ────────────────────────────────
   const handleScroll = useCallback(
@@ -159,6 +263,10 @@ const CommunitiesList = ({
   const handleRefresh = () => {
     setSearchInput("");
     setDebouncedQuery("");
+    // Reset the cached scroll position so the next mount lands at the
+    // top even if a previous session had scrolled deep into the list.
+    if (communitiesListCache) communitiesListCache.scrollTop = 0;
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     void loadCommunities(true);
   };
 

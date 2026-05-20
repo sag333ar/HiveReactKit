@@ -103,6 +103,27 @@ export interface CommunityDetailProps {
   // Header actions
   onShare?: () => void
   onRss?: () => void
+
+  /** Controlled top-level tab. Pass alongside `onActiveTabChange` to
+   *  drive the tab from the URL or any other external store. When
+   *  omitted, the component manages tab state internally (default
+   *  `'posts'`). */
+  activeTab?: 'posts' | 'snaps' | 'about' | 'subscribers' | 'activities'
+  onActiveTabChange?: (
+    next: 'posts' | 'snaps' | 'about' | 'subscribers' | 'activities',
+  ) => void
+
+  /** Controlled posts-sort (trending / hot / created). Same controlled
+   *  pattern as `activeTab`. */
+  postSort?: PostSort
+  onPostSortChange?: (next: PostSort) => void
+
+  /** When `true`, the component restores the last cached scroll
+   *  position for `(communityId, activeTab, postSort)` on mount —
+   *  used by the consumer for Back-navigation, where we want the
+   *  user to land back on the same card. When `false` (or omitted),
+   *  the view starts at the top, matching forward navigation. */
+  shouldRestoreScroll?: boolean
 }
 
 interface ActivityItem {
@@ -147,6 +168,20 @@ function formatTimeAgo(dateString: string): string {
   return new Date(dateString).toLocaleDateString()
 }
 
+// Per-community in-memory cache so Back-navigation from a post detail
+// or user profile lands the user on the same tab/sort with the same
+// posts already rendered and the scroll position restored. Keyed by
+// `${communityId}|${tab}|${sort}` so each tab+sort combination gets
+// its own slot; the consumer passes `shouldRestoreScroll` to opt into
+// the scroll restore (forward navigation skips it and lands at the
+// top of the view).
+interface CommunityFeedCacheEntry {
+  posts: Post[]
+  hasMore: boolean
+  scrollTop: number
+}
+const communityFeedCache: Map<string, CommunityFeedCacheEntry> = new Map()
+
 const CommunityDetail = ({
   communityId,
   currentUser,
@@ -177,17 +212,48 @@ const CommunityDetail = ({
   loadCommunitySnaps: _loadCommunitySnaps,
   reportedAuthors = [],
   reportedPosts = [],
+  activeTab: controlledActiveTab,
+  onActiveTabChange,
+  postSort: controlledPostSort,
+  onPostSortChange,
+  shouldRestoreScroll = false,
 }: CommunityDetailProps) => {
-  const [activeTab, setActiveTab] = useState<TabId>('posts')
+  // Controlled-or-uncontrolled tab + sort. When the consumer passes
+  // `activeTab` / `postSort`, those drive the UI (and we still fire
+  // the change callbacks so the parent can mirror them to URL state).
+  // Without the prop, we fall back to the internal `useState`.
+  const [internalActiveTab, setInternalActiveTab] = useState<TabId>('posts')
+  const activeTab = controlledActiveTab ?? internalActiveTab
+  const setActiveTab = useCallback(
+    (next: TabId) => {
+      if (controlledActiveTab === undefined) setInternalActiveTab(next)
+      onActiveTabChange?.(next)
+    },
+    [controlledActiveTab, onActiveTabChange],
+  )
+
+  const [internalPostSort, setInternalPostSort] = useState<PostSort>('trending')
+  const postSort = controlledPostSort ?? internalPostSort
+  const setPostSort = useCallback(
+    (next: PostSort) => {
+      if (controlledPostSort === undefined) setInternalPostSort(next)
+      onPostSortChange?.(next)
+    },
+    [controlledPostSort, onPostSortChange],
+  )
+
+  // Hydrate posts + hasMore from the cache so we don't briefly render
+  // an empty list before the fetch effect repopulates it.
+  const initialCacheKey = `${communityId}|${activeTab}|${postSort}`
+  const initialEntry = communityFeedCache.get(initialCacheKey)
+
   const [communityDetails, setCommunityDetails] = useState<CommunityDetailsResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Posts/Snaps state (one feed cache each — flips when active tab changes)
-  const [postSort, setPostSort] = useState<PostSort>('trending')
-  const [posts, setPosts] = useState<Post[]>([])
+  const [posts, setPosts] = useState<Post[]>(() => initialEntry?.posts ?? [])
   const [postsLoading, setPostsLoading] = useState(false)
   const [postsLoadingMore, setPostsLoadingMore] = useState(false)
-  const [postsHasMore, setPostsHasMore] = useState(true)
+  const [postsHasMore, setPostsHasMore] = useState<boolean>(() => initialEntry?.hasMore ?? true)
   const [postsError, setPostsError] = useState<string | null>(null)
 
   // Activities state
@@ -272,14 +338,39 @@ const CommunityDetail = ({
   // tab no longer flows through `loadPosts` — <CommunitySnapsTab/> owns
   // its own data plane (4-container parallel fetch + filter) so we only
   // hit ranked-posts for the Posts tab here.
+  //
+  // When the (communityId, tab, sort) combination already has a cached
+  // post list (because the user navigated into a post detail / user
+  // profile and came back), hydrate from the cache instead of
+  // refetching. Otherwise fall through to a fresh load.
   useEffect(() => {
-    if (activeTab === 'posts') {
-      setPosts([])
-      setPostsHasMore(true)
-      void loadPosts('posts', false)
+    if (activeTab !== 'posts') return
+    const cacheKey = `${communityId}|${activeTab}|${postSort}`
+    const entry = communityFeedCache.get(cacheKey)
+    if (entry && entry.posts.length > 0) {
+      setPosts(entry.posts)
+      setPostsHasMore(entry.hasMore)
+      return
     }
+    setPosts([])
+    setPostsHasMore(true)
+    void loadPosts('posts', false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, postSort, communityId])
+
+  // Keep the cache snapshot in sync with the live state, so the next
+  // mount of this community (after a Back-navigation) sees the latest
+  // posts + hasMore.
+  useEffect(() => {
+    if (activeTab !== 'posts') return
+    const cacheKey = `${communityId}|${activeTab}|${postSort}`
+    const prev = communityFeedCache.get(cacheKey)
+    communityFeedCache.set(cacheKey, {
+      posts,
+      hasMore: postsHasMore,
+      scrollTop: prev?.scrollTop ?? 0,
+    })
+  }, [activeTab, postSort, communityId, posts, postsHasMore])
 
   useEffect(() => {
     if (activeTab === 'activities') void loadActivities()
@@ -350,14 +441,91 @@ const CommunityDetail = ({
     ],
   )
 
-  // Single shared scroll container so the header scrolls away while
-  // the tab strip sticks to the top edge. Reset to top when the tab
-  // changes so each tab opens at its first row instead of inheriting
-  // the previous tab's offset.
+  // Single shared scroll container — header scrolls away, tab strip
+  // pins to the top. Scroll policy:
+  //
+  //   • Mount with `shouldRestoreScroll === true` AND the
+  //     (communityId, tab, sort) hasn't been touched mid-session
+  //     by the user — restore the cached scrollTop once posts have
+  //     rendered. rAF retry loop handles late-laid-out cards
+  //     (avatars / images / embeds resolve over a handful of frames
+  //     after the initial paint, so setting scrollTop too early
+  //     gets clamped by the still-short scroll range).
+  //   • Anything else (forward nav, user-driven tab/sort change,
+  //     consumer-driven route param change) — snap to top.
+  //
+  // We compare the *previous* tab/sort/communityId against the
+  // current ones to tell apart "first effect run for this mount"
+  // (refs were initialized to current values, so prev === current)
+  // from "user just switched tabs" (prev !== current). The refs
+  // approach is StrictMode-safe — both dev double-invokes see the
+  // same prev===current relationship on first mount, so the restore
+  // path doesn't get clobbered to zero on the second invoke.
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const prevTabRef = useRef(activeTab)
+  const prevSortRef = useRef(postSort)
+  const prevCommunityIdRef = useRef(communityId)
+
+  // Track scrollTop so the cache stays current — used for Back-nav
+  // restore on the next mount.
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 0
-  }, [activeTab])
+    const node = scrollRef.current
+    if (!node) return
+    let scheduled = false
+    const onScroll = () => {
+      if (scheduled) return
+      scheduled = true
+      requestAnimationFrame(() => {
+        scheduled = false
+        const cacheKey = `${communityId}|${activeTab}|${postSort}`
+        const entry = communityFeedCache.get(cacheKey)
+        if (entry) entry.scrollTop = node.scrollTop
+      })
+    }
+    node.addEventListener('scroll', onScroll, { passive: true })
+    return () => { node.removeEventListener('scroll', onScroll) }
+  }, [activeTab, postSort, communityId])
+
+  useEffect(() => {
+    const node = scrollRef.current
+    if (!node) return
+
+    const cacheKey = `${communityId}|${activeTab}|${postSort}`
+    const isInternalChange =
+      prevTabRef.current !== activeTab ||
+      prevSortRef.current !== postSort ||
+      prevCommunityIdRef.current !== communityId
+    prevTabRef.current = activeTab
+    prevSortRef.current = postSort
+    prevCommunityIdRef.current = communityId
+
+    const target =
+      shouldRestoreScroll && !isInternalChange
+        ? communityFeedCache.get(cacheKey)?.scrollTop ?? 0
+        : 0
+
+    if (target === 0) {
+      node.scrollTop = 0
+      return
+    }
+
+    let cancelled = false
+    let attempts = 0
+    const MAX_ATTEMPTS = 120 // ~2 s @60Hz — covers slower image/embed loads.
+    const tryRestore = () => {
+      if (cancelled) return
+      const el = scrollRef.current
+      if (!el) return
+      el.scrollTop = target
+      const maxScroll = el.scrollHeight - el.clientHeight
+      if (maxScroll >= target || attempts >= MAX_ATTEMPTS) return
+      attempts += 1
+      requestAnimationFrame(tryRestore)
+    }
+    requestAnimationFrame(tryRestore)
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, postSort, communityId, posts.length === 0 ? 0 : 1])
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--hrk-bg-app)] text-[var(--hrk-text-primary)]">
