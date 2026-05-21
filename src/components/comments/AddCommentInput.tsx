@@ -17,6 +17,8 @@ import YoutubePicker from '../composer/YoutubePicker';
 import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
 import MemePicker from '../composer/MemePicker';
+import DecentMemesPicker from '../composer/DecentMemesPicker';
+import type { DecentMemesMeme } from '../../utils/decentmemes';
 import PollCreator from '../composer/PollCreator';
 import BeneficiariesEditor from '../composer/BeneficiariesEditor';
 import type { PollData } from '../composer/PollCreator';
@@ -68,6 +70,24 @@ export interface PostComposerProps {
    *  hive-signer). Pulls templates from memegen.link and renders the
    *  captioned PNG via MemePicker, then inserts it as an image. */
   hideMeme?: boolean;
+  /** Hide the DecentMemes-maker button. Same upload-path gate as
+   *  `hideMeme`. Opens the embedded DecentMemes widget so users can
+   *  build a meme there, then re-upload the downloaded file via the
+   *  composer's standard pipeline. */
+  hideDecentMeme?: boolean;
+  /** Optional. Forwarded to DecentMemes as `frontendInit.account` so the
+   *  widget assigns the 1% frontend beneficiary slot. PeakD opted out per
+   *  spec; pass your own Hive account here to claim the slot. */
+  decentMemesAppAccount?: string;
+  /** Optional. Forwarded to DecentMemes as `frontendInit.theme` on load
+   *  and via `setTheme` on changes. Defaults to dark widget-side. */
+  decentMemesTheme?: 'light' | 'dark';
+  /** Called whenever a DecentMemes meme is attached to the composer.
+   *  Receives the cumulative list (one entry per `memeCreated`). Use
+   *  this list to aggregate beneficiaries (`comment_options`) and stamp
+   *  `json_metadata.decentmemes.templateIds` at broadcast time. Cleared
+   *  on successful submit. See `src/utils/decentmemes.ts`. */
+  onDecentMemesChange?: (memes: DecentMemesMeme[]) => void;
   hidePreview?: boolean;
   hidePoll?: boolean;
 
@@ -217,6 +237,10 @@ const PostComposer = ({
   hideMention,
   hideTemplate,
   hideMeme,
+  hideDecentMeme,
+  decentMemesAppAccount,
+  decentMemesTheme,
+  onDecentMemesChange,
   hidePreview,
   hidePoll,
   onPollChange,
@@ -268,6 +292,12 @@ const PostComposer = ({
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
   const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
+  const [isDecentMemeOpen, setIsDecentMemeOpen] = useState(false);
+  // Per-composer-session list of DecentMemes attachments. The widget sends
+  // one `memeCreated` per insertion; we accumulate and let the host
+  // aggregate via `aggregateDecentMemesBeneficiaries` at broadcast time.
+  // Cleared on successful submit so the next post starts fresh.
+  const [decentMemes, setDecentMemes] = useState<DecentMemesMeme[]>([]);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(defaultPreviewOn);
@@ -314,6 +344,12 @@ const PostComposer = ({
     onTagsChange?.(mergedTags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mergedTags.join('|')]);
+
+  // Notify parent whenever the DecentMemes attachment list changes.
+  useEffect(() => {
+    onDecentMemesChange?.(decentMemes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decentMemes]);
 
   const addUserTag = useCallback(
     (raw: string) => {
@@ -696,6 +732,7 @@ const PostComposer = ({
       setVideoPreviewUrl(null);
       setPollData(null);
       onPollChange?.(null);
+      setDecentMemes([]);
     } catch (error) {
       console.error('Failed to submit:', error);
     } finally {
@@ -722,6 +759,7 @@ const PostComposer = ({
         setVideoPreviewUrl(null);
         setPollData(null);
         onPollChange?.(null);
+        setDecentMemes([]);
       },
     };
     return () => { if (submitRef) submitRef.current = null; };
@@ -1039,6 +1077,25 @@ const PostComposer = ({
             disabled={isDisabled}
           >
             MEME
+          </button>
+        )}
+        {/* DecentMemes — sibling meme picker that embeds the DecentMemes
+            widget. Same upload-path gate as the built-in meme picker.
+            Uses the official DM logo as the toolbar icon. */}
+        {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+          <button
+            type="button"
+            onClick={() => setIsDecentMemeOpen(true)}
+            className={toolbarBtnClass}
+            title="DecentMemes"
+            disabled={isDisabled}
+          >
+            <img
+              src="https://decentmemes.com/svg/DM.svg"
+              alt="DecentMemes"
+              className="h-4 w-4"
+              draggable={false}
+            />
           </button>
         )}
         {!hideTemplate && templateToken && templates.length > 0 && (
@@ -1380,6 +1437,21 @@ const PostComposer = ({
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}
         onSigningStateChange={setIsAwaitingApproval}
+      />
+      <DecentMemesPicker
+        isOpen={isDecentMemeOpen}
+        onClose={() => setIsDecentMemeOpen(false)}
+        onSelectMeme={(url, meta) => {
+          insertText(`![Meme](${url})`);
+          if (meta) setDecentMemes((prev) => [...prev, meta]);
+          setIsDecentMemeOpen(false);
+        }}
+        ecencyToken={ecencyToken}
+        onSignMessage={onSignMessage}
+        signingUsername={signingUsername}
+        onSigningStateChange={setIsAwaitingApproval}
+        appAccount={decentMemesAppAccount}
+        theme={decentMemesTheme}
       />
       <EmojiPicker
         isOpen={isEmojiOpen}

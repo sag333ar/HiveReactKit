@@ -53,8 +53,8 @@ export { PostComposer, default as AddCommentInput } from './components/comments/
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
 // Composer components (Image, Audio, Video uploaders, GIF picker, Meme picker, Emoji picker, Template picker, Post Templates panel)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload } from './components/composer';
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, DecentMemesPicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, DecentMemesPickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';
@@ -170,6 +170,19 @@ export {
   mergeBeneficiariesIntoCommentOptions,
   type Beneficiary,
 } from './utils/beneficiaries';
+export {
+  DECENTMEMES_WIDGET_URL,
+  DECENTMEMES_WIDGET_ORIGIN,
+  DECENTMEMES_TAG,
+  DECENTMEMES_SCHEMA_VERSION,
+  aggregateDecentMemesBeneficiaries,
+  buildDecentMemesMetadata,
+  isDecentMemesCreatedEvent,
+  type DecentMemesBeneficiary,
+  type DecentMemesTemplate,
+  type DecentMemesMeme,
+  type DecentMemesCreatedEvent,
+} from './utils/decentmemes';
 
 // Types
 export * from './types/comment';

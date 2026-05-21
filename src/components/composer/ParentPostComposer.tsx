@@ -60,6 +60,8 @@ import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
 import YoutubePicker from './YoutubePicker';
 import MemePicker from './MemePicker';
+import DecentMemesPicker from './DecentMemesPicker';
+import type { DecentMemesMeme } from '../../utils/decentmemes';
 import EmojiPicker from './EmojiPicker';
 import PostTemplatesPanel, {
   type PostTemplate,
@@ -207,6 +209,20 @@ export interface ParentPostComposerProps {
    *  upload path is configured). The picker fetches free templates from
    *  memegen.link and renders + uploads the captioned PNG client-side. */
   hideMeme?: boolean;
+  /** Hide the DecentMemes picker (defaults to showing it when an image
+   *  upload path is configured). Opens the embedded DecentMemes widget
+   *  so users can build there and re-upload the downloaded file. */
+  hideDecentMeme?: boolean;
+  /** Forwarded to DecentMemes as `frontendInit.account`. PeakD opted out
+   *  per spec; pass your own Hive account to claim the 1% frontend slot. */
+  decentMemesAppAccount?: string;
+  /** Forwarded to DecentMemes as `frontendInit.theme` / `setTheme`. */
+  decentMemesTheme?: 'light' | 'dark';
+  /** Called whenever a DecentMemes meme is attached. Receives the
+   *  cumulative list (one entry per `memeCreated`). Use with
+   *  `aggregateDecentMemesBeneficiaries` and `buildDecentMemesMetadata`
+   *  from `utils/decentmemes` to build the broadcast payload. */
+  onDecentMemesChange?: (memes: DecentMemesMeme[]) => void;
   hideTags?: boolean;
   hideReward?: boolean;
   hideBeneficiaries?: boolean;
@@ -419,6 +435,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideTemplate,
   hidePoll,
   hideMeme,
+  hideDecentMeme,
+  decentMemesAppAccount,
+  decentMemesTheme,
+  onDecentMemesChange,
   hideTags,
   hideReward,
   hideBeneficiaries,
@@ -584,6 +604,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
   const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
+  const [isDecentMemeOpen, setIsDecentMemeOpen] = useState(false);
+  // Per-composer-session list of DecentMemes attachments.
+  const [decentMemes, setDecentMemes] = useState<DecentMemesMeme[]>([]);
+  useEffect(() => {
+    onDecentMemesChange?.(decentMemes);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decentMemes]);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   // Save-draft + post-templates UI state — additive, opted into by hosts
   // that provide the corresponding callbacks. `isPostTemplatesBusy` reflects
@@ -1284,6 +1311,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     setVideoUploadDetails(null);
     setIsNsfw(false);
     setPollData(null);
+    setDecentMemes([]);
     setDraftSavedAt(null);
   }, [draftKey, defaultReward, videoPreviewUrl]);
 
@@ -1862,6 +1890,22 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     disabled={isDisabled}
                   >
                     MEME
+                  </button>
+                )}
+                {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDecentMemeOpen(true)}
+                    className={toolbarBtnClass}
+                    title="DecentMemes"
+                    disabled={isDisabled}
+                  >
+                    <img
+                      src="https://decentmemes.com/svg/DM.svg"
+                      alt="DecentMemes"
+                      className="h-4 w-4"
+                      draggable={false}
+                    />
                   </button>
                 )}
                 {!hideTemplate && templateToken && templates.length > 0 && (
@@ -2480,6 +2524,20 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         ecencyToken={ecencyToken}
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}
+      />
+      <DecentMemesPicker
+        isOpen={isDecentMemeOpen}
+        onClose={() => setIsDecentMemeOpen(false)}
+        onSelectMeme={(url, meta) => {
+          insertText(`![Meme](${url})`);
+          if (meta) setDecentMemes((prev) => [...prev, meta]);
+          setIsDecentMemeOpen(false);
+        }}
+        ecencyToken={ecencyToken}
+        onSignMessage={onSignMessage}
+        signingUsername={signingUsername}
+        appAccount={decentMemesAppAccount}
+        theme={decentMemesTheme}
       />
       <EmojiPicker
         isOpen={isEmojiOpen}

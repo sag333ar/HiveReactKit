@@ -16,6 +16,9 @@ export type { YoutubePickerProps } from './YoutubePicker'
 export { default as MemePicker } from './MemePicker'
 export type { MemePickerProps } from './MemePicker'
 
+export { default as DecentMemesPicker } from './DecentMemesPicker'
+export type { DecentMemesPickerProps } from './DecentMemesPicker'
+
 export { default as PostTemplatesPanel } from './PostTemplatesPanel'
 export type {
   PostTemplatesPanelProps,
