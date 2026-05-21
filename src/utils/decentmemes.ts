@@ -30,6 +30,27 @@ const MAX_BENEFICIARY_SLOTS = 8;
 const POST_CAP_BP = 1000;   // 10%
 const COMMENT_CAP_BP = 3000; // 30%
 
+/**
+ * Per-broadcast attachment limits. After the user hits the limit the
+ * composer disables the DecentMemes toolbar button — further memes can't
+ * be added until they remove a body image or the broadcast happens.
+ *
+ *   - Posts: 3 attachments. With a 10% total beneficiary cap and ~3% per
+ *     creator slot, a 4th meme is already inside the scaled-down territory
+ *     where each entry rounds to 2% and the holding-pool split loses
+ *     resolution — 3 is the practical sweet spot before payouts get muddy.
+ *   - Comments: 2 attachments. 30% total cap with 15% submitter+creator
+ *     collapsed slots means a 3rd attachment by a third party would push
+ *     all entries into the dust threshold after scaling.
+ */
+export const DECENTMEMES_MAX_PER_POST = 3;
+export const DECENTMEMES_MAX_PER_COMMENT = 2;
+
+/** Convenience accessor for the attachment limit by broadcast kind. */
+export function getDecentMemesLimit(kind: 'post' | 'comment'): number {
+  return kind === 'post' ? DECENTMEMES_MAX_PER_POST : DECENTMEMES_MAX_PER_COMMENT;
+}
+
 /** A single beneficiary entry as the widget emits it. */
 export interface DecentMemesBeneficiary {
   account: string;

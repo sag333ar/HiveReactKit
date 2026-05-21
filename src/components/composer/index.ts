@@ -19,6 +19,9 @@ export type { MemePickerProps } from './MemePicker'
 export { default as DecentMemesPicker } from './DecentMemesPicker'
 export type { DecentMemesPickerProps } from './DecentMemesPicker'
 
+export { default as ToolbarHelpModal } from './ToolbarHelpModal'
+export type { ToolbarHelpModalProps, ToolbarHelpEntry } from './ToolbarHelpModal'
+
 export { default as PostTemplatesPanel } from './PostTemplatesPanel'
 export type {
   PostTemplatesPanelProps,

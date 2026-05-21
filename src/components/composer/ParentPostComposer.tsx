@@ -29,15 +29,19 @@ import {
   Code,
   Coins,
   FileText,
+  HelpCircle,
+  Image as ImageIcon,
   Italic,
   Link as LinkIcon,
   Lock,
+  Mic,
   Play,
   Save,
   Send,
   Smile,
   Tag,
   Users,
+  Video,
   X,
 } from 'lucide-react';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -62,9 +66,10 @@ import GiphyPicker from './GiphyPicker';
 import YoutubePicker from './YoutubePicker';
 import MemePicker from './MemePicker';
 import DecentMemesPicker from './DecentMemesPicker';
+import ToolbarHelpModal, { type ToolbarHelpEntry } from './ToolbarHelpModal';
 import {
   decentMemesAsBeneficiaries,
-  pickDecentMemesKind,
+  getDecentMemesLimit,
   type DecentMemesMeme,
 } from '../../utils/decentmemes';
 import EmojiPicker from './EmojiPicker';
@@ -610,6 +615,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
   const [isDecentMemeOpen, setIsDecentMemeOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   // Per-composer-session list of DecentMemes attachments.
   const [decentMemes, setDecentMemes] = useState<DecentMemesMeme[]>([]);
   useEffect(() => {
@@ -1942,22 +1948,31 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     MEME
                   </button>
                 )}
-                {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
-                  <button
-                    type="button"
-                    onClick={() => setIsDecentMemeOpen(true)}
-                    className={toolbarBtnClass}
-                    title="DecentMemes"
-                    disabled={isDisabled}
-                  >
-                    <img
-                      src="https://decentmemes.com/svg/DM.svg"
-                      alt="DecentMemes"
-                      className="h-4 w-4"
-                      draggable={false}
-                    />
-                  </button>
-                )}
+                {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (() => {
+                  // ParentPostComposer is always a top-level post → 3-meme cap.
+                  const decentMemesLimit = getDecentMemesLimit(decentMemesKind);
+                  const limitReached = decentMemes.length >= decentMemesLimit;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setIsDecentMemeOpen(true)}
+                      className={toolbarBtnClass}
+                      title={
+                        limitReached
+                          ? `DecentMemes limit reached (${decentMemes.length}/${decentMemesLimit} per post)`
+                          : `DecentMemes (${decentMemes.length}/${decentMemesLimit})`
+                      }
+                      disabled={isDisabled || limitReached}
+                    >
+                      <img
+                        src="https://decentmemes.com/svg/DM.svg"
+                        alt="DecentMemes"
+                        className="h-4 w-4"
+                        draggable={false}
+                      />
+                    </button>
+                  );
+                })()}
                 {!hideTemplate && templateToken && templates.length > 0 && (
                   <button
                     type="button"
@@ -2015,6 +2030,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     <Users className="h-4 w-4" />
                   </button>
                 )}
+
+                {/* Help — opens a popup describing every toolbar button.
+                    Always rendered last so users always know where to look. */}
+                <button
+                  type="button"
+                  onClick={() => setIsHelpOpen(true)}
+                  className={toolbarBtnClass}
+                  title="What does each button do?"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Audio preview */}
@@ -2632,6 +2658,68 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         lockedAccounts={lockedAccountsList}
         lockReasons={lockReasons}
         favorites={beneficiaryFavorites}
+      />
+
+      <ToolbarHelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        title="Toolbar help"
+        entries={(() => {
+          // Mirrors the toolbar render — Bold/Italic/Link/Code/Mention are
+          // always shown in ParentPostComposer (no hide flags); media and
+          // pickers are gated by their respective tokens / hide props.
+          const items: ToolbarHelpEntry[] = [
+            { icon: <Bold className="h-4 w-4" />, label: 'Bold', description: 'Wrap the selected text in ** ** for bold.' },
+            { icon: <Italic className="h-4 w-4" />, label: 'Italic', description: 'Wrap the selected text in * * for italic.' },
+            { icon: <LinkIcon className="h-4 w-4" />, label: 'Link', description: 'Insert a markdown link — `[text](url)` — around the selection.' },
+            { icon: <Code className="h-4 w-4" />, label: 'Code', description: 'Insert an inline `code` span or a fenced ``` block depending on the selection.' },
+            { icon: <AtSign className="h-4 w-4" />, label: 'Mention', description: 'Insert @ at the cursor to mention a Hive account.' },
+          ];
+          if (canUploadImages) {
+            items.push({ icon: <ImageIcon className="h-4 w-4" />, label: 'Image', description: 'Upload an image — also works by drag-and-drop or paste into the textarea.' });
+          }
+          if (!hideAudio && threeSpeakApiKey) {
+            items.push({ icon: <Mic className="h-4 w-4" />, label: 'Audio', description: 'Upload an audio file via 3Speak — embedded as a player when published.' });
+          }
+          if (!hideVideo && threeSpeakApiKey) {
+            items.push({ icon: <Video className="h-4 w-4" />, label: 'Video', description: 'Upload a video via 3Speak — the 10% threespeakfund beneficiary is auto-attached.' });
+          }
+          if (!hideEmoji) {
+            items.push({ icon: <Smile className="h-4 w-4" />, label: 'Emoji', description: 'Open a searchable emoji picker and insert at the cursor.' });
+          }
+          if (!hideGif && giphyApiKey) {
+            items.push({ icon: <span className="text-[10px] font-bold">GIF</span>, label: 'GIF', description: 'Search GIPHY and insert an animated GIF inline.' });
+          }
+          if (!hideYoutube && youtubeApiKey) {
+            items.push({ icon: <Play className="h-3 w-3 fill-current" />, label: 'YouTube', description: 'Search YouTube and insert a video link — auto-embeds when rendered.' });
+          }
+          if (!hideMeme && (ecencyToken || (onSignMessage && signingUsername))) {
+            items.push({ icon: <span className="text-[10px] font-bold">MEME</span>, label: 'Meme', description: 'Build a meme on a memegen.link template with Top/Bottom captions and insert as an image.' });
+          }
+          if (!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername))) {
+            items.push({
+              icon: <img src="https://decentmemes.com/svg/DM.svg" alt="DM" className="h-4 w-4" />,
+              label: 'DecentMemes',
+              description: `Open the DecentMemes widget — auto-attaches template creator beneficiaries. Limit: ${getDecentMemesLimit(decentMemesKind)} per post.`,
+            });
+          }
+          if (!hideTemplate && templateToken && templates.length > 0) {
+            items.push({ icon: <FileText className="h-4 w-4" />, label: 'Template', description: 'Insert a saved post template.' });
+          }
+          if (!hidePoll) {
+            items.push({ icon: <BarChart3 className="h-4 w-4" />, label: 'Poll', description: 'Attach a Hive poll (question + choices + end time) to this post.' });
+          }
+          if (!hideTags) {
+            items.push({ icon: <Tag className="h-4 w-4" />, label: 'Tags', description: 'Edit the tag list — locked defaults stay first, you can add up to the cap.' });
+          }
+          if (!hideReward) {
+            items.push({ icon: <Coins className="h-4 w-4" />, label: 'Reward', description: 'Choose reward routing: 50/50 (default), 100% Hive Power, burn, or decline rewards.' });
+          }
+          if (!hideBeneficiaries) {
+            items.push({ icon: <Users className="h-4 w-4" />, label: 'Beneficiaries', description: 'Send a share of the post rewards to other Hive accounts. Auto-attached entries (threespeakfund, DecentMemes creators) show a lock icon.' });
+          }
+          return items;
+        })()}
       />
 
       {/* Reward popover — portalled so ancestor overflow can't clip it. */}

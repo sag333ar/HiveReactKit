@@ -53,8 +53,8 @@ export { PostComposer, default as AddCommentInput } from './components/comments/
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
 // Composer components (Image, Audio, Video uploaders, GIF picker, Meme picker, Emoji picker, Template picker, Post Templates panel)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, DecentMemesPicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, DecentMemesPickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload } from './components/composer';
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, DecentMemesPicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer, ToolbarHelpModal } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, DecentMemesPickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload, ToolbarHelpModalProps, ToolbarHelpEntry } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';
@@ -176,9 +176,12 @@ export {
   DECENTMEMES_WIDGET_ORIGIN,
   DECENTMEMES_TAG,
   DECENTMEMES_SCHEMA_VERSION,
+  DECENTMEMES_MAX_PER_POST,
+  DECENTMEMES_MAX_PER_COMMENT,
   aggregateDecentMemesBeneficiaries,
   decentMemesAsBeneficiaries,
   buildDecentMemesMetadata,
+  getDecentMemesLimit,
   isDecentMemesCreatedEvent,
   pickDecentMemesKind,
   type DecentMemesBeneficiary,
