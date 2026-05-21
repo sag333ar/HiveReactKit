@@ -1424,11 +1424,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // ── Save Draft / Post Templates ──────────────────────────────────────────
   // Shared snapshot — both Save Draft and Save-as-Template need the same
   // shape. Computed at call time so the latest field values flow through.
+  // `beneficiaries` is the locked-merged list (`enforceLockedBeneficiaries`
+  // already runs before this point in `submit`) so the saved row reflects
+  // exactly what would have broadcast.
   const currentPostPayload: PostTemplatePayload = {
     title: title.trim(),
     description: description.trim().slice(0, DESCRIPTION_MAX),
     body: body,
     tags: mergedTags,
+    beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
   };
 
   const handleSaveDraft = useCallback(async () => {
@@ -1441,6 +1445,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           description: description.trim().slice(0, DESCRIPTION_MAX),
           body,
           tags: mergedTags,
+          beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
         }),
       );
     } catch (err) {
@@ -1448,7 +1453,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     } finally {
       setIsSavingDraft(false);
     }
-  }, [onSaveDraft, isSavingDraft, title, description, body, mergedTags]);
+  }, [onSaveDraft, isSavingDraft, title, description, body, mergedTags, beneficiaries, lockedBeneficiaries]);
 
   const handleSavePostTemplate = useCallback(
     async (name: string, payload: PostTemplatePayload) => {
@@ -1489,9 +1494,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         .filter((t): t is string => Boolean(t) && !lockedTagList.includes(t));
       setUserTags(normalised);
       setTagDraft('');
+      // Restore beneficiaries captured at template-save time, then run the
+      // standard lock-merge so platform-mandated entries (`threespeakfund`
+      // on video posts, DecentMemes attribution) always overlay the saved
+      // list. Templates authored before this field existed simply hydrate
+      // an empty list and the lock effect re-installs locks from current
+      // body/media state.
+      const restored = Array.isArray(template.beneficiaries) ? template.beneficiaries : [];
+      setBeneficiaries(enforceLockedBeneficiaries(restored, lockedBeneficiaries));
       onApplyPostTemplate?.(template);
     },
-    [lockedTagList, onApplyPostTemplate],
+    [lockedTagList, lockedBeneficiaries, onApplyPostTemplate],
   );
 
   const removeAudio = () => {

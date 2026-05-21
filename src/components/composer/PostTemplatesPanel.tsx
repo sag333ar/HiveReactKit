@@ -18,6 +18,7 @@
  */
 import React, { useState } from 'react';
 import { Loader2, X, FileText, Save, Trash2, Wand2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import type { Beneficiary } from '../../utils/beneficiaries';
 
 export interface PostTemplate {
   /** Unique-per-user template label, surfaced verbatim in the list. */
@@ -30,6 +31,12 @@ export interface PostTemplate {
    *  to honour this when applying — community pickers usually live outside
    *  the kit, so applying just re-emits the value back via `onApply`. */
   community?: string;
+  /** Beneficiaries captured at save time. When the template is applied,
+   *  the composer restores this list and then re-runs
+   *  `enforceLockedBeneficiaries` so platform-mandated entries
+   *  (`threespeakfund` 10% on video posts, DecentMemes attribution
+   *  accounts on meme posts) always win over whatever was saved. */
+  beneficiaries?: Beneficiary[];
   updatedAt?: string;
 }
 
@@ -39,6 +46,7 @@ export interface PostTemplatePayload {
   body: string;
   tags: string[];
   community?: string;
+  beneficiaries?: Beneficiary[];
 }
 
 export interface PostTemplatesPanelProps {

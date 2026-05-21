@@ -119,14 +119,17 @@ function DecentMemesPicker({
           onSigningStateChange?.(false);
         },
       });
+      console.log('[DecentMemesPicker] upload finished — hosted URL:', url);
       if (meta) {
         const memeMeta: DecentMemesMeme = {
           imageUrl: url,
           template: { id: meta.id, name: meta.name, isOriginalCreator: meta.isOriginalCreator },
           beneficiaries: meta.beneficiaries,
         };
+        console.log('[DecentMemesPicker] emitting onSelectMeme with meta:', memeMeta);
         onSelectMeme(url, memeMeta);
       } else {
+        console.log('[DecentMemesPicker] emitting onSelectMeme (no meta) — fallback path');
         onSelectMeme(url);
       }
       onClose();
@@ -146,9 +149,31 @@ function DecentMemesPicker({
   useEffect(() => {
     if (!isOpen) return;
     const handler = async (event: MessageEvent) => {
-      if (event.origin !== DECENTMEMES_WIDGET_ORIGIN) return;
+      // Any `memeCreated`-shaped message from the wrong origin is loud-skipped
+      // to help diagnose the allowlist issue (localhost / non-allowlisted
+      // parent origins silently drop frontendInit/setTheme; the same
+      // origin enforcement protects `memeCreated` from spoofs).
+      if (event.origin !== DECENTMEMES_WIDGET_ORIGIN) {
+        if ((event.data as { type?: string } | null)?.type === 'memeCreated') {
+          console.warn(
+            '[DecentMemesPicker] Ignoring memeCreated from unexpected origin:',
+            event.origin,
+            '(expected', DECENTMEMES_WIDGET_ORIGIN, ')',
+          );
+        }
+        return;
+      }
       if (!isDecentMemesCreatedEvent(event.data)) return;
       const payload = event.data;
+      console.log('[DecentMemesPicker] memeCreated received', {
+        origin: event.origin,
+        template: payload.template,
+        imageMimeType: payload.imageMimeType,
+        imageFileName: payload.imageFileName,
+        imageDataUrlBytes: payload.imageDataUrl.length,
+        beneficiaries: payload.beneficiaries,
+      });
+      console.log('[DecentMemesPicker] memeCreated full payload:', payload);
       setStatus('received');
       try {
         const blob = await (await fetch(payload.imageDataUrl)).blob();
@@ -157,6 +182,11 @@ function DecentMemesPicker({
           payload.imageFileName || 'meme.png',
           { type: payload.imageMimeType || blob.type || 'image/png' },
         );
+        console.log('[DecentMemesPicker] uploading meme blob', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        });
         await uploadAndEmit(file, {
           id: payload.template.id,
           name: payload.template.name,
@@ -164,6 +194,7 @@ function DecentMemesPicker({
           beneficiaries: payload.beneficiaries,
         });
       } catch (err) {
+        console.error('[DecentMemesPicker] failed to process memeCreated payload', err);
         setError(err instanceof Error ? err.message : 'Failed to read meme image.');
         setStatus('idle');
       }

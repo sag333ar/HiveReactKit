@@ -145,13 +145,22 @@ export function aggregateDecentMemesBeneficiaries(
     entries = entries.slice(0, MAX_BENEFICIARY_SLOTS);
   }
 
-  // Total-weight cap. Scale by `cap / total` and floor; under-cap by 1–2bp
-  // due to flooring is safe (Hive only rejects over-cap).
+  // Total-weight cap. Scale entries by `cap / total` and floor; under-cap
+  // by 1–2bp due to flooring is safe (Hive only rejects over-cap).
+  //
+  // Done in integer math (`floor((weight * cap) / total)`) rather than as
+  // `floor(weight * (cap/total))` because the float ratio drifts: for the
+  // common 5-meme-same-creator case, `1500 * (1000/1500)` evaluates to
+  // 999.999…bp in IEEE 754, which would shave the on-chain weight to 999bp
+  // (and then to 9% after the whole-percent conversion). Integer math
+  // gives the exact 1000bp.
   const cap = kind === 'post' ? POST_CAP_BP : COMMENT_CAP_BP;
   const total = entries.reduce((sum, e) => sum + e.weight, 0);
   if (total > cap) {
-    const scale = cap / total;
-    entries = entries.map((e) => ({ account: e.account, weight: Math.floor(e.weight * scale) }));
+    entries = entries.map((e) => ({
+      account: e.account,
+      weight: Math.floor((e.weight * cap) / total),
+    }));
   }
 
   return entries;
@@ -159,21 +168,34 @@ export function aggregateDecentMemesBeneficiaries(
 
 /**
  * Convert the aggregated meme beneficiaries (basis points) into the
- * whole-percent `{ account, weight }` shape the composer's
- * `Beneficiary` type uses. Rounded to the nearest whole percent — the
- * <1% precision loss is inside Hive's dust threshold and lets the
- * composer's UI render in the same units everyone else uses.
+ * whole-percent `{ account, weight }` shape the composer's `Beneficiary`
+ * type uses. Pair with `enforceLockedBeneficiaries` to merge into the
+ * composer's working list — same pattern as the `threespeakfund` 10%
+ * video lock.
  *
- * Returns `[]` when no memes are attached. Pair with
- * `enforceLockedBeneficiaries` to merge into the composer's working
- * beneficiary list — same shape as the `threespeakfund` 10% lock.
+ * Conversion uses `Math.floor(bp / 100)` and drops entries that round
+ * to 0%. This is the cap-safe direction:
+ *
+ *   - `Math.round` would overshoot. Example: a top-level post with 3
+ *     creators landing on 350bp / 350bp / 300bp (sum 1000bp = the 10%
+ *     post cap) would round to 4% / 4% / 3% = 11% in UI, which the
+ *     downstream `toWireWeights` then sends as 1100bp on-chain —
+ *     **over the spec's 10% cap**. The DecentMemes spec explicitly
+ *     calls out flooring (under-cap by 1–2bp) as safe and over-cap as
+ *     unsafe (Hive only rejects over-cap).
+ *
+ *   - Dropping sub-1% entries matches the same safety story: a tiny
+ *     scaled-down frontend slot (e.g. 33bp after capping a heavy
+ *     multi-meme comment) would otherwise be forced up to 100bp via
+ *     `Math.max(1, …)`, pushing several such overflows back over the
+ *     cap. Better to lose the dust than the broadcast.
  */
 export function decentMemesAsBeneficiaries(
   memes: DecentMemesMeme[],
   kind: 'post' | 'comment',
 ): Array<{ account: string; weight: number }> {
   return aggregateDecentMemesBeneficiaries(memes, kind)
-    .map(({ account, weight }) => ({ account, weight: Math.max(1, Math.round(weight / 100)) }))
+    .map(({ account, weight }) => ({ account, weight: Math.floor(weight / 100) }))
     .filter((b) => b.weight > 0);
 }
 
