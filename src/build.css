@@ -249,6 +249,18 @@
   border-radius: 0.75rem;
   margin: 0;
 }
+/* `<div class="video-container">` is emitted by @snapie/renderer
+   around every iframe embed. With no styling it collapses to 0
+   height around our `.threeSpeakEmbed` placeholder while the
+   ThreeSpeakPlayer is still loading its manifest — so the post
+   looks like "media missing" even though the player is mid-mount.
+   Give it block layout + safe margins so the placeholder inside
+   has room to render its loading state. */
+.hive-post-body .video-container {
+  display: block;
+  width: 100%;
+  margin: 1rem 0;
+}
 /* 3Speak native player — see comments in index.css for the full
    rationale. The placeholder div (`.threeSpeakEmbed`) is mounted
    with a React-managed <ThreeSpeakPlayer/> that emits
@@ -476,3 +488,29 @@
   margin: 0.25rem 0;
 }
 .snaps-feed-body iframe { display: none; } /* iframes go through AttachmentStrip */
+
+/* Metadata media gallery — preview tiles for `json_metadata.image`
+   entries that aren't already inlined in the body. Sits above the
+   rendered body so wave / snap posts always have a visible
+   thumbnail even when the embedded video player is still mounting
+   or fails outright. */
+.hive-post-media-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+.hive-post-media-gallery .hive-post-media-image {
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+  border-radius: 0.75rem;
+  background: var(--hrk-bg-surface);
+  cursor: zoom-in;
+}
+.hive-post-media-gallery:has(> :nth-child(1):last-child) .hive-post-media-image {
+  /* Single-image gallery — let it breathe at its natural aspect
+     ratio (capped at 80vh) instead of being cropped to a tile. */
+  object-fit: contain;
+  max-height: 80vh;
+  background: transparent;
+}

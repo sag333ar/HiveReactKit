@@ -15,7 +15,7 @@
  * No app-specific stores: every action is forwarded via callbacks so
  * the host app owns the data plane.
  */
-import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import { createHiveRenderer } from '@snapie/renderer';
 import {
   ChevronLeft,
@@ -24,6 +24,9 @@ import {
   Music,
   ImageOff,
   X,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
 } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
@@ -174,6 +177,39 @@ function uniq<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
 
+/** Many Hive clients (Ecency mobile especially) copy image URLs out
+ *  of body markdown by raw string-slicing and forget to strip the
+ *  closing `)`, `,`, or quote. That leaves `json_metadata.image`
+ *  with the same image listed once clean and once with trailing
+ *  junk. `sanitizeImageUrl` peels off the punctuation; both forms
+ *  collapse to the same key. Also corrects the renderer's
+ *  "https:/foo.jpg" single-slash artifact so a proxied vs raw
+ *  variant doesn't double-list. */
+function sanitizeImageUrl(url: string): string {
+  return url.trim()
+    .replace(/[)\],.;:>\s"'<]+$/, '')
+    .replace(/^(https?):\/(?!\/)/, '$1://');
+}
+
+/** Sanitised-and-decoded dedup for image URLs. Output values are
+ *  the cleaned forms so a malformed URL never reaches the strip or
+ *  the popup. */
+function uniqImageUrls(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of arr) {
+    if (typeof raw !== 'string') continue;
+    const cleaned = sanitizeImageUrl(raw);
+    if (!cleaned || !/^https?:\/\//.test(cleaned)) continue;
+    let key = cleaned;
+    try { key = decodeURIComponent(cleaned); } catch { /* keep as-is */ }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(cleaned);
+  }
+  return out;
+}
+
 function parseJsonMetadata(jm: unknown): Record<string, unknown> {
   if (!jm) return {};
   if (typeof jm === 'string') {
@@ -300,7 +336,11 @@ function parseBody(post: Post): ParsedBody {
   while ((m = TWITTER_REGEX.exec(raw))) twitterIds.push(m[1]);
 
   const attachments: Attachment[] = [
-    ...uniq(imageUrls).map((url) => ({ kind: 'image' as const, url })),
+    // Image URLs go through a stronger dedup that strips the trailing
+    // `)` / `,` / `"` punctuation common in Ecency-mobile metadata
+    // and normalises URL-encoding, so the same image never appears
+    // twice in the strip or the popup.
+    ...uniqImageUrls(imageUrls).map((url) => ({ kind: 'image' as const, url })),
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
     ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
@@ -520,13 +560,240 @@ const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
   );
 };
 
-const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
+// ── Zoomable image — used by the image branch of MediaPopup. Mouse
+// wheel, pinch, double-click, and +/- buttons zoom from 1× up to the
+// image's natural pixel size (100%). Drag pans when zoomed in.
+
+const ZOOM_MIN = 1;
+const ZOOM_STEP = 0.25;
+const ZOOM_WHEEL_STEP = 0.15;
+
+const ZoomableImage: FC<{ src: string }> = ({ src }) => {
+  const [zoom, setZoom] = useState(1);
+  const [zoomMax, setZoomMax] = useState(3);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const panDragRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
+  const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
+
+  const resetZoom = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  // Reset when src swaps (next/prev navigation in the popup).
+  useEffect(() => { resetZoom(); }, [src, resetZoom]);
+
+  const recomputeZoomMax = useCallback(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const rw = img.clientWidth || 1;
+    const rh = img.clientHeight || 1;
+    const ratio = Math.max(img.naturalWidth / rw, img.naturalHeight / rh);
+    setZoomMax(Math.max(1, Math.min(6, ratio || 1)));
+  }, []);
+
+  const zoomedIn = zoom > 1;
+  const zoomPercent = Math.round(zoom * 100);
+
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - (rect.left + rect.width / 2);
+    const cy = e.clientY - (rect.top + rect.height / 2);
+    setZoom((prev) => {
+      const dir = e.deltaY < 0 ? 1 : -1;
+      const next = Math.max(ZOOM_MIN, Math.min(zoomMax, prev + dir * ZOOM_WHEEL_STEP));
+      if (next === prev) return prev;
+      setPan((p) => {
+        if (next === 1) return { x: 0, y: 0 };
+        const k = next / prev;
+        return { x: cx - (cx - p.x) * k, y: cy - (cy - p.y) * k };
+      });
+      return next;
+    });
+  }, [zoomMax]);
+
+  const onDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (zoom === 1) setZoom(zoomMax);
+    else resetZoom();
+  }, [zoom, zoomMax, resetZoom]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      pinchRef.current = {
+        startDistance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        startZoom: zoom,
+      };
+      return;
+    }
+    if (zoomedIn) {
+      const t = e.touches[0];
+      if (t) panDragRef.current = {
+        startClientX: t.clientX,
+        startClientY: t.clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+    }
+  }, [zoom, zoomedIn, pan.x, pan.y]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      const ratio = d / pinchRef.current.startDistance;
+      setZoom(Math.max(ZOOM_MIN, Math.min(zoomMax, pinchRef.current.startZoom * ratio)));
+      return;
+    }
+    if (zoomedIn && panDragRef.current && e.touches.length === 1) {
+      const t = e.touches[0];
+      const dx = t.clientX - panDragRef.current.startClientX;
+      const dy = t.clientY - panDragRef.current.startClientY;
+      setPan({ x: panDragRef.current.startPanX + dx, y: panDragRef.current.startPanY + dy });
+    }
+  }, [zoomMax, zoomedIn]);
+
+  const onTouchEnd = useCallback(() => {
+    pinchRef.current = null;
+    panDragRef.current = null;
+  }, []);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!zoomedIn) return;
+    panDragRef.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startPanX: pan.x,
+      startPanY: pan.y,
+    };
+  }, [zoomedIn, pan.x, pan.y]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!panDragRef.current || e.buttons !== 1) return;
+    const dx = e.clientX - panDragRef.current.startClientX;
+    const dy = e.clientY - panDragRef.current.startClientY;
+    setPan({ x: panDragRef.current.startPanX + dx, y: panDragRef.current.startPanY + dy });
+  }, []);
+
+  const onPointerUp = useCallback(() => { panDragRef.current = null; }, []);
+
+  const stopE = (e: React.SyntheticEvent) => e.stopPropagation();
+
+  return (
+    <div className="relative w-full" onClick={stopE}>
+      {/* Zoom toolbar — always visible above the image. */}
+      <div className="mb-2 flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
+            setPan((p) => ({ x: p.x * 0.85, y: p.y * 0.85 }));
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+          aria-label="Zoom out"
+          disabled={zoom <= ZOOM_MIN}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <span className="min-w-[3.25rem] text-center text-xs font-medium tabular-nums text-white">
+          {zoomPercent}%
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setZoom((z) => Math.min(zoomMax, z + ZOOM_STEP));
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+          aria-label="Zoom in"
+          disabled={zoom >= zoomMax}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); resetZoom(); }}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40"
+          aria-label="Reset zoom"
+          disabled={zoom === ZOOM_MIN}
+        >
+          <Maximize2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Image viewport — clips the panned/zoomed image. */}
+      <div
+        ref={wrapRef}
+        className="relative flex items-center justify-center overflow-hidden rounded-lg"
+        style={{ minHeight: 240, touchAction: zoomedIn ? 'none' : 'pan-y' }}
+        onWheel={onWheel}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        <img
+          ref={imgRef}
+          src={src}
+          alt=""
+          draggable={false}
+          referrerPolicy="no-referrer"
+          className="max-h-[80vh] max-w-full select-none object-contain"
+          style={{
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+            transformOrigin: 'center center',
+            transition: panDragRef.current || pinchRef.current ? 'none' : 'transform 120ms ease-out',
+            cursor: zoomedIn ? (panDragRef.current ? 'grabbing' : 'grab') : 'zoom-in',
+          }}
+          onDoubleClick={onDoubleClick}
+          onLoad={() => requestAnimationFrame(recomputeZoomMax)}
+        />
+      </div>
+    </div>
+  );
+};
+
+const MediaPopup: FC<{
+  attachment: Attachment;
+  onClose: () => void;
+  index?: number;
+  total?: number;
+  onPrev?: () => void;
+  onNext?: () => void;
+}> = ({
   attachment,
   onClose,
+  index,
+  total,
+  onPrev,
+  onNext,
 }) => {
-  // Lock body scroll + listen for Escape.
+  const hasNav = typeof total === 'number' && total > 1 && !!onPrev && !!onNext;
+
+  // Lock body scroll + listen for Escape and arrow keys.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && onPrev) onPrev();
+      if (e.key === 'ArrowRight' && onNext) onNext();
+    };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -534,7 +801,7 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
   const closeAndStop = (e: React.SyntheticEvent) => { e.stopPropagation(); onClose(); };
@@ -549,12 +816,17 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
     >
       {/* Mobile title strip */}
       <div
-        className="flex shrink-0 items-center bg-black/40 px-4 py-3 pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:hidden"
+        className="flex shrink-0 items-center justify-between gap-2 bg-black/40 px-4 py-3 pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:hidden"
         onClick={stop}
       >
         <span className="truncate text-sm font-medium text-white/80">
           {attachmentLabel(attachment)}
         </span>
+        {hasNav && (
+          <span className="shrink-0 text-xs text-white/60 tabular-nums">
+            {(index ?? 0) + 1} / {total}
+          </span>
+        )}
       </div>
 
       {/* Floating close (mobile) */}
@@ -576,7 +848,14 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
       >
         {/* Desktop close header */}
         <div className="hidden shrink-0 items-center justify-between border-b border-[var(--hrk-border-default)]/60 px-4 py-2.5 sm:flex">
-          <span className="text-sm font-medium text-white/70">{attachmentLabel(attachment)}</span>
+          <span className="flex items-center gap-2 text-sm font-medium text-white/70">
+            <span>{attachmentLabel(attachment)}</span>
+            {hasNav && (
+              <span className="text-xs text-white/50 tabular-nums">
+                {(index ?? 0) + 1} / {total}
+              </span>
+            )}
+          </span>
           <button
             type="button"
             onClick={closeAndStop}
@@ -587,13 +866,32 @@ const MediaPopup: FC<{ attachment: Attachment; onClose: () => void }> = ({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center p-3 sm:p-4">
+        <div className="relative flex flex-1 flex-col items-center justify-center p-3 sm:p-4">
+          {/* Side-arrow navigation — appears whenever the parent passed
+              a multi-item nav. Lets the user step between media items
+              without closing the popup. */}
+          {hasNav && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onPrev?.(); }}
+                className="absolute left-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white shadow-lg transition hover:bg-black/80"
+                aria-label="Previous media"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onNext?.(); }}
+                className="absolute right-2 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white shadow-lg transition hover:bg-black/80"
+                aria-label="Next media"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          )}
           {attachment.kind === 'image' && (
-            <img
-              src={attachment.url}
-              alt=""
-              className="max-h-[80vh] w-auto max-w-full rounded-lg object-contain"
-            />
+            <ZoomableImage src={attachment.url} />
           )}
 
           {attachment.kind === 'youtube' && (
@@ -682,6 +980,10 @@ interface AttachmentStripProps {
 const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
   const [idx, setIdx] = useState(0);
   const [activeAttachment, setActiveAttachment] = useState<Attachment | null>(null);
+  // Index of `activeAttachment` inside `attachments`. Used by the
+  // popup's side-arrow buttons so the user can step through every
+  // media item on the post without closing the viewer.
+  const [popupIdx, setPopupIdx] = useState<number>(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
 
   if (attachments.length === 0) return null;
@@ -692,7 +994,23 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
   const prev = () => setIdx((i) => (i - 1 + attachments.length) % attachments.length);
   const open = (e: React.MouseEvent, a: Attachment) => {
     e.stopPropagation();
+    const i = attachments.indexOf(a);
+    setPopupIdx(i >= 0 ? i : 0);
     setActiveAttachment(a);
+  };
+  const popupPrev = () => {
+    setPopupIdx((i) => {
+      const ni = (i - 1 + attachments.length) % attachments.length;
+      setActiveAttachment(attachments[ni]);
+      return ni;
+    });
+  };
+  const popupNext = () => {
+    setPopupIdx((i) => {
+      const ni = (i + 1) % attachments.length;
+      setActiveAttachment(attachments[ni]);
+      return ni;
+    });
   };
 
   const renderTile = () => {
@@ -853,6 +1171,10 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
       {activeAttachment && (
         <MediaPopup
           attachment={activeAttachment}
+          index={popupIdx}
+          total={attachments.length}
+          onPrev={popupPrev}
+          onNext={popupNext}
           onClose={() => setActiveAttachment(null)}
         />
       )}

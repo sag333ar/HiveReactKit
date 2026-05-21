@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThreeSpeakPlayer } from './ThreeSpeakPlayer';
@@ -262,7 +263,7 @@ export interface HiveDetailPostProps {
 const formatReputation = (rep: number): string => {
   if (rep === 0) return '25';
   const neg = rep < 0;
-  let val = neg ? -rep : rep;
+  const val = neg ? -rep : rep;
   let out = Math.log10(val);
   out = Math.max(out - 9, 0);
   out = (neg ? -1 : 1) * out;
@@ -436,19 +437,41 @@ export function HiveDetailPost({
   }, [parsedMetadata]);
 
   /**
-   * 3Speak video reference derived from `json_metadata.video` (the
-   * canonical source — set by Snaps and Waves clients on every video
-   * post). When present we render a single ThreeSpeakPlayer above the
-   * body and strip any embed iframes / autolinked URLs out of the
-   * body markup, so the page shows one player instead of duplicating.
+   * 3Speak video reference. Sources, in order of preference:
+   *   1. `json_metadata.video.platform === '3speak'` — the canonical
+   *      Hive snaps / waves contract; carries author + permlink in
+   *      a known `url` field.
+   *   2. `json_metadata.links[]` — Ecency's mobile client doesn't
+   *      fill in the `video` block, but it lists every embed URL
+   *      here. Scanning for a 3Speak embed/watch URL gives us the
+   *      same metadata-driven player even when (1) is missing.
+   *
+   * When found we render a single ThreeSpeakPlayer above the body
+   * and strip the matching iframe / autolinked URL out of the body,
+   * so the page shows one player instead of duplicating.
    */
   const threeSpeakRef = useMemo<{ author: string; permlink: string } | null>(() => {
+    const extract = (url: unknown): { author: string; permlink: string } | null => {
+      if (typeof url !== 'string') return null;
+      const m = url.match(/3speak\.tv\/(?:embed|watch)\?[^"\s'<>]*[?&]v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
+      if (!m) return null;
+      return { author: m[1], permlink: m[2] };
+    };
+    // Path 1: declared `video` block.
     const video = parsedMetadata?.video as { platform?: unknown; url?: unknown } | undefined;
-    if (!video || video.platform !== '3speak') return null;
-    const url = typeof video.url === 'string' ? video.url : '';
-    const m = url.match(/[?&]v=([^&\s/]+)\/([^&\s/]+)/);
-    if (!m) return null;
-    return { author: m[1], permlink: m[2] };
+    if (video && video.platform === '3speak') {
+      const fromVideo = extract(video.url);
+      if (fromVideo) return fromVideo;
+    }
+    // Path 2: scan `links[]` for a 3Speak embed URL.
+    const links = parsedMetadata?.links;
+    if (Array.isArray(links)) {
+      for (const link of links) {
+        const fromLink = extract(link);
+        if (fromLink) return fromLink;
+      }
+    }
+    return null;
   }, [parsedMetadata]);
 
   // Let the consumer transform the body (e.g. strip app footers) before the
@@ -538,39 +561,205 @@ export function HiveDetailPost({
     }
   }, [processedBody, renderMarkdown, threeSpeakRef]);
 
-  // Fallback for broken images: strip proxy/gateway prefix and retry with the original URL
+  // Distinct metadata images — every URL declared in
+  // `json_metadata.image` / `json_metadata.images` / `json_metadata.video.thumbnail`
+  // that DOESN'T already appear as an <img src="…"> in the rendered
+  // body. Rendered as a small gallery above the body so wave / snap
+  // posts (whose body is usually just "text + a 3Speak URL") still
+  // show their thumbnail when the embedded player is loading, slow
+  // to start, or fails outright. Dedup is by decodeURIComponent
+  // value so `%2C` vs `,` collisions don't double-list the same
+  // image.
+  const metadataMediaImages = useMemo<string[]>(() => {
+    if (!parsedMetadata) return [];
+    // Many Hive clients copy image URLs out of the body's markdown
+    // by simple string-slicing — `![alt](https://…/foo.jpg)` ends up
+    // in `json_metadata.image` with a stray closing `)`, and the
+    // same image often appears once clean and once with that
+    // trailing junk. `sanitize` peels off any trailing punctuation
+    // that obviously can't be part of a real URL path, so both
+    // forms collapse to the same key before dedup. Also corrects
+    // the renderer's "https:/foo.jpg" single-slash artifact so a
+    // proxied vs raw variant doesn't double-list.
+    const sanitize = (raw: string): string =>
+      raw.trim()
+        .replace(/[)\],.;:>\s"'<]+$/, '')
+        .replace(/^(https?):\/(?!\/)/, '$1://');
+    const decode = (u: string) => { try { return decodeURIComponent(u) } catch { return u } };
+    const key = (u: string) => decode(sanitize(u));
+
+    // Set of every URL the body already renders as <img>. Anything
+    // matching this is dropped from the gallery so we never show
+    // the same image twice.
+    const fromBody = new Set<string>();
+    if (renderedBody) {
+      const re = /<img\s[^>]*src=["']([^"']+)["']/gi;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(renderedBody)) !== null) fromBody.add(key(m[1]));
+    }
+    const out: string[] = [];
+    const seen = new Set<string>(fromBody);
+    const push = (raw: unknown) => {
+      if (typeof raw !== 'string') return;
+      const cleaned = sanitize(raw);
+      if (!cleaned || !/^https?:\/\//.test(cleaned)) return;
+      const k = decode(cleaned);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(cleaned);
+    };
+    const pushAll = (v: unknown) => {
+      if (Array.isArray(v)) v.forEach(push);
+      else push(v);
+    };
+    pushAll(parsedMetadata.image);
+    pushAll(parsedMetadata.images);
+    pushAll(parsedMetadata.thumbnails);
+    const video = parsedMetadata.video as { thumbnail?: unknown } | undefined;
+    if (video && typeof video === 'object') push(video.thumbnail);
+    return out;
+  }, [parsedMetadata, renderedBody]);
+
+  // Resilient image loading: many post bodies reference images that
+  // fail under one delivery path but succeed under another. We walk a
+  // small fallback chain per <img> before giving up:
+  //
+  //   1. Mixed-content upgrade — bump http://… to https://… up front
+  //      so the browser doesn't silently block the request without
+  //      firing onerror (the classic "image just doesn't appear"
+  //      case on HTTPS pages).
+  //   2. Proxy → raw — when the src looks like images.hive.blog /
+  //      images.ecency.com, strip the proxy prefix and retry the
+  //      direct URL. Also repairs the "https:/foo.jpg" single-slash
+  //      artifact that some renderers emit.
+  //   3. Raw → proxy — for direct URLs that fail (hot-link
+  //      protection, CORS, expired CDN tokens), retry through the
+  //      Hive image proxy which fetches server-side.
+  //   4. IPFS gateway swap — if one gateway 4xx's, try the others
+  //      with the same CID. Replaces the old "strip gateway" logic
+  //      which left a bare CID that couldn't load.
+  //
+  // Each step is recorded in a per-image WeakMap so the retry chain
+  // can't loop, and we stop hiding the figure caption only after the
+  // whole chain is exhausted.
   useEffect(() => {
     const container = postBodyRef.current;
     if (!container) return;
-    const handleError = (e: Event) => {
-      const img = e.target as HTMLImageElement;
-      if (img.tagName !== 'IMG' || img.dataset.fallbackAttempted) return;
-      img.dataset.fallbackAttempted = 'true';
+
+    const IPFS_GATEWAYS = [
+      'https://ipfs.3speak.tv',
+      'https://ipfs.io',
+      'https://cloudflare-ipfs.com',
+      'https://gateway.pinata.cloud',
+    ];
+    const PROXY_PREFIXES = [
+      /^https:\/\/images\.hive\.blog\/\d+x\d+\//,
+      /^https:\/\/images\.hive\.blog\/p\//,
+      /^https:\/\/images\.ecency\.com\/\d+x\d+\//,
+    ];
+
+    /** Build a retry queue for an image based on its current src.
+     *  Each candidate is checked against `tried` so we never visit
+     *  the same URL twice across the chain. */
+    const buildQueue = (img: HTMLImageElement): string[] => {
       const src = img.getAttribute('src') || '';
-      // Try stripping known proxy/gateway prefixes to get the original URL
-      const proxyPatterns = [
-        /^https:\/\/images\.hive\.blog\/\d+x\d+\//,
-        /^https:\/\/images\.hive\.blog\/DQm[^/]*\//,
-        /^https:\/\/images\.ecency\.com\/\d+x\d+\//,
-        /^https:\/\/ipfs\.io\/ipfs\//,
-        /^https:\/\/ipfs\.3speak\.tv\/ipfs\//,
-      ];
-      for (const pattern of proxyPatterns) {
+      if (!src) return [];
+      const tried = new Set<string>([src]);
+      const queue: string[] = [];
+      const push = (url: string | undefined) => {
+        if (!url) return;
+        if (!/^https?:\/\//.test(url)) return;
+        if (tried.has(url)) return;
+        tried.add(url);
+        queue.push(url);
+      };
+
+      // Step: strip known proxy prefixes, repairing single-slash
+      // scheme artifacts ("https:/foo.jpg" → "https://foo.jpg") that
+      // creep in when proxy URLs are concatenated naively.
+      for (const pattern of PROXY_PREFIXES) {
         if (pattern.test(src)) {
-          const original = src.replace(pattern, '');
-          if (original.startsWith('http')) {
-            img.src = original;
-            return;
-          }
+          const stripped = src
+            .replace(pattern, '')
+            .replace(/^(https?):\/(?!\/)/, '$1://');
+          push(stripped);
+          break;
         }
       }
-      // If src is already a direct URL or no proxy matched, hide the broken image
+
+      // Step: route a direct URL through the Hive image proxy. The
+      // proxy fetches server-side, sidestepping hot-link protection
+      // and most cross-origin / referer guards. Skipped for URLs
+      // that are already proxied or are data:/blob:.
+      const isAlreadyProxied =
+        /^https?:\/\/(?:images\.hive\.blog|images\.ecency\.com)/.test(src);
+      const isDataOrBlob = /^(?:data|blob):/.test(src);
+      if (!isAlreadyProxied && !isDataOrBlob) {
+        push(`https://images.hive.blog/0x0/${src}`);
+      }
+
+      // Step: IPFS gateway swap. Match any `<host>/ipfs/<cid…>` URL
+      // and queue every other gateway with the same path.
+      const ipfsMatch = src.match(/^https?:\/\/[^/]+\/ipfs\/(.+)$/);
+      if (ipfsMatch) {
+        const cidPath = ipfsMatch[1];
+        IPFS_GATEWAYS.forEach((g) => push(`${g}/ipfs/${cidPath}`));
+      }
+
+      return queue;
+    };
+
+    // Per-image retry queues. WeakMap so detached <img> nodes get
+    // garbage-collected naturally — no manual cleanup needed when
+    // the body re-renders.
+    const retryQueues = new WeakMap<HTMLImageElement, string[]>();
+
+    /** Upgrade insecure URLs up front so the browser actually
+     *  attempts the request. http:// images on https:// pages are
+     *  blocked without an error event, so a reactive fallback can
+     *  never catch them. */
+    const upgradeMixedContent = () => {
+      container.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+        if (img.dataset.hsMixedContentChecked) return;
+        img.dataset.hsMixedContentChecked = '1';
+        const src = img.getAttribute('src') || '';
+        if (src.startsWith('http://')) {
+          img.setAttribute('src', 'https://' + src.slice('http://'.length));
+        }
+      });
+    };
+    upgradeMixedContent();
+    // The body can mutate after initial render (language switches
+    // swap the HTML, lazy <img>'s get inserted). Watch for new
+    // <img> nodes and apply the same upgrade.
+    const mo = new MutationObserver(upgradeMixedContent);
+    mo.observe(container, { childList: true, subtree: true });
+
+    const handleError = (e: Event) => {
+      const img = e.target as HTMLImageElement | null;
+      if (!img || img.tagName !== 'IMG') return;
+      let queue = retryQueues.get(img);
+      if (!queue) {
+        queue = buildQueue(img);
+        retryQueues.set(img, queue);
+      }
+      const next = queue.shift();
+      if (next) {
+        img.src = next;
+        return;
+      }
+      // Chain exhausted — hide the broken image + its caption so the
+      // post body doesn't show a torn placeholder.
       img.style.display = 'none';
       const figcaption = img.closest('figure')?.querySelector('figcaption');
-      if (figcaption) figcaption.style.display = 'none';
+      if (figcaption) (figcaption as HTMLElement).style.display = 'none';
     };
     container.addEventListener('error', handleError, true);
-    return () => container.removeEventListener('error', handleError, true);
+
+    return () => {
+      container.removeEventListener('error', handleError, true);
+      mo.disconnect();
+    };
   }, [renderedBody]);
 
   // DOM-walk pass: mount a native <ThreeSpeakPlayer> for every
@@ -1157,6 +1346,28 @@ export function HiveDetailPost({
                   permlink={threeSpeakRef.permlink}
                   hideThumbnail
                 />
+              </div>
+            )}
+
+            {/* Metadata media — images declared in `json_metadata`
+                that aren't already inlined in the body. Surfaces the
+                post thumbnail for wave / snap posts whose body is
+                just "text + a 3Speak URL" (the player renders in
+                the body below; this gives a visible preview while
+                that loads). Hidden when the metadata-driven 3Speak
+                player is already showing the same thumbnail above. */}
+            {!threeSpeakRef && metadataMediaImages.length > 0 && (
+              <div className="hive-post-media-gallery pb-4">
+                {metadataMediaImages.map((url, i) => (
+                  <img
+                    key={`${url}-${i}`}
+                    src={url}
+                    alt=""
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="hive-post-media-image"
+                  />
+                ))}
               </div>
             )}
 

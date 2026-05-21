@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   FileText,
@@ -148,7 +149,7 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                   onClick={() => pick("all")}
                   className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
                     value === "all"
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
                       : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-primary)] dark:hover:bg-[var(--hrk-bg-surface-raised)]"
                   }`}
                 >
@@ -171,7 +172,7 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                         onClick={() => pick(opt.value)}
                         className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
                           selected
-                            ? "bg-emerald-500 text-white"
+                            ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
                             : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-primary)] dark:hover:bg-[var(--hrk-bg-surface-raised)]"
                         }`}
                       >
@@ -754,7 +755,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                             {activity.type === 'custom_json' && (
                               <>
                                 <div><span className="font-medium">id:</span> {activity.details.id}</div>
-                                <div className="break-all"><span className="font-medium">json:</span> {JSON.stringify(activity.details.json).replace(/\\\"/g, '"').replace(/^"|"$/g, '')}</div>
+                                <div className="break-all"><span className="font-medium">json:</span> {JSON.stringify(activity.details.json).replace(/\\"/g, '"').replace(/^"|"$/g, '')}</div>
                                 <div><span className="font-medium">required_auths:</span> {JSON.stringify(activity.details.required_auths)}</div>
                                 <div><span className="font-medium">required_posting_auths:</span> {JSON.stringify(activity.details.required_posting_auths)}</div>
                               </>
