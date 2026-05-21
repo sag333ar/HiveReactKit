@@ -11,7 +11,7 @@ const server = {
     `https://images.hive.blog/u/${username}/avatar`,
   graphQLServerUrl: "https://union.us-02.infra.3speak.tv",
 };
-import { getHiveClient } from "../config/hiveEndpoint";
+import { getHiveClient, getHiveApiEndpoint } from "../config/hiveEndpoint";
 
 // Shared dhive client — its address is updated at runtime via
 // setHiveApiEndpoint(), so every call here uses the user-selected node.
@@ -569,27 +569,48 @@ class ApiService {
     permlink: string,
     observer: string = ''
   ): Promise<Post | null> {
-    try {
-      // Prefer `bridge.get_post` when an observer is supplied so the
-      // chain can return observer-aware fields (e.g. `stats.gray` /
-      // `stats.hide` driven by the observer's mute list) and so the
-      // payload shape matches what `bridge.get_discussion` returns
-      // for the comment thread below. Falls back to the universal
-      // `condenser_api.get_content` for anonymous reads.
-      if (observer) {
-        const bridgeResult: any = await dhiveClient.call(
-          'bridge',
-          'get_post',
-          { author, permlink, observer },
-        );
-        if (bridgeResult) return bridgeResult as Post;
-      }
-      const result: any = await dhiveClient.call(
-        "condenser_api",
-        "get_content",
-        [author, permlink]
+    // IMPORTANT: this method intentionally uses plain `fetch` against
+    // `getHiveApiEndpoint()` instead of `dhiveClient.call(...)`. The
+    // dhive Client routes through `Client.prototype.call`, which the
+    // consumer app (hivesuite) may monkey-patch with a rotation /
+    // failover loop. That patch was the root cause of the
+    // "node keeps switching even when auto-switch is off" complaint
+    // on the three surfaces that depend on this method:
+    //   • HiveDetailPost (post body + comment loader)
+    //   • SnapsFeedCard / SnapsFeedList (via ReSnapEmbed)
+    //   • UserDetailProfile (via the shared kit endpoint that
+    //     rotation events would re-point)
+    // Plain `fetch` still flows through any global `window.fetch`
+    // interceptor the host app installs, so URL-rewrite policies
+    // continue to work — but the request never touches dhive's
+    // multi-URL retry path. The user's selected node is the only
+    // host this call ever reaches.
+    const endpoint = getHiveApiEndpoint();
+    // Bridge first (observer-aware), then condenser as fallback.
+    // Same call ordering as before — only the transport changed.
+    const buildBody = (api: 'bridge' | 'condenser') =>
+      JSON.stringify(
+        api === 'bridge'
+          ? { jsonrpc: '2.0', method: 'bridge.get_post', params: { author, permlink, observer }, id: 1 }
+          : { jsonrpc: '2.0', method: 'condenser_api.get_content', params: [author, permlink], id: 1 }
       );
-      return result as Post;
+    const doFetch = async (api: 'bridge' | 'condenser'): Promise<Post | null> => {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: buildBody(api),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { result?: Post; error?: { message?: string } };
+      if (data?.error) return null;
+      return (data?.result ?? null) as Post | null;
+    };
+    try {
+      if (observer) {
+        const bridgeResult = await doFetch('bridge');
+        if (bridgeResult) return bridgeResult;
+      }
+      return await doFetch('condenser');
     } catch (error) {
       console.error('Error fetching post content:', error);
       return null;

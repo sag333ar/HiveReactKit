@@ -16,6 +16,16 @@
  * forwarded to the embedded <BlogPostList/> exactly the way <BlogsPage/>
  * already does — so the rendered cards behave identically to the rest of
  * the hivesuite Blog-style surfaces.
+ *
+ * ── Auto node-switch is DISABLED on the snaps surface ──────────────
+ * The component does not fetch data itself; the host app's fetch path
+ * for `bridge.get_account_posts` / `bridge.get_discussion` is
+ * carved out of the global auto-failover loop (see
+ * `hivesuite/src/utils/hiveApiInterceptor.ts → SNAPS_RPC_METHODS`).
+ * Snaps feed requests always go to the user's selected node in
+ * Settings, never rotate — regardless of the global auto-switch
+ * toggle. If you add a new RPC method to the snaps data path, mirror
+ * it in `SNAPS_RPC_METHODS` so the carve-out keeps covering it.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 // SnapsFeedView layout:

@@ -212,6 +212,11 @@ export {
   setHiveApiEndpoint,
   subscribeHiveApiEndpoint,
   getHiveClient,
+  // Lock the kit's endpoint against future setHiveApiEndpoint
+  // calls. Consumers turn this on to enforce a single-node policy
+  // when vendor packages or network interceptors try to rotate.
+  lockHiveApiEndpoint,
+  isHiveApiEndpointLocked,
 } from './config/hiveEndpoint';
 
 // Services

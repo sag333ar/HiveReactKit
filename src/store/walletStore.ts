@@ -1,14 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import type { WalletStore, WalletData, Transaction, PendingSavingsWithdrawal } from "../types/wallet";
-import { getHiveApiEndpoint, getHiveClient } from "../config/hiveEndpoint";
-// Shared dhive client — address is updated at runtime via setHiveApiEndpoint().
-const dhiveClient = getHiveClient();
+import { getHiveApiEndpoint } from "../config/hiveEndpoint";
+
+// IMPORTANT: this store intentionally uses plain `fetch` against
+// `getHiveApiEndpoint()` for every Hive RPC instead of going through
+// a dhive Client. The consumer app (hivesuite) monkey-patches
+// `Client.prototype.call` with a multi-URL rotation loop, and that
+// rotation was firing on every wallet refresh on the UserDetailProfile
+// page — causing the user's selected node to flip on every reload.
+// Plain `fetch` still flows through any host-installed `window.fetch`
+// interceptor (URL-rewrite policies continue to work), but never
+// touches the dhive Client's retry/rotation path.
+async function rpcCall<T>(method: string, params: unknown): Promise<T> {
+  const res = await fetch(getHiveApiEndpoint(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { result?: T; error?: { message?: string } };
+  if (data?.error) throw new Error(data.error.message ?? 'RPC error');
+  return data.result as T;
+}
 
 // ------------------- Wallet Helpers -------------------
 const getWalletDataDetail = async (username: string) => {
   try {
-    const accounts = await dhiveClient.database.getAccounts([username]);
+    const accounts = await rpcCall<any[]>('condenser_api.get_accounts', [[username]]);
     if (!accounts || accounts.length === 0)
       throw new Error("Account not found");
     return accounts[0];
@@ -20,7 +39,7 @@ const getWalletDataDetail = async (username: string) => {
 
 const convertVestingSharesToHiveData = async (vestingShares: string) => {
   try {
-    const props = await dhiveClient.database.getDynamicGlobalProperties();
+    const props = await rpcCall<any>('condenser_api.get_dynamic_global_properties', []);
     const vestingSharesFloat = parseFloat(vestingShares.split(" ")[0]);
     const totalVestingShares = parseFloat(
       String(props.total_vesting_shares).split(" ")[0]
@@ -36,7 +55,7 @@ const convertVestingSharesToHiveData = async (vestingShares: string) => {
 };
 
 const getFeedHistory = async () => {
-  const feedHistory = await dhiveClient.database.call("get_feed_history", []);
+  const feedHistory = await rpcCall<any>('condenser_api.get_feed_history', []);
   const currentMedian = feedHistory.current_median_history;
   // base: "0.059 HBD", quote: "1.000 HIVE" → 1 HBD = quote/base = 1.000/0.059 ≈ 16.95 HIVE
   const baseAmount = parseFloat(currentMedian.base.split(" ")[0]);
@@ -292,7 +311,7 @@ async function refreshHivePerVest(force = false): Promise<number> {
     return cachedHivePerVest;
   }
   try {
-    const props = await dhiveClient.database.getDynamicGlobalProperties();
+    const props = await rpcCall<any>('condenser_api.get_dynamic_global_properties', []);
     const tvs = parseFloat(String(props.total_vesting_shares).split(" ")[0]);
     const tvf = parseFloat(String(props.total_vesting_fund_hive).split(" ")[0]);
     if (tvs > 0 && tvf > 0) {
