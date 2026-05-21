@@ -40,6 +40,24 @@ export interface BeneficiariesEditorProps {
    */
   hasVideo?: boolean;
   /**
+   * Extra accounts to render as locked alongside `threespeakfund`. The
+   * composer wires DecentMemes auto-injected creator/submitter/frontend
+   * entries through here so they get the same Lock icon, disabled stepper,
+   * and disabled trash button — and they're excluded from the user
+   * weight cap (which becomes `100 - sum(locked weights)`).
+   *
+   * Locked entries still need to appear in `initialBeneficiaries` with
+   * their final weights — this prop only controls *which* of those rows
+   * the editor treats as immutable.
+   */
+  lockedAccounts?: string[];
+  /**
+   * Per-account tooltip shown on the disabled trash button. Falls back to
+   * a generic "auto-attached" message. Use this to explain *why* (e.g.
+   * "Auto-attached by DecentMemes meme template @drake").
+   */
+  lockReasons?: Record<string, string>;
+  /**
    * Suggested chips (favourites / previously-used presets). Each entry is one
    * beneficiary the user may want to add quickly. Click adds it at its weight
    * (capped to remaining allocation).
@@ -89,6 +107,8 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   onSave,
   initialBeneficiaries,
   hasVideo = false,
+  lockedAccounts,
+  lockReasons,
   favorites,
   title = 'Beneficiaries',
   description = 'Add a user you want to automatically receive a portion of the rewards for this post.',
@@ -100,8 +120,22 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   const [draftWeight, setDraftWeight] = useState<number>(1);
   const [error, setError] = useState<string | null>(null);
 
+  // Unified set of locked accounts: threespeakfund (when hasVideo) +
+  // whatever extras the composer passes through (e.g. DecentMemes
+  // creator/submitter rows).
+  const lockedAccountsSet = useMemo(() => {
+    const s = new Set<string>();
+    if (hasVideo) s.add(THREESPEAK_FUND_ACCOUNT);
+    for (const a of lockedAccounts ?? []) {
+      const acc = normalizeBeneficiaryAccount(a);
+      if (acc) s.add(acc);
+    }
+    return s;
+  }, [hasVideo, lockedAccounts]);
+
   // Initialize the working list whenever the modal opens or the constraint
-  // (hasVideo) changes — the editor always reflects the current rules.
+  // (hasVideo / lockedAccounts identity) changes — the editor always
+  // reflects the current rules.
   useEffect(() => {
     if (!isOpen) return;
     setList(enforceVideoBeneficiaries(initialBeneficiaries, hasVideo));
@@ -111,20 +145,28 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, hasVideo]);
 
-  const userCap = hasVideo ? MAX_TOTAL - THREESPEAK_FUND_PERCENT : MAX_TOTAL;
+  // userCap = 100 - sum(weights of locked entries currently in the list).
+  // The DM lock weights are already merged into `initialBeneficiaries` by
+  // the composer, so they're reflected in `list` from the first render.
+  const lockedTotal = useMemo(
+    () => list.filter((b) => lockedAccountsSet.has(b.account)).reduce((s, b) => s + b.weight, 0),
+    [list, lockedAccountsSet],
+  );
+  const userCap = MAX_TOTAL - lockedTotal;
   const userTotal = useMemo(
-    () => list.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT).reduce((s, b) => s + b.weight, 0),
-    [list],
+    () => list.filter((b) => !lockedAccountsSet.has(b.account)).reduce((s, b) => s + b.weight, 0),
+    [list, lockedAccountsSet],
   );
   const remaining = Math.max(0, userCap - userTotal);
 
   if (!isOpen) return null;
 
   const updateWeight = (account: string, next: number) => {
+    if (lockedAccountsSet.has(account)) return;
     setError(null);
     const clamped = Math.max(1, Math.min(100, Math.round(next)));
     const others = list
-      .filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT && b.account !== account)
+      .filter((b) => !lockedAccountsSet.has(b.account) && b.account !== account)
       .reduce((s, b) => s + b.weight, 0);
     const allowed = Math.max(1, userCap - others);
     const finalWeight = Math.min(clamped, allowed);
@@ -134,7 +176,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   };
 
   const removeRow = (account: string) => {
-    if (account === THREESPEAK_FUND_ACCOUNT && hasVideo) return;
+    if (lockedAccountsSet.has(account)) return;
     setList((prev) => prev.filter((b) => b.account !== account));
     setError(null);
   };
@@ -149,8 +191,8 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
       setError(`@${account} is already added.`);
       return false;
     }
-    if (account === THREESPEAK_FUND_ACCOUNT && hasVideo) {
-      setError('threespeakfund is already added automatically.');
+    if (lockedAccountsSet.has(account)) {
+      setError(`@${account} is locked / auto-attached.`);
       return false;
     }
     if (remaining <= 0) {
@@ -260,7 +302,13 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               the right on both layouts so the gesture is consistent. */}
           <div className="space-y-2">
             {list.map((b) => {
-              const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
+              const locked = lockedAccountsSet.has(b.account);
+              const lockTitle = locked
+                ? (lockReasons?.[b.account]
+                  ?? (b.account === THREESPEAK_FUND_ACCOUNT
+                    ? '10% to threespeakfund is required for video posts'
+                    : `@${b.account} is auto-attached and cannot be removed`))
+                : 'Remove';
               return (
                 <div
                   key={b.account}
@@ -269,7 +317,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                   <span className="flex-1 min-w-0 text-sm text-[var(--hrk-text-primary)] inline-flex items-center gap-2 truncate">
                     <BeneficiaryAvatar account={b.account} size={24} />
                     {locked && <Lock className="h-3 w-3 text-[var(--hrk-warning)] shrink-0" />}
-                    <span className="truncate">@{b.account}</span>
+                    <span className="truncate" title={locked ? lockTitle : undefined}>@{b.account}</span>
                   </span>
                   <div className="flex items-center justify-between sm:justify-end gap-2">
                     {renderWeightStepper(
@@ -285,7 +333,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
                       disabled={locked}
                       className="h-8 w-8 rounded text-[var(--hrk-danger)] hover:bg-[var(--hrk-danger-soft)] disabled:opacity-30 flex items-center justify-center shrink-0"
                       aria-label={locked ? 'Locked' : 'Remove'}
-                      title={locked ? '10% to threespeakfund is required for video posts' : 'Remove'}
+                      title={lockTitle}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -348,9 +396,9 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
             </div>
             <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px]">
               <span className={`${error ? 'text-[var(--hrk-danger)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
-                {error || `Remaining: ${remaining}%${hasVideo ? ` (capped at ${userCap}% — 10% reserved for threespeakfund)` : ''}`}
+                {error || `Remaining: ${remaining}%${lockedTotal > 0 ? ` (capped at ${userCap}% — ${lockedTotal}% reserved for locked beneficiaries)` : ''}`}
               </span>
-              <span className="text-[var(--hrk-text-tertiary)]">Total used: {userTotal + (hasVideo ? THREESPEAK_FUND_PERCENT : 0)}%</span>
+              <span className="text-[var(--hrk-text-tertiary)]">Total used: {userTotal + lockedTotal}%</span>
             </div>
           </div>
 

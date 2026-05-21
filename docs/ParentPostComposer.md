@@ -98,7 +98,7 @@ The tag input splits on `Enter`, `,`, or whitespace, so pasting `hive dev hivepr
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `defaultReward` | `RewardOption` | `'default'` | Initial reward routing — `'default' \| 'power_up' \| 'burn' \| 'decline'`. |
-| `defaultBeneficiaries` | `Beneficiary[]` | `[]` | Pre-populated beneficiary list. The threespeakfund 10% lock is **auto-injected** when a video is attached and user share is capped at 90%. |
+| `defaultBeneficiaries` | `Beneficiary[]` | `[]` | Pre-populated beneficiary list. Two auto-injected locks ride alongside whatever the user picks: (1) the threespeakfund 10% lock when a video is attached (user share scaled to ≤90%), and (2) DecentMemes per-meme creator/submitter/frontend entries when a DecentMemes meme is added (capped at the spec's 10% post limit; see "DecentMemes" below). |
 | `beneficiaryFavorites` | `Beneficiary[]` | `[]` | Suggestion chips inside the [BeneficiariesEditor](./BeneficiariesEditor.md) modal. Typically pulled from a per-user history store. |
 
 ### Upload tokens (same plumbing as `PostComposer`)
@@ -156,6 +156,59 @@ Each feature can be hidden individually. Defaults to `false` (visible).
 | `draftKey` | `string` | When set, the composer auto-saves its state to `localStorage[draftKey]` (debounced ~500 ms) and rehydrates from it on mount. The header subtitle shows `● Draft saved · Clear` once the first save lands. The draft is **wiped on a successful submit**. Pass a per-user key to isolate accounts on shared devices: `` `hivesuite-blog-draft-${username}` ``. |
 
 The persisted state covers `title`, `description`, `body`, `userTags`, `reward`, `beneficiaries`, `audioEmbedUrl`, `audioDuration`, `videoEmbedUrl`, `videoUploadUrl`, `videoAspectRatio`, and `pollData`. Local blob URLs (`videoPreviewUrl`) are **not** persisted — they're regenerated from the file on the next session.
+
+### DecentMemes
+
+Two toolbar entries open meme pickers:
+
+- **MEME** — the kit's own canvas editor on top of `memegen.link`. Renders a captioned PNG client-side and uploads it via the same Ecency → signed-hive-image pipeline as drag/drop images.
+- **DM logo** — embeds the [DecentMemes widget](https://decentmemes.com/widget/) per its [PeakD integration spec](https://decentmemes.com/docs/peakd-integration.md). The user picks a template, taps **Add to post** inside the widget, and the composer receives a `memeCreated` postMessage with a base64 PNG + per-meme metadata (template id + creator/submitter/frontend beneficiaries).
+
+When a DecentMemes meme arrives the composer **auto-injects its beneficiaries** into the working list (same pattern as the `threespeakfund` 10% video lock) — the entries appear in the chip strip with a 🔒 icon, render as locked inside the BeneficiariesEditor (non-removable, non-editable weight), and reduce the user-controlled allocation by their summed weight. The spec's per-kind caps are honoured: 10% total for top-level posts (`ParentPostComposer` is always a post), with proportional scaling if multiple memes would otherwise blow past the cap.
+
+Wiring on the consumer side:
+
+| Prop | Type | Purpose |
+|------|------|---------|
+| `hideDecentMeme` | `boolean` | Hide the DM toolbar button (defaults to showing it when an upload path is configured). |
+| `decentMemesAppAccount` | `string` | Forwarded to the widget as `frontendInit.account` — claims the optional 1% frontend beneficiary slot for your app. PeakD opted out per spec; omit if you want the same. |
+| `decentMemesTheme` | `'light' \| 'dark'` | Forwarded as `frontendInit.theme` and `setTheme`. Optional; widget defaults to dark. |
+| `onDecentMemesChange` | `(memes: DecentMemesMeme[]) => void` | Cumulative list of attached memes (one entry per `memeCreated`). Use it to stamp `json_metadata.decentmemes.templateIds` via `buildDecentMemesMetadata`, and to add the `decentmemes` tag when at least one meme is attached. |
+
+Beneficiaries do **not** need a separate callback — they're already part of `payload.beneficiaries` in `onSubmit`. Hand that list directly to `mergeBeneficiariesIntoCommentOptions(author, permlink, reward, payload.beneficiaries)` and broadcast.
+
+```tsx
+import {
+  buildDecentMemesMetadata,
+  DECENTMEMES_TAG,
+  mergeBeneficiariesIntoCommentOptions,
+  type DecentMemesMeme,
+} from 'hive-react-kit';
+
+const decentMemesRef = useRef<DecentMemesMeme[]>([]);
+
+<ParentPostComposer
+  // ...
+  decentMemesAppAccount="my-frontend-acct"   // omit to opt out of the 1% slot
+  decentMemesTheme={isDark ? 'dark' : 'light'}
+  onDecentMemesChange={(memes) => { decentMemesRef.current = memes; }}
+  onSubmit={async (payload) => {
+    const memes = decentMemesRef.current;
+    const tags = memes.length > 0 && !payload.tags.includes(DECENTMEMES_TAG)
+      ? [...payload.tags, DECENTMEMES_TAG]
+      : payload.tags;
+    const json: Record<string, unknown> = { app: 'my-app/1.0', tags, image: [] };
+    const meta = buildDecentMemesMetadata(memes, 'my-frontend-acct');
+    if (meta) json.decentmemes = meta;
+
+    // `payload.beneficiaries` already includes the auto-injected DM entries.
+    const opts = mergeBeneficiariesIntoCommentOptions(
+      author, permlink, payload.reward, payload.beneficiaries,
+    );
+    await broadcast([commentOp(json, payload), opts].filter(Boolean));
+  }}
+/>
+```
 
 ## Submit payload
 

@@ -50,8 +50,9 @@ import {
 } from '../../utils/commentOptions';
 import {
   THREESPEAK_FUND_ACCOUNT,
+  THREESPEAK_FUND_PERCENT,
   bodyHasVideo,
-  enforceVideoBeneficiaries,
+  enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
 import ImageUploader from './ImageUploader';
@@ -61,7 +62,11 @@ import GiphyPicker from './GiphyPicker';
 import YoutubePicker from './YoutubePicker';
 import MemePicker from './MemePicker';
 import DecentMemesPicker from './DecentMemesPicker';
-import type { DecentMemesMeme } from '../../utils/decentmemes';
+import {
+  decentMemesAsBeneficiaries,
+  pickDecentMemesKind,
+  type DecentMemesMeme,
+} from '../../utils/decentmemes';
 import EmojiPicker from './EmojiPicker';
 import PostTemplatesPanel, {
   type PostTemplate,
@@ -641,18 +646,50 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     () => Boolean(videoEmbedUrl) || Boolean(videoUploadDetails) || bodyHasVideo(body),
     [videoEmbedUrl, videoUploadDetails, body],
   );
+  // ParentPostComposer is always a top-level post, so DecentMemes kind is
+  // fixed to 'post' (10% cap). PickDecentMemesKind would return the same
+  // for an undefined parent, but spelling it out keeps intent obvious.
+  const decentMemesKind: 'post' = 'post';
+  const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
+    const list: Beneficiary[] = [];
+    if (hasVideo) {
+      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
+    }
+    list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
+    return list;
+  }, [hasVideo, decentMemes]);
+  const lockedAccountsList = useMemo(
+    () => lockedBeneficiaries.map((b) => b.account),
+    [lockedBeneficiaries],
+  );
+  const lockReasons = useMemo<Record<string, string>>(() => {
+    const reasons: Record<string, string> = {};
+    if (hasVideo) {
+      reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
+    }
+    for (const meme of decentMemes) {
+      for (const entry of meme.beneficiaries[decentMemesKind] ?? []) {
+        const acc = entry.account;
+        if (!acc) continue;
+        const label = meme.template.name ? `template "${meme.template.name}"` : 'a DecentMemes meme';
+        reasons[acc] = `Auto-attached by ${label} (${entry.role ?? 'beneficiary'}) — required by the DecentMemes integration`;
+      }
+    }
+    return reasons;
+  }, [hasVideo, decentMemes]);
+
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() =>
-    enforceVideoBeneficiaries(defaultBeneficiaries, false),
+    enforceLockedBeneficiaries(defaultBeneficiaries, []),
   );
   useEffect(() => {
-    setBeneficiaries((prev) => enforceVideoBeneficiaries(prev, hasVideo));
-  }, [hasVideo]);
+    setBeneficiaries((prev) => enforceLockedBeneficiaries(prev, lockedBeneficiaries));
+  }, [lockedBeneficiaries]);
   const [isBeneficiariesOpen, setIsBeneficiariesOpen] = useState(false);
   const handleBeneficiariesSave = useCallback(
     (next: Beneficiary[]) => {
-      setBeneficiaries(enforceVideoBeneficiaries(next, hasVideo));
+      setBeneficiaries(enforceLockedBeneficiaries(next, lockedBeneficiaries));
     },
-    [hasVideo],
+    [lockedBeneficiaries],
   );
 
   // ── Image upload (same Ecency-then-Hive-fallback pattern as PostComposer) ─
@@ -1300,7 +1337,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     setUserTags([]);
     setTagDraft('');
     setReward(defaultReward);
-    setBeneficiaries(enforceVideoBeneficiaries(initialBeneficiariesRef.current, false));
+    setBeneficiaries(enforceLockedBeneficiaries(initialBeneficiariesRef.current, []));
     setAudioEmbedUrl(null);
     setAudioDuration(0);
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
@@ -1338,7 +1375,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         body: previewBody.trim(),
         tags: mergedTags,
         reward,
-        beneficiaries: enforceVideoBeneficiaries(beneficiaries, hasVideo),
+        beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
         poll: pollData,
         audioEmbedUrl,
         videoEmbedUrl,
@@ -2341,7 +2378,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   </div>
                   <div className="flex flex-wrap items-center gap-1">
                     {beneficiaries.map((b) => {
-                      const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
+                      const locked = lockedAccountsList.includes(b.account);
+                      const lockTitle = lockReasons[b.account] ?? `Auto-attached @${b.account}`;
                       return (
                         <span
                           key={`bene-${b.account}`}
@@ -2350,6 +2388,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                               ? 'bg-[var(--hrk-warning-soft)] text-[var(--hrk-warning)] border border-[var(--hrk-warning)]/40'
                               : 'bg-[var(--hrk-brand)]/20 text-blue-200 border border-[var(--hrk-info)]/30'
                           }`}
+                          title={locked ? lockTitle : undefined}
                         >
                           <Avatar account={b.account} size={16} />
                           {locked && <Lock className="h-2.5 w-2.5" />}
@@ -2577,6 +2616,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         onSave={handleBeneficiariesSave}
         initialBeneficiaries={beneficiaries}
         hasVideo={hasVideo}
+        lockedAccounts={lockedAccountsList}
+        lockReasons={lockReasons}
         favorites={beneficiaryFavorites}
       />
 

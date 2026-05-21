@@ -5,8 +5,9 @@ import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, Fi
 import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
 import {
   THREESPEAK_FUND_ACCOUNT,
+  THREESPEAK_FUND_PERCENT,
   bodyHasVideo,
-  enforceVideoBeneficiaries,
+  enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
 import ImageUploader from '../composer/ImageUploader';
@@ -18,7 +19,11 @@ import EmojiPicker from '../composer/EmojiPicker';
 import TemplatePicker from '../composer/TemplatePicker';
 import MemePicker from '../composer/MemePicker';
 import DecentMemesPicker from '../composer/DecentMemesPicker';
-import type { DecentMemesMeme } from '../../utils/decentmemes';
+import {
+  decentMemesAsBeneficiaries,
+  pickDecentMemesKind,
+  type DecentMemesMeme,
+} from '../../utils/decentmemes';
 import PollCreator from '../composer/PollCreator';
 import BeneficiariesEditor from '../composer/BeneficiariesEditor';
 import type { PollData } from '../composer/PollCreator';
@@ -397,31 +402,67 @@ const PostComposer = ({
   );
 
   // Beneficiary state. The composer keeps its own working copy and reflects
-  // controlled `beneficiaries` when supplied. The 3Speak fund 10% lock is
-  // re-applied any time the video state changes — that way the chip strip
-  // and the operation-time list always agree.
+  // controlled `beneficiaries` when supplied. Two auto-injected locks ride
+  // alongside whatever the user chose:
+  //   • 3Speak fund — 10% whenever the body has a video.
+  //   • DecentMemes — per-meme creator / submitter / frontend entries,
+  //     aggregated + capped to 10% (top-level post) or 30% (reply).
+  // Both are re-applied any time their source state changes so the chip
+  // strip and the broadcast op always agree.
   const hasVideo = useMemo(
     () => Boolean(videoEmbedUrl) || bodyHasVideo(body),
     [videoEmbedUrl, body],
   );
+  const decentMemesKind = useMemo(
+    () => pickDecentMemesKind(parentAuthor),
+    [parentAuthor],
+  );
+  const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
+    const list: Beneficiary[] = [];
+    if (hasVideo) {
+      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
+    }
+    list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
+    return list;
+  }, [hasVideo, decentMemes, decentMemesKind]);
+  const lockedAccountsList = useMemo(
+    () => lockedBeneficiaries.map((b) => b.account),
+    [lockedBeneficiaries],
+  );
+  const lockReasons = useMemo<Record<string, string>>(() => {
+    const reasons: Record<string, string> = {};
+    if (hasVideo) {
+      reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
+    }
+    for (const meme of decentMemes) {
+      for (const entry of meme.beneficiaries[decentMemesKind] ?? []) {
+        const acc = entry.account;
+        if (!acc) continue;
+        const label = meme.template.name ? `template "${meme.template.name}"` : 'a DecentMemes meme';
+        reasons[acc] = `Auto-attached by ${label} (${entry.role ?? 'beneficiary'}) — required by the DecentMemes integration`;
+      }
+    }
+    return reasons;
+  }, [hasVideo, decentMemes, decentMemesKind]);
+
   const [internalBeneficiaries, setInternalBeneficiaries] = useState<Beneficiary[]>(() =>
-    enforceVideoBeneficiaries(defaultBeneficiaries, false),
+    enforceLockedBeneficiaries(defaultBeneficiaries, []),
   );
   const currentBeneficiaries = beneficiaries ?? internalBeneficiaries;
-  // Whenever video presence changes, re-enforce the threespeakfund rule so the
-  // locked row appears/disappears without the user having to re-open the editor.
+  // Whenever the locked-list inputs change, re-enforce so locked rows
+  // appear / scale / disappear without the user having to re-open the editor.
   useEffect(() => {
     if (beneficiaries !== undefined) return; // controlled — consumer owns it
-    setInternalBeneficiaries((prev) => enforceVideoBeneficiaries(prev, hasVideo));
-  }, [hasVideo, beneficiaries]);
+    setInternalBeneficiaries((prev) => enforceLockedBeneficiaries(prev, lockedBeneficiaries));
+  }, [lockedBeneficiaries, beneficiaries]);
   const [isBeneficiariesOpen, setIsBeneficiariesOpen] = useState(false);
   const handleBeneficiariesSave = useCallback(
     (next: Beneficiary[]) => {
-      const enforced = enforceVideoBeneficiaries(next, hasVideo);
+      const enforced = enforceLockedBeneficiaries(next, lockedBeneficiaries);
       if (beneficiaries === undefined) setInternalBeneficiaries(enforced);
       onBeneficiariesChange?.(enforced);
     },
-    [hasVideo, beneficiaries, onBeneficiariesChange],
+    [lockedBeneficiaries, beneficiaries, onBeneficiariesChange],
   );
   // Notify parent on initial mount + whenever video lock toggles in
   // uncontrolled mode, so the broadcast operations always reflect the lock.
@@ -1330,13 +1371,15 @@ const PostComposer = ({
           </div>
         )}
 
-        {/* Beneficiary strip — chips under the tag strip. Click any chip to open
-            the editor; the locked threespeakfund chip carries a lock icon. */}
+        {/* Beneficiary strip — chips under the tag strip. Click any chip to
+            open the editor; auto-attached entries (threespeakfund + DecentMemes
+            creator/submitter/frontend) carry a lock icon and a tooltip. */}
         {!hideBeneficiaries && currentBeneficiaries.length > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1 px-0.5">
             <span className="text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)] mr-1">Beneficiaries</span>
             {currentBeneficiaries.map((b) => {
-              const locked = hasVideo && b.account === THREESPEAK_FUND_ACCOUNT;
+              const locked = lockedAccountsList.includes(b.account);
+              const lockTitle = lockReasons[b.account] ?? `Auto-attached @${b.account}`;
               return (
                 <button
                   key={`bene-${b.account}`}
@@ -1347,7 +1390,7 @@ const PostComposer = ({
                       ? 'bg-[var(--hrk-warning-soft)] text-[var(--hrk-warning)] border border-[var(--hrk-warning)]/40'
                       : 'bg-[var(--hrk-brand)]/20 text-blue-200 border border-[var(--hrk-info)]/30'
                   }`}
-                  title={locked ? '10% to threespeakfund (locked for video posts)' : `Edit beneficiaries`}
+                  title={locked ? lockTitle : 'Edit beneficiaries'}
                   disabled={isDisabled}
                 >
                   <img
@@ -1477,6 +1520,8 @@ const PostComposer = ({
         onSave={handleBeneficiariesSave}
         initialBeneficiaries={currentBeneficiaries}
         hasVideo={hasVideo}
+        lockedAccounts={lockedAccountsList}
+        lockReasons={lockReasons}
         favorites={beneficiaryFavorites}
       />
 

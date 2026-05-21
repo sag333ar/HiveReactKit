@@ -1,9 +1,8 @@
 import { PostComposer } from '../components/comments/AddCommentInput';
-import { buildCommentOptions, type RewardOption } from '../utils/commentOptions';
+import { type RewardOption } from '../utils/commentOptions';
+import { mergeBeneficiariesIntoCommentOptions, type Beneficiary } from '../utils/beneficiaries';
 import {
-  aggregateDecentMemesBeneficiaries,
   buildDecentMemesMetadata,
-  pickDecentMemesKind,
   DECENTMEMES_TAG,
   type DecentMemesMeme,
 } from '../utils/decentmemes';
@@ -16,10 +15,16 @@ const PostComposerPage = () => {
   const templateToken = import.meta.env.VITE_TEMPLATE_TOKEN || undefined;
   const templateApiBaseUrl = import.meta.env.VITE_TEMPLATE_API_BASE_URL || undefined;
 
-  // Keep the latest tag list, reward option, and DecentMemes attachments so
-  // the submit handler can build a spec-correct op without re-reading state.
+  // Latest state from the composer. DecentMemes beneficiaries are already
+  // merged into `beneficiariesRef` by the composer (same auto-injection
+  // pattern as the `threespeakfund` 10% video lock), so the broadcast
+  // step just hands the merged list to `mergeBeneficiariesIntoCommentOptions`.
+  // `decentMemesRef` is only kept for the `json_metadata.decentmemes`
+  // template-id stamp — the rewards watcher needs that to attribute
+  // multi-meme payouts.
   const tagsRef = useRef<string[]>([]);
   const rewardRef = useRef<RewardOption>('default');
+  const beneficiariesRef = useRef<Beneficiary[]>([]);
   const decentMemesRef = useRef<DecentMemesMeme[]>([]);
 
   return (
@@ -34,17 +39,12 @@ const PostComposerPage = () => {
           onSubmit={(body) => {
             const author = 'shaktimaaan';
             const permlink = 're-peaksnaps-demo';
-            // Single source of truth for parent_author — also drives the
-            // DecentMemes post/comment kind so the right cap (10% vs 30%)
-            // gets applied to beneficiaries.
             const parentAuthor = 'peak.snaps';
-            const decentMemesKind = pickDecentMemesKind(parentAuthor);
 
-            // Per DecentMemes spec v3, ensure the `decentmemes` tag is present
-            // whenever the post embeds at least one meme — promotes the post
-            // to the meme-category indexers.
             const memes = decentMemesRef.current;
             const tags = [...tagsRef.current];
+            // Per DecentMemes spec v3, the `decentmemes` tag must be present
+            // whenever the post embeds at least one meme.
             if (memes.length > 0 && !tags.includes(DECENTMEMES_TAG)) {
               tags.push(DECENTMEMES_TAG);
             }
@@ -73,42 +73,25 @@ const PostComposerPage = () => {
               },
             ];
 
-            // Merge DecentMemes beneficiaries into comment_options using
-            // the post/comment kind derived from `parent_author` above.
-            const baseOpts = buildCommentOptions(author, permlink, rewardRef.current);
-            const memeBeneficiaries = aggregateDecentMemesBeneficiaries(memes, decentMemesKind);
-
-            let opts = baseOpts;
-            if (memeBeneficiaries.length > 0) {
-              // If no reward routing was active, fabricate the default options
-              // shell so we have somewhere to attach beneficiaries.
-              const optsShape =
-                baseOpts ?? [
-                  'comment_options',
-                  {
-                    author,
-                    permlink,
-                    max_accepted_payout: '1000000.000 HBD',
-                    percent_hbd: 10000,
-                    allow_votes: true,
-                    allow_curation_rewards: true,
-                    extensions: [] as unknown[],
-                  },
-                ];
-              const optsBody = optsShape[1] as { extensions: unknown[] };
-              optsBody.extensions = [
-                ...(optsBody.extensions ?? []),
-                [0, { beneficiaries: memeBeneficiaries }],
-              ];
-              opts = optsShape as ReturnType<typeof buildCommentOptions>;
-            }
+            // Beneficiaries already include the DecentMemes auto-injected
+            // entries (and the 3Speak fund lock if a video is attached).
+            // `mergeBeneficiariesIntoCommentOptions` builds the right
+            // `comment_options` op for both default and non-default rewards.
+            const opts = mergeBeneficiariesIntoCommentOptions(
+              author,
+              permlink,
+              rewardRef.current,
+              beneficiariesRef.current,
+            );
 
             const ops = opts ? [commentOp, opts] : [commentOp];
             console.log('PostComposer submitted:', body);
+            console.log('Beneficiaries (merged):', beneficiariesRef.current);
             console.log('DecentMemes attachments:', memes);
             console.log('Ops to broadcast:', JSON.stringify(ops, null, 2));
             alert(
               `Submitted with reward "${rewardRef.current}", tags [${tags.join(', ')}], ` +
+                `${beneficiariesRef.current.length} beneficiary entry/ies, ` +
                 `and ${memes.length} DecentMemes meme(s)\n\nCheck the console for the full op array.`,
             );
           }}
@@ -137,6 +120,10 @@ const PostComposerPage = () => {
           onRewardChange={(opt) => {
             rewardRef.current = opt;
             console.log('Reward changed:', opt);
+          }}
+          onBeneficiariesChange={(beneficiaries) => {
+            beneficiariesRef.current = beneficiaries;
+            console.log('Beneficiaries changed (merged):', beneficiaries);
           }}
           onPollChange={(poll) => {
             console.log('Poll changed:', poll);

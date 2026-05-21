@@ -158,6 +158,26 @@ export function aggregateDecentMemesBeneficiaries(
 }
 
 /**
+ * Convert the aggregated meme beneficiaries (basis points) into the
+ * whole-percent `{ account, weight }` shape the composer's
+ * `Beneficiary` type uses. Rounded to the nearest whole percent — the
+ * <1% precision loss is inside Hive's dust threshold and lets the
+ * composer's UI render in the same units everyone else uses.
+ *
+ * Returns `[]` when no memes are attached. Pair with
+ * `enforceLockedBeneficiaries` to merge into the composer's working
+ * beneficiary list — same shape as the `threespeakfund` 10% lock.
+ */
+export function decentMemesAsBeneficiaries(
+  memes: DecentMemesMeme[],
+  kind: 'post' | 'comment',
+): Array<{ account: string; weight: number }> {
+  return aggregateDecentMemesBeneficiaries(memes, kind)
+    .map(({ account, weight }) => ({ account, weight: Math.max(1, Math.round(weight / 100)) }))
+    .filter((b) => b.weight > 0);
+}
+
+/**
  * Build the `decentmemes` block for `json_metadata`. Returns `null` when
  * no memes are attached so callers can skip emitting the field.
  *

@@ -93,6 +93,79 @@ export function enforceVideoBeneficiaries(
   return [{ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT }, ...scaled];
 }
 
+/**
+ * Generalised version of `enforceVideoBeneficiaries`. Takes an explicit list
+ * of `locked` entries that must appear in the final list at their stated
+ * weights — `threespeakfund` 10% on video posts, plus DecentMemes creator /
+ * submitter / frontend entries on meme posts.
+ *
+ * Steps:
+ * 1. Sanitize both lists.
+ * 2. Drop user entries whose account collides with any locked account (lock wins).
+ * 3. Scale remaining user entries proportionally so the *total* (locked + user)
+ *    sits at or below 100%.
+ * 4. Return `[ ...locked, ...scaledUser ]` — locked entries lead so they're
+ *    obvious in the chip strip and editor.
+ *
+ * Hive's 8-beneficiary cap is enforced as a last-resort safety net: if locked
+ * alone exceeds 8 we drop the lightest locked entries; otherwise we drop the
+ * lightest user entries until the combined list fits. Locked entries are
+ * preferred since dropping them breaks compliance (3Speak fund, DM creator
+ * shares, etc.).
+ */
+const MAX_BENEFICIARY_SLOTS = 8;
+export function enforceLockedBeneficiaries(
+  userList: Beneficiary[] | undefined,
+  locked: Beneficiary[] | undefined,
+): Beneficiary[] {
+  const sanitizedLocked = sanitizeBeneficiaries(locked);
+  const sanitizedUser = sanitizeBeneficiaries(userList);
+
+  if (sanitizedLocked.length === 0) return sanitizedUser;
+
+  const lockedAccounts = new Set(sanitizedLocked.map((b) => b.account));
+  const lockedTotal = sanitizedLocked.reduce((s, b) => s + b.weight, 0);
+  const userCap = Math.max(0, 100 - lockedTotal);
+
+  const userWithoutConflicts = sanitizedUser.filter((b) => !lockedAccounts.has(b.account));
+  const userTotal = userWithoutConflicts.reduce((s, b) => s + b.weight, 0);
+  let scaledUser = userWithoutConflicts;
+  if (userTotal > userCap) {
+    if (userCap <= 0) {
+      scaledUser = [];
+    } else {
+      const factor = userCap / userTotal;
+      scaledUser = userWithoutConflicts
+        .map((b) => ({ ...b, weight: Math.max(1, Math.floor(b.weight * factor)) }))
+        .filter((b) => b.weight > 0);
+    }
+  }
+
+  let combined = [...sanitizedLocked, ...scaledUser];
+  if (combined.length > MAX_BENEFICIARY_SLOTS) {
+    if (sanitizedLocked.length >= MAX_BENEFICIARY_SLOTS) {
+      // Locked alone exceeds the slot cap — keep the heaviest, in original order.
+      const keep = new Set(
+        [...sanitizedLocked]
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, MAX_BENEFICIARY_SLOTS)
+          .map((b) => b.account),
+      );
+      combined = sanitizedLocked.filter((b) => keep.has(b.account));
+    } else {
+      const userBudget = MAX_BENEFICIARY_SLOTS - sanitizedLocked.length;
+      const keepUser = new Set(
+        [...scaledUser]
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, userBudget)
+          .map((b) => b.account),
+      );
+      combined = [...sanitizedLocked, ...scaledUser.filter((b) => keepUser.has(b.account))];
+    }
+  }
+  return combined;
+}
+
 /** Convert whole-percent UI weights to Hive on-chain basis-point weights. */
 function toWireWeights(list: Beneficiary[]): Array<{ account: string; weight: number }> {
   // Hive requires beneficiaries sorted alphabetically by account.

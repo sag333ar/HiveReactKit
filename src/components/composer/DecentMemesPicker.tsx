@@ -5,27 +5,26 @@
  *
  * Spec: https://decentmemes.com/docs/peakd-integration.md
  *
- * Primary flow (production):
- *   1. Iframe loads → we optionally `frontendInit` (account + theme).
+ * Flow:
+ *   1. Iframe loads → we send `frontendInit` (account + theme) when configured.
  *   2. User picks a template and clicks **Add to post** inside the widget.
  *   3. Widget posts `memeCreated` to the parent — we decode the base64 PNG,
  *      upload it via `uploadImageWithFallback`, and hand the public URL +
  *      per-meme metadata (template id + beneficiaries) back to the host
- *      via `onSelectMeme(url, meta)`.
+ *      via `onSelectMeme(url, meta)`. The composer auto-injects the
+ *      beneficiaries (same pattern as the `threespeakfund` 10% video lock)
+ *      and the host stamps `json_metadata.decentmemes.templateIds`.
  *
- * Fallback flow (dev / non-allowlisted origin):
- *   The widget's `postMessage` origin allowlist is `peakd.com`, `ecency.com`,
- *   `hive.blog`, `beta.peakd.com`, `decentmemes.com`. On any other parent
- *   origin the widget silently drops inbound messages (frontendInit/setTheme)
- *   and may target a specific origin for `memeCreated` too. We keep the
- *   "Use downloaded meme" file picker as a safety net for those environments
- *   — it goes through the same upload pipeline but skips the metadata
- *   (no templateId / beneficiaries available outside the postMessage).
+ * "Add to post" is the only path — the picker doesn't expose a manual
+ * download/upload fallback. If your app runs on an origin not in the
+ * widget's allowlist (`peakd.com`, `beta.peakd.com`, `ecency.com`,
+ * `hive.blog`, `decentmemes.com`) the widget may silently drop the
+ * `memeCreated` event; surface an inline error in that case rather than
+ * a degraded second path.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
-  Upload,
   Loader2,
   Wand2,
   ExternalLink,
@@ -83,7 +82,6 @@ function DecentMemesPicker({
   const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'received' | 'uploading'>('idle');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // Avoid double-processing if the widget re-sends `memeCreated` while an
   // upload from a previous event is still in flight.
@@ -199,18 +197,6 @@ function DecentMemesPicker({
 
   if (!isOpen) return null;
 
-  const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError('Please pick an image file (the meme you just downloaded).');
-      return;
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      setError('File size must be under 15MB.');
-      return;
-    }
-    await uploadAndEmit(file);
-  };
-
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 px-3 py-6"
@@ -253,9 +239,8 @@ function DecentMemesPicker({
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
           <p className="rounded-lg border border-dashed border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface,#1c1f25)] px-3 py-2 text-xs text-[var(--hs-text-secondary,#cfd3da)]">
             Build a meme below and tap <strong>Add to post</strong> inside DecentMemes — we'll
-            upload it and drop it into your composer automatically. If nothing happens after
-            you click, your browser likely blocked the postMessage; use{' '}
-            <strong>Use downloaded meme</strong> as a manual fallback.
+            upload it, drop it into your composer, and auto-attach the template
+            creator beneficiaries to your post.
           </p>
 
           <div
@@ -301,34 +286,6 @@ function DecentMemesPicker({
               {walletApprovalLabel}
             </div>
           )}
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void handleFile(f);
-                if (e.target) e.target.value = '';
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface,#1c1f25)] px-3 py-2 text-xs font-medium text-[var(--hs-text-secondary,#cfd3da)] hover:bg-[var(--hs-bg-hover,#2f353d)] disabled:opacity-50"
-              title="Fallback if the widget couldn't postMessage your meme"
-            >
-              {uploading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Upload className="h-3.5 w-3.5" />
-              )}
-              {uploading ? 'Uploading…' : 'Use downloaded meme'}
-            </button>
-          </div>
         </div>
       </div>
     </div>
