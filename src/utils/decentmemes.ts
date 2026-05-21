@@ -83,6 +83,21 @@ export function isDecentMemesCreatedEvent(data: unknown): data is DecentMemesCre
 }
 
 /**
+ * Pick the right beneficiary kind from the comment op's `parent_author`.
+ *
+ * Hive convention:
+ *   - `parent_author === ''` (or absent) → top-level post → `'post'`
+ *   - `parent_author !== ''`              → reply / comment → `'comment'`
+ *
+ * The caps differ (10% post / 30% comment) so getting this wrong silently
+ * applies the wrong cap. Always derive `kind` from the same `parent_author`
+ * you put on the `comment` op rather than hardcoding.
+ */
+export function pickDecentMemesKind(parentAuthor: string | null | undefined): 'post' | 'comment' {
+  return parentAuthor && parentAuthor.trim() !== '' ? 'comment' : 'post';
+}
+
+/**
  * Aggregate per-meme beneficiary lists into the final list to attach to
  * `comment_options.extensions[0][1].beneficiaries` at broadcast time.
  *

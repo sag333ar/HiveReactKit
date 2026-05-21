@@ -3,6 +3,7 @@ import { buildCommentOptions, type RewardOption } from '../utils/commentOptions'
 import {
   aggregateDecentMemesBeneficiaries,
   buildDecentMemesMetadata,
+  pickDecentMemesKind,
   DECENTMEMES_TAG,
   type DecentMemesMeme,
 } from '../utils/decentmemes';
@@ -33,6 +34,11 @@ const PostComposerPage = () => {
           onSubmit={(body) => {
             const author = 'shaktimaaan';
             const permlink = 're-peaksnaps-demo';
+            // Single source of truth for parent_author — also drives the
+            // DecentMemes post/comment kind so the right cap (10% vs 30%)
+            // gets applied to beneficiaries.
+            const parentAuthor = 'peak.snaps';
+            const decentMemesKind = pickDecentMemesKind(parentAuthor);
 
             // Per DecentMemes spec v3, ensure the `decentmemes` tag is present
             // whenever the post embeds at least one meme — promotes the post
@@ -57,7 +63,7 @@ const PostComposerPage = () => {
             const commentOp = [
               'comment',
               {
-                parent_author: 'peak.snaps',
+                parent_author: parentAuthor,
                 parent_permlink: 'snap-container-demo',
                 author,
                 permlink,
@@ -67,11 +73,10 @@ const PostComposerPage = () => {
               },
             ];
 
-            // Merge DecentMemes beneficiaries into comment_options. Use
-            // `comment` kind (30% cap, includes the 10% submitter slot)
-            // since this demo posts a reply.
+            // Merge DecentMemes beneficiaries into comment_options using
+            // the post/comment kind derived from `parent_author` above.
             const baseOpts = buildCommentOptions(author, permlink, rewardRef.current);
-            const memeBeneficiaries = aggregateDecentMemesBeneficiaries(memes, 'comment');
+            const memeBeneficiaries = aggregateDecentMemesBeneficiaries(memes, decentMemesKind);
 
             let opts = baseOpts;
             if (memeBeneficiaries.length > 0) {

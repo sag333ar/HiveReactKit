@@ -178,6 +178,7 @@ export {
   aggregateDecentMemesBeneficiaries,
   buildDecentMemesMetadata,
   isDecentMemesCreatedEvent,
+  pickDecentMemesKind,
   type DecentMemesBeneficiary,
   type DecentMemesTemplate,
   type DecentMemesMeme,
