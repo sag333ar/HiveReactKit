@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Languages, X, ChevronDown, Loader2 } from "lucide-react";
+import { GripHorizontal, Languages, X, ChevronDown, Loader2 } from "lucide-react";
 import {
   translateSelection,
   DEFAULT_TRANSLATE_LANGUAGES,
@@ -281,15 +281,48 @@ function TranslatePopover({
   onClose,
 }: TranslatePopoverProps) {
   const ref = useRef<HTMLDivElement | null>(null);
-  // Clamp horizontally so the popover never falls off the viewport.
+  // Clamp horizontally + vertically so the popover never falls off
+  // the viewport. Previously only horizontal clamping ran, so a
+  // selection near the bottom of the screen anchored the popover
+  // off-screen and the user had no way to scroll a `position: fixed`
+  // element back into view.
   const [pos, setPos] = useState<AnchorPos>(anchor);
+  // Hard cap on the popover's height, computed from the actual
+  // available vertical space so the inner content area scroll bar
+  // is reachable on mobile too. Without this, `maxHeight: 100vh`
+  // ignores the top offset and the popover bottom still spills
+  // below the viewport on tall translations.
+  const [maxH, setMaxH] = useState<number>(0);
   useLayoutEffect(() => {
     const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 0;
     const left = Math.max(
       8,
       Math.min(vw - POPOVER_WIDTH - 8, anchor.left - POPOVER_WIDTH / 2),
     );
-    setPos({ top: anchor.top, left });
+    const margin = 8;
+    const measured = ref.current?.offsetHeight ?? 240;
+    let top = anchor.top;
+    let available = vh - top - margin;
+    if (measured > available) {
+      // Doesn't fit below — try flipping above.
+      const flippedTop = anchor.top - measured - 16 - 2 * BUTTON_OFFSET;
+      const aboveAvailable = anchor.top - 16 - 2 * BUTTON_OFFSET - margin;
+      if (flippedTop >= margin) {
+        top = flippedTop;
+        available = aboveAvailable;
+      } else if (aboveAvailable > available) {
+        // Cap at the top — gives more room than below would.
+        top = margin;
+        available = aboveAvailable;
+      }
+    }
+    if (top < margin) top = margin;
+    // Final cap: at least 160px so a short popover stays usable on
+    // a narrow viewport, but never taller than the available space.
+    const finalMax = Math.max(160, Math.min(available, vh - margin * 2));
+    setPos({ top, left });
+    setMaxH(finalMax);
   }, [anchor]);
 
   // Click outside closes. We register on the next tick so the
@@ -309,6 +342,72 @@ function TranslatePopover({
     };
   }, [onClose]);
 
+  // ── Drag-to-move ─────────────────────────────────────────────────
+  // The user can grab the header bar and drag the popover anywhere
+  // on the screen — useful when the auto-positioned spot covers the
+  // sentence they were reading. `dragOffset` is the {dx, dy} delta
+  // applied to `pos` on top of the auto-positioner; it survives until
+  // the popover unmounts so the user's chosen spot persists across
+  // language picks / refetches inside the same popover session.
+  const [dragOffset, setDragOffset] = useState<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const dragRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    startDx: number;
+    startDy: number;
+    pointerId: number;
+  } | null>(null);
+
+  const onHeaderPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    // Don't start dragging when the user is interacting with the
+    // language-picker toggle or close button — those need their own
+    // click. The drag handle is the rest of the header bar.
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('button')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startDx: dragOffset.dx,
+      startDy: dragOffset.dy,
+      pointerId: e.pointerId,
+    };
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch { /* setPointerCapture unsupported — drag still works via pointermove */ }
+  }, [dragOffset.dx, dragOffset.dy]);
+
+  const onHeaderPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const popH = ref.current?.offsetHeight ?? 240;
+    const margin = 8;
+    // Clamp so the popover always keeps at least a sliver on-screen.
+    const minLeft = -(pos.left + POPOVER_WIDTH - margin);     // can drag mostly off the left edge
+    const maxLeft = vw - pos.left - margin;                    // … but keep `margin` visible at right
+    const minTop = -(pos.top - margin);                        // keep margin from top
+    const maxTop = vh - pos.top - Math.min(40, popH);          // keep header bar visible
+    const proposedDx = drag.startDx + (e.clientX - drag.startClientX);
+    const proposedDy = drag.startDy + (e.clientY - drag.startClientY);
+    setDragOffset({
+      dx: Math.max(minLeft, Math.min(maxLeft, proposedDx)),
+      dy: Math.max(minTop, Math.min(maxTop, proposedDy)),
+    });
+  }, [pos.left, pos.top]);
+
+  const onHeaderPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.pointerId === e.pointerId) {
+      try {
+        (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+      } catch { /* releasePointerCapture unsupported */ }
+      dragRef.current = null;
+    }
+  }, []);
+
   const langLabel =
     languages.find((l) => l.code === targetLang)?.label ?? targetLang;
 
@@ -318,16 +417,38 @@ function TranslatePopover({
       data-hrk-translate-ui="popover"
       style={{
         position: "fixed",
-        top: pos.top,
-        left: pos.left,
+        // Auto-positioned anchor + the user's drag offset. The
+        // offset is whatever delta they've dragged the popover
+        // since it opened — zero on first paint, non-zero after a
+        // grab-and-move on the header bar.
+        top: pos.top + dragOffset.dy,
+        left: pos.left + dragOffset.dx,
         width: POPOVER_WIDTH,
+        maxHeight: maxH ? `${maxH}px` : "calc(100vh - 16px)",
+        display: "flex",
+        flexDirection: "column",
         zIndex: 2200,
       }}
-      className="rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] shadow-2xl"
+      className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] shadow-2xl"
       role="dialog"
       aria-label="Translation"
     >
-      <div className="flex items-center justify-between border-b border-[var(--hrk-border-subtle)] px-3 py-2">
+      {/* Header doubles as a drag handle. `touchAction: 'none'` is
+          required so the browser doesn't claim the touch for a
+          page-pan gesture before our pointermove handler can move
+          the popover. The two buttons inside live above the drag
+          handler — `onHeaderPointerDown` short-circuits when the
+          pointer originated on a <button>, so the language picker
+          and close X still work normally. */}
+      <div
+        className="flex shrink-0 cursor-grab items-center justify-between gap-2 border-b border-[var(--hrk-border-subtle)] px-3 py-2 active:cursor-grabbing"
+        style={{ touchAction: "none" }}
+        onPointerDown={onHeaderPointerDown}
+        onPointerMove={onHeaderPointerMove}
+        onPointerUp={onHeaderPointerUp}
+        onPointerCancel={onHeaderPointerUp}
+        aria-label="Drag to move"
+      >
         <button
           type="button"
           onClick={onPickerToggle}
@@ -337,6 +458,11 @@ function TranslatePopover({
           {langLabel}
           <ChevronDown className="h-3 w-3 text-[var(--hrk-text-tertiary)]" />
         </button>
+        {/* Visual grip — also serves as the obvious drag affordance. */}
+        <GripHorizontal
+          aria-hidden
+          className="pointer-events-none h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]"
+        />
         <button
           type="button"
           onClick={onClose}
@@ -350,7 +476,8 @@ function TranslatePopover({
       {picking ? (
         <ul
           role="listbox"
-          className="max-h-64 overflow-y-auto py-1"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1"
+          style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
         >
           {languages.map((lang) => {
             const active = lang.code === targetLang;
@@ -378,11 +505,23 @@ function TranslatePopover({
           })}
         </ul>
       ) : (
-        <div className="px-3 py-2.5">
-          <p className="mb-2 line-clamp-3 text-[11px] italic text-[var(--hrk-text-tertiary)]">
+        // Body scrolls inside the popover when the translated text
+        // overflows the available height. `min-h-0` is required to
+        // let the flex child shrink below its content size so
+        // `overflow-y-auto` actually kicks in. `touchAction: pan-y`
+        // + `WebkitOverflowScrolling: touch` make the vertical
+        // scroll gesture work inside the popover on iOS / Android.
+        // `overscroll-contain` stops the scroll from bubbling out
+        // to the underlying post body once the popover hits its
+        // top / bottom edge.
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2.5"
+          style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+        >
+          <p className="mb-2 text-[11px] italic text-[var(--hrk-text-tertiary)]">
             {sourceText}
           </p>
-          <div className="min-h-[36px] text-xs leading-relaxed text-[var(--hrk-text-primary)]">
+          <div className="min-h-[36px] whitespace-pre-wrap break-words text-xs leading-relaxed text-[var(--hrk-text-primary)]">
             {loading ? (
               <span className="inline-flex items-center gap-1.5 text-[var(--hrk-text-tertiary)]">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

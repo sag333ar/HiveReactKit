@@ -1,24 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * MyMemory-backed translation service for translating Hive post / comment
- * bodies (rendered HTML) into the user's selected app language.
+ * Google-Translate-backed translation service for translating Hive post /
+ * comment bodies (rendered HTML) into the user's selected app language.
  *
- * Free, no API key, soft daily quota. The kit ships this as the default
- * translator — consumers can override by passing their own `translate`
- * function to `<HiveLanguageProvider>` (e.g. DeepL, Google Translate, an
- * authenticated MyMemory account).
+ * Uses the unofficial `translate.googleapis.com/translate_a/single` endpoint
+ * (client=gtx). No API key, much higher anonymous quota than MyMemory, and
+ * built-in source-language auto-detect via `sl=auto`.
+ *
+ * Consumers can override by passing their own `translate` function to
+ * `<HiveLanguageProvider>` (e.g. DeepL, Google Cloud Translate with a key).
  *
  * Heavy caching: in-memory map (session) + localStorage (cross-reload) +
  * in-flight dedup so two views of the same body share one network call.
  */
 
-// Bumped to v2 to invalidate caches written by the prior version, which
-// would mistakenly store the original text as the "translation" whenever
-// MyMemory returned a warning sentinel (rate-limit, untranslatable token).
-// Existing v1 entries are abandoned in localStorage; they don't pollute v2.
-const STORAGE_KEY = "hive-react-kit-translation-cache-v2";
+// Bumped to v3 when we switched the backend from MyMemory to Google
+// Translate. v2 entries are abandoned in localStorage; they don't pollute v3.
+const STORAGE_KEY = "hive-react-kit-translation-cache-v3";
 const STORAGE_LIMIT = 500;
-const REQUEST_CHAR_LIMIT = 480; // MyMemory anonymous: 500. Leave headroom.
+// Google Translate handles longer payloads well; keep chunks well under the
+// 5000-char practical URL limit so multi-paragraph bodies don't get truncated.
+const REQUEST_CHAR_LIMIT = 1500;
 
 let storageCache: Record<string, string> | null = null;
 const inFlight = new Map<string, Promise<string>>();
@@ -74,28 +76,47 @@ function chunkText(text: string, max: number): string[] {
   return out;
 }
 
-async function callMyMemory(text: string, target: string, source: string): Promise<string> {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(source)}|${encodeURIComponent(target)}`;
+async function callGoogleTranslate(text: string, target: string, source: string): Promise<string> {
+  // Google's unofficial endpoint takes `sl=auto` to detect source language.
+  // We pass through any explicit ISO code; anything we treat as "unknown"
+  // (empty / "autodetect") falls back to `auto`.
+  const sl =
+    source && source.toLowerCase() !== "autodetect" ? source : "auto";
+  const url =
+    `https://translate.googleapis.com/translate_a/single` +
+    `?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(target)}&dt=t&q=${encodeURIComponent(text)}`;
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`MyMemory ${resp.status}`);
+  if (!resp.ok) throw new Error(`GoogleTranslate ${resp.status}`);
   const data = await resp.json();
-  const out: string | undefined = data?.responseData?.translatedText;
-  if (!out || /QUERY LENGTH|MYMEMORY WARNING|INVALID/i.test(out)) {
-    return text;
+  // Response shape: [ [ [ "translated", "original", ... ], ... ], null, "src", ... ]
+  const segments: any[] = Array.isArray(data) && Array.isArray(data[0]) ? data[0] : [];
+  const out = segments.map((seg) => (Array.isArray(seg) ? seg[0] : "")).join("");
+  return out || text;
+}
+
+// Cheap pre-flight: if the user picked English and the text already looks
+// English (ASCII Latin + common English stop words, no accented chars), skip
+// the network round-trip. Saves a lot of API quota on the default
+// English locale where most posts are already English.
+function looksLikeEnglish(text: string): boolean {
+  if (/[áéíóúñü¿¡àèìòùâêîôûãõçßа-я֐-׿؀-ۿ一-鿿぀-ヿ]/i.test(text)) {
+    return false;
   }
-  return out;
+  return /\b(the|and|is|are|was|were|of|to|in|that|it|you|for|with|on|at|this|but|not|have|has)\b/i.test(text);
 }
 
 /** Translate a single text string to `target` language. */
 export async function translateText(
   text: string,
   target: string,
-  source: string = "en",
+  source: string = "Autodetect",
 ): Promise<string> {
   if (!text) return text;
-  if (!target || target === source || target === "en") return text;
+  if (!target) return text;
+  if (source && source.toLowerCase() !== "autodetect" && source === target) return text;
   const trimmed = text.trim();
   if (trimmed.length < 2) return text;
+  if (target.toLowerCase() === "en" && looksLikeEnglish(trimmed)) return text;
 
   const cacheKey = `${source}|${target}|${hashKey(text)}`;
   if (memCache.has(cacheKey)) return memCache.get(cacheKey)!;
@@ -110,18 +131,17 @@ export async function translateText(
     try {
       let result: string;
       if (text.length <= REQUEST_CHAR_LIMIT) {
-        result = await callMyMemory(text, target, source);
+        result = await callGoogleTranslate(text, target, source);
       } else {
         const parts = chunkText(text, REQUEST_CHAR_LIMIT);
-        const out = await Promise.all(parts.map((p) => callMyMemory(p, target, source)));
+        const out = await Promise.all(parts.map((p) => callGoogleTranslate(p, target, source)));
         result = out.join(" ");
       }
-      // Only cache real translations. When MyMemory returns a warning sentinel
-      // or echoes the input verbatim (rate-limit, untranslatable token, etc.)
-      // `callMyMemory` falls back to returning `text`. Caching that would
-      // poison subsequent reads — every revisit would return the original
-      // even after the API recovered. Skip the cache write in that case so
-      // the next render retries.
+      // Only cache real translations. If the API echoed the input verbatim
+      // (rate limit, untranslatable token, etc.), caching that would poison
+      // subsequent reads — every revisit would return the original even after
+      // the API recovered. Skip the cache write in that case so the next
+      // render retries.
       if (result && result.trim() !== text.trim()) {
         memCache.set(cacheKey, result);
         const store = loadStorageCache();
@@ -157,7 +177,7 @@ function hasSkipAncestor(node: Node, root: Node): boolean {
  * `<iframe>` so embeds and code samples render unchanged.
  */
 export async function translateHtml(html: string, target: string): Promise<string> {
-  if (!html || !target || target === "en") return html;
+  if (!html || !target) return html;
   if (typeof document === "undefined") return html;
 
   const fullKey = `${target}|html|${hashKey(html)}`;
@@ -191,8 +211,9 @@ export async function translateHtml(html: string, target: string): Promise<strin
       });
       const out = tpl.innerHTML;
       // Only cache when at least one text node was actually translated. If the
-      // entire HTML came back identical (every per-node call hit a MyMemory
-      // warning or rate limit), skip the cache write so the next view retries.
+      // entire HTML came back identical (every per-node call hit a rate
+      // limit or untranslatable token), skip the cache write so the next
+      // view retries.
       if (out && out !== html) {
         memCache.set(fullKey, out);
         const store = loadStorageCache();

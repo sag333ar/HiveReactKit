@@ -18,7 +18,7 @@ export function useTranslatedText(text: string | undefined | null): { text: stri
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!language || language === "en" || !safeInput) {
+    if (!language || !safeInput) {
       setTranslated(safeInput);
       setLoading(false);
       return;

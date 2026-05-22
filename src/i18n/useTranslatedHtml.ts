@@ -17,7 +17,7 @@ export function useTranslatedHtml(html: string): { html: string; loading: boolea
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!language || language === "en" || !html) {
+    if (!language || !html) {
       setTranslated(html);
       setLoading(false);
       return;
