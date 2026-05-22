@@ -34,6 +34,8 @@ import {
   UserMinus,
   VolumeX,
   Volume2,
+  Key,
+  Pencil as PencilIcon,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -270,8 +272,19 @@ export interface UserDetailProfileProps {
   /** Wire this on the consumer's own profile to surface an "Edit profile"
    *  affordance over the avatar. Only invoked when
    *  `currentUsername === username`. The consumer owns the modal /
-   *  account_update2 broadcast. */
+   *  account_update2 broadcast.
+   *
+   *  When this is set we also surface "Edit Profile" as the last entry
+   *  in the header kebab on the owner's own profile so users have a
+   *  second, more discoverable path in besides the avatar overlay. */
   onEditProfile?: () => void;
+  /** Open the consumer's posting-authority manager (grant / revoke
+   *  posting/active auths to other Hive accounts). When provided, the
+   *  header kebab on the *owner's own profile* gets a "Posting
+   *  Authority" entry that fires this callback. The kit doesn't ship
+   *  the modal — the consumer wires it (e.g. via aioha's
+   *  `addAccountAuthority` / `removeAccountAuthority`). */
+  onPostingAuthority?: () => void;
 }
 
 interface ProfileData {
@@ -432,6 +445,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   awaitingWalletApproval = false,
   renderSnapHeaderActions,
   onEditProfile,
+  onPostingAuthority,
   activeTab: controlledActiveTab,
   onActiveTabChange,
 }) => {
@@ -2704,6 +2718,38 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         <Share2 className="h-4 w-4 text-blue-400" /> {t("action.shareProfile")}
                       </span>
                     </button>
+                    {/* Owner-only items. Posting Authority opens the
+                        consumer's grant/revoke modal; Edit Profile is a
+                        second path into the same editor surfaced by the
+                        avatar overlay above. Both are gated on the
+                        consumer wiring the callback so the menu still
+                        condenses cleanly on non-owners. */}
+                    {isOwnProfile && onPostingAuthority && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          onPostingAuthority();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Key className="h-4 w-4 text-amber-400" /> Posting Authority
+                        </span>
+                      </button>
+                    )}
+                    {isOwnProfile && onEditProfile && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          onEditProfile();
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)] last:rounded-b-lg"
+                      >
+                        <span className="flex items-center gap-2">
+                          <PencilIcon className="h-4 w-4 text-emerald-400" /> Edit Profile
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
