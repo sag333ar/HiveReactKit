@@ -20,6 +20,8 @@ import {
   MoreVertical,
   Share2,
   Flag,
+  History,
+  FileCode2,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -29,6 +31,8 @@ import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
+import { PostVersionHistoryModal } from './PostVersionHistoryModal';
+import { PostRawViewModal } from './PostRawViewModal';
 import { WorldMappinMap } from './WorldMappinMap';
 import { extractWorldMappinPin } from '../utils/worldMappin';
 import { useTranslatedText } from '@/i18n/useTranslatedText';
@@ -389,6 +393,11 @@ export function HiveDetailPost({
   const [error, setError] = useState<string | null>(null);
   const [poll, setPoll] = useState<Poll | null>(null);
   const [pollLoading, setPollLoading] = useState(false);
+  // Header-kebab modals (Version History + View Raw). Open state lives
+  // here so the kebab itself can close itself before opening the modal —
+  // keeps focus management simple.
+  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
+  const [rawViewOpen, setRawViewOpen] = useState(false);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const postBodyRef = useRef<HTMLDivElement>(null);
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
@@ -1287,9 +1296,25 @@ export function HiveDetailPost({
               }
               onShare={onHeaderShare ?? onShare}
               onReport={onHeaderReport ?? onReport}
+              onVersionHistory={() => setVersionHistoryOpen(true)}
+              onViewRaw={() => setRawViewOpen(true)}
             />
           </div>
         </div>
+
+        {/* Header-kebab modals. Rendered once at the top of the detail
+            surface so they live above the sticky header. */}
+        <PostVersionHistoryModal
+          isOpen={versionHistoryOpen}
+          onClose={() => setVersionHistoryOpen(false)}
+          author={post.author}
+          permlink={post.permlink}
+        />
+        <PostRawViewModal
+          isOpen={rawViewOpen}
+          onClose={() => setRawViewOpen(false)}
+          post={post}
+        />
 
         {/* ── Single-column scrollable content ── */}
         <div className="flex-1">
@@ -1722,6 +1747,11 @@ interface HeaderMoreMenuProps {
   onToggleBookmark?: () => void;
   onShare?: () => void;
   onReport?: () => void;
+  /** Opens the on-chain edit-history modal for this post. Always
+   *  rendered from the kit — no consumer wiring required. */
+  onVersionHistory?: () => void;
+  /** Opens the raw-fields inspector modal. */
+  onViewRaw?: () => void;
 }
 
 const HEADER_MENU_WIDTH = 180;
@@ -1732,6 +1762,8 @@ function HeaderMoreMenu({
   onToggleBookmark,
   onShare,
   onReport,
+  onVersionHistory,
+  onViewRaw,
 }: HeaderMoreMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -1785,7 +1817,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -1835,6 +1867,28 @@ function HeaderMoreMenu({
               >
                 <Share2 className="h-3.5 w-3.5 text-gray-300" />
                 <span>Share</span>
+              </button>
+            )}
+            {onVersionHistory && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onVersionHistory)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <History className="h-3.5 w-3.5 text-gray-300" />
+                <span>Version History</span>
+              </button>
+            )}
+            {onViewRaw && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onViewRaw)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <FileCode2 className="h-3.5 w-3.5 text-gray-300" />
+                <span>View Raw</span>
               </button>
             )}
             {onReport && (
