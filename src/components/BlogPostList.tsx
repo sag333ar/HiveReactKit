@@ -14,13 +14,14 @@
  * module later if more lists need them.
  */
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, FileText, Play, X } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, FileText, Play } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
-import { extractPostMedia, parseThreeSpeakRef, type PostMedia } from '../utils/postMedia';
+import { extractPostMedia, type PostMedia } from '../utils/postMedia';
+import { MediaLightbox } from './MediaLightbox';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -127,25 +128,60 @@ const extractPlainText = (body: string): string => {
  *                  open the embed iframe in the lightbox)
  *   • twitter    → branded "𝕏" tile that opens the tweet in a new tab
  */
+/**
+ * Single thumbnail in the carousel strip. Tracks its own load state
+ * so flipping between images shows a small spinner while the next
+ * src downloads — keying the load state on `media.url` resets it
+ * whenever the parent swaps the active item.
+ */
 const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
+  // Image thumbnails carry their own loading state so we can overlay
+  // a spinner until the bitmap is on screen. YouTube hqdefault.jpg
+  // gets the same treatment.
+  const [loaded, setLoaded] = useState(false);
+  // Reset on every distinct media identity. The union has either a
+  // `url` or an `id` depending on kind, so we hash both into one key.
+  const mediaKey = media.kind + ':' + ('url' in media ? media.url : media.id);
+  useEffect(() => { setLoaded(false); }, [mediaKey]);
+
   if (media.kind === 'image') {
     return (
-      <img
-        src={media.url}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
+      <>
+        {!loaded && (
+          <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+            <Loader2 className="h-5 w-5 animate-spin text-white/80" />
+          </span>
+        )}
+        <img
+          src={media.url}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          onLoad={() => setLoaded(true)}
+          onError={(e) => {
+            setLoaded(true);
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      </>
     );
   }
   if (media.kind === 'youtube') {
     return (
       <>
+        {!loaded && (
+          <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+            <Loader2 className="h-5 w-5 animate-spin text-white/80" />
+          </span>
+        )}
         <img
           src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-90"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          onLoad={() => setLoaded(true)}
+          onError={(e) => {
+            setLoaded(true);
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
         />
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white">
@@ -182,79 +218,6 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
 };
 
 /**
- * Lightbox / preview overlay for one media entry. Images render
- * inline; YouTube and 3Speak open their official embed iframes.
- * Twitter is opened in a new tab at click time, so this overlay is
- * never invoked for it.
- */
-const MediaLightbox: FC<{ media: PostMedia; onClose: () => void }> = ({ media, onClose }) => {
-  // Lock body scroll + listen for Escape while the lightbox is open.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => { e.stopPropagation(); onClose(); }}
-    >
-      <div
-        className="relative flex max-h-[85vh] w-full max-w-3xl items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="absolute -top-10 right-0 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        {media.kind === 'image' && (
-          <img src={media.url} alt="" className="max-h-[80vh] max-w-full rounded-lg object-contain" />
-        )}
-        {media.kind === 'youtube' && (
-          <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${media.id}?autoplay=1&rel=0&playsinline=1`}
-              title="YouTube"
-              className="h-full w-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        )}
-        {media.kind === 'threespeak' && (() => {
-          const ref = parseThreeSpeakRef(media.url);
-          const src = ref
-            ? `https://play.3speak.tv/embed?v=${encodeURIComponent(`${ref.author}/${ref.permlink}`)}&mode=iframe&noscroll=1&autoplay=1`
-            : media.url;
-          return (
-            <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '9/16', maxWidth: '380px' }}>
-              <iframe
-                src={src}
-                title="3Speak"
-                className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-  );
-};
-
-/**
  * Right-side media strip for a post card. Combines images (from
  * `json_metadata.image` and inline body images), YouTube embeds,
  * 3Speak embeds, and X / Twitter status links into one carousel that
@@ -268,7 +231,10 @@ const MediaLightbox: FC<{ media: PostMedia; onClose: () => void }> = ({ media, o
  */
 const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
   const [idx, setIdx] = useState(0);
-  const [preview, setPreview] = useState<PostMedia | null>(null);
+  // Track the lightbox open state by start index instead of a single
+  // media reference so the prev/next nav inside the lightbox can
+  // traverse the whole list.
+  const [previewStart, setPreviewStart] = useState<number | null>(null);
   if (media.length === 0) return null;
   const safeIdx = Math.min(idx, media.length - 1);
   const current = media[safeIdx];
@@ -278,7 +244,7 @@ const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
       window.open(current.url, '_blank', 'noopener,noreferrer');
       return;
     }
-    setPreview(current);
+    setPreviewStart(safeIdx);
   };
   return (
     <>
@@ -315,8 +281,19 @@ const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
         )}
       </div>
 
-      {preview && (
-        <MediaLightbox media={preview} onClose={() => setPreview(null)} />
+      {previewStart !== null && (
+        <MediaLightbox
+          // Twitter tiles are opened in a new tab from the carousel
+          // itself, so drop them from the lightbox traversal — the
+          // user can't preview a tweet inline anyway.
+          items={media.filter((m) => m.kind !== 'twitter')}
+          startIndex={Math.min(
+            previewStart,
+            // Re-map the start index in case the filter shifted it.
+            Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== 'twitter').length - 1),
+          )}
+          onClose={() => setPreviewStart(null)}
+        />
       )}
     </>
   );

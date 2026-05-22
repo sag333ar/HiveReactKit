@@ -36,6 +36,7 @@ import {
   Volume2,
   Key,
   Pencil as PencilIcon,
+  Loader2 as Loader2Icon,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -48,7 +49,8 @@ import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
-import { extractPostMedia, parseThreeSpeakRef, type PostMedia } from "../../utils/postMedia";
+import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
+import { MediaLightbox } from "../MediaLightbox";
 import { getHiveApiEndpoint } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
@@ -1369,123 +1371,21 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
    * + rounded corners) for breathing room. Click on a tile opens it in
    * the lightbox below — except Twitter, which opens in a new tab.
    */
-  const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
-    if (media.kind === "image") {
-      return (
-        <img
-          src={media.url}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-      );
-    }
-    if (media.kind === "youtube") {
-      return (
-        <>
-          <img
-            src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover opacity-90"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-          <span className="absolute inset-0 flex items-center justify-center">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white">
-              <Play className="h-5 w-5 fill-current" />
-            </span>
-          </span>
-          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-            YouTube
-          </span>
-        </>
-      );
-    }
-    if (media.kind === "threespeak") {
-      return (
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)]">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
-            <Play className="h-5 w-5 fill-current" />
-          </span>
-          <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">3Speak</span>
-        </span>
-      );
-    }
-    return (
-      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-white">
-        <span className="text-3xl font-semibold">𝕏</span>
-        <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium">Tweet</span>
-      </span>
-    );
-  };
+  // PostMediaTile is defined at module scope below the component so
+  // its own `useState`/`useEffect` (for the per-thumbnail loading
+  // spinner) actually persist across the parent's re-renders — when a
+  // component is declared inside another, React treats it as a brand
+  // new component definition each render and remounts it, blowing
+  // away the local load state.
 
-  const PostMediaLightbox: React.FC<{ media: PostMedia; onClose: () => void }> = ({ media, onClose }) => {
-    useEffect(() => {
-      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-      window.addEventListener("keydown", onKey);
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        window.removeEventListener("keydown", onKey);
-        document.body.style.overflow = prev;
-      };
-    }, [onClose]);
-    return (
-      <div
-        className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 p-4"
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-      >
-        <div
-          className="relative flex max-h-[85vh] w-full max-w-3xl items-center justify-center"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="absolute -top-10 right-0 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80"
-            aria-label="Close"
-          >
-            <XIcon className="h-5 w-5" />
-          </button>
-          {media.kind === "image" && (
-            <img src={media.url} alt="" className="max-h-[80vh] max-w-full rounded-lg object-contain" />
-          )}
-          {media.kind === "youtube" && (
-            <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: "16/9" }}>
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${media.id}?autoplay=1&rel=0&playsinline=1`}
-                title="YouTube"
-                className="h-full w-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          )}
-          {media.kind === "threespeak" && (() => {
-            const ref = parseThreeSpeakRef(media.url);
-            const src = ref
-              ? `https://play.3speak.tv/embed?v=${encodeURIComponent(`${ref.author}/${ref.permlink}`)}&mode=iframe&noscroll=1&autoplay=1`
-              : media.url;
-            return (
-              <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: "9/16", maxWidth: "380px" }}>
-                <iframe
-                  src={src}
-                  title="3Speak"
-                  className="h-full w-full border-0"
-                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                  allowFullScreen
-                />
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-    );
-  };
+  // Lightbox lives in the shared `MediaLightbox` component — see
+  // `../MediaLightbox`. This consumer just opens it with the full
+  // media list so the user can zoom + arrow-key through every image
+  // / embed attached to a profile-feed card.
 
   const PostImageCarousel: React.FC<{ media: PostMedia[] }> = ({ media }) => {
     const [idx, setIdx] = useState(0);
-    const [preview, setPreview] = useState<PostMedia | null>(null);
+    const [previewStart, setPreviewStart] = useState<number | null>(null);
     if (media.length === 0) return null;
     const safeIdx = Math.min(idx, media.length - 1);
     const current = media[safeIdx];
@@ -1495,7 +1395,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         window.open(current.url, "_blank", "noopener,noreferrer");
         return;
       }
-      setPreview(current);
+      setPreviewStart(safeIdx);
     };
     return (
       <>
@@ -1532,7 +1432,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           )}
         </div>
 
-        {preview && <PostMediaLightbox media={preview} onClose={() => setPreview(null)} />}
+        {previewStart !== null && (
+          <MediaLightbox
+            items={media.filter((m) => m.kind !== "twitter")}
+            startIndex={Math.min(
+              previewStart,
+              Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== "twitter").length - 1),
+            )}
+            onClose={() => setPreviewStart(null)}
+          />
+        )}
       </>
     );
   };
@@ -3049,3 +2958,82 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 };
 
 export default UserDetailProfile;
+
+/**
+ * Single thumbnail in the profile-feed carousel strip. Module-scoped
+ * (not inside `UserDetailProfile`) so its `useState` survives parent
+ * re-renders — used to drive the per-thumbnail loading spinner that
+ * shows while the next image's bitmap downloads.
+ */
+const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
+  const [loaded, setLoaded] = useState(false);
+  const mediaKey = media.kind + ":" + ("url" in media ? media.url : media.id);
+  useEffect(() => { setLoaded(false); }, [mediaKey]);
+
+  if (media.kind === "image") {
+    return (
+      <>
+        {!loaded && (
+          <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+            <Loader2Icon className="h-5 w-5 animate-spin text-white/80" />
+          </span>
+        )}
+        <img
+          src={media.url}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          onLoad={() => setLoaded(true)}
+          onError={(e) => {
+            setLoaded(true);
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </>
+    );
+  }
+  if (media.kind === "youtube") {
+    return (
+      <>
+        {!loaded && (
+          <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+            <Loader2Icon className="h-5 w-5 animate-spin text-white/80" />
+          </span>
+        )}
+        <img
+          src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+          onLoad={() => setLoaded(true)}
+          onError={(e) => {
+            setLoaded(true);
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white">
+            <Play className="h-5 w-5 fill-current" />
+          </span>
+        </span>
+        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          YouTube
+        </span>
+      </>
+    );
+  }
+  if (media.kind === "threespeak") {
+    return (
+      <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)]">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
+          <Play className="h-5 w-5 fill-current" />
+        </span>
+        <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">3Speak</span>
+      </span>
+    );
+  }
+  return (
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-white">
+      <span className="text-3xl font-semibold">𝕏</span>
+      <span className="rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium">Tweet</span>
+    </span>
+  );
+};
