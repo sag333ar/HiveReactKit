@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { communityService } from "../../services/communityService";
 import { CommunitySubscriber } from "../../types/community";
@@ -17,9 +17,13 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
   const [error, setError] = useState<string | null>(null);
   const pageSize = 100;
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
+
   const fetchMembers = useCallback(
     async (refresh = false) => {
-      if (loadingMore && !refresh) return;
+      if (loadingRef.current && !refresh) return;
+      loadingRef.current = true;
       try {
         if (refresh) {
           setLoading(true);
@@ -30,60 +34,102 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
         } else {
           setLoadingMore(true);
         }
-        const newMembers = await communityService.getCommunitySubscribers(
+        // Use bridge.list_subscribers (the full subscriber roster).
+        // The earlier call to `getCommunitySubscribers` hit
+        // bridge.list_community_roles, which only returns the ~300-400
+        // people who have an assigned role (admin / mod / guest) and
+        // missed the bulk of the membership.
+        const newMembers = await communityService.getCommunitySubscribersList(
           communityId,
           pageSize,
-          refresh ? undefined : last || undefined
+          refresh ? undefined : last || undefined,
         );
         if (newMembers.length === 0) {
           setHasMore(false);
         } else {
+          // Drop the duplicate first row some nodes return when the
+          // `last` cursor matches the final subscriber from the
+          // previous page.
+          const fresh = !refresh && last && newMembers[0]?.username === last
+            ? newMembers.slice(1)
+            : newMembers;
           setMembers((prev) => {
-            if (refresh) return newMembers;
-
-            // Avoid duplicates
+            if (refresh) return fresh;
             const existingUsernames = new Set(prev.map((m) => m.username));
-            const filtered = newMembers.filter(
-              (m) => !existingUsernames.has(m.username)
-            );
-            return [...prev, ...filtered];
+            return [...prev, ...fresh.filter((m) => !existingUsernames.has(m.username))];
           });
-
-          if (newMembers.length > 0) {
-            setLast(newMembers[newMembers.length - 1].username);
+          const nextCursor = fresh[fresh.length - 1]?.username;
+          if (!nextCursor || nextCursor === last) {
+            setHasMore(false);
+          } else {
+            setLast(nextCursor);
           }
-
-          setHasMore(newMembers.length === pageSize);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load members");
       } finally {
         setLoading(false);
         setLoadingMore(false);
+        loadingRef.current = false;
       }
     },
-    [communityId, loadingMore, last]
+    [communityId, last],
   );
 
   useEffect(() => {
     fetchMembers(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [communityId]);
 
+  // Scroll-driven pagination: bind to the sentinel and to the
+  // nearest scrollable ancestor so the auto-load works whether the
+  // page scrolls inside `window` or inside a tab/panel container.
   useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >=
-        document.documentElement.offsetHeight - 200 &&
-        !loadingMore &&
-        !loading &&
-        hasMore
-      ) {
+    if (!hasMore || loading) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const findScrollableAncestor = (start: HTMLElement | null): HTMLElement | null => {
+      let el: HTMLElement | null = start?.parentElement || null;
+      while (el && el !== document.body && el !== document.documentElement) {
+        const { overflowY } = window.getComputedStyle(el);
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+          return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const root = findScrollableAncestor(node);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingRef.current) {
+          fetchMembers();
+        }
+      },
+      { root, rootMargin: '400px 0px' },
+    );
+    observer.observe(node);
+
+    const checkNearBottom = () => {
+      if (loadingRef.current) return;
+      const scroller = root ?? document.scrollingElement ?? document.documentElement;
+      const scrollTop = root ? (root as HTMLElement).scrollTop : window.scrollY;
+      const viewport = root ? (root as HTMLElement).clientHeight : window.innerHeight;
+      const total = scroller.scrollHeight;
+      if (total - (scrollTop + viewport) < 400) {
         fetchMembers();
       }
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [fetchMembers, loadingMore, loading, hasMore]);
+    const scrollTarget: EventTarget = root ?? window;
+    scrollTarget.addEventListener('scroll', checkNearBottom, { passive: true } as AddEventListenerOptions);
+
+    return () => {
+      observer.disconnect();
+      scrollTarget.removeEventListener('scroll', checkNearBottom);
+    };
+  }, [fetchMembers, hasMore, loading]);
 
   if (loading && members.length === 0) {
     return (
@@ -160,18 +206,15 @@ const CommunityMembers = ({ communityId, onSelectCommunityMember }: CommunityMem
       </div>
 
       {hasMore && (
-        <div className="flex justify-center pt-4">
-          {loadingMore ? (
-            <div className="flex items-center gap-2 text-[var(--hrk-text-tertiary)]">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Loading more members...
-            </div>
-          ) : (
-            <button onClick={() => fetchMembers()} className="m-2 inline-flex items-center justify-center rounded-md border border-input bg-background p-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
-            >
-              Load More Members
-            </button>
-          )}
+        <div ref={sentinelRef} aria-hidden className="h-px w-full" />
+      )}
+
+      {hasMore && loadingMore && (
+        <div className="flex justify-center pt-2 text-[var(--hrk-text-tertiary)]">
+          <span className="inline-flex items-center gap-2 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading more members...
+          </span>
         </div>
       )}
     </div>

@@ -247,6 +247,36 @@ class CommunityService {
     return `https://images.hive.blog/u/${value}/avatar?size=icon`;
   }
 
+
+  /** Check whether `username` is subscribed to `communityId` using
+   *  bridge.list_all_subscriptions. Returns false on network errors so
+   *  the UI never blocks on a transient failure — the user can still
+   *  press the button to (re)subscribe. */
+  async isUserSubscribedToCommunity(username: string, communityId: string): Promise<boolean> {
+    if (!username || !communityId) return false;
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.list_all_subscriptions',
+      params: { account: username },
+      id: 9,
+    };
+    try {
+      const response = await fetch(this.HIVE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      const list: any[] = data?.result || [];
+      // Each entry is a tuple [community, title, role, label]
+      return list.some(row => Array.isArray(row) && row[0] === communityId);
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      return false;
+    }
+  }
+
   userOwnerThumb(value: string): string {
     return `https://images.hive.blog/u/${value}/avatar`;
   }

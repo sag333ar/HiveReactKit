@@ -107,6 +107,21 @@ export interface CommunityDetailProps {
   onShare?: () => void
   onRss?: () => void
 
+  /** Whether the current viewer is subscribed to this community.
+   *  When omitted (undefined) the kit queries
+   *  `bridge.list_all_subscriptions` for `currentUser` itself; pass an
+   *  explicit boolean to override (e.g. to share status with the host
+   *  app). */
+  isSubscribed?: boolean
+  /** Fired when the user taps the Subscribe / Unsubscribe button.
+   *  Receives the next intended state (true = subscribe). Implement on
+   *  the host to broadcast the `community` custom_json operation, then
+   *  reflect the new state via `isSubscribed`. */
+  onToggleSubscribe?: (next: boolean) => void | Promise<void>
+  /** Show a spinner on the button — set this true while a broadcast is
+   *  in flight on the host. */
+  subscribePending?: boolean
+
   /** Controlled top-level tab. Pass alongside `onActiveTabChange` to
    *  drive the tab from the URL or any other external store. When
    *  omitted, the component manages tab state internally (default
@@ -213,6 +228,9 @@ const CommunityDetail = ({
   actionsAsMenu,
   onShare,
   onRss,
+  isSubscribed: controlledIsSubscribed,
+  onToggleSubscribe,
+  subscribePending = false,
   loadCommunitySnaps: _loadCommunitySnaps,
   reportedAuthors = [],
   reportedPosts = [],
@@ -254,6 +272,44 @@ const CommunityDetail = ({
   const [communityDetails, setCommunityDetails] = useState<CommunityDetailsResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Internal subscription state. Resolved from
+  // bridge.list_all_subscriptions when the consumer doesn't pass an
+  // explicit `isSubscribed`. While the lookup is in flight (or no
+  // user is logged in) we leave the value undefined so the button
+  // disables instead of flashing a wrong label.
+  const [internalIsSubscribed, setInternalIsSubscribed] = useState<boolean | undefined>(undefined)
+  const isSubscribed = controlledIsSubscribed ?? internalIsSubscribed
+
+  useEffect(() => {
+    if (controlledIsSubscribed !== undefined) return
+    if (!currentUser || !communityId) {
+      setInternalIsSubscribed(undefined)
+      return
+    }
+    let cancelled = false
+    void communityService
+      .isUserSubscribedToCommunity(currentUser, communityId)
+      .then((subscribed) => {
+        if (!cancelled) setInternalIsSubscribed(subscribed)
+      })
+      .catch(() => {
+        if (!cancelled) setInternalIsSubscribed(false)
+      })
+    return () => { cancelled = true }
+  }, [controlledIsSubscribed, currentUser, communityId])
+
+  const handleToggleSubscribe = useCallback(async () => {
+    if (!currentUser || subscribePending || isSubscribed === undefined) return
+    const next = !isSubscribed
+    try {
+      await onToggleSubscribe?.(next)
+      // Only update internal state if consumer isn't driving it.
+      if (controlledIsSubscribed === undefined) setInternalIsSubscribed(next)
+    } catch {
+      // Host already surfaces a toast — leave the prior state alone.
+    }
+  }, [currentUser, subscribePending, isSubscribed, onToggleSubscribe, controlledIsSubscribed])
+
   const [posts, setPosts] = useState<Post[]>(() => initialEntry?.posts ?? [])
   const [postsLoading, setPostsLoading] = useState(false)
   const [postsLoadingMore, setPostsLoadingMore] = useState(false)
@@ -281,6 +337,7 @@ const CommunityDetail = ({
     fetchCommunityDetails()
     return () => { cancelled = true }
   }, [communityId])
+
 
   // Posts/Snaps loader. `tab` toggles which sort to use:
   //   posts → respects the user-picked sort tab.
@@ -565,7 +622,30 @@ const CommunityDetail = ({
                   <h1 className="min-w-0 flex-1 truncate text-base font-bold text-[var(--hrk-text-primary)] sm:text-xl">
                     {community?.title || communityId}
                   </h1>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {currentUser && onToggleSubscribe && (
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleSubscribe()}
+                        disabled={subscribePending || isSubscribed === undefined}
+                        title={isSubscribed ? 'Unsubscribe from community' : 'Subscribe to community'}
+                        aria-label={isSubscribed ? 'Unsubscribe' : 'Subscribe'}
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide transition-colors sm:px-3 sm:py-1.5 sm:text-xs ${
+                          isSubscribed
+                            ? 'border border-[var(--hrk-border-default)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)]'
+                            : 'bg-[var(--hrk-brand)] text-white hover:opacity-90'
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                      >
+                        {subscribePending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : isSubscribed ? (
+                          <Users className="h-3.5 w-3.5" />
+                        ) : (
+                          <UserPlus className="h-3.5 w-3.5" />
+                        )}
+                        <span>{isSubscribed ? 'Unsubscribe' : 'Subscribe'}</span>
+                      </button>
+                    )}
                     <button
                       onClick={onShare || handleShare}
                       title="Share"
