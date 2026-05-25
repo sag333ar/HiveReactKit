@@ -10,14 +10,16 @@ import {
   MoreVertical,
   ArrowUp,
   ArrowDown,
+  ArrowRight,
   Search,
   DollarSign,
   User,
   ChevronDown,
   Check,
   X,
+  Send,
 } from "lucide-react";
-import { activityListService } from "@/services/activityListService";
+import { activityListService, buildOperationFilterMask } from "@/services/activityListService";
 import {
   ActivityListItem,
   DirectionFilter,
@@ -211,7 +213,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
   username,
   directionFilter = 'all',
   operationFilter = 'all',
-  limit = 1000,
+  limit = 20,
   className,
   onClickPermlink,
   onSelectActivity,
@@ -228,34 +230,46 @@ const ActivityList: React.FC<ActivityListProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastIndex, setLastIndex] = useState<number>(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+  const lastIndexRef = useRef<number>(-1);
+  const hasMoreRef = useRef<boolean>(true);
+  const isLoadingRef = useRef<boolean>(false);
 
-  const loadActivities = async (loadMore = false) => {
+  const loadActivities = useCallback(async (loadMore = false) => {
     if (!username) return;
+    if (isLoadingRef.current) return;
 
+    isLoadingRef.current = true;
     if (loadMore) {
       setLoadingMore(true);
     } else {
       setLoading(true);
+      hasMoreRef.current = true;
+      lastIndexRef.current = -1;
       setHasMore(true);
       setLastIndex(-1);
     }
     setError(null);
 
     try {
-      let historyItems: any[];
+      const mask = buildOperationFilterMask(localOperationFilter);
+      const historyItems = loadMore
+        ? await activityListService.getNextAccountHistoryPage(
+            username,
+            lastIndexRef.current,
+            limit,
+            mask?.low,
+            mask?.high,
+          )
+        : await activityListService.getAccountHistory(
+            username,
+            -1,
+            limit,
+            mask?.low,
+            mask?.high,
+          );
 
-      if (loadMore) {
-        // Use the new pagination method for loading more
-        historyItems = await activityListService.getNextAccountHistoryPage(username, lastIndex, limit);
-      } else {
-        // First load - get most recent activities
-        historyItems = await activityListService.getAccountHistory(username, -1, limit);
-      }
-
-      // Convert to activity list items
       const activityItems = activityListService.convertToActivityListItems(historyItems, username);
-
-      // Sort by timestamp (most recent first)
       activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       if (loadMore) {
@@ -264,37 +278,88 @@ const ActivityList: React.FC<ActivityListProps> = ({
         setActivities(activityItems);
       }
 
-      // Update lastIndex for pagination - use the lowest index for next page
       if (historyItems.length > 0) {
         const lowestIndex = Math.min(...historyItems.map(item => item.index));
+        lastIndexRef.current = lowestIndex;
         setLastIndex(lowestIndex);
       }
 
-      // Check if we have more data - only set hasMore to false if we got 0 items
-      // This ensures we can load multiple pages until we actually run out of data
-      if (activityItems.length === 0) {
+      // No more pages when the API returns an empty batch, or when the lowest
+      // index reaches the start of the account history (0).
+      if (historyItems.length === 0 || lastIndexRef.current <= 0) {
+        hasMoreRef.current = false;
         setHasMore(false);
       }
     } catch (err) {
       setError("Failed to load activity history");
       console.error("Error loading activities:", err);
+      hasMoreRef.current = false;
       setHasMore(false);
     } finally {
+      isLoadingRef.current = false;
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [username, limit, localOperationFilter]);
 
   useEffect(() => {
     loadActivities();
-  }, [username, limit]);
+  }, [loadActivities]);
 
-  // Load more activities function for button click
   const loadMoreActivities = useCallback(() => {
-    if (hasMore && !loading && !loadingMore) {
+    if (hasMoreRef.current && !isLoadingRef.current) {
       loadActivities(true);
     }
-  }, [hasMore, loading, loadingMore]);
+  }, [loadActivities]);
+
+  // Infinite scroll: trigger the next page when the sentinel enters the viewport.
+  // The scrolling element may be a tab/panel ancestor (not window), so detect
+  // the nearest scrollable parent and use it as the observer root. A
+  // window-scroll fallback covers the simple "page scrolls" case.
+  useEffect(() => {
+    const node = loadMoreSentinelRef.current;
+    if (!node) return;
+
+    const findScrollableAncestor = (start: HTMLElement | null): HTMLElement | null => {
+      let el: HTMLElement | null = start?.parentElement || null;
+      while (el && el !== document.body && el !== document.documentElement) {
+        const { overflowY } = window.getComputedStyle(el);
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+          return el;
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const root = findScrollableAncestor(node);
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          loadMoreActivities();
+        }
+      },
+      { root, rootMargin: '300px 0px' },
+    );
+    observer.observe(node);
+
+    const checkNearBottom = () => {
+      const scroller = root ?? document.scrollingElement ?? document.documentElement;
+      const scrollTop = root ? (root as HTMLElement).scrollTop : window.scrollY;
+      const viewport = root ? (root as HTMLElement).clientHeight : window.innerHeight;
+      const total = scroller.scrollHeight;
+      if (total - (scrollTop + viewport) < 300) {
+        loadMoreActivities();
+      }
+    };
+    const scrollTarget: EventTarget = root ?? window;
+    scrollTarget.addEventListener('scroll', checkNearBottom, { passive: true } as AddEventListenerOptions);
+
+    return () => {
+      observer.disconnect();
+      scrollTarget.removeEventListener('scroll', checkNearBottom);
+    };
+  }, [loadMoreActivities, hasMore]);
 
   useEffect(() => {
     let filtered = activities;
@@ -339,6 +404,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
         return <DollarSign className="h-4 w-4" />;
       case 'comment_benefactor_reward':
         return <User className="h-4 w-4" />;
+      case 'transfer':
+        return <Send className="h-4 w-4" />;
       default:
         return <Eye className="h-4 w-4" />;
     }
@@ -675,17 +742,18 @@ const ActivityList: React.FC<ActivityListProps> = ({
 
       {/* Activity List */}
       <div className="space-y-4">
-        {filteredActivities.length === 0 ? (
-          <div className="flex items-center justify-center min-h-[200px]">
+        {filteredActivities.length === 0 && (
+          <div className="flex items-center justify-center min-h-[120px]">
             <p className="text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
               {activities.length === 0
                 ? "No activities found for this user."
-                : "No activities match the current filters."
-              }
+                : hasMore
+                  ? "No matches in the loaded batch — fetching more…"
+                  : "No activities match the current filters."}
             </p>
           </div>
-        ) : (
-          <>
+        )}
+        <>
             {filteredActivities.map((activity, index) => (
               <div
                 key={`${activity.id}-${index}`}
@@ -695,54 +763,75 @@ const ActivityList: React.FC<ActivityListProps> = ({
                 }}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {activity.type === 'vote' && activity.voter ? (
-                    <img
-                      src={`https://images.hive.blog/u/${activity.voter}/avatar`}
-                      alt={activity.voter}
-                      className="w-8 h-8 rounded-full flex-shrink-0"
-                      onError={(e) => {
-                        // Fallback to icon if avatar fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const fallback = target.nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }}
-                    />
-                  ) : activity.type === 'comment_benefactor_reward' && activity.author ? (
-                    <img
-                      src={`https://images.hive.blog/u/${activity.author}/avatar`}
-                      alt={activity.author}
-                      className="w-8 h-8 rounded-full flex-shrink-0"
-                      onError={(e) => {
-                        // Fallback to icon if avatar fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const fallback = target.nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }}
-                    />
-                  ) : activity.type === 'comment' && activity.author ? (
-                    <img
-                      src={`https://images.hive.blog/u/${activity.author}/avatar`}
-                      alt={activity.author}
-                      className="w-8 h-8 rounded-full flex-shrink-0"
-                      onError={(e) => {
-                        // Fallback to icon if avatar fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const fallback = target.nextElementSibling as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
+                  {(() => {
+                    // Lead avatar: counterparty for transfer, voter/author for others.
+                    const transferCounterparty =
+                      activity.type === 'transfer'
+                        ? activity.direction === 'in'
+                          ? activity.from
+                          : activity.to
+                        : undefined;
+                    const leadAvatarUser =
+                      transferCounterparty ||
+                      (activity.type === 'vote' ? activity.voter : undefined) ||
+                      ((activity.type === 'comment_benefactor_reward' || activity.type === 'comment')
+                        ? activity.author
+                        : undefined);
+
+                    if (leadAvatarUser) {
+                      return (
+                        <img
+                          src={`https://images.hive.blog/u/${leadAvatarUser}/avatar`}
+                          alt={leadAvatarUser}
+                          className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-gray-200 dark:ring-[var(--hrk-border-subtle)]"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
                   <div
-                    className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${(activity.type === 'vote' && activity.voter) || (activity.type === 'comment_benefactor_reward' && activity.author) || (activity.type === 'comment' && activity.author) ? 'hidden' : ''
-                      }`}
+                    className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      (activity.type === 'transfer' && (activity.from || activity.to)) ||
+                      (activity.type === 'vote' && activity.voter) ||
+                      (activity.type === 'comment_benefactor_reward' && activity.author) ||
+                      (activity.type === 'comment' && activity.author)
+                        ? 'hidden'
+                        : ''
+                    }`}
                   >
                     {getActivityIcon(activity)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    {activity.type === 'custom_json' || activity.type === 'comment_options' ? (
+                    {activity.type === 'transfer' ? (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <span
+                            className="font-medium text-blue-600 dark:text-blue-400 truncate"
+                            title={activity.from}
+                          >
+                            @{activity.from}
+                          </span>
+                          <ArrowRight className="h-3 w-3 shrink-0 text-[var(--hrk-text-tertiary)]" />
+                          <span
+                            className="font-medium text-blue-600 dark:text-blue-400 truncate"
+                            title={activity.to}
+                          >
+                            @{activity.to}
+                          </span>
+                        </div>
+                        {activity.memo && (
+                          <p className="mt-1 break-words text-xs italic text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
+                            “{activity.memo}”
+                          </p>
+                        )}
+                      </div>
+                    ) : activity.type === 'custom_json' || activity.type === 'comment_options' ? (
                       <div>
                         <p className="text-sm text-[var(--hrk-text-primary)] dark:text-white break-words font-medium">
                           {renderDescription(activity.description, activity)}
@@ -800,35 +889,49 @@ const ActivityList: React.FC<ActivityListProps> = ({
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] flex-shrink-0 ml-4 hidden sm:flex">
-                  {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
-                    <>
+                {activity.type === 'transfer' ? (
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-4">
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        activity.direction === 'in'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                      }`}
+                    >
+                      {activity.direction === 'in' ? '+' : '−'} {activity.amount}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
                       <Clock className="h-3 w-3 flex-shrink-0" />
                       <span className="truncate">
                         {activityListService.getRelativeTime(activity.timestamp + 'Z')}
                       </span>
-                    </>
-                  )}
-                </div>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] flex-shrink-0 ml-4 hidden sm:flex">
+                    {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
+                      <>
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">
+                          {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 
-            {hasMore && activities.length > 0 && (
-              <div className="flex justify-center py-6">
-                <button
-                  onClick={loadMoreActivities}
-                  disabled={loading || loadingMore}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {loadingMore ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    'Load More Activities'
-                  )}
-                </button>
+            {hasMore && (
+              <div ref={loadMoreSentinelRef} aria-hidden className="h-px w-full" />
+            )}
+
+            {hasMore && loadingMore && (
+              <div className="flex justify-center py-4 text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
+                <span className="inline-flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Loading more…
+                </span>
               </div>
             )}
 
@@ -838,7 +941,6 @@ const ActivityList: React.FC<ActivityListProps> = ({
               </div>
             )}
           </>
-        )}
       </div>
     </div>
   );

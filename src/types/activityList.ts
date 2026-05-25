@@ -24,7 +24,7 @@ export interface AccountHistoryResponse {
 // Activity List Types
 export interface ActivityListItem {
   id: string;
-  type: 'vote' | 'comment' | 'custom_json' | 'comment_options' | 'effective_comment_vote' | 'curation_reward' | 'author_reward' | 'comment_benefactor_reward' | 'other';
+  type: 'vote' | 'comment' | 'custom_json' | 'comment_options' | 'effective_comment_vote' | 'curation_reward' | 'author_reward' | 'comment_benefactor_reward' | 'transfer' | 'other';
   op?: string;
   direction: 'in' | 'out';
   timestamp: string;
@@ -46,6 +46,11 @@ export interface ActivityListItem {
   benefactor?: string;
   parent_author?: string;
   parent_permlink?: string;
+  // Transfer-specific fields (transfer, transfer_to_savings, transfer_from_savings, recurrent_transfer)
+  from?: string;
+  to?: string;
+  amount?: string;
+  memo?: string;
 }
 
 // Filter types
