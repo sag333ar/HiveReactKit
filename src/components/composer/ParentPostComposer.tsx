@@ -1454,12 +1454,22 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
         }),
       );
+      // Draft is now persisted on the consumer side — the in-memory
+      // composer state + the localStorage auto-save cache for the same
+      // post are now stale, so clear both before tearing the composer
+      // down. Without the localStorage clear, the next time the user
+      // opens the composer it would hydrate with the same content and
+      // they'd appear to "lose" their just-saved draft to a duplicate.
+      clearDraftAndReset();
+      // Dismiss the composer so the user lands back where they came
+      // from. `onCancel` is the same handler the back button calls.
+      onCancel?.();
     } catch (err) {
       console.error('[ParentPostComposer] save draft error:', err);
     } finally {
       setIsSavingDraft(false);
     }
-  }, [onSaveDraft, isSavingDraft, title, description, body, mergedTags, beneficiaries, lockedBeneficiaries]);
+  }, [onSaveDraft, isSavingDraft, title, description, body, mergedTags, beneficiaries, lockedBeneficiaries, clearDraftAndReset, onCancel]);
 
   const handleSavePostTemplate = useCallback(
     async (name: string, payload: PostTemplatePayload) => {
