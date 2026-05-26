@@ -1108,7 +1108,7 @@ export function HiveDetailPost({
     return (
       <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] animate-pulse" style={bgStyle}>
         {/* Header skeleton */}
-        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
+        <div className="sticky top-0 z-30 h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {onBack && <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-lg flex-shrink-0" />}
             <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-full flex-shrink-0" />
@@ -1228,7 +1228,7 @@ export function HiveDetailPost({
       <div className="flex flex-col overflow-y-auto h-full">
 
         {/* ── Compact Header: Back + Avatar + Name + Stats (same pattern as UserDetailProfile) ── */}
-        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
+        <div className="sticky top-0 z-30 h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center" style={headerBgStyle}>
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {/* Back */}
             {onBack && (

@@ -1285,7 +1285,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return (
       <div className="dark h-full overflow-y-auto animate-pulse bg-[var(--hrk-bg-app)]">
         {/* Header skeleton */}
-        <div className="sticky top-0 z-30 bg-[var(--hrk-bg-app)] border-b border-[var(--hrk-border-subtle)] px-4 py-3 flex items-center gap-3">
+        <div className="sticky top-0 z-30 bg-[var(--hrk-bg-app)] border-b border-[var(--hrk-border-subtle)] px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] flex items-center gap-3">
           {showBackButton && <div className="w-8 h-8 bg-[var(--hrk-bg-surface-raised)] rounded-full" />}
           <div className="w-9 h-9 bg-[var(--hrk-bg-surface-raised)] rounded-full" />
           <div className="flex-1 min-w-0">
@@ -2495,7 +2495,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       <div ref={mainScrollRef} className="flex flex-col overflow-y-auto h-full scrollbar-hide">
 
         {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
-        <div className="sticky top-0 z-30 h-[56px] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center">
+        <div className="sticky top-0 z-30 h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center">
           <div className="px-4 py-2 flex items-center gap-2 w-full">
             {/* Back */}
             {showBackButton && onBack && (
@@ -2804,7 +2804,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* ── Tab bar — sticks below header on scroll ── */}
-        <div className="sticky top-[56px] z-20 bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] relative flex items-center">
+        <div className="sticky top-[calc(56px+env(safe-area-inset-top))] z-20 bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] relative flex items-center">
           <button
             onClick={() => scrollTabs("left")}
             className={`absolute left-0 z-10 h-full px-2 bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] flex items-center shadow-md transition-all ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
