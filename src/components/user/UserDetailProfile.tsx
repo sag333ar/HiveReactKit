@@ -33,6 +33,7 @@ import {
   Heart,
   UserPlus,
   UserMinus,
+  Bookmark,
   VolumeX,
   Volume2,
   Key,
@@ -125,6 +126,20 @@ export interface UserDetailProfileProps {
   onReblog?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
+  /** Per-row bookmark toggle on every Blogs / Posts / Comments / Replies
+   *  card. Consumer decides add vs remove based on `isPostBookmarked`. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Read function — controls the filled vs outline bookmark icon per
+   *  row inside the content tabs. Typically backed by the consumer's
+   *  bookmark store. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean;
+  /** Header-level toggle — bookmark the *viewed user themselves*
+   *  (backend category `user`). Renders a Bookmark icon button next
+   *  to the Follow toggle. Omit to hide the entry. */
+  onToggleUserBookmark?: (username: string) => void;
+  /** Read flag — controls the filled vs outline state of the
+   *  user-header bookmark button. */
+  isUserBookmarked?: boolean;
   /** Author-only — when the viewed profile is `currentUsername`,
    *  each post card on the Blogs / Posts / Comments / Replies tabs
    *  gets a red Delete entry in the kebab. Consumer owns the
@@ -410,6 +425,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onReblog,
   onTip,
   onReportPost,
+  onToggleBookmark,
+  isPostBookmarked,
+  onToggleUserBookmark,
+  isUserBookmarked = false,
   onDeletePost,
   onEditPost,
   onUpdateRcDelegation,
@@ -1610,6 +1629,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
             onTip={item.author !== currentUsername && onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={item.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
+            onToggleBookmark={
+              onToggleBookmark ? () => onToggleBookmark(item.author, item.permlink) : undefined
+            }
+            isBookmarked={
+              isPostBookmarked ? isPostBookmarked(item.author, item.permlink) : false
+            }
             onDelete={item.author === currentUsername && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
             onEdit={item.author === currentUsername && onEditPost ? () => onEditPost({
               author: item.author,
@@ -2570,6 +2595,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         <span className="flex items-center gap-2">
                           {profile.isFollowing ? <UserMinus className="h-4 w-4 text-red-400" /> : <UserPlus className="h-4 w-4 text-green-400" />}
                           {profile.isFollowing ? t("action.unfollow") : t("action.follow")}
+                        </span>
+                      </button>
+                    )}
+                    {onToggleUserBookmark && (
+                      <button
+                        onClick={() => {
+                          setShowActionDropdown(false);
+                          onToggleUserBookmark(targetUsername);
+                        }}
+                        aria-pressed={isUserBookmarked}
+                        className="w-full px-4 py-2.5 text-left text-sm text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Bookmark
+                            className={`h-4 w-4 ${
+                              isUserBookmarked
+                                ? 'fill-current text-[var(--hrk-brand)]'
+                                : 'text-[var(--hrk-text-tertiary)]'
+                            }`}
+                          />
+                          {isUserBookmarked ? 'Remove bookmark' : 'Bookmark user'}
                         </span>
                       </button>
                     )}

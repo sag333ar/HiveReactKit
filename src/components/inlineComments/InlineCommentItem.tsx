@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
 import { Discussion } from '@/types/comment';
@@ -41,6 +42,13 @@ interface InlineCommentItemProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Toggle bookmark on this inline comment. Surfaces inside a small
+   *  3-dot kebab at the end of the action row. Consumer decides add
+   *  vs remove based on `isCommentBookmarked`. */
+  onToggleCommentBookmark?: (author: string, permlink: string) => void;
+  /** Read function — controls the filled vs outline state of the
+   *  bookmark item inside the kebab. */
+  isCommentBookmarked?: (author: string, permlink: string) => boolean;
   /** Called when the author of this comment taps Edit. Each row gates
    *  the entry-point internally to `comment.author === currentUser`. */
   onEditComment?: (data: {
@@ -104,6 +112,8 @@ export default function InlineCommentItem({
   onShareComment,
   onTipComment,
   onReportComment,
+  onToggleCommentBookmark,
+  isCommentBookmarked,
   onEditComment,
   onNavigateToPost,
   onUserClick,
@@ -534,6 +544,22 @@ export default function InlineCommentItem({
                   >
                     <Gift className="w-3.5 h-3.5" />
                   </button>
+                )}
+
+                {onToggleCommentBookmark && (
+                  // Small kebab carrying just the Bookmark item — keeps
+                  // the inline-comment action row visually clean while
+                  // surfacing the toggle in a discoverable spot.
+                  <MoreActionsMenu
+                    onToggleBookmark={() => onToggleCommentBookmark(comment.author, comment.permlink)}
+                    isBookmarked={
+                      isCommentBookmarked
+                        ? isCommentBookmarked(comment.author, comment.permlink)
+                        : false
+                    }
+                    ariaLabel="More comment actions"
+                    buttonClassName="text-gray-400 hover:text-blue-400 transition-colors p-0.5"
+                  />
                 )}
 
                 {hasReplies && (

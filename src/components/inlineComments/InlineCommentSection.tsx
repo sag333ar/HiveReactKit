@@ -59,6 +59,10 @@ interface InlineCommentSectionProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Forwarded to every <InlineCommentItem/> — surfaces a small 3-dot
+   *  kebab with a Bookmark item on each comment row. */
+  onToggleCommentBookmark?: (author: string, permlink: string) => void;
+  isCommentBookmarked?: (author: string, permlink: string) => boolean;
   /** Called when the comment author taps Edit on one of their own
    *  comments. Each comment row gates the entry-point internally to
    *  `comment.author === currentUser`. Payload mirrors HiveDetailPost
@@ -95,6 +99,8 @@ export default function InlineCommentSection({
   onShareComment,
   onTipComment,
   onReportComment,
+  onToggleCommentBookmark,
+  isCommentBookmarked,
   onEditComment,
   onNavigateToPost,
   onUserClick,
@@ -395,6 +401,8 @@ export default function InlineCommentSection({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onToggleCommentBookmark={onToggleCommentBookmark}
+              isCommentBookmarked={isCommentBookmarked}
               onEditComment={onEditComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}

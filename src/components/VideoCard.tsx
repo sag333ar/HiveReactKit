@@ -7,12 +7,20 @@ import { formatThumbnailUrl } from "@/utils/thumbnail";
 import { RewardsModal } from "@/components/RewardsModal";
 import type { RewardsModalPayoutDetails } from "@/components/RewardsModal";
 import { getHiveClient } from "@/config/hiveEndpoint";
+import { MoreActionsMenu } from "./actionButtons/MoreActionsMenu";
 
 interface VideoCardProps {
   video: VideoFeedItem;
   onVideoClick: (video: VideoFeedItem) => void;
   onAuthorClick: (author: string) => void;
   isGrid?: boolean;
+  /** Toggle bookmark on the video. Surfaces a small 3-dot kebab on
+   *  the card with a Bookmark item. Consumer decides add vs remove
+   *  based on `isBookmarked`. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Read flag — controls filled vs outline state of the Bookmark
+   *  item inside the kebab. */
+  isBookmarked?: boolean;
 }
 
 const VideoCard = ({
@@ -20,6 +28,8 @@ const VideoCard = ({
   onVideoClick,
   onAuthorClick,
   isGrid = false,
+  onToggleBookmark,
+  isBookmarked = false,
 }: VideoCardProps) => {
   const [stats, setStats] = useState({
     numOfUpvotes: video.numOfUpvotes,
@@ -191,10 +201,25 @@ const VideoCard = ({
             </span>
           </div>
 
-          {/* Created At */}
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(video.created, { addSuffix: true })}
-          </span>
+          <div className="flex items-center gap-1">
+            {/* Created At */}
+            <span className="text-xs text-muted-foreground">
+              {formatDistanceToNow(video.created, { addSuffix: true })}
+            </span>
+
+            {/* 3-dot kebab — bookmark toggle. Stop propagation so
+                opening the menu doesn't also fire the video click. */}
+            {onToggleBookmark && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <MoreActionsMenu
+                  onToggleBookmark={() => onToggleBookmark(video.author, video.permlink)}
+                  isBookmarked={isBookmarked}
+                  ariaLabel="More video actions"
+                  buttonClassName="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Stats */}

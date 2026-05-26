@@ -87,6 +87,14 @@ export interface SnapsFeedViewProps {
   /** Comment-count click (per card) — typical use: open post detail. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Forwarded to every <SnapsFeedCard/> — Bookmark entry on the
+   *  action-bar kebab. Consumer decides add vs remove based on
+   *  `isPostBookmarked`. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Forwarded to every <SnapsFeedCard/> — controls the filled vs
+   *  outline bookmark icon per snap. Typically backed by a Zustand
+   *  store like hivesuite's `useBookmarkStore`. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean;
   /** Forwarded to every <SnapsFeedCard/> — Delete entry on the
    *  action-bar kebab, gated to the snap's author. Consumer owns
    *  the confirm dialog + broadcast. */
@@ -230,6 +238,8 @@ export function SnapsFeedView({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onToggleBookmark,
+  isPostBookmarked,
   onDeletePost,
   onEditSnap,
   onVotePoll,
@@ -342,6 +352,8 @@ export function SnapsFeedView({
     onClickCommentIcon,
     onClickCommentCount,
     onReportPost,
+    onToggleBookmark,
+    isPostBookmarked,
     onDeletePost,
     onEditSnap,
     onVotePoll,

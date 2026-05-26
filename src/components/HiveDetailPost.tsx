@@ -173,6 +173,12 @@ export interface HiveDetailPostProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  /** Bookmark toggle on each inline comment — surfaces a small 3-dot
+   *  kebab with a Bookmark item at the end of every comment's action
+   *  row. Consumer decides add vs remove based on
+   *  `isCommentBookmarked`. */
+  onToggleCommentBookmark?: (author: string, permlink: string) => void;
+  isCommentBookmarked?: (author: string, permlink: string) => boolean;
   /** Called when the comment author taps Edit on their own comment. Only
    *  rendered as an action on comments whose author matches `currentUser`.
    *  Includes the original body, parent refs, and json_metadata so the
@@ -238,10 +244,19 @@ export interface HiveDetailPostProps {
   /** Called when the user taps Bookmark in the header kebab.
    *  Consumer decides whether to add or remove based on
    *  `isBookmarked`. The `meta` payload carries the post's
-   *  `title` and a `body` excerpt — useful for bookmark-storage
-   *  backends that require a non-empty body (e.g. hreplier's
-   *  `/data/v2/bookmarks` rejects empty `body`). */
-  onToggleBookmark?: (meta: { title: string; body: string }) => void;
+   *  `title`, a `body` excerpt (useful for storage backends that
+   *  require a non-empty body, e.g. hreplier's `/data/v2/bookmarks`),
+   *  and the parent / depth / json_metadata fields so the consumer
+   *  can route the bookmark to the right category (snap / comment /
+   *  video / post) without re-fetching the post. */
+  onToggleBookmark?: (meta: {
+    title: string;
+    body: string;
+    parent_author?: string;
+    parent_permlink?: string;
+    depth?: number;
+    json_metadata?: string;
+  }) => void;
   /** Called when the user taps Share in the header kebab. When
    *  omitted, falls back to `onShare`. */
   onHeaderShare?: () => void;
@@ -332,6 +347,8 @@ export function HiveDetailPost({
   onShareComment,
   onTipComment,
   onReportComment,
+  onToggleCommentBookmark,
+  isCommentBookmarked,
   onEditComment,
   ecencyToken,
   threeSpeakApiKey,
@@ -1329,6 +1346,15 @@ export function HiveDetailPost({
                       // — the consumer can show a richer preview
                       // by re-fetching the full body if needed.
                       body: (post.body || '').slice(0, 500),
+                      parent_author: post.parent_author,
+                      parent_permlink: post.parent_permlink,
+                      depth: (post as { depth?: number }).depth,
+                      json_metadata:
+                        typeof post.json_metadata === 'string'
+                          ? post.json_metadata
+                          : post.json_metadata
+                            ? JSON.stringify(post.json_metadata)
+                            : undefined,
                     })
                   : undefined
               }
@@ -1765,6 +1791,8 @@ export function HiveDetailPost({
                 onShareComment={onShareComment}
                 onTipComment={onTipComment}
                 onReportComment={onReportComment}
+                onToggleCommentBookmark={onToggleCommentBookmark}
+                isCommentBookmarked={isCommentBookmarked}
                 onEditComment={onEditComment}
                 onNavigateToPost={onNavigateToPost}
                 onUserClick={onUserClick}

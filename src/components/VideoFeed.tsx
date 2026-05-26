@@ -13,6 +13,12 @@ interface VideoFeedProps {
   tag?: string;
   onVideoClick: (video: VideoFeedItem) => void;
   onAuthorClick: (author: string) => void;
+  /** Per-card bookmark toggle. Surfaces a small 3-dot kebab on each
+   *  video card with a Bookmark item. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Read function — controls the filled vs outline state of the
+   *  Bookmark item per card. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean;
 }
 
 const feedCache = new Map<string, VideoFeedItem[]>();
@@ -24,6 +30,8 @@ const VideoFeed = ({
   tag,
   onVideoClick,
   onAuthorClick,
+  onToggleBookmark,
+  isPostBookmarked,
 }: VideoFeedProps) => {
   const [videos, setVideos] = useState<VideoFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -331,6 +339,10 @@ const VideoFeed = ({
             onVideoClick={onVideoClick}
             onAuthorClick={onAuthorClick}
             isGrid
+            onToggleBookmark={onToggleBookmark}
+            isBookmarked={
+              isPostBookmarked ? isPostBookmarked(video.author, video.permlink) : false
+            }
           />
         ))}
       </div>

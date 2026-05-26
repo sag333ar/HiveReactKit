@@ -21,6 +21,7 @@ import {
   Loader2,
   RefreshCw,
   Rss,
+  Bookmark,
   Share2,
   Users,
   Info,
@@ -63,6 +64,19 @@ export interface CommunityDetailProps {
   onTip?: (author: string, permlink: string) => void
   onSharePost?: (author: string, permlink: string) => void
   onReportPost?: (author: string, permlink: string) => void
+  /** Per-row bookmark toggle on every BlogPostList card. Consumer
+   *  decides add vs remove based on `isPostBookmarked`. */
+  onToggleBookmark?: (author: string, permlink: string) => void
+  /** Read function — controls the filled vs outline bookmark icon
+   *  per row in the embedded BlogPostList. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean
+  /** Toggle the *community itself* (backend category `community`).
+   *  Renders a Bookmark icon button next to the community header
+   *  actions. Omit to hide the entry. */
+  onToggleCommunityBookmark?: (communityId: string) => void
+  /** Read flag — controls the filled vs outline state of the
+   *  community-header bookmark button. */
+  isCommunityBookmarked?: boolean
   /** Author-only — forwarded into the embedded <BlogPostList/> so the
    *  card kebab gets a red Delete entry when `currentUser === author`. */
   onDeletePost?: (author: string, permlink: string) => void
@@ -214,6 +228,10 @@ const CommunityDetail = ({
   onTip,
   onSharePost,
   onReportPost,
+  onToggleBookmark,
+  isPostBookmarked,
+  onToggleCommunityBookmark,
+  isCommunityBookmarked = false,
   onDeletePost,
   ecencyToken,
   threeSpeakApiKey,
@@ -461,6 +479,8 @@ const CommunityDetail = ({
       onTip,
       onSharePost,
       onReportPost,
+      onToggleBookmark,
+      isPostBookmarked,
       onDeletePost,
       onUserClick,
       onPostClick,
@@ -486,6 +506,8 @@ const CommunityDetail = ({
       onTip,
       onSharePost,
       onReportPost,
+      onToggleBookmark,
+      isPostBookmarked,
       onDeletePost,
       onUserClick,
       onPostClick,
@@ -644,6 +666,21 @@ const CommunityDetail = ({
                           <UserPlus className="h-3.5 w-3.5" />
                         )}
                         <span>{isSubscribed ? 'Unsubscribe' : 'Subscribe'}</span>
+                      </button>
+                    )}
+                    {onToggleCommunityBookmark && (
+                      <button
+                        onClick={() => onToggleCommunityBookmark(communityId)}
+                        title={isCommunityBookmarked ? 'Remove community bookmark' : 'Bookmark community'}
+                        aria-label={isCommunityBookmarked ? 'Remove community bookmark' : 'Bookmark community'}
+                        aria-pressed={isCommunityBookmarked}
+                        className="rounded-md border border-[var(--hrk-border-default)] p-1.5 text-[var(--hrk-text-tertiary)] transition-colors hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)] sm:p-2"
+                      >
+                        <Bookmark
+                          className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+                            isCommunityBookmarked ? 'fill-current text-[var(--hrk-brand)]' : ''
+                          }`}
+                        />
                       </button>
                     )}
                     <button

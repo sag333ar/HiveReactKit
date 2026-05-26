@@ -104,6 +104,14 @@ export interface PostActionButtonProps {
   onTip?: () => void;
   /** Called when report is clicked (when logged in). */
   onReport?: () => void;
+  /** Called when the user toggles the bookmark item inside the kebab.
+   *  The kit doesn't fetch bookmark state itself — pass `isBookmarked`
+   *  from the consumer's store and decide inside the handler whether
+   *  to add or remove. Surfaces wherever the kebab does (inline kebab
+   *  on the bar, or the owner kebab when `actionsAsMenu` is off). */
+  onToggleBookmark?: () => void;
+  /** Current bookmark state — controls the filled vs outline icon. */
+  isBookmarked?: boolean;
   /** Called when delete is clicked. Pass only when the current user
    *  is the post's author — the kit renders the Delete entry-point
    *  iff this handler is provided. Lives inside the kebab popover
@@ -181,6 +189,8 @@ export function PostActionButton({
   onShare,
   onTip,
   onReport,
+  onToggleBookmark,
+  isBookmarked = false,
   onDelete,
   onClickCommentUpvote,
   ecencyToken,
@@ -684,6 +694,8 @@ export function PostActionButton({
           onShare={handleShareClick}
           onTip={onTip ? handleTipClick : undefined}
           onReport={onReport ? handleReportClick : undefined}
+          onToggleBookmark={onToggleBookmark}
+          isBookmarked={isBookmarked}
           onDelete={onDelete}
         />
       ) : (
@@ -747,13 +759,17 @@ export function PostActionButton({
           )}
 
           {/* Owner kebab — small 3-dot menu containing the Edit and
-              Delete actions for the author. Rendered alongside the
-              inline icons when `actionsAsMenu` is off (snap cards
-              already collapse both into their combined kebab via
-              the props on MoreActionsMenu above). */}
-          {(onEdit || onDelete) && (
+              Delete actions for the author. Bookmark also rides here
+              so users have access to it even when the surface uses
+              the inline-icon layout (blog/profile rows). Rendered
+              alongside the inline icons when `actionsAsMenu` is off
+              (snap cards already collapse everything into their
+              combined kebab via the props on MoreActionsMenu above). */}
+          {(onEdit || onDelete || onToggleBookmark) && (
             <MoreActionsMenu
               onEdit={onEdit}
+              onToggleBookmark={onToggleBookmark}
+              isBookmarked={isBookmarked}
               onDelete={onDelete}
               ariaLabel="More post actions"
             />

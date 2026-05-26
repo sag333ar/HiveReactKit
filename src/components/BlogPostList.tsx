@@ -49,6 +49,13 @@ export interface BlogPostListProps {
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Per-row bookmark toggle. Forwarded to each PostActionButton's
+   *  kebab. Consumer decides add vs remove based on
+   *  `isPostBookmarked`. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Read function — controls the filled vs outline bookmark icon
+   *  per row. Typically backed by the consumer's bookmark store. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean;
   /** Author-only — when the consumer's current user is `post.author`,
    *  PostActionButton's kebab gets a red "Delete" entry that calls
    *  this handler. The kit does no ownership check; the consumer
@@ -317,6 +324,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onSharePost,
   onCommentClick,
   onReportPost,
+  onToggleBookmark,
+  isPostBookmarked,
   onDeletePost,
   onUserClick,
   onPostClick,
@@ -521,6 +530,12 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 onReblog={item.author !== currentUser && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
                 onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
                 onTip={item.author !== currentUser && onTip ? () => onTip(item.author, item.permlink) : undefined}
+                onToggleBookmark={
+                  onToggleBookmark ? () => onToggleBookmark(item.author, item.permlink) : undefined
+                }
+                isBookmarked={
+                  isPostBookmarked ? isPostBookmarked(item.author, item.permlink) : false
+                }
                 onReport={item.author !== currentUser && onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
                 onDelete={item.author === currentUser && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
                 disableCommentsModal={!!onCommentClick}

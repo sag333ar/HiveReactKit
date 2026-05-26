@@ -76,6 +76,15 @@ export interface SnapsFeedCardProps {
    *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
   onClickCommentCount?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
+  /** Called when the user toggles the bookmark item inside the snap's
+   *  kebab. Consumer decides whether to add or remove based on
+   *  `isPostBookmarked` below. Omit to hide the bookmark item entirely. */
+  onToggleBookmark?: (author: string, permlink: string) => void;
+  /** Pure read function called per render with the snap's author +
+   *  permlink. Return `true` when the current user has this snap
+   *  bookmarked so the kebab item shows filled state. Pulled from the
+   *  consumer's bookmark store. */
+  isPostBookmarked?: (author: string, permlink: string) => boolean;
   /** Called when the snap's author taps Delete on the action-bar
    *  kebab. The kit only renders the entry-point when `currentUser`
    *  matches `post.author`. Consumer is responsible for the confirm
@@ -1300,6 +1309,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onClickCommentIcon,
   onClickCommentCount,
   onReportPost,
+  onToggleBookmark,
+  isPostBookmarked,
   onDeletePost,
   onEditSnap,
   onVotePoll,
@@ -1708,6 +1719,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}
+          onToggleBookmark={
+            onToggleBookmark ? () => onToggleBookmark(post.author, post.permlink) : undefined
+          }
+          isBookmarked={isPostBookmarked ? isPostBookmarked(post.author, post.permlink) : false}
           onDelete={onDeletePost && currentUser && post.author === currentUser ? () => onDeletePost(post.author, post.permlink) : undefined}
           onEdit={onEditSnap && currentUser && post.author === currentUser
             ? () => onEditSnap({

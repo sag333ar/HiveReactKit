@@ -16,7 +16,17 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Repeat2, Repeat, Share2, Gift, Flag, Pencil, Trash2 } from 'lucide-react';
+import {
+  Bookmark,
+  Flag,
+  Gift,
+  MoreVertical,
+  Pencil,
+  Repeat,
+  Repeat2,
+  Share2,
+  Trash2,
+} from 'lucide-react';
 
 export interface MoreActionsMenuProps {
   /** Show the Edit item (rendered first, gated by the caller to the
@@ -34,6 +44,11 @@ export interface MoreActionsMenuProps {
   onTip?: () => void;
   /** Show the Flag item. */
   onReport?: () => void;
+  /** Show the Bookmark item. The icon fills when `isBookmarked` is true
+   *  so the user can see at a glance whether this post is saved.
+   *  Consumer decides whether to add or remove based on `isBookmarked`. */
+  onToggleBookmark?: () => void;
+  isBookmarked?: boolean;
   /** Show the Delete item (rendered last, in red, gated by the caller
    *  to the author themselves — the kit does no ownership check). */
   onDelete?: () => void;
@@ -54,6 +69,8 @@ export function MoreActionsMenu({
   onShare,
   onTip,
   onReport,
+  onToggleBookmark,
+  isBookmarked = false,
   onDelete,
   buttonClassName,
   ariaLabel = 'More actions',
@@ -117,7 +134,17 @@ export function MoreActionsMenu({
 
   // No registered actions → render nothing (mirrors how the inline icons
   // disappear when their callbacks aren't passed).
-  if (!onEdit && !onReblog && !onReSnap && !onShare && !onTip && !onReport && !onDelete) return null;
+  if (
+    !onEdit &&
+    !onReblog &&
+    !onReSnap &&
+    !onShare &&
+    !onTip &&
+    !onReport &&
+    !onToggleBookmark &&
+    !onDelete
+  )
+    return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -193,6 +220,20 @@ export function MoreActionsMenu({
               >
                 <Gift className="h-3.5 w-3.5 text-green-400" />
                 <span>Tip</span>
+              </button>
+            )}
+            {onToggleBookmark && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onToggleBookmark)}
+                aria-pressed={isBookmarked}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Bookmark
+                  className={`h-3.5 w-3.5 ${isBookmarked ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'}`}
+                />
+                <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
               </button>
             )}
             {onReport && (
