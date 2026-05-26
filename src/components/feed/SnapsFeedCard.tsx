@@ -37,6 +37,7 @@ import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer'
 import type { RewardOption } from '../../utils/commentOptions';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 import ReSnapEmbed from './ReSnapEmbed';
+import { IPFS_URL_REGEX, useIpfsKind } from '../IpfsMedia';
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -143,6 +144,7 @@ type BodySegment =
 
 type Attachment =
   | { kind: 'image'; url: string }
+  | { kind: 'ipfs'; url: string }
   | { kind: 'youtube'; id: string }
   | { kind: 'threespeak'; url: string }
   | { kind: 'twitter'; id: string }
@@ -315,6 +317,14 @@ function parseBody(post: Post): ParsedBody {
   // <img> tags inside the body — pull them into the carousel so they're
   // shown once (in the strip) instead of twice (strip + body).
   while ((m = IMG_URL_REGEX.exec(raw))) imageUrls.push(m[0]);
+  // IPFS gateway URLs (no file extension) need a HEAD probe at render
+  // time to decide between <img> and <video>. Collect them separately
+  // and surface them via the 'ipfs' attachment kind. Local regex
+  // instance — IPFS_URL_REGEX is module-level shared, so reusing it
+  // across `.exec` loops in two components could collide on lastIndex.
+  const ipfsUrls: string[] = [];
+  const ipfsReParse = new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags);
+  while ((m = ipfsReParse.exec(raw))) ipfsUrls.push(m[0]);
 
   const youtubeIds: string[] = [];
   while ((m = YOUTUBE_REGEX.exec(raw))) youtubeIds.push((m[1] || m[2] || m[3])!);
@@ -341,6 +351,7 @@ function parseBody(post: Post): ParsedBody {
     // and normalises URL-encoding, so the same image never appears
     // twice in the strip or the popup.
     ...uniqImageUrls(imageUrls).map((url) => ({ kind: 'image' as const, url })),
+    ...uniq(ipfsUrls).map((url) => ({ kind: 'ipfs' as const, url })),
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
     ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
@@ -352,6 +363,7 @@ function parseBody(post: Post): ParsedBody {
   let text = raw;
   text = text.replace(IMG_MD_REGEX, '');
   text = text.replace(IMG_HTML_REGEX, '');
+  text = text.replace(IPFS_URL_REGEX, '');
   text = text.replace(YOUTUBE_REGEX, '');
   text = text.replace(THREE_SPEAK_REGEX, '');
   text = text.replace(THREE_SPEAK_AUDIO_REGEX, '');
@@ -770,6 +782,86 @@ const ZoomableImage: FC<{ src: string }> = ({ src }) => {
   );
 };
 
+/** IPFS strip-tile preview. Probes content-type once via HEAD; renders an
+ *  image thumbnail or a video poster with a play badge based on the result. */
+const IpfsStripTile: FC<{ url: string; onOpen: (e: React.MouseEvent) => void }> = ({
+  url,
+  onOpen,
+}) => {
+  const kind = useIpfsKind(url);
+  if (kind === null) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-[var(--hrk-bg-surface-sunken)]">
+        <div className="h-6 w-6 animate-pulse rounded-full bg-[var(--hrk-bg-hover)]" />
+      </div>
+    );
+  }
+  if (kind === 'video') {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="relative flex h-full w-full items-center justify-center overflow-hidden bg-black"
+        aria-label="Play video"
+      >
+        <video
+          src={url}
+          preload="metadata"
+          muted
+          playsInline
+          className="h-full w-full object-cover opacity-80"
+        />
+        <span className="pointer-events-none absolute flex h-12 w-12 items-center justify-center rounded-full bg-black/70 text-white">
+          <Play className="h-6 w-6" />
+        </span>
+      </button>
+    );
+  }
+  // image or unknown — render as image; unknown falls back to broken-image
+  // which the surrounding errored-set already handles for the regular
+  // image branch, but here we keep it simple and just render an <img>.
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-sunken)]"
+      aria-label="Open image preview"
+    >
+      <img src={url} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+    </button>
+  );
+};
+
+/** IPFS popup body. Same probe; renders the zoomable image for images and a
+ *  full-controls <video autoPlay> for videos. */
+const IpfsPopupBody: FC<{ url: string }> = ({ url }) => {
+  const kind = useIpfsKind(url);
+  if (kind === 'video') {
+    return (
+      <video
+        src={url}
+        controls
+        autoPlay
+        playsInline
+        className="max-h-[80vh] max-w-full"
+      />
+    );
+  }
+  if (kind === 'image' || kind === null) {
+    return <ZoomableImage src={url} />;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm text-[var(--hrk-brand)] underline"
+    >
+      Open in new tab
+    </a>
+  );
+};
+
 const MediaPopup: FC<{
   attachment: Attachment;
   onClose: () => void;
@@ -894,6 +986,10 @@ const MediaPopup: FC<{
             <ZoomableImage src={attachment.url} />
           )}
 
+          {attachment.kind === 'ipfs' && (
+            <IpfsPopupBody url={attachment.url} />
+          )}
+
           {attachment.kind === 'youtube' && (
             <div className="w-full">
               <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
@@ -1014,6 +1110,12 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
   };
 
   const renderTile = () => {
+    if (current.kind === 'ipfs') {
+      // IPFS strip tile: HEAD-probe decides image vs video. Image gets
+      // the same lightbox open behaviour as regular images; video shows
+      // a poster + play badge that opens the controls in the popup.
+      return <IpfsStripTile url={current.url} onOpen={(e) => open(e, current)} />;
+    }
     if (current.kind === 'image') {
       const isErr = errored.has(safeIdx);
       if (isErr) {
@@ -1298,10 +1400,18 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     // don't show the same image / 3Speak / YouTube twice on one card.
     body = body.replace(IMG_MD_REGEX, '');
     body = body.replace(IMG_HTML_REGEX, '');
+    // Drop any <iframe>/<video> wrapping an IPFS URL — otherwise after
+    // we strip the URL alone the renderer sees an iframe shell with
+    // empty src and emits "(Unsupported )".
+    body = body.replace(
+      /<(iframe|video)\b[^>]*\bsrc=["'][^"']*\/ipfs\/[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
+      '',
+    );
     // Bare image URLs would otherwise be auto-promoted into <img> tags by
     // the markdown renderer, producing a vertical stack of the same images
     // already shown in the carousel. Pull them out before rendering.
     body = body.replace(IMG_URL_REGEX, '');
+    body = body.replace(IPFS_URL_REGEX, '');
     body = body.replace(YOUTUBE_REGEX, '');
     body = body.replace(THREE_SPEAK_REGEX, '');
     body = body.replace(THREE_SPEAK_AUDIO_REGEX, '');
@@ -1334,6 +1444,11 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       // Drop empty anchors that wrapped an <img> we just removed (they'd
       // render as bare clickable whitespace otherwise).
       html = html.replace(/<a\b[^>]*>\s*<\/a>/gi, '');
+      // Drop any "(Unsupported …)" leftover the renderer emits for URLs
+      // we couldn't pre-strip — same idea: the AttachmentStrip / IpfsMedia
+      // is the single source of truth for media, so the body should never
+      // surface the renderer's failure message.
+      html = html.replace(/<div>\(Unsupported[^<]*\)<\/div>/gi, '');
       return html;
     } catch {
       return '';

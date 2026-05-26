@@ -31,6 +31,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
+import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
 import { WorldMappinMap } from './WorldMappinMap';
@@ -505,14 +506,51 @@ export function HiveDetailPost({
     [processedBody],
   );
 
+  // IPFS gateway URLs (no file extension) — extract them up front and
+  // render via <IpfsMedia> in their own gallery. They can be image OR
+  // video, which the renderer can't tell from the URL alone, so it
+  // either flags them as "(Unsupported …)" or auto-links them. Same
+  // pattern Snaps feed cards use: pull them out before the markdown
+  // engine sees them, so the body itself stays clean.
+  const ipfsMediaUrls = useMemo<string[]>(() => {
+    if (!processedBody) return [];
+    const re = new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(processedBody)) !== null) {
+      const url = m[0];
+      if (!seen.has(url)) {
+        seen.add(url);
+        out.push(url);
+      }
+    }
+    return out;
+  }, [processedBody]);
+
   const renderedBody = useMemo(() => {
     if (!processedBody || !renderMarkdown) return '';
     try {
       // Pre-link bare @mentions to markdown links so the underlying
       // content-renderer doesn't reorder lines — see preLinkMentions for
       // the bug it works around.
-      const safeBody = preLinkMentions(processedBody, renderOptions?.userLinkUrlFn);
+      let safeBody = preLinkMentions(processedBody, renderOptions?.userLinkUrlFn);
+      // Strip IPFS URLs (and any iframe/video shell wrapping one) before
+      // the markdown engine sees them — they're rendered separately via
+      // <IpfsMedia> above the body. Leaving them in produces "(Unsupported
+      // …)" leftovers because the renderer can't classify a CID-only URL.
+      safeBody = safeBody.replace(
+        /<(iframe|video)\b[^>]*\bsrc=["'][^"']*\/ipfs\/[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
+        '',
+      );
+      safeBody = safeBody.replace(
+        new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags),
+        '',
+      );
       let html = renderMarkdown(safeBody);
+      // Belt-and-suspenders: drop any leftover "(Unsupported …)" the
+      // renderer produced for an IPFS URL we couldn't pre-strip.
+      html = html.replace(/<div>\(Unsupported[^<]*\)<\/div>/gi, '');
 
       // Replace 3Speak embed references in the body. Two cases:
       //   1. The renderer emitted an <iframe src="…/embed?v=…">.
@@ -1392,6 +1430,24 @@ export function HiveDetailPost({
                     referrerPolicy="no-referrer"
                     className="hive-post-media-image"
                   />
+                ))}
+              </div>
+            )}
+
+            {/* IPFS gateway media — image OR video, decided per URL by
+                <IpfsMedia> via a one-time HEAD content-type probe. Same
+                approach Snaps feed cards use: pull the URLs out of the
+                body and render them as a dedicated gallery so the
+                markdown renderer can't flag them as "(Unsupported …)". */}
+            {ipfsMediaUrls.length > 0 && (
+              <div className="space-y-3 pb-4">
+                {ipfsMediaUrls.map((url) => (
+                  <div
+                    key={url}
+                    className="overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-sunken)]"
+                  >
+                    <IpfsMedia url={url} />
+                  </div>
                 ))}
               </div>
             )}
