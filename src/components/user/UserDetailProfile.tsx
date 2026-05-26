@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
@@ -44,7 +45,6 @@ import ActivityList from "../ActivityList";
 import UserGrowth from "./UserGrowth";
 import KERatioBadge from "./KERatioBadge";
 import PollListItem from "./PollListItem";
-import { TranslatedText } from "../TranslatedText";
 import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
@@ -1570,13 +1570,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
                 className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-blue-400 sm:mb-1 sm:text-base"
               >
-                <TranslatedText text={item.title} />
+                {item.title}
               </button>
             )}
 
             {previewText && (
               <p className="line-clamp-2 text-[11px] leading-snug text-[var(--hrk-text-tertiary)] sm:line-clamp-3 sm:text-sm sm:leading-relaxed">
-                <TranslatedText text={previewText.substring(0, 240)} />
+                {previewText.substring(0, 240)}
               </p>
             )}
           </div>
