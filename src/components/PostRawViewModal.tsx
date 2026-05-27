@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useState } from 'react';
-import { X, FileCode2, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, FileCode2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Post } from '@/types/post';
 
 // Rows whose serialized value gets very long for typical posts —
@@ -103,10 +103,6 @@ export function PostRawViewModal({ isOpen, onClose, post }: PostRawViewModalProp
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ body: true });
   const toggleRow = (key: string) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-  // Hivehub.dev surfaces the same kind of raw post inspector this
-  // modal is mirroring, so it's the natural place to send users who
-  // want to dig deeper (signatures, vote history, beneficiary breakdown).
-  const hivehubUrl = `https://hivehub.dev/post/@${post?.author}/${post?.permlink}`;
 
   if (!isOpen || !post) return null;
 
@@ -134,19 +130,6 @@ export function PostRawViewModal({ isOpen, onClose, post }: PostRawViewModalProp
           >
             <X className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
           </button>
-        </div>
-
-        <div className="px-5 py-3 border-b border-[var(--hrk-border-default)] flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--hrk-text-tertiary)] mr-1">View on:</span>
-          <a
-            href={hivehubUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] px-2.5 py-1 text-xs hover:bg-[var(--hrk-bg-hover)]"
-          >
-            Hivehub.dev
-            <ExternalLink className="h-3 w-3" />
-          </a>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">

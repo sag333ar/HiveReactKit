@@ -231,6 +231,10 @@ export interface HiveDetailPostProps {
   onUserClick?: (username: string) => void;
   /** Called when user clicks "View parent post" — navigate to the parent post. */
   onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Called when the user taps the community pill in the header.
+   *  Receives the community ID (`hive-xxxxxx`) so the consumer can route
+   *  to its community-detail page. */
+  onCommunityClick?: (communityId: string) => void;
 
   // ── Header kebab (in-app-bar more menu) ────────────────────────────
   // Mirror of the per-card action bar's `onShare` / `onReport`, but
@@ -363,6 +367,7 @@ export function HiveDetailPost({
   backgroundColor,
   onBack,
   onUserClick,
+  onCommunityClick,
   onNavigateToPost,
   isBookmarked,
   onToggleBookmark,
@@ -1406,15 +1411,40 @@ export function HiveDetailPost({
               onClick={() => onUserClick?.(post.author)}
             />
 
-            {/* Name + Stats inline */}
+            {/* Name + meta row. Time-ago and community sit directly
+                below the username so the header carries the post's
+                provenance — readers don't need to scan past the title
+                to know when / where the post was published. Community
+                pill is tappable when the consumer wires
+                `onCommunityClick` (HiveSuite routes to the community
+                detail page; other shells can route wherever). */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onUserClick?.(post.author)}
-                  className="text-sm font-semibold text-white truncate hover:text-blue-400 transition-colors"
-                >
-                  @{post.author}
-                </button>
+              <button
+                onClick={() => onUserClick?.(post.author)}
+                className="block text-sm font-semibold text-white truncate hover:text-blue-400 transition-colors"
+              >
+                @{post.author}
+              </button>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--hrk-text-tertiary)]">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatDate(post.created)}
+                </span>
+                {post.community_title && (
+                  onCommunityClick && post.community ? (
+                    <button
+                      type="button"
+                      onClick={() => onCommunityClick(post.community)}
+                      className="truncate text-blue-400 hover:text-blue-300 hover:underline"
+                    >
+                      in {post.community_title}
+                    </button>
+                  ) : (
+                    <span className="truncate">
+                      in <span className="text-blue-400">{post.community_title}</span>
+                    </span>
+                  )
+                )}
               </div>
             </div>
 
@@ -1516,21 +1546,10 @@ export function HiveDetailPost({
                 heading raises the Translate pill — the body's
                 wrapper below doesn't include the H1. */}
             <SelectionTranslator>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-2">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-4">
                 {translatedTitle || post.title}
               </h1>
             </SelectionTranslator>
-            <div className="text-xs text-[var(--hrk-text-tertiary)] mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {formatDate(post.created)}
-              </span>
-              {post.community_title && (
-                <span>
-                  in <span className="text-blue-400">{post.community_title}</span>
-                </span>
-              )}
-            </div>
 
             {/* Metadata-driven gallery and 3Speak preview have been
                 removed deliberately. The detail page should render
