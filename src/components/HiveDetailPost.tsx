@@ -22,6 +22,7 @@ import {
   Flag,
   History,
   FileCode2,
+  Pencil,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -1461,6 +1462,19 @@ export function HiveDetailPost({
               onReport={onHeaderReport ?? onReport}
               onVersionHistory={() => setVersionHistoryOpen(true)}
               onViewRaw={() => setRawViewOpen(true)}
+              onEdit={onEdit && currentUser && post.author === currentUser
+                ? () => onEdit({
+                    author: post.author,
+                    permlink: post.permlink,
+                    body: post.body ?? '',
+                    title: post.title ?? '',
+                    parent_author: post.parent_author ?? '',
+                    parent_permlink: post.parent_permlink ?? '',
+                    json_metadata: typeof post.json_metadata === 'string'
+                      ? post.json_metadata
+                      : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),
+                  })
+                : undefined}
             />
           </div>
         </div>
@@ -1924,6 +1938,10 @@ interface HeaderMoreMenuProps {
   onVersionHistory?: () => void;
   /** Opens the raw-fields inspector modal. */
   onViewRaw?: () => void;
+  /** Author-only Edit entry. HiveDetailPost only passes this when
+   *  `post.author === currentUser`, so the trigger row stays hidden
+   *  for everyone else. */
+  onEdit?: () => void;
 }
 
 const HEADER_MENU_WIDTH = 180;
@@ -1936,6 +1954,7 @@ function HeaderMoreMenu({
   onReport,
   onVersionHistory,
   onViewRaw,
+  onEdit,
 }: HeaderMoreMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -1989,7 +2008,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -2012,6 +2031,17 @@ function HeaderMoreMenu({
             className="overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {onEdit && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onEdit)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Pencil className="h-3.5 w-3.5 text-gray-300" />
+                <span>Edit post</span>
+              </button>
+            )}
             {onToggleBookmark && (
               <button
                 type="button"
