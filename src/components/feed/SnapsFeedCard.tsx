@@ -315,10 +315,12 @@ function detectReSnapTarget(body: string): { author: string; permlink: string } 
 
 function parseBody(post: Post): ParsedBody {
   const raw = stripViaAppsCredit(post.body ?? '');
-  const meta = parseJsonMetadata(post.json_metadata as unknown) as { image?: string[] };
 
-  // Collect attachment URLs
-  const imageUrls: string[] = [...(meta.image ?? [])];
+  // Collect attachment URLs strictly from the body — `json_metadata.image`
+  // / `json_metadata.video.thumbnail` etc. are intentionally ignored so
+  // the card shows only what the author put inside the body text. This
+  // matches the rule applied on HiveDetailPost (no metadata gallery).
+  const imageUrls: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = IMG_MD_REGEX.exec(raw))) imageUrls.push(m[1]);
   while ((m = IMG_HTML_REGEX.exec(raw))) imageUrls.push(m[1]);
@@ -1103,18 +1105,33 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
     setPopupIdx(i >= 0 ? i : 0);
     setActiveAttachment(a);
   };
+  // The popup only opens for images / gifs (and IPFS URLs that
+  // resolve to images — those still hit the popup via IpfsStripTile).
+  // Restrict next/prev to the image-only subset so the user doesn't
+  // step into a video/audio embed they can't see in the popup. Keep
+  // the filtered list typed as Attachment[] so it can be compared
+  // against the full activeAttachment.
+  const imageAttachments: Attachment[] = attachments.filter(
+    (a): a is Attachment => a.kind === 'image' || a.kind === 'ipfs',
+  );
   const popupPrev = () => {
+    if (imageAttachments.length === 0) return;
     setPopupIdx((i) => {
-      const ni = (i - 1 + attachments.length) % attachments.length;
-      setActiveAttachment(attachments[ni]);
-      return ni;
+      const currentSubIdx = Math.max(0, imageAttachments.indexOf(attachments[i]));
+      const ni = (currentSubIdx - 1 + imageAttachments.length) % imageAttachments.length;
+      const target = imageAttachments[ni];
+      setActiveAttachment(target);
+      return attachments.indexOf(target);
     });
   };
   const popupNext = () => {
+    if (imageAttachments.length === 0) return;
     setPopupIdx((i) => {
-      const ni = (i + 1) % attachments.length;
-      setActiveAttachment(attachments[ni]);
-      return ni;
+      const currentSubIdx = Math.max(0, imageAttachments.indexOf(attachments[i]));
+      const ni = (currentSubIdx + 1) % imageAttachments.length;
+      const target = imageAttachments[ni];
+      setActiveAttachment(target);
+      return attachments.indexOf(target);
     });
   };
 
@@ -1160,90 +1177,109 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
       );
     }
     if (current.kind === 'youtube') {
+      // Inline YouTube iframe scaled to the strip's 280px height. `flex
+      // items-center` centres the 16:9 frame vertically so portrait/
+      // landscape variants both letterbox cleanly. `e.stopPropagation`
+      // so clicking the player doesn't fire the card's body-click
+      // navigation.
       return (
-        <button
-          type="button"
-          onClick={(e) => open(e, current)}
-          className="relative flex h-full w-full items-center justify-center bg-black"
-          aria-label="Play YouTube video"
+        <div
+          className="flex h-full w-full items-center justify-center bg-black"
+          onClick={(e) => e.stopPropagation()}
         >
-          <img
-            src={`https://img.youtube.com/vi/${current.id}/hqdefault.jpg`}
-            alt=""
-            className="h-full w-full object-cover opacity-80"
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${current.id}?rel=0&playsinline=1`}
+            title="YouTube"
+            className="border-0"
+            style={{ aspectRatio: '16/9', height: '100%', maxHeight: '100%', maxWidth: '100%' }}
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
           />
-          <span className="absolute flex h-12 w-12 items-center justify-center rounded-full bg-black/70 text-white">
-            <Play className="h-6 w-6" />
-          </span>
-          <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-0.5 text-[10px] text-white">
-            YouTube
-          </span>
-        </button>
+        </div>
       );
     }
     if (current.kind === 'threespeak') {
+      // Inline 3Speak via the kit's native player — it knows the
+      // video's real width/height (from `loadedmetadata`) and sets
+      // an inline `aspect-ratio` accordingly. We wrap it in a
+      // `three-speak-snap-strip` host class so the strip's CSS can
+      // override the player's default `width: 100%` (which would
+      // make a portrait video taller than the 280 px strip and
+      // overflow). The override keeps `height: 100%` and lets the
+      // browser derive `width` from aspect-ratio → portrait videos
+      // letterbox with black bars on the sides, landscape fill the
+      // width and letterbox top/bottom when narrower than 16:9.
+      const ap = parse3SpeakAuthorPermlink(current.url);
       return (
-        <button
-          type="button"
-          onClick={(e) => open(e, current)}
-          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] text-sm text-[var(--hrk-text-secondary)]"
-          aria-label="Play 3Speak video"
+        <div
+          className="three-speak-snap-strip flex h-full w-full items-center justify-center overflow-hidden bg-black"
+          onClick={(e) => e.stopPropagation()}
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-brand)]/15 text-[var(--hrk-brand)]">
-            <Play className="h-6 w-6" />
-          </span>
-          <span className="text-xs text-[var(--hrk-text-tertiary)]">3Speak · Tap to play</span>
-        </button>
+          {ap ? (
+            <ThreeSpeakNativePlayer author={ap.author} permlink={ap.permlink} hideThumbnail />
+          ) : (
+            <a
+              href={current.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[var(--hrk-brand)] underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Open on 3Speak
+            </a>
+          )}
+        </div>
       );
     }
     if (current.kind === 'twitter') {
+      // Inline tweet — TwitterEmbed renders the official x.com widget
+      // and auto-resizes via postMessage. Scrollable so long threads
+      // don't blow the strip out.
       return (
-        <button
-          type="button"
-          onClick={(e) => open(e, current)}
-          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-sky-900/40 to-slate-950/60 text-sm text-[var(--hrk-text-secondary)]"
-          aria-label="Open tweet"
+        <div
+          className="h-full w-full overflow-y-auto bg-[var(--hrk-bg-surface-sunken)]"
+          onClick={(e) => e.stopPropagation()}
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-          </span>
-          <span className="text-xs font-medium text-white/70">Tweet</span>
-          <span className="text-[10px] text-white/40">Tap to preview</span>
-        </button>
+          <TwitterEmbed id={current.id} />
+        </div>
       );
     }
     if (current.kind === '3speak-audio') {
+      // Inline 3Speak audio — same iframe shape the popup uses, but
+      // sized to fit the strip. Centred on a violet gradient backdrop
+      // so the compact player bar reads against the 280px tile.
       return (
-        <button
-          type="button"
-          onClick={(e) => open(e, current)}
-          className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-violet-900/40 to-violet-950/60 text-sm text-[var(--hrk-text-secondary)]"
-          aria-label="Play 3Speak audio"
+        <div
+          className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-violet-900/40 to-violet-950/60 px-4"
+          onClick={(e) => e.stopPropagation()}
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
-            <Music className="h-6 w-6" />
-          </span>
-          <span className="text-xs font-medium text-white/70">3Speak audio</span>
-          <span className="text-[10px] text-white/40">Tap to preview</span>
-        </button>
+          <div className="flex items-center gap-2 text-xs text-white/70">
+            <Music className="h-4 w-4 shrink-0 text-[var(--hrk-brand)]" />
+            <span className="font-medium">3Speak audio</span>
+          </div>
+          <iframe
+            src={current.url}
+            title="3Speak audio"
+            className="h-24 w-full max-w-md border-0"
+            allow="autoplay"
+          />
+        </div>
       );
     }
     // audio
     return (
-      <button
-        type="button"
-        onClick={(e) => open(e, current)}
-        className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-emerald-900/40 to-emerald-950/60 text-sm text-[var(--hrk-text-secondary)]"
-        aria-label="Play audio"
+      <div
+        className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-emerald-900/40 to-emerald-950/60 px-4"
+        onClick={(e) => e.stopPropagation()}
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white/80">
-          <Music className="h-6 w-6" />
-        </span>
-        <span className="text-xs font-medium text-white/70">Audio</span>
-        <span className="text-[10px] text-white/40">Tap to preview</span>
-      </button>
+        <div className="flex items-center gap-2 text-xs text-white/70">
+          <Music className="h-4 w-4 shrink-0 text-[var(--hrk-brand)]" />
+          <span className="max-w-[260px] truncate font-medium">
+            {decodeURIComponent(current.url.split('/').pop()?.split('?')[0] ?? 'Audio')}
+          </span>
+        </div>
+        <audio src={current.url} controls preload="metadata" className="h-10 w-full max-w-md" />
+      </div>
     );
   };
 
@@ -1256,10 +1292,13 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
         <div className="h-[280px] w-full">{renderTile()}</div>
         {attachments.length > 1 && (
           <>
+            {/* z-10 keeps the nav controls above the inline YouTube /
+                3Speak / Twitter iframes — iframes create their own
+                stacking context and would otherwise eat the click. */}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); prev(); }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
               aria-label="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -1267,12 +1306,12 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); next(); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
               aria-label="Next"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+            <div className="absolute bottom-2 right-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
               {safeIdx + 1} / {attachments.length}
             </div>
           </>
@@ -1282,8 +1321,11 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
       {activeAttachment && (
         <MediaPopup
           attachment={activeAttachment}
-          index={popupIdx}
-          total={attachments.length}
+          // Index + total reflect the image-only subset since prev/next
+          // skip videos/audio/twitter in the popup (those play inline
+          // in the strip now).
+          index={Math.max(0, imageAttachments.indexOf(activeAttachment))}
+          total={imageAttachments.length}
           onPrev={popupPrev}
           onNext={popupNext}
           onClose={() => setActiveAttachment(null)}

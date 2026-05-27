@@ -481,7 +481,12 @@ export function HiveDetailPost({
   const threeSpeakRef = useMemo<{ author: string; permlink: string } | null>(() => {
     const extract = (url: unknown): { author: string; permlink: string } | null => {
       if (typeof url !== 'string') return null;
-      const m = url.match(/3speak\.tv\/(?:embed|watch)\?[^"\s'<>]*[?&]v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
+      // Match `v=author/permlink` whether it's the first query param
+      // (`?v=…`) or one of several (`?foo=bar&v=…`). The previous form
+      // `\?[^"\s'<>]*[?&]v=` required a preceding `?` or `&`, which
+      // missed the very common single-param shape Ecency/peakd posts
+      // use (`/embed?v=author/permlink`).
+      const m = url.match(/3speak\.tv\/(?:embed|watch)\?(?:[^"\s'<>]*[?&])?v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
       if (!m) return null;
       return { author: m[1], permlink: m[2] };
     };
@@ -566,6 +571,37 @@ export function HiveDetailPost({
     return out;
   }, [processedBody]);
 
+  // 3Speak URLs (`play.3speak.tv/embed?v=author/permlink` or `/watch?…`
+  // or the canonical `3speak.tv/v/author/permlink` path) extracted
+  // directly from the body. Same body-only philosophy as the IPFS
+  // gallery: we don't read `json_metadata.video`. Each ref renders
+  // its own <ThreeSpeakPlayer>, which fetches the embed-api manifest
+  // and mounts an HLS-driven <video controls> — i.e. exactly the
+  // shape the user described.
+  const threeSpeakBodyRefs = useMemo<Array<{ author: string; permlink: string }>>(() => {
+    if (!processedBody) return [];
+    const seen = new Set<string>();
+    const out: Array<{ author: string; permlink: string }> = [];
+    const push = (author: string, permlink: string) => {
+      const key = `${author}/${permlink}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ author, permlink });
+    };
+    // `?v=author/permlink` — works for both `/embed?v=…` and `/watch?v=…`
+    const queryRe = /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = queryRe.exec(processedBody)) !== null) {
+      push(m[1].toLowerCase(), m[2].toLowerCase());
+    }
+    // Canonical path form `3speak.tv/v/author/permlink`.
+    const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    while ((m = pathRe.exec(processedBody)) !== null) {
+      push(m[1].toLowerCase(), m[2].toLowerCase());
+    }
+    return out;
+  }, [processedBody]);
+
   const renderedBody = useMemo(() => {
     if (!processedBody || !renderMarkdown) return '';
     try {
@@ -585,6 +621,29 @@ export function HiveDetailPost({
         new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags),
         '',
       );
+      // Strip 3Speak URLs (embed / watch / v/author/permlink) — they're
+      // rendered as a dedicated <ThreeSpeakPlayer> gallery via
+      // `threeSpeakBodyRefs`, same body-only approach as IPFS above.
+      // Without this strip the renderer would auto-embed them inline
+      // and the page would show TWO copies of the same video (the
+      // renderer's iframe + our extracted player).
+      //
+      // 1) Iframe / video tags whose src is on 3speak.tv (some authors
+      //    paste raw HTML instead of a bare URL).
+      safeBody = safeBody.replace(
+        /<(iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.tv[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
+        '',
+      );
+      // 2) Bare query-string URLs (`?v=author/permlink`).
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        '',
+      );
+      // 3) Canonical-path URLs (`/v/author/permlink`).
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        '',
+      );
       let html = renderMarkdown(safeBody);
       // Belt-and-suspenders: drop any leftover "(Unsupported …)" the
       // renderer produced for an IPFS URL we couldn't pre-strip.
@@ -597,10 +656,13 @@ export function HiveDetailPost({
       // When `threeSpeakRef` is set (the post's `json_metadata.video`
       // already pinned a 3Speak clip), we strip those embeds entirely
       // — the metadata-driven ThreeSpeakPlayer rendered above the
-      // body handles playback, so leaving them in would double-up.
-      // Otherwise, we replace each match with a `.threeSpeakEmbed`
-      // placeholder that the createRoot effect mounts into.
-      const stripOnly = !!threeSpeakRef;
+      // We no longer render a metadata-driven 3Speak player above
+      // the body — the detail page only shows body content — so the
+      // body's iframe / autolinked anchor must ALWAYS be turned into
+      // a placeholder that mounts a player inline. Was previously
+      // gated on `!threeSpeakRef`; that path is dead now but kept as
+      // `const stripOnly = false` for documentation.
+      const stripOnly = false;
       const replaceWithPlaceholder = (v: string) => {
         if (stripOnly) return '';
         const slash = v.indexOf('/');
@@ -610,13 +672,16 @@ export function HiveDetailPost({
         return `<div class="threeSpeakEmbed" data-author="${author}" data-permlink="${permlink}"></div>`;
       };
       // Case 1: iframe embed
+      // Accept both `/embed?v=` and `/watch?v=` shapes — some authors
+      // paste the watch URL straight from the 3Speak page, and the
+      // renderer will autolink (or convert to iframe) either form.
       html = html.replace(
-        /<iframe\s[^>]*src="https:\/\/(?:play\.)?3speak\.tv\/embed\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>(?:<\/iframe>)?/gi,
+        /<iframe\s[^>]*src="https:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>(?:<\/iframe>)?/gi,
         (_m: string, v: string) => replaceWithPlaceholder(v),
       );
       // Case 2: auto-linked anchor (markdown autolink of a bare URL)
       html = html.replace(
-        /<a\s[^>]*href="https:\/\/(?:play\.)?3speak\.tv\/embed\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>[^<]*<\/a>/gi,
+        /<a\s[^>]*href="https:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?v=([^"&]+\/[^"&]+)[^"]*"[^>]*>[^<]*<\/a>/gi,
         (_m: string, v: string) => replaceWithPlaceholder(v),
       );
 
@@ -671,7 +736,14 @@ export function HiveDetailPost({
         .replace(/[)\],.;:>\s"'<]+$/, '')
         .replace(/^(https?):\/(?!\/)/, '$1://');
     const decode = (u: string) => { try { return decodeURIComponent(u) } catch { return u } };
-    const key = (u: string) => decode(sanitize(u));
+    /** HTML-decode the most common entities the renderer leaves in
+     *  `<img src>` attributes (`&amp;`, `&#x26;`, `&#38;`). Without
+     *  this the dedup key for a body URL containing `&amp;` won't
+     *  match the same URL pulled from `json_metadata.image` (which is
+     *  raw `&`), and the gallery double-lists the image. */
+    const decodeEntities = (u: string) =>
+      u.replace(/&amp;/g, '&').replace(/&#x26;/gi, '&').replace(/&#38;/g, '&');
+    const key = (u: string) => decode(decodeEntities(sanitize(u)));
 
     // Set of every URL the body already renders as <img>. Anything
     // matching this is dropped from the gallery so we never show
@@ -688,7 +760,10 @@ export function HiveDetailPost({
       if (typeof raw !== 'string') return;
       const cleaned = sanitize(raw);
       if (!cleaned || !/^https?:\/\//.test(cleaned)) return;
-      const k = decode(cleaned);
+      // Key match uses the same entity-decoded form as `fromBody`'s
+      // keys, so a body `<img src="…&amp;…">` URL collapses to the
+      // same key as the raw `…&…` URL stored in json_metadata.image.
+      const k = decode(decodeEntities(cleaned));
       if (seen.has(k)) return;
       seen.add(k);
       out.push(cleaned);
@@ -870,7 +945,10 @@ export function HiveDetailPost({
   useLayoutEffect(() => {
     const container = postBodyRef.current;
     if (!container) return;
-    const stripOnly = !!threeSpeakRef;
+    // We render only what's in the body, so the metadata-driven
+    // "play once above" branch is dead — body embeds always become
+    // inline players.
+    const stripOnly = false;
     /** Match `?…&v=author/permlink…` regardless of param order. */
     const extractIds = (url: string | null): { author: string; permlink: string } | null => {
       if (!url) return null;
@@ -1440,43 +1518,31 @@ export function HiveDetailPost({
               )}
             </div>
 
-            {/* Metadata-driven 3Speak player — `json_metadata.video`
-                is the canonical source for video posts (set by
-                hivesnaps / waves clients on every upload). Rendering
-                it here means we always show the clip, even when the
-                body markdown didn't autolink the URL. The body's
-                inline embed is stripped above to avoid double play.
-                `hideThumbnail` skips the layered thumbnail <img> on
-                this surface — the detail page is dense enough that
-                a poster placeholder feels like wasted space. */}
-            {threeSpeakRef && (
-              <div className="flex justify-center pb-3">
-                <ThreeSpeakPlayer
-                  author={threeSpeakRef.author}
-                  permlink={threeSpeakRef.permlink}
-                  hideThumbnail
-                />
-              </div>
-            )}
+            {/* Metadata-driven gallery and 3Speak preview have been
+                removed deliberately. The detail page should render
+                ONLY what the author put in the body. Every embed
+                (3Speak / IPFS) is extracted from the body and
+                rendered as a dedicated player below, mirroring the
+                Snaps feed card pattern. Any `json_metadata.image` /
+                `video.thumbnail` that isn't in the body is ignored. */}
 
-            {/* Metadata media — images declared in `json_metadata`
-                that aren't already inlined in the body. Surfaces the
-                post thumbnail for wave / snap posts whose body is
-                just "text + a 3Speak URL" (the player renders in
-                the body below; this gives a visible preview while
-                that loads). Hidden when the metadata-driven 3Speak
-                player is already showing the same thumbnail above. */}
-            {!threeSpeakRef && metadataMediaImages.length > 0 && (
-              <div className="hive-post-media-gallery pb-4">
-                {metadataMediaImages.map((url, i) => (
-                  <img
-                    key={`${url}-${i}`}
-                    src={url}
-                    alt=""
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="hive-post-media-image"
-                  />
+            {/* 3Speak videos pulled from body URLs. Each `<ThreeSpeakPlayer>`
+                calls `play.3speak.tv/api/embed?v=author/permlink` to get
+                the manifest URL and mounts an HLS-driven <video controls>
+                — exactly the pattern the spec describes. */}
+            {threeSpeakBodyRefs.length > 0 && (
+              <div className="space-y-3 pb-4">
+                {threeSpeakBodyRefs.map((ref) => (
+                  <div
+                    key={`${ref.author}/${ref.permlink}`}
+                    className="flex justify-center"
+                  >
+                    <ThreeSpeakPlayer
+                      author={ref.author}
+                      permlink={ref.permlink}
+                      hideThumbnail
+                    />
+                  </div>
                 ))}
               </div>
             )}

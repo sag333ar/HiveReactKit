@@ -345,6 +345,28 @@
   border-radius: 0.75rem;
   object-fit: contain;
 }
+
+/* Snaps-feed strip override. The Snaps card uses a fixed 280 px tall
+   strip and wraps the native player in `.three-speak-snap-strip`. The
+   default player CSS gives the wrapper `width: 100%` which, combined
+   with the player's inline `aspect-ratio`, makes portrait videos taller
+   than the strip and they overflow ("zoomed in" appearance). Inside
+   the strip we want the player to be height-driven: take the full
+   280 px of the strip and let `width = height × aspectRatio` —
+   portrait videos letterbox with black bars on the sides, landscape
+   shrinks to fit when the card is narrower than 16/9 × 280 px. */
+.three-speak-snap-strip .threeSpeakNative,
+.three-speak-snap-strip .threeSpeakNative.threeSpeakNativeNoThumb,
+.three-speak-snap-strip .threeSpeakNative.threeSpeakNativeLandscape,
+.three-speak-snap-strip .threeSpeakNative.threeSpeakNativePortrait {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+
 .threeSpeakNativeMessage {
   color: var(--hrk-text-tertiary);
   font-size: 0.875rem;
