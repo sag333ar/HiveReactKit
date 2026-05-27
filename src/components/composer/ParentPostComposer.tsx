@@ -47,6 +47,8 @@ import {
 import { createHiveRenderer } from '@snapie/renderer';
 import { ThreeSpeakPlayer } from '../ThreeSpeakPlayer';
 import { TranslatedBody } from '../TranslatedBody';
+import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from '../comments/MentionSuggest';
+import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 import {
   REWARD_OPTIONS,
   REWARD_OPTION_LABELS,
@@ -245,6 +247,38 @@ export interface ParentPostComposerProps {
 
   /** Allow landscape videos (default true on the parent post composer). */
   allowLandscapeVideos?: boolean;
+
+  /** Seed accounts for the `@`-mention autocomplete dropdown. Empty by
+   *  default — for a brand-new parent post we have no upstream body to
+   *  pull mentions from, so the dropdown only fills in once the user
+   *  types 3+ characters and the kit queries
+   *  `condenser_api.get_account_reputations`. Pass a list to surface
+   *  curated accounts (e.g. recent collaborators) at the top of the
+   *  suggestion list. */
+  mentionSeedAccounts?: string[];
+
+  /** Called when the user clicks a `@username` mention in the live
+   *  preview pane. Lets the consumer route to its own user-profile
+   *  page instead of letting the anchor's default `https://peakd.com/…`
+   *  href open peakd in a new tab. */
+  onUserClick?: (username: string) => void;
+  /** Called when the user clicks a Hive post link inside the live
+   *  preview pane (peakd / hive.blog / ecency / inleo URLs). Routes
+   *  to the consumer's own post-detail page. */
+  onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Renderer URL overrides applied to the live preview pane. Same
+   *  shape as `HiveDetailPost.renderOptions` so consumers can use one
+   *  config object for both surfaces. */
+  renderOptions?: {
+    /** Replace user-mention URL (e.g. `(u) => '#/@' + u`). */
+    userLinkUrlFn?: (username: string) => string;
+    /** Replace hashtag URL (e.g. `(t) => '#/tag/' + t`). */
+    tagLinkUrlFn?: (tag: string) => string;
+    /** Replace the renderer's base URL used when `convertHiveUrls` is on. */
+    postBaseUrl?: string;
+    /** Replace the IPFS gateway prefix used for ipfs:// embeds. */
+    ipfsGateway?: string;
+  };
 
   /**
    * When set, the composer auto-saves its state to `localStorage[draftKey]`
@@ -454,6 +488,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideBeneficiaries,
   requirePoll,
   allowLandscapeVideos = true,
+  mentionSeedAccounts,
+  onUserClick,
+  onNavigateToPost,
+  renderOptions,
   submitLabel = 'Publish',
   submitLabelWithVideo = 'Save',
   title: pageTitle = 'Create post',
@@ -484,6 +522,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = isSubmitting;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mention autocomplete: empty seed by default since a brand-new
+  // parent post has no upstream body. Consumer can pass a curated list
+  // via `mentionSeedAccounts`. Once the user types 3+ characters the
+  // hook queries `condenser_api.get_account_reputations` directly.
+  const mentions = useMentionAutocomplete(body, {
+    seedAccounts: mentionSeedAccounts,
+  });
 
   // ── Tags ──────────────────────────────────────────────────────────────────
   const lockedTagList = useMemo(
@@ -655,7 +701,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // ParentPostComposer is always a top-level post, so DecentMemes kind is
   // fixed to 'post' (10% cap). PickDecentMemesKind would return the same
   // for an undefined parent, but spelling it out keeps intent obvious.
-  const decentMemesKind: 'post' = 'post';
+  const decentMemesKind = 'post' as const;
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
     const list: Beneficiary[] = [];
     if (hasVideo) {
@@ -961,18 +1007,25 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const renderMarkdown = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: 'https://peakd.com/',
-        ipfsGateway: 'https://ipfs.3speak.tv',
+        baseUrl: renderOptions?.postBaseUrl ?? 'https://peakd.com/',
+        ipfsGateway: renderOptions?.ipfsGateway ?? 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 480,
-        usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
-        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        usertagUrlFn:
+          renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
+        hashtagUrlFn:
+          renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
       });
     } catch {
       return null;
     }
-  }, []);
+  }, [
+    renderOptions?.postBaseUrl,
+    renderOptions?.ipfsGateway,
+    renderOptions?.userLinkUrlFn,
+    renderOptions?.tagLinkUrlFn,
+  ]);
 
   // The preview body includes appended audio/video URLs so the renderer
   // embeds them inline (matches what we'll broadcast). `previewExtras`
@@ -1198,6 +1251,54 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       });
     };
   }, [renderedBody, threeSpeakRef]);
+
+  // Intercept anchor clicks in the live preview pane. Hive-ecosystem
+  // URLs (peakd / hive.blog / ecency / inleo) — whether on `@username`
+  // mentions or post links the renderer auto-converted — get routed
+  // through `onUserClick` / `onNavigateToPost` so the consumer can
+  // keep the user inside its own app. All other external links open
+  // in a new tab so the composer page stays put. Mirrors HiveDetailPost.
+  useEffect(() => {
+    const container = postBodyRef.current;
+    if (!container) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      )
+        return;
+      const anchor = (e.target as HTMLElement | null)?.closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href) return;
+
+      const target = parseHiveFrontendUrl(href);
+      if (target) {
+        if (target.kind === 'post' && onNavigateToPost) {
+          e.preventDefault();
+          onNavigateToPost(target.author, target.permlink);
+          return;
+        }
+        if (target.kind === 'user' && onUserClick) {
+          e.preventDefault();
+          onUserClick(target.author);
+          return;
+        }
+      }
+      // Non-Hive external link — open in a new tab so the composer
+      // doesn't get replaced.
+      if (/^https?:\/\//i.test(href)) {
+        e.preventDefault();
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+    };
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [renderedBody, onNavigateToPost, onUserClick]);
 
   // ── Read time + word count for the preview header chips ──────────────────
   const wordCount = useMemo(
@@ -2265,25 +2366,86 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     </button>
                   </div>
                 )}
-                <textarea
-                  ref={textareaRef}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  onPaste={handlePaste}
-                  placeholder={
-                    canUploadImages
-                      ? 'Write your post in Markdown…\n(Paste or drag & drop images)'
-                      : 'Write your post in Markdown…'
-                  }
-                  disabled={isDisabled}
-                  rows={20}
-                  // Fixed height — `resize-none` removes the browser's drag
-                  // handle so the editor never collapses or grows under the
-                  // user's hand. Height steps up at `sm:` and `lg:` so the
-                  // editor feels generous on tablet/desktop without crowding
-                  // the screen on phones.
-                  className="block w-full h-[480px] sm:h-[560px] lg:h-[640px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] disabled:opacity-50 text-sm font-mono leading-relaxed overflow-y-auto"
-                />
+                <div className="relative">
+                  <textarea
+                    ref={textareaRef}
+                    value={body}
+                    onChange={(e) => {
+                      setBody(e.target.value);
+                      mentions.onValueChange(
+                        e.target.value,
+                        e.target.selectionStart ?? e.target.value.length,
+                      );
+                    }}
+                    onKeyUp={(e) => {
+                      const t = e.currentTarget;
+                      mentions.onValueChange(t.value, t.selectionStart ?? t.value.length);
+                    }}
+                    onClick={(e) => {
+                      const t = e.currentTarget;
+                      mentions.onValueChange(t.value, t.selectionStart ?? t.value.length);
+                    }}
+                    onBlur={() => {
+                      // Defer dismissal so the dropdown's mousedown handler
+                      // has a chance to apply the selected username before
+                      // the textarea loses focus.
+                      window.setTimeout(() => mentions.dismiss(), 100);
+                    }}
+                    onKeyDown={(e) => {
+                      if (mentions.onKeyDown(e)) {
+                        if (e.key === 'Enter' || e.key === 'Tab') {
+                          const next = mentions.apply();
+                          if (next) {
+                            setBody(next.value);
+                            requestAnimationFrame(() => {
+                              const t = textareaRef.current;
+                              if (!t) return;
+                              t.focus();
+                              t.setSelectionRange(next.caret, next.caret);
+                            });
+                          }
+                        }
+                      }
+                    }}
+                    onPaste={handlePaste}
+                    placeholder={
+                      canUploadImages
+                        ? 'Write your post in Markdown…\n(Paste or drag & drop images)'
+                        : 'Write your post in Markdown…'
+                    }
+                    disabled={isDisabled}
+                    rows={20}
+                    // Fixed height — `resize-none` removes the browser's drag
+                    // handle so the editor never collapses or grows under the
+                    // user's hand. Height steps up at `sm:` and `lg:` so the
+                    // editor feels generous on tablet/desktop without crowding
+                    // the screen on phones.
+                    className="block w-full h-[480px] sm:h-[560px] lg:h-[640px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] disabled:opacity-50 text-sm font-mono leading-relaxed overflow-y-auto"
+                  />
+                  {mentions.active && (
+                    <div
+                      className="absolute z-30"
+                      style={caretOffsetInTextarea(textareaRef.current, mentions.match?.end ?? 0)}
+                    >
+                      <MentionSuggest
+                        candidates={mentions.candidates}
+                        highlightedIndex={mentions.highlightedIndex}
+                        onHover={mentions.setHighlightedIndex}
+                        onSelect={(account) => {
+                          const next = mentions.apply(account);
+                          if (!next) return;
+                          setBody(next.value);
+                          requestAnimationFrame(() => {
+                            const t = textareaRef.current;
+                            if (!t) return;
+                            t.focus();
+                            t.setSelectionRange(next.caret, next.caret);
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Tag manager */}

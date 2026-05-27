@@ -49,6 +49,10 @@ interface InlineCommentItemProps {
   /** Read function — controls the filled vs outline state of the
    *  bookmark item inside the kebab. */
   isCommentBookmarked?: (author: string, permlink: string) => boolean;
+  /** Seed accounts for the `@`-mention autocomplete in the reply
+   *  composer attached to this row. Forwarded from
+   *  `InlineCommentSection.mentionSeedAccounts`. */
+  mentionSeedAccounts?: string[];
   /** Called when the author of this comment taps Edit. Each row gates
    *  the entry-point internally to `comment.author === currentUser`. */
   onEditComment?: (data: {
@@ -114,6 +118,7 @@ export default function InlineCommentItem({
   onReportComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
+  mentionSeedAccounts,
   onEditComment,
   onNavigateToPost,
   onUserClick,
@@ -707,6 +712,7 @@ export default function InlineCommentItem({
                         onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                         allowLandscapeVideos={allowLandscapeVideos}
                         awaitingWalletApproval={awaitingWalletApproval}
+                        mentionSeedAccounts={mentionSeedAccounts}
                       />
                     </div>
                   </div>,
@@ -778,6 +784,7 @@ export default function InlineCommentItem({
                     onBeneficiariesChange={(list) => { replyBeneficiariesRef.current = list; }}
                     allowLandscapeVideos={allowLandscapeVideos}
                     awaitingWalletApproval={awaitingWalletApproval}
+                    mentionSeedAccounts={mentionSeedAccounts}
                   />
                 </div>
               </>
@@ -822,6 +829,9 @@ export default function InlineCommentItem({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onToggleCommentBookmark={onToggleCommentBookmark}
+              isCommentBookmarked={isCommentBookmarked}
+              mentionSeedAccounts={mentionSeedAccounts}
               onEditComment={onEditComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}

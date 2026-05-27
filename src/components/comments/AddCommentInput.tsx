@@ -32,6 +32,7 @@ import type { PollData } from '../composer/PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
 import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 import { createHiveRenderer } from '@snapie/renderer';
+import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from './MentionSuggest';
 
 export interface PostComposerProps {
   onSubmit: (body: string) => void | boolean | Promise<void | boolean>;
@@ -211,6 +212,13 @@ export interface PostComposerProps {
   walletApprovalLabel?: string;
   /** When true, force the blinking wallet-approval banner on (e.g. during a post/reply broadcast). */
   awaitingWalletApproval?: boolean;
+  /** Seed list for the `@`-mention autocomplete dropdown. Typically the
+   *  parent post's author followed by every `@account` mentioned in the
+   *  post body, deduped. These appear at the top of the suggestion list
+   *  before the user types anything; once they type 3+ chars the kit
+   *  also calls `condenser_api.get_account_reputations` for live
+   *  results. Omit to disable autocomplete entirely. */
+  mentionSeedAccounts?: string[];
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -287,6 +295,7 @@ const PostComposer = ({
   disableAutoFocus = false,
   walletApprovalLabel = 'Open Keychain App & Approve',
   awaitingWalletApproval = false,
+  mentionSeedAccounts,
 }: PostComposerProps) => {
   const [internalBody, setInternalBody] = useState('');
   const body = value !== undefined ? value : internalBody;
@@ -323,6 +332,24 @@ const PostComposer = ({
   const [isPollOpen, setIsPollOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
+
+  // Mention autocomplete: parent author first, then any account
+  // explicitly mentioned by the consumer via `mentionSeedAccounts`
+  // (typically the post body's mentions). Deduped, lowercased.
+  const mentionSeed = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const add = (raw?: string | null) => {
+      const v = (raw || '').toLowerCase().trim();
+      if (!v || seen.has(v)) return;
+      seen.add(v);
+      out.push(v);
+    };
+    add(parentAuthor);
+    for (const a of mentionSeedAccounts ?? []) add(a);
+    return out;
+  }, [parentAuthor, mentionSeedAccounts]);
+  const mentions = useMentionAutocomplete(body, { seedAccounts: mentionSeed });
 
   // Tag manager — default tags are locked, user-added tags are editable.
   const lockedTags = useMemo(
@@ -1311,22 +1338,92 @@ const PostComposer = ({
             </button>
           </div>
         )}
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={canUploadImages ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
-          disabled={isDisabled}
-          rows={4}
-          className="w-full min-h-[100px] max-h-[300px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-y focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
-          onInput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = 'auto';
-            target.style.height = target.scrollHeight + 'px';
-          }}
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              mentions.onValueChange(e.target.value, e.target.selectionStart ?? e.target.value.length);
+            }}
+            onKeyUp={(e) => {
+              // Caret may move via arrow keys / mouse without firing
+              // onChange — keep the autocomplete state in sync.
+              const t = e.currentTarget;
+              mentions.onValueChange(t.value, t.selectionStart ?? t.value.length);
+            }}
+            onClick={(e) => {
+              const t = e.currentTarget;
+              mentions.onValueChange(t.value, t.selectionStart ?? t.value.length);
+            }}
+            onBlur={() => {
+              // Defer so a click on a suggestion row can apply before the
+              // dropdown unmounts. The dropdown's onMouseDown also calls
+              // preventDefault so blur doesn't fire there either.
+              window.setTimeout(() => mentions.dismiss(), 100);
+            }}
+            onKeyDown={(e) => {
+              if (mentions.onKeyDown(e)) {
+                // If the autocomplete consumed Enter / Tab, apply the
+                // current selection and short-circuit the parent handler
+                // so we don't also submit / insert a tab character.
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  const next = mentions.apply();
+                  if (next) {
+                    setBody(next.value);
+                    // Move caret after the inserted username + space.
+                    requestAnimationFrame(() => {
+                      const t = textareaRef.current;
+                      if (!t) return;
+                      t.focus();
+                      t.setSelectionRange(next.caret, next.caret);
+                    });
+                  }
+                }
+                return;
+              }
+              handleKeyDown(e);
+            }}
+            onPaste={handlePaste}
+            placeholder={canUploadImages ? `${placeholder}\n(Paste or drag & drop images here)` : placeholder}
+            disabled={isDisabled}
+            rows={4}
+            className="w-full min-h-[100px] max-h-[300px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-y focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] transition-colors duration-200 disabled:opacity-50 text-sm font-mono"
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = target.scrollHeight + 'px';
+            }}
+          />
+          {/* Mention autocomplete — anchored just below the line the
+              caret is on so the dropdown never covers the user's
+              typed `@…` token. `caretOffsetInTextarea` derives the
+              offset from the live computed line-height + padding +
+              the textarea's scrollTop. */}
+          {mentions.active && (
+            <div
+              className="absolute z-30"
+              style={caretOffsetInTextarea(textareaRef.current, mentions.match?.end ?? 0)}
+            >
+              <MentionSuggest
+                candidates={mentions.candidates}
+                highlightedIndex={mentions.highlightedIndex}
+                onHover={mentions.setHighlightedIndex}
+                onSelect={(account) => {
+                  const next = mentions.apply(account);
+                  if (!next) return;
+                  setBody(next.value);
+                  requestAnimationFrame(() => {
+                    const t = textareaRef.current;
+                    if (!t) return;
+                    t.focus();
+                    t.setSelectionRange(next.caret, next.caret);
+                  });
+                }}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Tag strip — inline chips + (optional) add-tag input row. */}
         {!hideTags && (mergedTags.length > 0 || isTagsOpen) && (

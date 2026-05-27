@@ -63,6 +63,10 @@ interface InlineCommentSectionProps {
    *  kebab with a Bookmark item on each comment row. */
   onToggleCommentBookmark?: (author: string, permlink: string) => void;
   isCommentBookmarked?: (author: string, permlink: string) => boolean;
+  /** Seed accounts for the `@`-mention autocomplete in every reply
+   *  composer rendered under this section — typically the post author
+   *  followed by every `@account` mentioned in the post body. */
+  mentionSeedAccounts?: string[];
   /** Called when the comment author taps Edit on one of their own
    *  comments. Each comment row gates the entry-point internally to
    *  `comment.author === currentUser`. Payload mirrors HiveDetailPost
@@ -101,6 +105,7 @@ export default function InlineCommentSection({
   onReportComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
+  mentionSeedAccounts,
   onEditComment,
   onNavigateToPost,
   onUserClick,
@@ -339,6 +344,7 @@ export default function InlineCommentSection({
             allowLandscapeVideos={allowLandscapeVideos}
             awaitingWalletApproval={awaitingWalletApproval}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
+            mentionSeedAccounts={mentionSeedAccounts}
           />
         </div>
       )}
@@ -403,6 +409,7 @@ export default function InlineCommentSection({
               onReportComment={onReportComment}
               onToggleCommentBookmark={onToggleCommentBookmark}
               isCommentBookmarked={isCommentBookmarked}
+              mentionSeedAccounts={mentionSeedAccounts}
               onEditComment={onEditComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}

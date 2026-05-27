@@ -32,6 +32,7 @@ import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
+import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
 import { WorldMappinMap } from './WorldMappinMap';
@@ -522,6 +523,26 @@ export function HiveDetailPost({
     () => extractWorldMappinPin(processedBody),
     [processedBody],
   );
+
+  // Seed accounts for the `@`-mention autocomplete inside every inline
+  // reply composer on this page: the post author first, then every
+  // `@account` that appears in the post body, deduped. The composer
+  // also calls `condenser_api.get_account_reputations` once the user
+  // types 3+ characters, so this just gives them the "people from this
+  // post" shortcut up top — same UX as peakd.
+  const mentionSeedAccounts = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const add = (raw?: string | null) => {
+      const v = (raw || '').toLowerCase().trim();
+      if (!v || seen.has(v)) return;
+      seen.add(v);
+      out.push(v);
+    };
+    add(post?.author);
+    for (const m of extractMentionsFromBody(processedBody)) add(m);
+    return out;
+  }, [post?.author, processedBody]);
 
   // IPFS gateway URLs (no file extension) — extract them up front and
   // render via <IpfsMedia> in their own gallery. They can be image OR
@@ -1793,6 +1814,7 @@ export function HiveDetailPost({
                 onReportComment={onReportComment}
                 onToggleCommentBookmark={onToggleCommentBookmark}
                 isCommentBookmarked={isCommentBookmarked}
+                mentionSeedAccounts={mentionSeedAccounts}
                 onEditComment={onEditComment}
                 onNavigateToPost={onNavigateToPost}
                 onUserClick={onUserClick}
