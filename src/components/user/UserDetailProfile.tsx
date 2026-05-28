@@ -865,9 +865,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "replies": {
-            const data = filterPost(await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal));
-            setReplies(data);
-            setHasMore((prev) => ({ ...prev, replies: data.length >= PAGE_SIZE }));
+            // Same shape as the Comments tab. The ONE difference that
+            // matters: replies come from many authors, so `filterPost`
+            // (ignored / reported authors) can shrink the page below
+            // PAGE_SIZE even when more pages exist — so `hasMore` is
+            // decided from the RAW fetched count, and we filter only
+            // for display. (Comments are single-author, so it never
+            // hit this.)
+            const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+            setReplies(filterPost(raw));
+            setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
             break;
           }
           case "followers": {
@@ -1122,12 +1129,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           // parent post's. A previous attempt used `parent_author /
           // parent_permlink` here, which sent the wrong cursor and made
           // the node either echo the same page or return nothing.
+          // Cursor = last reply's own author + permlink (matches PeakD:
+          // start_author="commentrewarder", start_permlink="re-…").
           const last = replies[replies.length - 1];
           if (!last) break;
-          const data = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
+          const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
+          // Drop the cursor item if the node echoed it as the first row.
+          const newItems = filterPost(raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw);
           setReplies((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, replies: newItems.length >= PAGE_SIZE - 1 }));
+          // `hasMore` from the RAW page size, not the filtered count —
+          // multi-author replies can be thinned by `filterPost` yet
+          // still have more pages behind them.
+          setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
           break;
         }
         case "followers": {
