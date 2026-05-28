@@ -9,6 +9,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { parseThreeSpeakRef, type PostMedia } from '../utils/postMedia';
+import { ThreeSpeakPlayer } from './ThreeSpeakPlayer';
 
 /**
  * Shared lightbox / preview overlay used by feed-card carousels
@@ -251,19 +252,24 @@ export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, o
         )}
         {current.kind === 'threespeak' && (() => {
           const ref = parseThreeSpeakRef(current.url);
-          const src = ref
-            ? `https://play.3speak.tv/embed?v=${encodeURIComponent(`${ref.author}/${ref.permlink}`)}&mode=iframe&noscroll=1&autoplay=1`
-            : current.url;
-          return (
-            <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '9/16', maxWidth: '380px' }}>
-              <iframe
-                src={src}
-                title="3Speak"
-                className="h-full w-full border-0"
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-              />
+          // Use the native player (HLS) instead of the embed iframe:
+          // the iframe page 404s on legacy uploads, while the player
+          // resolves them via /api/watch → /api/embed and sizes itself
+          // from the real video dimensions. Fall back to a plain link
+          // when the URL isn't a parseable author/permlink ref.
+          return ref ? (
+            <div className="w-full" style={{ maxWidth: '800px' }}>
+              <ThreeSpeakPlayer author={ref.author} permlink={ref.permlink} hideThumbnail />
             </div>
+          ) : (
+            <a
+              href={current.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[var(--hrk-brand)] underline"
+            >
+              Open on 3Speak
+            </a>
           );
         })()}
       </div>

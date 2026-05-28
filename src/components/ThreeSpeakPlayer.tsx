@@ -39,6 +39,47 @@ interface EmbedMeta {
 }
 
 const EMBED_API = 'https://play.3speak.tv/api/embed';
+// The newer `/api/watch` endpoint resolves legacy videos that
+// `/api/embed` reports as "Video not found" (embed only knows about
+// videos published through the new pipeline). Both return the same
+// `{ success, videoUrl, videoUrlFallback1..3, thumbnail, … }` shape,
+// so we try watch first and fall back to embed.
+const WATCH_API = 'https://play.3speak.tv/api/watch';
+
+/** Resolve a video's metadata, trying `/api/watch` first (covers
+ *  legacy uploads) and falling back to `/api/embed`. Returns the first
+ *  successful payload, or throws if neither resolves. */
+async function fetchThreeSpeakMeta(
+  author: string,
+  permlink: string,
+  signal: () => boolean,
+): Promise<EmbedMeta> {
+  const endpoints = [
+    `${WATCH_API}?v=${author}/${permlink}`,
+    `${EMBED_API}?v=${author}/${permlink}`,
+  ];
+  let lastErr: Error | null = null;
+  for (const url of endpoints) {
+    if (signal()) throw new Error('cancelled');
+    try {
+      const r = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!r.ok) {
+        lastErr = new Error(`HTTP ${r.status}`);
+        continue;
+      }
+      const data = (await r.json()) as { success?: boolean } & EmbedMeta;
+      // A successful response still needs at least one manifest URL —
+      // otherwise treat it as a miss and try the next endpoint.
+      if (data?.success && manifestCandidates(data).length > 0) {
+        return data;
+      }
+      lastErr = new Error('Video not found');
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error('fetch failed');
+    }
+  }
+  throw lastErr ?? new Error('Video unavailable');
+}
 
 /** All candidate manifest URLs, in priority order. The embed API
  *  ships up to four CDN mirrors and any individual one can be slow,
@@ -133,27 +174,22 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
   const [hasPlayed, setHasPlayed] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Fetch metadata + manifest URL from the embed API.
+  // Fetch metadata + manifest URL — tries `/api/watch` (legacy-safe)
+  // then `/api/embed`.
   useEffect(() => {
     let cancelled = false;
     setMeta(null);
     setError(null);
     setAspectRatio(null);
     setHasPlayed(false);
-    fetch(`${EMBED_API}?v=${author}/${permlink}`, {
-      headers: { Accept: 'application/json' },
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: { success?: boolean } & EmbedMeta) => {
-        if (cancelled) return;
-        if (!data?.success) {
-          setError('Video unavailable');
-          return;
-        }
-        setMeta(data);
+    fetchThreeSpeakMeta(author, permlink, () => cancelled)
+      .then((data) => {
+        if (!cancelled) setMeta(data);
       })
-      .catch(() => {
-        if (!cancelled) setError('Failed to load video');
+      .catch((e) => {
+        if (!cancelled && (!(e instanceof Error) || e.message !== 'cancelled')) {
+          setError('Failed to load video');
+        }
       });
     return () => {
       cancelled = true;

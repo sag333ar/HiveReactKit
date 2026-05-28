@@ -648,6 +648,29 @@ export function HiveDetailPost({
         /<(iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.tv[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
         '',
       );
+      // 1b) Markdown links whose target is a 3Speak URL. 3Speak's
+      //     standard embed markdown is a linked thumbnail plus a
+      //     "▶️ [Watch on 3Speak](…)" text link:
+      //         [![](thumb)](https://3speak.tv/watch?v=a/p)
+      //         ▶️ [Watch on 3Speak](https://3speak.tv/watch?v=a/p)
+      //     Stripping only the bare URL (rules 2/3) leaves dangling
+      //     `](` and "▶️ [Watch on 3Speak](" fragments in the body, so
+      //     we remove the whole link construct here — BEFORE the bare-
+      //     URL strip, which would otherwise gut the URL inside `(…)`
+      //     and break these matches.
+      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/[^)\s]+`;
+      // Linked thumbnail image: `[![alt](img)](3speak-url)`.
+      safeBody = safeBody.replace(
+        new RegExp(String.raw`\[!\[[^\]]*\]\([^)]*\)\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
+        '',
+      );
+      // Text link (incl. the leading play emoji): `▶️ [Watch on 3Speak](3speak-url)`.
+      safeBody = safeBody.replace(
+        new RegExp(String.raw`(?:▶️?\s*)?\[[^\]]*\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
+        '',
+      );
+      // Any stray play emoji left dangling next to a removed link.
+      safeBody = safeBody.replace(/▶️?/g, '');
       // 2) Bare query-string URLs (`?v=author/permlink`).
       safeBody = safeBody.replace(
         /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
