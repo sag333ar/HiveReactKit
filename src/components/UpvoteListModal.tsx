@@ -23,8 +23,8 @@ import { VoteSlider } from "./VoteSlider";
 import { toast } from "@/hooks";
 
 interface UpvoteListModalProps {
-  author: string;
-  permlink: string;
+  author?: string;
+  permlink?: string;
   onClose: () => void;
   currentUser?: string;
   token?: string;
@@ -35,9 +35,40 @@ interface UpvoteListModalProps {
    *  works offline; falls back to the official Hive logo from
    *  hive.io otherwise. */
   hiveIconUrl?: string;
+  /** "Voters-only" mode. When a plain list of account names is passed
+   *  (e.g. accounts that voted for a witness), the modal skips the
+   *  post fetch + reward maths and just renders the same avatar/name
+   *  grid — no upvote button. Used by surfaces that have voters but no
+   *  per-vote reward (witnesses, proposals). */
+  voters?: string[];
+  /** Voters-only mode with deferred loading: the modal calls this on
+   *  open, shows its own spinner while it resolves, then renders the
+   *  returned voters. Use instead of `voters` when the list has to be
+   *  fetched (e.g. witness voters from the chain). Returning a `value`
+   *  per voter (e.g. each voter's MHP weight) also lights up the same
+   *  breakdown bar the post-votes view uses. */
+  fetchVoters?: () => Promise<VoterRow[]>;
+  /** Unit suffix for each voter's `value` (e.g. "MHP"). Shown after the
+   *  number in voters-only mode; no Hive reward icon is rendered. */
+  valueUnit?: string;
+  /** Header title override. Defaults to "Votes (Hive Rewards)". */
+  title?: string;
+  /** Makes each voter row navigate to the account's profile. Mainly
+   *  used in voters-only mode. */
+  onUserClick?: (username: string) => void;
+  /** Builds a profile URL so voter rows render as real <a href> links
+   *  (open-in-new-tab). Paired with `onUserClick` for SPA nav. */
+  getUserUrl?: (username: string) => string;
 }
 
 type SortMode = "value" | "voter" | "newest" | "oldest" | "curation";
+
+/** A single row in voters-only mode. `value` is an optional weight
+ *  (e.g. the voter's MHP) used for sorting + the breakdown bar. */
+export interface VoterRow {
+  account: string;
+  value?: number;
+}
 
 export function formatTimeAgo(date: string | Date): string {
   // Hive timestamps are UTC without a `Z` suffix; tag them so the
@@ -117,7 +148,21 @@ const UpvoteListModal = ({
   token,
   onClickUpvoteButton,
   hiveIconUrl,
+  voters,
+  fetchVoters,
+  valueUnit,
+  title,
+  onUserClick,
+  getUserUrl,
 }: UpvoteListModalProps) => {
+  // Voters-only mode: a plain list of account names was supplied (or a
+  // resolver to fetch them), so we skip the post fetch + reward
+  // derivations and render the avatar/name grid (optionally with a
+  // per-voter weight + breakdown bar).
+  const isVotersMode = Array.isArray(voters) || typeof fetchVoters === 'function';
+  const [resolvedVoters, setResolvedVoters] = useState<VoterRow[]>(
+    voters?.map((a) => ({ account: a })) ?? [],
+  );
   // Use the consumer-supplied icon when available, otherwise fall back
   // to the official Hive logo CDN so the row never shows a broken
   // image even when no icon is wired through.
@@ -145,6 +190,7 @@ const UpvoteListModal = ({
   };
 
   const refreshVotes = async () => {
+    if (isVotersMode || !author || !permlink) return;
     setLoading(true);
     // Pull active votes + post payload in parallel — the post gives us
     // the payout pool needed to translate each voter's rshares into a
@@ -159,9 +205,36 @@ const UpvoteListModal = ({
   };
 
   useEffect(() => {
+    if (isVotersMode) {
+      if (fetchVoters) {
+        // Deferred voters list — show the spinner while it resolves.
+        let cancelled = false;
+        setLoading(true);
+        fetchVoters()
+          .then((list) => {
+            if (!cancelled) {
+              setResolvedVoters(list);
+              setLoading(false);
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setResolvedVoters([]);
+              setLoading(false);
+            }
+          });
+        return () => {
+          cancelled = true;
+        };
+      }
+      // Names were passed in directly — nothing to fetch.
+      setResolvedVoters((voters ?? []).map((a) => ({ account: a })));
+      setLoading(false);
+      return;
+    }
     refreshVotes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [author, permlink]);
+  }, [author, permlink, isVotersMode]);
 
   // ── Reward derivations ─────────────────────────────────────────────
   // Total payout drives the per-voter Hive reward; total rshares /
@@ -264,6 +337,46 @@ const UpvoteListModal = ({
     return segs;
   }, [enrichedVotes, totalPayout]);
 
+  // ── Voters-only derivations ────────────────────────────────────────
+  // When voters carry a `value` (e.g. each voter's MHP weight) we sort
+  // them by it and build the same breakdown bar the post-votes view
+  // uses; otherwise we just sort the names alphabetically.
+  const voterTotalValue = useMemo(
+    () => resolvedVoters.reduce((s, v) => s + Math.max(0, v.value ?? 0), 0),
+    [resolvedVoters],
+  );
+  const hasVoterValues = voterTotalValue > 0;
+  const sortedVoters = useMemo(() => {
+    const list = resolvedVoters.slice();
+    list.sort((a, b) =>
+      hasVoterValues
+        ? (b.value ?? 0) - (a.value ?? 0)
+        : a.account.localeCompare(b.account),
+    );
+    return list;
+  }, [resolvedVoters, hasVoterValues]);
+  const voterBreakdownSegments = useMemo(() => {
+    if (voterTotalValue <= 0)
+      return [] as { color: string; widthPct: number; voter: string }[];
+    const TOP = 9;
+    const top = sortedVoters.slice(0, TOP);
+    const rest = sortedVoters.slice(TOP);
+    const segs = top.map((v, i) => ({
+      color: SLICE_COLORS[i % SLICE_COLORS.length],
+      widthPct: ((v.value ?? 0) / voterTotalValue) * 100,
+      voter: v.account,
+    }));
+    if (rest.length > 0) {
+      const restSum = rest.reduce((s, v) => s + (v.value ?? 0), 0);
+      segs.push({
+        color: "var(--hrk-border-strong)",
+        widthPct: (restSum / voterTotalValue) * 100,
+        voter: `+${rest.length} more`,
+      });
+    }
+    return segs;
+  }, [sortedVoters, voterTotalValue]);
+
   const onOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -301,8 +414,13 @@ const UpvoteListModal = ({
         <div className="flex items-center justify-between gap-3 border-b border-[var(--hrk-border-subtle)] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex flex-1 items-center gap-3 min-w-0">
             <h2 className="text-base sm:text-lg font-semibold text-white truncate">
-              Votes (Hive Rewards)
+              {title ?? 'Votes (Hive Rewards)'}
             </h2>
+            {isVotersMode && !loading && (
+              <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--hrk-text-tertiary)]">
+                {resolvedVoters.length.toLocaleString()}
+              </span>
+            )}
             {isRefreshing && (
               <span className="inline-flex items-center" aria-label="Refreshing">
                 <span className="w-3.5 h-3.5 border-2 border-[var(--hrk-brand)] border-t-transparent rounded-full animate-spin" />
@@ -310,7 +428,9 @@ const UpvoteListModal = ({
             )}
           </div>
 
-          {/* Sort dropdown */}
+          {/* Sort dropdown — hidden in voters-only mode (the list is a
+              flat set of names with no value/curation to sort by). */}
+          {!isVotersMode && (
           <div className="relative">
             <button
               type="button"
@@ -349,8 +469,9 @@ const UpvoteListModal = ({
               </ul>
             )}
           </div>
+          )}
 
-          {!showVoteSlider && (
+          {!isVotersMode && !showVoteSlider && (
             <button
               onClick={() => {
                 if (onClickUpvoteButton) {
@@ -390,8 +511,32 @@ const UpvoteListModal = ({
           </button>
         </div>
 
+        {/* Breakdown (voters-only mode with per-voter weights) */}
+        {isVotersMode && !loading && voterBreakdownSegments.length > 0 && (
+          <div className="border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/40 px-4 py-3 sm:px-5">
+            <p className="text-xs text-[var(--hrk-text-tertiary)] mb-1.5">
+              Breakdown for {resolvedVoters.length.toLocaleString()}{' '}
+              {resolvedVoters.length === 1 ? 'voter' : 'voters'}
+            </p>
+            <div
+              className="flex h-2.5 w-full overflow-hidden rounded-md bg-[var(--hrk-bg-surface)]"
+              role="img"
+              aria-label="Voter weight distribution"
+            >
+              {voterBreakdownSegments.map((seg, i) => (
+                <span
+                  key={`${seg.voter}-${i}`}
+                  title={`${seg.voter} · ${seg.widthPct.toFixed(1)}%`}
+                  style={{ width: `${seg.widthPct}%`, backgroundColor: seg.color }}
+                  className="h-full"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Breakdown */}
-        {!loading && !showVoteSlider && votes.length > 0 && (
+        {!isVotersMode && !loading && !showVoteSlider && votes.length > 0 && (
           <div className="border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/40 px-4 py-3 sm:px-5">
             <p className="text-xs text-[var(--hrk-text-tertiary)] mb-1.5">
               Breakdown for {votes.length} {votes.length === 1 ? "vote" : "votes"}
@@ -418,7 +563,71 @@ const UpvoteListModal = ({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
-          {loading ? (
+          {isVotersMode ? (
+            loading ? (
+              <div className="flex justify-center items-center h-full p-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--hrk-brand)]" />
+              </div>
+            ) : resolvedVoters.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-[var(--hrk-text-tertiary)]">
+                No voters yet.
+              </div>
+            ) : (
+              <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                {sortedVoters.map((row) => {
+                  const voter = row.account;
+                  const href = getUserUrl?.(voter);
+                  const inner = (
+                    <>
+                      <img
+                        src={`https://images.hive.blog/u/${voter}/avatar`}
+                        alt={voter}
+                        loading="lazy"
+                        className="w-9 h-9 rounded-full bg-[var(--hrk-bg-surface-raised)] shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${voter}&background=random`;
+                        }}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-white">
+                        {voter}
+                      </span>
+                      {row.value != null && hasVoterValues && (
+                        <span className="shrink-0 text-xs font-semibold text-[var(--hrk-success)]">
+                          {row.value.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                          {valueUnit ? ` ${valueUnit}` : ''}
+                        </span>
+                      )}
+                    </>
+                  );
+                  const cls =
+                    "flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[var(--hrk-bg-surface)]";
+                  return (
+                    <li key={voter}>
+                      {href ? (
+                        <a
+                          href={href}
+                          className={cls}
+                          onClick={(e) => {
+                            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                            e.preventDefault();
+                            onUserClick?.(voter);
+                          }}
+                        >
+                          {inner}
+                        </a>
+                      ) : onUserClick ? (
+                        <button type="button" className={`w-full text-left ${cls}`} onClick={() => onUserClick(voter)}>
+                          {inner}
+                        </button>
+                      ) : (
+                        <div className={cls}>{inner}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )
+          ) : loading ? (
             <div className="flex justify-center items-center h-full p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--hrk-brand)]" />
             </div>
