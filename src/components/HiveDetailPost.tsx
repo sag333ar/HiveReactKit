@@ -33,6 +33,7 @@ import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
+import { HiveLink } from './common/HiveLink';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -235,6 +236,11 @@ export interface HiveDetailPostProps {
    *  Receives the community ID (`hive-xxxxxx`) so the consumer can route
    *  to its community-detail page. */
   onCommunityClick?: (communityId: string) => void;
+  // URL builders — when provided, the header author + community pill
+  // render as real <a href> links so the browser offers "open in new
+  // tab" / Cmd-click. Plain clicks still route through the callbacks.
+  getUserUrl?: (username: string) => string;
+  getCommunityUrl?: (communityId: string) => string;
 
   // ── Header kebab (in-app-bar more menu) ────────────────────────────
   // Mirror of the per-card action bar's `onShare` / `onReport`, but
@@ -368,6 +374,8 @@ export function HiveDetailPost({
   onBack,
   onUserClick,
   onCommunityClick,
+  getUserUrl,
+  getCommunityUrl,
   onNavigateToPost,
   isBookmarked,
   onToggleBookmark,
@@ -1401,15 +1409,21 @@ export function HiveDetailPost({
             )}
 
             {/* Avatar */}
-            <img
-              src={profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`}
-              alt={post.author}
-              className="w-10 h-10 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
-              }}
-              onClick={() => onUserClick?.(post.author)}
-            />
+            <HiveLink
+              href={getUserUrl?.(post.author)}
+              onActivate={() => onUserClick?.(post.author)}
+              className="flex-shrink-0"
+              aria-label={`@${post.author} profile`}
+            >
+              <img
+                src={profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`}
+                alt={post.author}
+                className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
+                }}
+              />
+            </HiveLink>
 
             {/* Name + meta row. Time-ago and community sit directly
                 below the username so the header carries the post's
@@ -1419,26 +1433,27 @@ export function HiveDetailPost({
                 `onCommunityClick` (HiveSuite routes to the community
                 detail page; other shells can route wherever). */}
             <div className="flex-1 min-w-0">
-              <button
-                onClick={() => onUserClick?.(post.author)}
+              <HiveLink
+                href={getUserUrl?.(post.author)}
+                onActivate={() => onUserClick?.(post.author)}
                 className="block text-sm font-semibold text-white truncate hover:text-blue-400 transition-colors"
               >
                 @{post.author}
-              </button>
+              </HiveLink>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--hrk-text-tertiary)]">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {formatDate(post.created)}
                 </span>
                 {post.community_title && (
-                  onCommunityClick && post.community ? (
-                    <button
-                      type="button"
-                      onClick={() => onCommunityClick(post.community)}
+                  (onCommunityClick || getCommunityUrl) && post.community ? (
+                    <HiveLink
+                      href={getCommunityUrl?.(post.community)}
+                      onActivate={() => onCommunityClick?.(post.community)}
                       className="truncate text-blue-400 hover:text-blue-300 hover:underline"
                     >
                       in {post.community_title}
-                    </button>
+                    </HiveLink>
                   ) : (
                     <span className="truncate">
                       in <span className="text-blue-400">{post.community_title}</span>

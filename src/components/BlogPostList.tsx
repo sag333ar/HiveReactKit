@@ -22,6 +22,7 @@ import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
 import { extractPostMedia, type PostMedia } from '../utils/postMedia';
 import { MediaLightbox } from './MediaLightbox';
+import { HiveLink } from './common/HiveLink';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -65,6 +66,12 @@ export interface BlogPostListProps {
   // Click-throughs.
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
+  // URL builders — when provided, the post title + author render as
+  // real <a href> links so the browser offers "open in new tab" /
+  // Cmd-click. Plain clicks still route through the callbacks above.
+  getPostUrl?: (author: string, permlink: string) => string;
+  getUserUrl?: (username: string) => string;
+  getCommunityUrl?: (community: string) => string;
 
   // Composer tokens forwarded to <PostActionButton/>'s comments modal.
   ecencyToken?: string;
@@ -329,6 +336,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onDeletePost,
   onUserClick,
   onPostClick,
+  getPostUrl,
+  getUserUrl,
+  getCommunityUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -447,7 +457,13 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         };
 
         const handleClick = onPostClick
-          ? () => onPostClick(item.author, item.permlink, item.title)
+          ? (e: React.MouseEvent) => {
+              // Let modified / non-primary clicks fall through to the
+              // browser so any underlying link (title / author) can
+              // open in a new tab.
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              onPostClick(item.author, item.permlink, item.title);
+            }
           : undefined;
 
         return (
@@ -472,28 +488,45 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                     }}
                   />
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
+                    <HiveLink
+                      href={getUserUrl?.(item.author)}
+                      onActivate={() => onUserClick?.(item.author)}
                       className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
                       @{item.author}
-                    </button>
-                    <span className="text-[10px] text-[var(--hrk-text-tertiary)] sm:text-xs">{formatTimeAgo(item.created)}</span>
+                    </HiveLink>
+                    {/* Timestamp is the post permalink so the card has a
+                        right-clickable "open in new tab" target even if
+                        the title is absent. */}
+                    <HiveLink
+                      href={getPostUrl?.(item.author, item.permlink)}
+                      onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                      className="text-[10px] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-brand)] hover:underline sm:text-xs"
+                    >
+                      {formatTimeAgo(item.created)}
+                    </HiveLink>
                     {item.community_title && (
-                      <span className="text-[10px] font-medium text-[var(--hrk-brand)] sm:text-xs">
+                      <HiveLink
+                        href={item.community ? getCommunityUrl?.(item.community) : undefined}
+                        onActivate={() => {
+                          if (item.community) onUserClick?.(item.community);
+                        }}
+                        className="text-[10px] font-medium text-[var(--hrk-brand)] hover:underline sm:text-xs"
+                      >
                         #{item.community_title}
-                      </span>
+                      </HiveLink>
                     )}
                   </div>
                 </div>
 
                 {item.title && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
-                    className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-[var(--hrk-brand)] sm:mb-1 sm:text-base"
+                  <HiveLink
+                    href={getPostUrl?.(item.author, item.permlink)}
+                    onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                    className="mb-0.5 line-clamp-2 block text-left text-[13px] font-semibold leading-snug text-white hover:text-[var(--hrk-brand)] sm:mb-1 sm:text-base"
                   >
                     <TranslatedText text={item.title} />
-                  </button>
+                  </HiveLink>
                 )}
 
                 {previewText && (

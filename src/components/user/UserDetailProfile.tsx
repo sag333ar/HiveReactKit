@@ -52,6 +52,7 @@ import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
+import { HiveLink } from "../common/HiveLink";
 import { getHiveApiEndpoint } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
@@ -247,6 +248,14 @@ export interface UserDetailProfileProps {
   onSnapClick?: (author: string, permlink: string) => void;
   onPollClick?: (author: string, permlink: string, question: string) => void;
   onActivityPermlink?: (author: string, permlink: string) => void;
+  // URL builders — when provided, the profile's post/snap cards render
+  // their clickable surfaces as real <a href> links so the browser
+  // offers "open in new tab" / Cmd-click. Plain clicks still route
+  // through the on*Click callbacks above.
+  getPostUrl?: (author: string, permlink: string) => string;
+  getUserUrl?: (username: string) => string;
+  getTagUrl?: (tag: string) => string;
+  getCommunityUrl?: (community: string) => string;
   onActivitySelect?: (activity: any) => void;
   onShare?: (username: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
@@ -449,6 +458,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onPostClick,
   onSnapClick,
   onPollClick,
+  getPostUrl,
+  getUserUrl,
+  getTagUrl,
+  getCommunityUrl,
   onActivityPermlink,
   onActivitySelect,
   onShare,
@@ -1571,26 +1584,40 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 }}
               />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onUserClick?.(item.author); }}
+                <HiveLink
+                  href={getUserUrl?.(item.author)}
+                  onActivate={() => onUserClick?.(item.author)}
                   className="text-[11px] font-medium text-white hover:text-blue-400 sm:text-sm"
                 >
                   @{item.author}
-                </button>
-                <span className="text-[10px] text-[var(--hrk-text-tertiary)] sm:text-xs">{formatTimeAgo(item.created)}</span>
+                </HiveLink>
+                <HiveLink
+                  href={getPostUrl?.(item.author, item.permlink)}
+                  onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                  className="text-[10px] text-[var(--hrk-text-tertiary)] hover:text-blue-400 hover:underline sm:text-xs"
+                >
+                  {formatTimeAgo(item.created)}
+                </HiveLink>
                 {item.community_title && (
-                  <span className="text-[10px] font-medium text-blue-400 sm:text-xs">#{item.community_title}</span>
+                  <HiveLink
+                    href={item.community ? getCommunityUrl?.(item.community) : undefined}
+                    onActivate={() => { if (item.community) onUserClick?.(item.community); }}
+                    className="text-[10px] font-medium text-blue-400 hover:underline sm:text-xs"
+                  >
+                    #{item.community_title}
+                  </HiveLink>
                 )}
               </div>
             </div>
 
             {item.title && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onPostClick?.(item.author, item.permlink, item.title); }}
-                className="mb-0.5 line-clamp-2 text-left text-[13px] font-semibold leading-snug text-white hover:text-blue-400 sm:mb-1 sm:text-base"
+              <HiveLink
+                href={getPostUrl?.(item.author, item.permlink)}
+                onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                className="mb-0.5 line-clamp-2 block text-left text-[13px] font-semibold leading-snug text-white hover:text-blue-400 sm:mb-1 sm:text-base"
               >
                 {item.title}
-              </button>
+              </HiveLink>
             )}
 
             {previewText && (
@@ -1672,20 +1699,28 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] transition-colors"
     >
       <div className="flex items-center gap-3">
-        <img
-          src={`https://images.hive.blog/u/${name}/avatar`}
-          alt={name}
-          className="w-10 h-10 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)]"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${name}&background=random&size=40`;
-          }}
-        />
-        <button
-          onClick={() => onUserClick?.(name)}
+        <HiveLink
+          href={getUserUrl?.(name)}
+          onActivate={() => onUserClick?.(name)}
+          className="flex-shrink-0"
+          aria-label={`@${name} profile`}
+        >
+          <img
+            src={`https://images.hive.blog/u/${name}/avatar`}
+            alt={name}
+            className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)]"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${name}&background=random&size=40`;
+            }}
+          />
+        </HiveLink>
+        <HiveLink
+          href={getUserUrl?.(name)}
+          onActivate={() => onUserClick?.(name)}
           className="font-medium text-white hover:text-blue-400"
         >
           @{name}
-        </button>
+        </HiveLink>
       </div>
     </div>
   );
@@ -2338,6 +2373,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onDeletePost={onDeletePost}
             onVotePoll={onVotePoll}
             onEditSnap={onEditSnap}
+            getPostUrl={getPostUrl}
+            getUserUrl={getUserUrl}
+            getTagUrl={getTagUrl}
+            getCommunityUrl={getCommunityUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}

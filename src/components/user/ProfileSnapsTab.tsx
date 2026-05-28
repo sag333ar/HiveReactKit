@@ -93,6 +93,12 @@ export interface ProfileSnapsTabProps {
   ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
+  // URL builders — forwarded to <SnapsFeedView/> so the snap cards
+  // render real <a href> links ("open in new tab" etc.).
+  getPostUrl?: (author: string, permlink: string) => string;
+  getUserUrl?: (username: string) => string;
+  getTagUrl?: (tag: string) => string;
+  getCommunityUrl?: (community: string) => string;
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;

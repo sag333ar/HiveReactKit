@@ -39,6 +39,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX, useIpfsKind } from '../IpfsMedia';
+import { HiveLink } from '../common/HiveLink';
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -114,6 +115,15 @@ export interface SnapsFeedCardProps {
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
   onTagClick?: (tag: string) => void;
+  // URL builders — when provided, the matching clickable surfaces
+  // render as real <a href> links (via HiveLink) so the browser
+  // offers "open in new tab", Cmd/Ctrl/middle-click, etc. Plain
+  // clicks still route through the on*Click callbacks for SPA nav.
+  // When omitted, those surfaces fall back to <button> as before.
+  getPostUrl?: (author: string, permlink: string) => string;
+  getUserUrl?: (username: string) => string;
+  getTagUrl?: (tag: string) => string;
+  getCommunityUrl?: (community: string) => string;
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;
@@ -444,32 +454,34 @@ const InlineBody: FC<{
   segments: BodySegment[];
   onUserClick?: (username: string) => void;
   onTagClick?: (tag: string) => void;
-}> = ({ segments, onUserClick, onTagClick }) => {
+  getUserUrl?: (username: string) => string;
+  getTagUrl?: (tag: string) => string;
+}> = ({ segments, onUserClick, onTagClick, getUserUrl, getTagUrl }) => {
   const out: ReactNode[] = [];
   segments.forEach((seg, i) => {
     if (seg.kind === 'text') {
       out.push(<span key={i}>{seg.text}</span>);
     } else if (seg.kind === 'mention') {
       out.push(
-        <button
+        <HiveLink
           key={i}
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onUserClick?.(seg.username); }}
+          href={getUserUrl?.(seg.username)}
+          onActivate={() => onUserClick?.(seg.username)}
           className="text-[var(--hrk-brand)] hover:underline"
         >
           @{seg.username}
-        </button>,
+        </HiveLink>,
       );
     } else if (seg.kind === 'hashtag') {
       out.push(
-        <button
+        <HiveLink
           key={i}
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onTagClick?.(seg.tag); }}
+          href={getTagUrl?.(seg.tag)}
+          onActivate={() => onTagClick?.(seg.tag)}
           className="text-[var(--hrk-brand)] hover:underline"
         >
           #{seg.tag}
-        </button>,
+        </HiveLink>,
       );
     } else {
       out.push(
@@ -1412,6 +1424,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onUserClick,
   onPostClick,
   onTagClick,
+  getPostUrl,
+  getUserUrl,
+  getTagUrl,
+  getCommunityUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -1606,6 +1622,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const handleBodyClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('a, button, input, textarea, select, video, iframe, img, [role="button"], [role="dialog"]')) return;
+    // Let modified / non-primary clicks through untouched so the
+    // browser can act on any underlying link (e.g. the body anchors).
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     onPostClick?.(post.author, post.permlink, post.title);
   };
 
@@ -1613,10 +1632,11 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
       {/* Header */}
       <header className="flex items-center gap-3 px-4 pt-4 pb-2">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+        <HiveLink
+          href={getUserUrl?.(post.author)}
+          onActivate={() => onUserClick?.(post.author)}
           className="shrink-0"
+          aria-label={`@${post.author} profile`}
         >
           <img
             src={`https://images.hive.blog/u/${post.author}/avatar`}
@@ -1626,17 +1646,26 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=36`;
             }}
           />
-        </button>
+        </HiveLink>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+          <HiveLink
+            href={getUserUrl?.(post.author)}
+            onActivate={() => onUserClick?.(post.author)}
             className="truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
           >
             @{post.author}
-          </button>
+          </HiveLink>
           <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
-          <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">{formatTimeAgo(post.created)}</span>
+          {/* Timestamp doubles as the post permalink (X/Twitter
+              pattern) so the snap — which has no title — still has a
+              right-clickable "open in new tab" target. */}
+          <HiveLink
+            href={getPostUrl?.(post.author, post.permlink)}
+            onActivate={() => onPostClick?.(post.author, post.permlink, post.title)}
+            className="shrink-0 text-xs text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-brand)] hover:underline"
+          >
+            {formatTimeAgo(post.created)}
+          </HiveLink>
           {/* Unified "hivesuite" pill — fires for any post whose
               json_metadata.tags include `hsnaps`, `hreplier`, or
               `hivesuite` (the historic + canonical family tags).
@@ -1651,9 +1680,15 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           {post.community_title && (
             <>
               <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
-              <span className="shrink-0 truncate text-xs font-medium text-[var(--hrk-brand)]">
+              <HiveLink
+                href={post.community ? getCommunityUrl?.(post.community) : undefined}
+                onActivate={() => {
+                  if (post.community) onTagClick?.(post.community);
+                }}
+                className="shrink-0 truncate text-xs font-medium text-[var(--hrk-brand)] hover:underline"
+              >
                 #{post.community_title}
-              </span>
+              </HiveLink>
             </>
           )}
         </div>
@@ -1757,6 +1792,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             segments={parsed.segments}
             onUserClick={onUserClick}
             onTagClick={onTagClick}
+            getUserUrl={getUserUrl}
+            getTagUrl={getTagUrl}
           />
         ) : null}
           </>

@@ -55,6 +55,14 @@ export interface CommunityDetailProps {
   onUserClick?: (username: string) => void
   onPostClick?: (author: string, permlink: string, title?: string) => void
   onCommentClick?: (author: string, permlink: string) => void
+  // URL builders — forwarded into the embedded BlogPostList /
+  // SnapsFeedView so post & author surfaces render as real <a href>
+  // links ("open in new tab" etc.). Plain clicks still route through
+  // the on*Click callbacks.
+  getPostUrl?: (author: string, permlink: string) => string
+  getUserUrl?: (username: string) => string
+  getTagUrl?: (tag: string) => string
+  getCommunityUrl?: (community: string) => string
 
   // Action callbacks (forwarded into BlogPostList → PostActionButton)
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>
@@ -220,6 +228,10 @@ const CommunityDetail = ({
   onBack,
   onUserClick,
   onPostClick,
+  getPostUrl,
+  getUserUrl,
+  getTagUrl,
+  getCommunityUrl,
   onCommentClick,
   onUpvote,
   onSubmitComment,
@@ -484,6 +496,9 @@ const CommunityDetail = ({
       onDeletePost,
       onUserClick,
       onPostClick,
+      getPostUrl,
+      getUserUrl,
+      getCommunityUrl,
       onCommentClick,
       ecencyToken,
       threeSpeakApiKey,
@@ -511,6 +526,9 @@ const CommunityDetail = ({
       onDeletePost,
       onUserClick,
       onPostClick,
+      getPostUrl,
+      getUserUrl,
+      getCommunityUrl,
       onCommentClick,
       ecencyToken,
       threeSpeakApiKey,
@@ -812,6 +830,10 @@ const CommunityDetail = ({
             onReportPost={onReportPost}
             onUserClick={onUserClick}
             onPostClick={onPostClick}
+            getPostUrl={getPostUrl}
+            getUserUrl={getUserUrl}
+            getTagUrl={getTagUrl}
+            getCommunityUrl={getCommunityUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}

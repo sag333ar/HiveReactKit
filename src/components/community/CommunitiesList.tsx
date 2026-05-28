@@ -25,9 +25,14 @@ import { Search, Loader2, RefreshCw, Users2, X, Users } from "lucide-react";
 
 import { communityService } from "../../services/communityService";
 import { CommunityItem } from "../../types/community";
+import { HiveLink } from "../common/HiveLink";
 
 interface CommunitiesListProps {
   onSelectCommunity: (communityId: string) => void;
+  /** When provided, each community row renders as a real <a href> so
+   *  the browser offers "open in new tab" / Cmd-click. A plain left
+   *  click is still intercepted and routed through `onSelectCommunity`. */
+  getCommunityUrl?: (communityId: string) => string;
   /** Visual variant. Default `"dark"` — uses kit tokens. */
   theme?: "light" | "dark";
   /** When `true`, the component restores its last cached state (the
@@ -68,6 +73,7 @@ function formatCount(n: number): string {
 
 const CommunitiesList = ({
   onSelectCommunity,
+  getCommunityUrl,
   theme = "dark",
   shouldRestoreScroll = false,
 }: CommunitiesListProps) => {
@@ -445,10 +451,11 @@ const CommunitiesList = ({
               const members = community.subscribers || 0;
               return (
                 <li key={community.id ?? name}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectCommunity(name)}
-                    className={`group w-full rounded-[14px] border p-3.5 text-left transition-colors ${cls.card}`}
+                  <HiveLink
+                    href={getCommunityUrl?.(name)}
+                    onActivate={() => onSelectCommunity(name)}
+                    stopPropagation={false}
+                    className={`group block w-full rounded-[14px] border p-3.5 text-left transition-colors ${cls.card}`}
                   >
                     <div className="flex items-center gap-3.5">
                       <img
@@ -488,7 +495,7 @@ const CommunitiesList = ({
                         {formatCount(members)}
                       </span>
                     </div>
-                  </button>
+                  </HiveLink>
                 </li>
               );
             })}
