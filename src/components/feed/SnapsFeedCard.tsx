@@ -27,6 +27,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Loader2,
 } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
@@ -1092,13 +1093,41 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
   // media item on the post without closing the viewer.
   const [popupIdx, setPopupIdx] = useState<number>(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
+  // Transient loading flag for the strip — flipped on when the user
+  // taps the prev/next arrow so a spinner covers the gap while the
+  // next tile's media (image / iframe) fetches and paints. Cleared by
+  // the image's onLoad/onError, and by a fallback timeout for embed
+  // tiles that don't expose a reliable load event.
+  const [tileLoading, setTileLoading] = useState(false);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending fallback timer on unmount so we don't call
+  // setState after the strip is gone.
+  useEffect(() => () => {
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+  }, []);
 
   if (attachments.length === 0) return null;
   const safeIdx = Math.min(idx, attachments.length - 1);
   const current = attachments[safeIdx];
 
-  const next = () => setIdx((i) => (i + 1) % attachments.length);
-  const prev = () => setIdx((i) => (i - 1 + attachments.length) % attachments.length);
+  // Show the spinner immediately, then arm a fallback timer so it
+  // always clears even for tiles without a load event (YouTube /
+  // 3Speak / Twitter iframes, audio players).
+  const startTileLoading = () => {
+    setTileLoading(true);
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+    loadingTimerRef.current = setTimeout(() => setTileLoading(false), 1200);
+  };
+  const stopTileLoading = () => {
+    if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    setTileLoading(false);
+  };
+  const next = () => { startTileLoading(); setIdx((i) => (i + 1) % attachments.length); };
+  const prev = () => { startTileLoading(); setIdx((i) => (i - 1 + attachments.length) % attachments.length); };
   const open = (e: React.MouseEvent, a: Attachment) => {
     e.stopPropagation();
     const i = attachments.indexOf(a);
@@ -1167,11 +1196,25 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
               keeps the full image visible inside the fixed-height strip
               with a dark letterbox instead of cropping (object-cover). */}
           <img
+            // `key` forces a fresh <img> per index so onLoad fires on
+            // every navigation (React would otherwise reuse the node
+            // and skip the event for a same-element src swap).
+            key={safeIdx}
+            ref={(node) => {
+              // Cached images may already be complete before React
+              // attaches onLoad — clear the spinner right away so it
+              // doesn't hang for the fallback timeout.
+              if (node && node.complete) stopTileLoading();
+            }}
             src={current.url}
             alt=""
             loading="lazy"
             className="max-h-full max-w-full object-contain"
-            onError={() => setErrored((prev) => new Set(prev).add(safeIdx))}
+            onLoad={stopTileLoading}
+            onError={() => {
+              stopTileLoading();
+              setErrored((prev) => new Set(prev).add(safeIdx));
+            }}
           />
         </button>
       );
@@ -1290,15 +1333,25 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             scale-to-fit images get a stable container instead of an
             aspect-ratio box that varied with card width. */}
         <div className="h-[280px] w-full">{renderTile()}</div>
+        {/* Navigation loading overlay — covers the strip while the next
+            tile's media loads after a prev/next tap. z-20 sits above
+            the tile but below nothing else in the strip; pointer-events
+            stay off so a quick second tap still reaches the arrows. */}
+        {tileLoading && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40">
+            <Loader2 className="h-7 w-7 animate-spin text-white" />
+          </div>
+        )}
         {attachments.length > 1 && (
           <>
-            {/* z-10 keeps the nav controls above the inline YouTube /
-                3Speak / Twitter iframes — iframes create their own
-                stacking context and would otherwise eat the click. */}
+            {/* z-30 keeps the nav controls above both the inline
+                YouTube / 3Speak / Twitter iframes (own stacking
+                context) AND the z-20 navigation loading overlay, so
+                the arrows stay crisp and tappable while a tile loads. */}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); prev(); }}
-              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+              className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
               aria-label="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -1306,12 +1359,12 @@ const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); next(); }}
-              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
+              className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80"
               aria-label="Next"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-            <div className="absolute bottom-2 right-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+            <div className="absolute bottom-2 right-2 z-30 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
               {safeIdx + 1} / {attachments.length}
             </div>
           </>
