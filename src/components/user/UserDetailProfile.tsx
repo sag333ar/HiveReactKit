@@ -2174,6 +2174,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           username={targetUsername}
           onClickPermlink={onActivityPermlink}
           onSelectActivity={onActivitySelect}
+          scrollRootRef={mainScrollRef}
         />
       );
     }

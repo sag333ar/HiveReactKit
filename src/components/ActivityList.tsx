@@ -20,6 +20,7 @@ import {
   Send,
 } from "lucide-react";
 import { activityListService, buildOperationFilterMask } from "@/services/activityListService";
+import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import {
   ActivityListItem,
   DirectionFilter,
@@ -207,6 +208,13 @@ interface ActivityListProps {
   className?: string;
   onClickPermlink?: (author: string, permlink: string) => void;
   onSelectActivity?: (activity: ActivityListItem) => void;
+  /** The actual scroll container this list lives inside. When provided,
+   *  infinite scroll attaches to it directly instead of guessing the
+   *  nearest scrollable ancestor — the guess is unreliable in nested
+   *  layouts (e.g. embedded in UserDetailProfile) where an inner
+   *  `overflow-y-auto` wrapper grows to content height and never
+   *  actually scrolls. */
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
 }
 
 const ActivityList: React.FC<ActivityListProps> = ({
@@ -217,6 +225,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
   className,
   onClickPermlink,
   onSelectActivity,
+  scrollRootRef,
 }) => {
   const [localDirectionFilter, setLocalDirectionFilter] = useState(directionFilter);
   const [localOperationFilter, setLocalOperationFilter] = useState<OperationFilter>(operationFilter);
@@ -234,6 +243,167 @@ const ActivityList: React.FC<ActivityListProps> = ({
   const lastIndexRef = useRef<number>(-1);
   const hasMoreRef = useRef<boolean>(true);
   const isLoadingRef = useRef<boolean>(false);
+  // HIVE-per-VEST ratio, used to display stake / unstake / delegate
+  // operations in HP (the chain stores them as raw VESTS).
+  const [vestsToHp, setVestsToHp] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(getHiveApiEndpoint(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'condenser_api.get_dynamic_global_properties',
+        params: [],
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        const tvfh = parseFloat(d?.result?.total_vesting_fund_hive ?? '0');
+        const tvs = parseFloat(d?.result?.total_vesting_shares ?? '0');
+        if (tvs > 0) setVestsToHp(tvfh / tvs);
+      })
+      .catch(() => { /* HP labels fall back to raw VESTS */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  /** Convert a `"123.456789 VESTS"` asset string to an `"X.XXX HP"`
+   *  display. Falls back to the raw string until the ratio loads. */
+  const vestsToHpLabel = useCallback((vests?: string): string => {
+    if (!vests) return '';
+    const n = parseFloat(vests);
+    if (!Number.isFinite(n)) return vests;
+    if (vestsToHp == null) return vests;
+    return `${(n * vestsToHp).toLocaleString(undefined, { maximumFractionDigits: 3 })} HP`;
+  }, [vestsToHp]);
+
+  /** Right-side value(s) for an activity row, formatted per operation
+   *  type — mirrors the wallet Transactions view (amount + counterparty
+   *  / order id / target post, etc.). Returns null for ops with nothing
+   *  meaningful to show. `transfer` keeps its own dedicated renderer. */
+  const renderActivityValue = useCallback((a: ActivityListItem): React.ReactNode => {
+    const d = (a.details ?? {}) as Record<string, any>;
+    const amount = (text?: string) =>
+      text ? <span className="whitespace-nowrap text-sm font-semibold text-[var(--hrk-text-primary)] dark:text-white">{text}</span> : null;
+    const account = (name?: string) =>
+      name ? <span className="truncate text-sm font-medium text-green-600 dark:text-green-400">@{name}</span> : null;
+    const muted = (text?: string) =>
+      text ? <span className="whitespace-nowrap text-xs text-[var(--hrk-text-tertiary)]">{text}</span> : null;
+    const row = (children: React.ReactNode) => (
+      <div className="flex items-center justify-end gap-1.5 min-w-0">{children}</div>
+    );
+    // Join several non-zero asset strings (e.g. reward = HIVE + HBD + HP)
+    // into one compact "·"-separated amount label.
+    const amounts = (...parts: (string | undefined)[]) => {
+      const shown = parts
+        .map((p) => {
+          if (!p) return null;
+          // Convert VESTS payouts to HP for display.
+          if (p.endsWith('VESTS')) {
+            const hp = vestsToHpLabel(p);
+            return parseFloat(hp) > 0 ? hp : null;
+          }
+          return parseFloat(p) > 0 ? p : null;
+        })
+        .filter(Boolean) as string[];
+      return shown.length ? amount(shown.join(' · ')) : null;
+    };
+
+    switch (a.op) {
+      case 'transfer_to_vesting':
+        return amount(d.amount);
+      case 'withdraw_vesting':
+        return amount(vestsToHpLabel(d.vesting_shares));
+      case 'delegate_vesting_shares':
+        return row(<>{account(d.delegatee)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(vestsToHpLabel(d.vesting_shares))}</>);
+      case 'delete_comment':
+        return row(<>{account(d.author)}<span className="text-[var(--hrk-text-tertiary)]">/</span>{muted(d.permlink)}</>);
+      case 'cancel_transfer_from_savings':
+      case 'set_withdraw_vesting_route':
+        return null;
+      case 'limit_order_create':
+      case 'limit_order_create2':
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            {row(<>{amount(d.amount_to_sell)}<span className="text-[var(--hrk-text-tertiary)]">⇄</span>{amount(d.min_to_receive)}</>)}
+            {muted(d.orderid != null ? `ID: #${d.orderid}` : undefined)}
+          </div>
+        );
+      case 'limit_order_cancel':
+        return muted(d.orderid != null ? `ID: #${d.orderid}` : undefined);
+      case 'convert':
+      case 'collateralized_convert':
+        return amount(d.amount);
+      case 'fill_order':
+        return row(<>{account(d.current_owner === username ? d.open_owner : d.current_owner)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(`${d.current_pays} of ${d.open_pays}`)}</>);
+      case 'fill_transfer_from_savings':
+        return row(<>{account(d.to)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(d.amount)}</>);
+      case 'fill_convert_request':
+        return row(<>{amount(d.amount_out)}{muted('IN')}</>);
+      case 'fill_vesting_withdraw':
+        return row(<>{account(d.to_account)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(d.deposited)}</>);
+
+      // ── Social ──────────────────────────────────────────────────
+      case 'vote':
+        return row(<>{account(d.author)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(typeof d.weight === 'number' ? `${(d.weight / 100).toFixed(0)}%` : undefined)}</>);
+      case 'comment':
+        return d.parent_author
+          ? row(<>{muted('reply to')}{account(d.parent_author)}</>)
+          : account(d.author);
+
+      // ── Reward distribution ─────────────────────────────────────
+      case 'claim_reward_balance':
+        return amounts(d.reward_hive, d.reward_hbd, d.reward_vests);
+      case 'comment_reward':
+        return amount(d.payout);
+      case 'author_reward':
+        return amounts(d.hive_payout, d.hbd_payout, d.vesting_payout);
+      case 'curation_reward':
+        return row(<>{account(d.comment_author ?? d.author)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amount(vestsToHpLabel(d.reward))}</>);
+      case 'comment_benefactor_reward':
+        return row(<>{account(d.author)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amounts(d.hive_payout, d.hbd_payout, d.vesting_payout)}</>);
+      case 'interest':
+        return amount(d.interest);
+
+      // ── Governance ──────────────────────────────────────────────
+      case 'account_witness_vote':
+        return row(<>{account(d.witness)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{muted(d.approve ? 'Approve' : 'Unapprove')}</>);
+      case 'account_witness_proxy':
+        return d.proxy ? row(<>{muted('proxy')}{account(d.proxy)}</>) : muted('Cleared proxy');
+      case 'update_proposal_votes':
+        return row(<>{muted(Array.isArray(d.proposal_ids) ? `#${d.proposal_ids.join(', #')}` : undefined)}{muted(d.approve ? 'Approve' : 'Unapprove')}</>);
+      case 'feed_publish':
+        return amount(d.exchange_rate?.base);
+      case 'create_proposal':
+        return amount(d.daily_pay);
+      case 'remove_proposal':
+        return muted(Array.isArray(d.proposal_ids) ? `#${d.proposal_ids.join(', #')}` : undefined);
+      case 'decline_voting_rights':
+        return muted(d.decline ? 'Decline' : 'Cancel decline');
+
+      // ── Account management ──────────────────────────────────────
+      case 'account_create':
+      case 'account_create_with_delegation':
+      case 'create_claimed_account':
+        return account(d.new_account_name);
+      case 'claim_account':
+        return amount(d.fee);
+      case 'change_recovery_account':
+        return account(d.new_recovery_account);
+
+      // ── Escrow ──────────────────────────────────────────────────
+      case 'escrow_transfer':
+        return row(<>{account(d.to)}<span className="text-[var(--hrk-text-tertiary)]">|</span>{amounts(d.hive_amount, d.hbd_amount)}</>);
+      case 'escrow_release':
+        return amounts(d.hive_amount, d.hbd_amount);
+
+      default:
+        return null;
+    }
+  }, [username, vestsToHpLabel]);
 
   const loadActivities = useCallback(async (loadMore = false) => {
     if (!username) return;
@@ -253,6 +423,10 @@ const ActivityList: React.FC<ActivityListProps> = ({
 
     try {
       const mask = buildOperationFilterMask(localOperationFilter);
+      // First page loads a bigger batch (100) when no specific operation
+      // filter is set ("All"), so the initial view isn't sparse after
+      // client-side filtering. Load-more pages use the normal `limit`.
+      const firstPageLimit = localOperationFilter === 'all' ? 100 : limit;
       const historyItems = loadMore
         ? await activityListService.getNextAccountHistoryPage(
             username,
@@ -264,7 +438,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
         : await activityListService.getAccountHistory(
             username,
             -1,
-            limit,
+            firstPageLimit,
             mask?.low,
             mask?.high,
           );
@@ -332,7 +506,9 @@ const ActivityList: React.FC<ActivityListProps> = ({
       return null;
     };
 
-    const root = findScrollableAncestor(node);
+    // Prefer the caller-supplied scroll container (reliable); otherwise
+    // fall back to sniffing the nearest scrollable ancestor.
+    const root = scrollRootRef?.current ?? findScrollableAncestor(node);
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0]?.isIntersecting) {
@@ -907,18 +1083,38 @@ const ActivityList: React.FC<ActivityListProps> = ({
                       </span>
                     </span>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-1 text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] flex-shrink-0 ml-4 hidden sm:flex">
-                    {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
-                      <>
-                        <Clock className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">
-                          {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                ) : (() => {
+                  // Per-operation value (amount / counterparty / order id
+                  // / target post) shown on the right, like the wallet
+                  // Transactions view. Falls back to just the timestamp
+                  // when an op has no meaningful value.
+                  const value = renderActivityValue(activity);
+                  if (value) {
+                    return (
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-4 max-w-[55%]">
+                        {value}
+                        <span className="inline-flex items-center gap-1 text-xs text-[var(--hrk-text-tertiary)]">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                          </span>
                         </span>
-                      </>
-                    )}
-                  </div>
-                )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-1 text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] flex-shrink-0 ml-4 hidden sm:flex">
+                      {activity.type !== 'custom_json' && activity.type !== 'comment_options' && (
+                        <>
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {activityListService.getRelativeTime(activity.timestamp + 'Z')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
 
