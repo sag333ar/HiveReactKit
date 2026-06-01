@@ -13,6 +13,7 @@ import {
   BarChart3,
   Activity,
   Wallet as WalletIcon,
+  Coins as CoinsIcon,
   MoreVertical,
   MapPin,
   Globe,
@@ -295,6 +296,21 @@ export interface UserDetailProfileProps {
    *  Snaps tab. Forwarded into <SnapsFeedView/>. */
   renderSnapHeaderActions?: (post: Post) => React.ReactNode;
 
+  /** Renders the Hive Engine (layer-2 tokens) view shown via a sub-toggle
+   *  inside the Wallet tab. The kit has no engine data layer, so the
+   *  consumer supplies the UI; `isOwn` is true when the viewed profile is
+   *  the logged-in user (gate transfers on it). When omitted the toggle
+   *  and tokens view are not shown. */
+  renderEngineTokens?: (username: string, isOwn: boolean) => React.ReactNode;
+  /** Which Wallet sub-view to show: the native wallet or the Hive Engine
+   *  tokens list. When paired with `onWalletViewChange` this becomes the
+   *  controlled value (URL-driven); otherwise it's just the initial
+   *  value and the toggle manages its own state. */
+  walletInitialView?: "wallet" | "tokens";
+  /** Fires when the user flips the Wallet/Tokens sub-toggle. Wire this to
+   *  push the choice into the URL (`?wv=`) for query-param routing. */
+  onWalletViewChange?: (view: "wallet" | "tokens") => void;
+
   /** Wire this on the consumer's own profile to surface an "Edit profile"
    *  affordance over the avatar. Only invoked when
    *  `currentUsername === username`. The consumer owns the modal /
@@ -478,6 +494,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   allowLandscapeVideos = false,
   awaitingWalletApproval = false,
   renderSnapHeaderActions,
+  renderEngineTokens,
+  walletInitialView = "wallet",
+  onWalletViewChange,
   onEditProfile,
   onPostingAuthority,
   activeTab: controlledActiveTab,
@@ -527,6 +546,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   } | null>(null);
   const [voteWeight, setVoteWeight] = useState(100);
   const [loadingContent, setLoadingContent] = useState(false);
+
+  // Wallet sub-view (native wallet vs. Hive Engine tokens). Initialised
+  // from `walletInitialView` and re-synced when it changes so a consumer
+  // can deep-link straight to the tokens view.
+  const [walletView, setWalletView] = useState<"wallet" | "tokens">(walletInitialView);
+  useEffect(() => {
+    setWalletView(walletInitialView);
+  }, [walletInitialView]);
 
   // Pagination states
   const [loadingMore, setLoadingMore] = useState(false);
@@ -2146,24 +2173,60 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
 
     if (activeTab === "wallet") {
+      // Controlled by the consumer (URL) when `onWalletViewChange` is
+      // wired; otherwise driven by local state.
+      const currentWalletView = onWalletViewChange ? walletInitialView : walletView;
+      const selectWalletView = (key: "wallet" | "tokens") => {
+        if (onWalletViewChange) onWalletViewChange(key);
+        else setWalletView(key);
+      };
       return (
         <div className="max-w-3xl mx-auto">
-          <Wallet
-            username={targetUsername}
-            currentUsername={currentUsername}
-            onUpdateRcDelegation={onUpdateRcDelegation}
-            onDeleteRcDelegation={onDeleteRcDelegation}
-            onCreateHpDelegation={onCreateHpDelegation}
-            onCreateRcDelegation={onCreateRcDelegation}
-            onTransfer={onTransfer}
-            onPowerUp={onPowerUp}
-            onPowerDown={onPowerDown}
-            onTransferToSavings={onTransferToSavings}
-            onTransferFromSavings={onTransferFromSavings}
-            onStopPowerDown={onStopPowerDown}
-            onCancelSavingsWithdrawal={onCancelSavingsWithdrawal}
-            onClaimRewards={onClaimRewards}
-          />
+          {/* Sub-toggle: native Hive wallet vs. Hive Engine (layer-2)
+              tokens. The Tokens view is only offered when the consumer
+              wires `renderEngineTokens` (it owns the engine data layer). */}
+          {renderEngineTokens && (
+            <div className="mb-4 inline-flex rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-0.5">
+              {([["wallet", t("tab.wallet"), WalletIcon], ["tokens", t("tab.engineTokens"), CoinsIcon]] as const).map(
+                ([key, label, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => selectWalletView(key)}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      currentWalletView === key
+                        ? "bg-[var(--hrk-brand)] text-white"
+                        : "text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)]"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+
+          {currentWalletView === "tokens" && renderEngineTokens ? (
+            renderEngineTokens(targetUsername, targetUsername === currentUsername)
+          ) : (
+            <Wallet
+              username={targetUsername}
+              currentUsername={currentUsername}
+              onUpdateRcDelegation={onUpdateRcDelegation}
+              onDeleteRcDelegation={onDeleteRcDelegation}
+              onCreateHpDelegation={onCreateHpDelegation}
+              onCreateRcDelegation={onCreateRcDelegation}
+              onTransfer={onTransfer}
+              onPowerUp={onPowerUp}
+              onPowerDown={onPowerDown}
+              onTransferToSavings={onTransferToSavings}
+              onTransferFromSavings={onTransferFromSavings}
+              onStopPowerDown={onStopPowerDown}
+              onCancelSavingsWithdrawal={onCancelSavingsWithdrawal}
+              onClaimRewards={onClaimRewards}
+            />
+          )}
         </div>
       );
     }

@@ -22,6 +22,7 @@ export type KitMessageKey =
   | "tab.comments" | "tab.replies" | "tab.activities"
   | "tab.authorRewards" | "tab.curationRewards" | "tab.growth"
   | "tab.followers" | "tab.following" | "tab.wallet"
+  | "tab.engineTokens"
   | "tab.votingPower" | "tab.badges" | "tab.witnessVotes"
   // Profile meta
   | "meta.followers" | "meta.following" | "meta.posts"
@@ -72,6 +73,7 @@ const en: Record<KitMessageKey, string> = {
   "tab.followers": "Followers",
   "tab.following": "Following",
   "tab.wallet": "Wallet",
+  "tab.engineTokens": "Tokens",
   "tab.votingPower": "Voting Power",
   "tab.badges": "Badges",
   "tab.witnessVotes": "Witness Votes",
@@ -171,6 +173,7 @@ const es: Record<KitMessageKey, string> = {
   "tab.followers": "Seguidores",
   "tab.following": "Siguiendo",
   "tab.wallet": "Cartera",
+  "tab.engineTokens": "Tokens",
   "tab.votingPower": "Poder de voto",
   "tab.badges": "Insignias",
   "tab.witnessVotes": "Votos de testigo",
