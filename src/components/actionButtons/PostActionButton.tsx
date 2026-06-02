@@ -240,6 +240,14 @@ export function PostActionButton({
       : currentUserProp;
   const isLoggedIn = currentUser != null;
 
+  // Users can't flag their own post/comment. When the signed-in user is
+  // the author, drop the report handler so neither the inline Flag icon
+  // nor the "Flag" menu item renders. (The kit owns this guard so every
+  // surface — feed cards, detail bar, snaps — behaves consistently.)
+  const isOwnContent =
+    !!currentUser && !!author && author.toLowerCase() === currentUser.toLowerCase();
+  const reportHandler = isOwnContent ? undefined : onReport;
+
   const [votes, setVotes] = useState<ActiveVote[]>(initialVotes ?? []);
   // Displayed vote count is decoupled from the `votes` array because
   // the chain caps that array at 1000 entries; the canonical total
@@ -693,7 +701,7 @@ export function PostActionButton({
           onReSnap={onReSnap ? handleReSnapClick : undefined}
           onShare={handleShareClick}
           onTip={onTip ? handleTipClick : undefined}
-          onReport={onReport ? handleReportClick : undefined}
+          onReport={reportHandler ? handleReportClick : undefined}
           onToggleBookmark={onToggleBookmark}
           isBookmarked={isBookmarked}
           onDelete={onDelete}
@@ -728,8 +736,8 @@ export function PostActionButton({
             </button>
           </div>
 
-          {/* Report */}
-          {onReport && (
+          {/* Report — hidden on the user's own content. */}
+          {reportHandler && (
           <div className="relative group">
             <span className={tooltipClass}>Report</span>
             <button

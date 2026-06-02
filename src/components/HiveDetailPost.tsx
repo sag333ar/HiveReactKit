@@ -171,6 +171,11 @@ export interface HiveDetailPostProps {
     parent_permlink: string;
     json_metadata: string;
   }) => void;
+  /** Called when the post author taps Delete on their own post. Only
+   *  rendered as an action when `currentUser === post.author`. The
+   *  consumer is responsible for confirming and broadcasting the
+   *  `delete_comment` operation. */
+  onDelete?: (data: { author: string; permlink: string }) => void;
 
   // Comment-level action callbacks (receive author/permlink of the specific comment)
   onShareComment?: (author: string, permlink: string) => void;
@@ -194,6 +199,10 @@ export interface HiveDetailPostProps {
     parent_permlink: string;
     json_metadata: string;
   }) => void;
+  /** Called when the comment author taps Delete on their own comment.
+   *  Only rendered on comments whose author matches `currentUser`. The
+   *  consumer confirms and broadcasts the `delete_comment` operation. */
+  onDeleteComment?: (author: string, permlink: string) => void;
 
   /**
    * Called when the user submits a poll vote.
@@ -356,12 +365,14 @@ export function HiveDetailPost({
   onTip,
   onReport,
   onEdit,
+  onDelete,
   onShareComment,
   onTipComment,
   onReportComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
   onEditComment,
+  onDeleteComment,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -1216,6 +1227,19 @@ export function HiveDetailPost({
     return '0.000';
   }, [post]);
 
+  // A post can only be deleted on-chain while it has no votes and no
+  // replies. Hide the Delete entry-point once anyone has voted or
+  // commented so we never offer an action the chain would reject.
+  const canDeletePost = useMemo(() => {
+    if (!post) return false;
+    const voteCount =
+      (post as { stats?: { total_votes?: number } }).stats?.total_votes
+      ?? (post as { net_votes?: number }).net_votes
+      ?? post.active_votes?.length
+      ?? 0;
+    return (post.active_votes?.length ?? 0) === 0 && voteCount <= 0 && (post.children ?? 0) === 0;
+  }, [post]);
+
   const payoutTooltip = useMemo(() => {
     if (!post) return '';
     const lines: string[] = [];
@@ -1909,6 +1933,9 @@ export function HiveDetailPost({
                         : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),
                     })
                   : undefined}
+                onDelete={onDelete && currentUser && post.author === currentUser && canDeletePost
+                  ? () => onDelete({ author: post.author, permlink: post.permlink })
+                  : undefined}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}
@@ -1953,6 +1980,7 @@ export function HiveDetailPost({
                 isCommentBookmarked={isCommentBookmarked}
                 mentionSeedAccounts={mentionSeedAccounts}
                 onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
                 onNavigateToPost={onNavigateToPost}
                 onUserClick={onUserClick}
                 showVoteButton={showVoteButton}

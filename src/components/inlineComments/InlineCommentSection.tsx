@@ -79,6 +79,9 @@ interface InlineCommentSectionProps {
     parent_permlink: string;
     json_metadata: string;
   }) => void;
+  /** Delete a comment — only surfaced on the current user's own
+   *  comments. Consumer confirms + broadcasts `delete_comment`. */
+  onDeleteComment?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive post links in comment bodies. */
   onNavigateToPost?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive profile links in comment bodies. */
@@ -107,6 +110,7 @@ export default function InlineCommentSection({
   isCommentBookmarked,
   mentionSeedAccounts,
   onEditComment,
+  onDeleteComment,
   onNavigateToPost,
   onUserClick,
   showVoteButton,
@@ -411,6 +415,7 @@ export default function InlineCommentSection({
               isCommentBookmarked={isCommentBookmarked}
               mentionSeedAccounts={mentionSeedAccounts}
               onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}

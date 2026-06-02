@@ -1522,6 +1522,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const postMedia = extractPostMedia(item);
     const previewText = item.json_metadata?.description || (item.body ? extractPlainText(item.body) : "");
 
+    // A post/comment can only be deleted on-chain while it has no votes
+    // and no replies. Hide the Delete entry-point once anyone has voted
+    // or commented so we never offer an action the chain would reject.
+    const itemVoteCount =
+      (item as { stats?: { total_votes?: number } }).stats?.total_votes
+      ?? (item as { net_votes?: number }).net_votes
+      ?? item.active_votes?.length
+      ?? 0;
+    const canDeleteItem = (item.active_votes?.length ?? 0) === 0 && itemVoteCount <= 0 && (item.children ?? 0) === 0;
+
     // Extract numeric payout value
     const rawPayout = item.payout
       ? item.payout.toFixed(3)
@@ -1702,7 +1712,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             isBookmarked={
               isPostBookmarked ? isPostBookmarked(item.author, item.permlink) : false
             }
-            onDelete={item.author === currentUsername && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
+            onDelete={item.author === currentUsername && canDeleteItem && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
             onEdit={item.author === currentUsername && onEditPost ? () => onEditPost({
               author: item.author,
               permlink: item.permlink,

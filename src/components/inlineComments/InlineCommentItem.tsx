@@ -63,6 +63,9 @@ interface InlineCommentItemProps {
     parent_permlink: string;
     json_metadata: string;
   }) => void;
+  /** Called when the author of this comment taps Delete. Each row gates
+   *  the entry-point internally to `comment.author === currentUser`. */
+  onDeleteComment?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive post (peakd/hive.blog/ecency/inleo). */
   onNavigateToPost?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive user profile. */
@@ -120,6 +123,7 @@ export default function InlineCommentItem({
   isCommentBookmarked,
   mentionSeedAccounts,
   onEditComment,
+  onDeleteComment,
   onNavigateToPost,
   onUserClick,
   defaultReward,
@@ -274,6 +278,15 @@ export default function InlineCommentItem({
   }, [sanitizedBody, renderHiveContent]);
 
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
+
+  // A comment can only be deleted on-chain while it has no votes and no
+  // replies. Once anyone upvotes or replies, hide the Delete entry-point
+  // so we never offer an action the chain would reject.
+  const canDeleteThisComment =
+    (comment.active_votes?.length ?? 0) === 0 &&
+    voteCount <= 0 &&
+    (comment.children ?? 0) === 0 &&
+    !hasReplies;
 
   // Compute payout value
   const payoutValue = useMemo(() => {
@@ -551,16 +564,27 @@ export default function InlineCommentItem({
                   </button>
                 )}
 
-                {onToggleCommentBookmark && (
-                  // Small kebab carrying just the Bookmark item — keeps
-                  // the inline-comment action row visually clean while
-                  // surfacing the toggle in a discoverable spot.
+                {(onToggleCommentBookmark ||
+                  (onDeleteComment && currentUser && comment.author === currentUser && canDeleteThisComment)) && (
+                  // Small kebab carrying the Bookmark + Delete items —
+                  // keeps the inline-comment action row visually clean
+                  // while surfacing both in a discoverable spot. Delete
+                  // is gated to the comment's own author.
                   <MoreActionsMenu
-                    onToggleBookmark={() => onToggleCommentBookmark(comment.author, comment.permlink)}
+                    onToggleBookmark={
+                      onToggleCommentBookmark
+                        ? () => onToggleCommentBookmark(comment.author, comment.permlink)
+                        : undefined
+                    }
                     isBookmarked={
                       isCommentBookmarked
                         ? isCommentBookmarked(comment.author, comment.permlink)
                         : false
+                    }
+                    onDelete={
+                      onDeleteComment && currentUser && comment.author === currentUser && canDeleteThisComment
+                        ? () => onDeleteComment(comment.author, comment.permlink)
+                        : undefined
                     }
                     ariaLabel="More comment actions"
                     buttonClassName="text-gray-400 hover:text-blue-400 transition-colors p-0.5"
@@ -833,6 +857,7 @@ export default function InlineCommentItem({
               isCommentBookmarked={isCommentBookmarked}
               mentionSeedAccounts={mentionSeedAccounts}
               onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
