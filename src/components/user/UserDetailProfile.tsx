@@ -2213,6 +2213,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <Wallet
               username={targetUsername}
               currentUsername={currentUsername}
+              scrollRootRef={mainScrollRef}
               onUpdateRcDelegation={onUpdateRcDelegation}
               onDeleteRcDelegation={onDeleteRcDelegation}
               onCreateHpDelegation={onCreateHpDelegation}

@@ -24,6 +24,11 @@ import {
 interface WalletProps {
   username?: string;
   className?: string;
+  /** The actual scroll container this wallet lives inside. When provided,
+   *  the transaction-history infinite scroll observes it directly instead
+   *  of the viewport — `root: null` is unreliable inside the profile's
+   *  nested scroll pane (the sentinel never crosses the viewport). */
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
   /** Logged-in user — when equal to `username`, RC Update / Delete buttons
    *  and Delegate HP/RC buttons are exposed (and only fire when the matching
    *  callbacks below are wired). */
@@ -548,6 +553,7 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
 export const Wallet: React.FC<WalletProps> = ({
   username,
   className = "",
+  scrollRootRef,
   currentUsername,
   onUpdateRcDelegation,
   onDeleteRcDelegation,
@@ -590,45 +596,60 @@ export const Wallet: React.FC<WalletProps> = ({
     }
   }, [username, fetchWalletData, fetchTransactions]);
 
-  // Auto-load the next page of transactions when the user nears the
-  // bottom of the scroll container holding the wallet. We attach a
-  // Infinite scroll via IntersectionObserver. `root: null` watches
-  // intersection with the document viewport but the observer ALSO
-  // fires for any scroll ancestor that clips the sentinel, so this
-  // works whether the wallet is rendered:
-  //   • standalone (window scrolls)
-  //   • inside the profile page (a nested overflow-y-auto pane scrolls)
-  //   • inside a HiveSuite dashboard panel (yet another nested pane)
-  // without us having to guess which ancestor is the right one.
-  // `rootMargin: '600px 0px'` pre-loads the next page when the
-  // sentinel is still ~600 px below the fold — same feel as the
-  // old scroll-listener implementation but driven by the browser
-  // instead of a polled bounding-rect check that needed the right
-  // scroll listener attached to work at all.
-  useEffect(() => {
-    const sentinel = txSentinelRef.current;
-    if (!sentinel || !username) return;
-    if (!hasMoreTransactions) return;
+  // Infinite scroll — mirrors the UserDetailProfile Comments tab: a
+  // direct, rAF-throttled scroll listener on the actual scroll container
+  // (caller-supplied `scrollRootRef`, else the nearest scrollable
+  // ancestor, else the window). Scroll events fire on every scroll
+  // regardless of layout, so this is the bulletproof approach (an
+  // IntersectionObserver needed its `root` pinned to exactly the right
+  // element to work inside nested panes).
+  const findTxScrollEl = React.useCallback((): HTMLElement | null => {
+    const fromRef = scrollRootRef?.current;
+    if (fromRef) return fromRef;
+    let el: HTMLElement | null = txSentinelRef.current?.parentElement || null;
+    while (el && el !== document.body && el !== document.documentElement) {
+      const { overflowY } = window.getComputedStyle(el);
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }, [scrollRootRef]);
 
-    // Wrap the load so a slow page doesn't queue multiple in-flight
-    // fetches — the store's own guard handles the rest.
-    let inFlight = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          if (inFlight || isLoadingMoreTransactions) continue;
-          inFlight = true;
-          Promise.resolve(fetchMoreTransactions(username)).finally(() => {
-            inFlight = false;
-          });
-        }
-      },
-      { root: null, rootMargin: "600px 0px", threshold: 0 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [username, hasMoreTransactions, isLoadingMoreTransactions, fetchMoreTransactions, transactions.length]);
+  useEffect(() => {
+    if (!username || !hasMoreTransactions) return;
+    const el = findTxScrollEl();
+    const THRESHOLD = 600;
+    const nearBottom = () => {
+      if (el) return el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD;
+      const doc = document.scrollingElement ?? document.documentElement;
+      return window.scrollY + window.innerHeight >= doc.scrollHeight - THRESHOLD;
+    };
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (!isLoadingMoreTransactions && nearBottom()) fetchMoreTransactions(username);
+      });
+    };
+    const target: EventTarget = el ?? window;
+    target.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
+    return () => target.removeEventListener("scroll", onScroll);
+  }, [username, hasMoreTransactions, isLoadingMoreTransactions, fetchMoreTransactions, findTxScrollEl]);
+
+  // Peek after a load completes: if the new page didn't make the content
+  // taller than the viewport, the scroll listener never fires again —
+  // so check the position and load again, bounded by hasMore/loading.
+  useEffect(() => {
+    if (!username || !hasMoreTransactions || isLoadingMoreTransactions) return;
+    const el = findTxScrollEl();
+    const THRESHOLD = 600;
+    const near = el
+      ? el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD
+      : window.scrollY + window.innerHeight >= (document.scrollingElement ?? document.documentElement).scrollHeight - THRESHOLD;
+    if (near) fetchMoreTransactions(username);
+  }, [username, hasMoreTransactions, isLoadingMoreTransactions, transactions.length, fetchMoreTransactions, findTxScrollEl]);
 
   const isOwn = !!username && !!currentUsername &&
     username.toLowerCase() === currentUsername.toLowerCase();
@@ -930,16 +951,25 @@ export const Wallet: React.FC<WalletProps> = ({
             {/* Infinite-scroll sentinel. Renders only when there are
                 already transactions on screen and more pages remain — so
                 we never trigger paging on an empty list or after the
-                history has been exhausted. */}
+                history has been exhausted. While a page is loading we show
+                a spinner; otherwise a tappable "Load more" fallback so the
+                user can always advance even if the scroll auto-trigger
+                doesn't fire in a given layout. */}
             {!isLoadingTransactions && transactions.length > 0 && hasMoreTransactions && (
-              <div ref={txSentinelRef} className="py-3 flex items-center justify-center">
+              <div ref={txSentinelRef} className="py-4 flex items-center justify-center">
                 {isLoadingMoreTransactions ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-[var(--hrk-border-default)] border-t-blue-400 rounded-full animate-spin"></div>
-                    <span className="text-xs text-[var(--hrk-text-tertiary)]">Loading more…</span>
+                    <span className="text-xs text-[var(--hrk-text-tertiary)]">Loading more transactions…</span>
                   </div>
                 ) : (
-                  <span className="text-[11px] text-[var(--hrk-text-tertiary)]">Scroll for more</span>
+                  <button
+                    type="button"
+                    onClick={() => username && fetchMoreTransactions(username)}
+                    className="px-4 py-2 rounded-lg text-xs font-medium bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)] hover:border-blue-400/50 transition-colors"
+                  >
+                    Load more transactions
+                  </button>
                 )}
               </div>
             )}
