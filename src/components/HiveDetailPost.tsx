@@ -1936,6 +1936,8 @@ export function HiveDetailPost({
                 onDelete={onDelete && currentUser && post.author === currentUser && canDeletePost
                   ? () => onDelete({ author: post.author, permlink: post.permlink })
                   : undefined}
+                onUserClick={onUserClick}
+                getUserUrl={getUserUrl}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}

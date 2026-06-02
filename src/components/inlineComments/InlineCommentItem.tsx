@@ -638,6 +638,7 @@ export default function InlineCommentItem({
                   setShowUpvoteListModal(false);
                   handleUpvoteClick();
                 }}
+                onUserClick={onUserClick}
               />
             )}
 

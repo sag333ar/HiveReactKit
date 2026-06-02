@@ -119,6 +119,12 @@ export interface PostActionButtonProps {
   onDelete?: () => void;
   /** Called when user confirms comment upvote with (author, permlink, percent). Frontend handles signing. Voted comments show icon in blue. */
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
+  /** Tapping a voter inside the upvote-list dialog calls this with the
+   *  account name so the consumer can open that user's profile. */
+  onUserClick?: (username: string) => void;
+  /** Builds a profile URL for each voter row so they render as real
+   *  <a href> links (open-in-new-tab); paired with `onUserClick`. */
+  getUserUrl?: (username: string) => string;
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -193,6 +199,8 @@ export function PostActionButton({
   isBookmarked = false,
   onDelete,
   onClickCommentUpvote,
+  onUserClick,
+  getUserUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -858,6 +866,8 @@ export function PostActionButton({
           token={undefined}
           onClickUpvoteButton={handleUpvoteFromModal}
           hiveIconUrl={hiveIconUrl}
+          onUserClick={onUserClick}
+          getUserUrl={getUserUrl}
         />
       )}
 

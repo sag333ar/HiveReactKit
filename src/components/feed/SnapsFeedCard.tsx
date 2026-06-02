@@ -1886,6 +1886,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           allowLandscapeVideos={allowLandscapeVideos}
           awaitingWalletApproval={awaitingWalletApproval}
           actionsAsMenu={actionsAsMenu}
+          onUserClick={onUserClick}
+          getUserUrl={getUserUrl}
           size="lg"
         />
       </div>

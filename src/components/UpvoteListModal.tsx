@@ -648,11 +648,9 @@ const UpvoteListModal = ({
                 const percent = ((vote.percent ?? 0) / 100).toFixed(2);
                 const valueShown =
                   sort === "curation" ? vote.curation : vote.value;
-                return (
-                  <li
-                    key={vote.voter}
-                    className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[var(--hrk-bg-surface)]"
-                  >
+                const href = getUserUrl?.(vote.voter);
+                const rowInner = (
+                  <>
                     <img
                       src={`https://images.hive.blog/u/${vote.voter}/avatar`}
                       alt={vote.voter}
@@ -696,6 +694,34 @@ const UpvoteListModal = ({
                         {vote.time && ` · ${formatTimeAgo(vote.time + "Z")}`}
                       </div>
                     </div>
+                  </>
+                );
+                // Tapping a voter opens their profile when the consumer
+                // wired `onUserClick` / `getUserUrl`; otherwise the row
+                // stays a plain, non-interactive entry.
+                const rowCls =
+                  "flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[var(--hrk-bg-surface)]";
+                return (
+                  <li key={vote.voter}>
+                    {href ? (
+                      <a
+                        href={href}
+                        className={rowCls}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                          e.preventDefault();
+                          onUserClick?.(vote.voter);
+                        }}
+                      >
+                        {rowInner}
+                      </a>
+                    ) : onUserClick ? (
+                      <button type="button" className={`w-full text-left ${rowCls}`} onClick={() => onUserClick(vote.voter)}>
+                        {rowInner}
+                      </button>
+                    ) : (
+                      <div className={rowCls}>{rowInner}</div>
+                    )}
                   </li>
                 );
               })}

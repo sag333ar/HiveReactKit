@@ -371,6 +371,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
           author={poll.author}
           permlink={poll.permlink}
           currentUser={currentUsername}
+          onUserClick={onUserClick}
           hiveIconUrl="/images/hive_logo.png"
           initialVotes={[]}
           initialCommentsCount={0}
