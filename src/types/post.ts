@@ -11,6 +11,8 @@ export interface PostStats {
   gray: boolean;
   hide: boolean;
   total_votes: number;
+  /** True when the post is pinned to the top of its community. */
+  is_pinned?: boolean;
 }
 
 export interface Post {

@@ -14,7 +14,7 @@
  * module later if more lists need them.
  */
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, FileText, Play } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-react';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -534,6 +534,14 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                       </HiveLink>
                     )}
                   </div>
+                  {/* Pinned badge — community admins/mods pin posts to the
+                      top of the feed. Mirrors PeakD's "PINNED" pill. */}
+                  {item.stats?.is_pinned && (
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--hrk-brand)]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--hrk-brand)] sm:text-[10px]">
+                      <Pin className="h-3 w-3" />
+                      Pinned
+                    </span>
+                  )}
                 </div>
 
                 {item.title && (

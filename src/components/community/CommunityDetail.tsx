@@ -391,7 +391,16 @@ const CommunityDetail = ({
         const next = append && data.length > 0 && last
           ? data.filter((p) => !(p.author === last.author && p.permlink === last.permlink))
           : data
-        setPosts((prev) => (append ? [...prev, ...next] : next))
+        // First page: hoist pinned posts to the top (admins pin them, and
+        // not every sort/node returns them first). Stable sort keeps the
+        // rest in their original order. Later pages stay untouched.
+        const ordered = append
+          ? next
+          : [...next].sort(
+              (a, b) =>
+                (b.stats?.is_pinned ? 1 : 0) - (a.stats?.is_pinned ? 1 : 0),
+            )
+        setPosts((prev) => (append ? [...prev, ...next] : ordered))
         setPostsHasMore(data.length >= 20)
       } catch (e) {
         setPostsError(e instanceof Error ? e.message : 'Failed to load')
