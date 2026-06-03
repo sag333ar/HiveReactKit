@@ -153,10 +153,19 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
   // a spinner until the bitmap is on screen. YouTube hqdefault.jpg
   // gets the same treatment.
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   // Reset on every distinct media identity. The union has either a
   // `url` or an `id` depending on kind, so we hash both into one key.
   const mediaKey = media.kind + ':' + ('url' in media ? media.url : media.id);
-  useEffect(() => { setLoaded(false); }, [mediaKey]);
+  useEffect(() => {
+    setLoaded(false);
+    // Cached images (common when switching feeds back to ones we've
+    // already shown) are marked `complete` by the browser before React
+    // attaches `onLoad`, so that event never fires and the spinner would
+    // sit forever. Detect the already-decoded case here and clear it.
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) setLoaded(true);
+  }, [mediaKey]);
 
   if (media.kind === 'image') {
     return (
@@ -167,8 +176,11 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
           </span>
         )}
         <img
+          ref={imgRef}
           src={media.url}
           alt=""
+          loading="lazy"
+          decoding="async"
           className="absolute inset-0 h-full w-full object-cover"
           onLoad={() => setLoaded(true)}
           onError={(e) => {
@@ -188,8 +200,11 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
           </span>
         )}
         <img
+          ref={imgRef}
           src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
           alt=""
+          loading="lazy"
+          decoding="async"
           className="absolute inset-0 h-full w-full object-cover opacity-90"
           onLoad={() => setLoaded(true)}
           onError={(e) => {
@@ -482,6 +497,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   <img
                     src={`https://images.hive.blog/u/${item.author}/avatar`}
                     alt={item.author}
+                    loading="lazy"
+                    decoding="async"
                     className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover ring-1 ring-[var(--hrk-border-subtle)] sm:h-9 sm:w-9"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
