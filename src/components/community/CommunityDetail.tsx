@@ -32,6 +32,9 @@ import {
   Heart,
   Repeat2,
   UserPlus,
+  ChevronDown,
+  Shield,
+  Settings,
 } from 'lucide-react'
 import CommunityAbout from './CommunityAbout'
 import CommunityMembers from './CommunityMembers'
@@ -158,6 +161,15 @@ export interface CommunityDetailProps {
    *  in flight on the host. */
   subscribePending?: boolean
 
+  /** When true (current user is owner/admin), the header swaps the
+   *  Subscribe button for an "Actions" dropdown (Unsubscribe + Roles &
+   *  Titles). The host gates this by role. */
+  canManage?: boolean
+  /** Opens the host's Roles & Titles management UI. */
+  onManageRoles?: () => void
+  /** Opens the host's Community Settings UI. */
+  onOpenSettings?: () => void
+
   /** Controlled top-level tab. Pass alongside `onActiveTabChange` to
    *  drive the tab from the URL or any other external store. When
    *  omitted, the component manages tab state internally (default
@@ -279,6 +291,9 @@ const CommunityDetail = ({
   isSubscribed: controlledIsSubscribed,
   onToggleSubscribe,
   subscribePending = false,
+  canManage = false,
+  onManageRoles,
+  onOpenSettings,
   loadCommunitySnaps: _loadCommunitySnaps,
   reportedAuthors = [],
   reportedPosts = [],
@@ -357,6 +372,19 @@ const CommunityDetail = ({
       // Host already surfaces a toast — leave the prior state alone.
     }
   }, [currentUser, subscribePending, isSubscribed, onToggleSubscribe, controlledIsSubscribed])
+
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const actionsRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!actionsOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) {
+        setActionsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [actionsOpen])
 
   const [posts, setPosts] = useState<Post[]>(() => initialEntry?.posts ?? [])
   const [postsLoading, setPostsLoading] = useState(false)
@@ -698,7 +726,68 @@ const CommunityDetail = ({
                     {community?.title || communityId}
                   </h1>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {currentUser && onToggleSubscribe && (
+                    {currentUser && canManage ? (
+                      /* Owner / admin — an Actions menu replaces the plain
+                         Subscribe button (themed, not a PeakD copy). */
+                      <div className="relative" ref={actionsRef}>
+                        <button
+                          type="button"
+                          onClick={() => setActionsOpen((o) => !o)}
+                          aria-haspopup="menu"
+                          aria-expanded={actionsOpen}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-[var(--hrk-border-default)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)] sm:px-3 sm:py-1.5 sm:text-xs"
+                        >
+                          <Shield className="h-3.5 w-3.5" />
+                          <span>Actions</span>
+                          <ChevronDown className={`h-3 w-3 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {actionsOpen && (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-50 mt-1 w-48 overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] py-1 shadow-xl"
+                          >
+                            {onManageRoles && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setActionsOpen(false); onManageRoles() }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+                              >
+                                <Shield className="h-3.5 w-3.5 text-[var(--hrk-brand)]" />
+                                <span>Roles &amp; Titles</span>
+                              </button>
+                            )}
+                            {onOpenSettings && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setActionsOpen(false); onOpenSettings() }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+                              >
+                                <Settings className="h-3.5 w-3.5 text-[var(--hrk-brand)]" />
+                                <span>Settings</span>
+                              </button>
+                            )}
+                            {onToggleSubscribe && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={subscribePending || isSubscribed === undefined}
+                                onClick={() => { setActionsOpen(false); void handleToggleSubscribe() }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {subscribePending ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Users className="h-3.5 w-3.5" />
+                                )}
+                                <span>{isSubscribed ? 'Unsubscribe' : 'Subscribe'}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : currentUser && onToggleSubscribe ? (
                       <button
                         type="button"
                         onClick={() => void handleToggleSubscribe()}
@@ -720,7 +809,7 @@ const CommunityDetail = ({
                         )}
                         <span>{isSubscribed ? 'Unsubscribe' : 'Subscribe'}</span>
                       </button>
-                    )}
+                    ) : null}
                     {onToggleCommunityBookmark && (
                       <button
                         onClick={() => onToggleCommunityBookmark(communityId)}
