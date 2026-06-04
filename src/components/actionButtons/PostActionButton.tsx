@@ -117,6 +117,11 @@ export interface PostActionButtonProps {
    *  iff this handler is provided. Lives inside the kebab popover
    *  (always — not as a standalone inline action), styled in red. */
   onDelete?: () => void;
+  /** Community admin/mod — pin this post to the top of the community. The
+   *  caller gates these by role; the kit just renders the menu entries. */
+  onPin?: () => void;
+  /** Community admin/mod — unpin this post (shown when already pinned). */
+  onUnpin?: () => void;
   /** Called when user confirms comment upvote with (author, permlink, percent). Frontend handles signing. Voted comments show icon in blue. */
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   /** Tapping a voter inside the upvote-list dialog calls this with the
@@ -198,6 +203,8 @@ export function PostActionButton({
   onToggleBookmark,
   isBookmarked = false,
   onDelete,
+  onPin,
+  onUnpin,
   onClickCommentUpvote,
   onUserClick,
   getUserUrl,
@@ -712,6 +719,8 @@ export function PostActionButton({
           onReport={reportHandler ? handleReportClick : undefined}
           onToggleBookmark={onToggleBookmark}
           isBookmarked={isBookmarked}
+          onPin={onPin}
+          onUnpin={onUnpin}
           onDelete={onDelete}
         />
       ) : (
@@ -781,11 +790,13 @@ export function PostActionButton({
               alongside the inline icons when `actionsAsMenu` is off
               (snap cards already collapse everything into their
               combined kebab via the props on MoreActionsMenu above). */}
-          {(onEdit || onDelete || onToggleBookmark) && (
+          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin) && (
             <MoreActionsMenu
               onEdit={onEdit}
               onToggleBookmark={onToggleBookmark}
               isBookmarked={isBookmarked}
+              onPin={onPin}
+              onUnpin={onUnpin}
               onDelete={onDelete}
               ariaLabel="More post actions"
             />

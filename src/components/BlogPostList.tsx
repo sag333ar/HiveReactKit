@@ -18,6 +18,7 @@ import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
+import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
 import { extractPostMedia, type PostMedia } from '../utils/postMedia';
@@ -62,6 +63,21 @@ export interface BlogPostListProps {
    *  this handler. The kit does no ownership check; the consumer
    *  decides whether to pass the prop. */
   onDeletePost?: (author: string, permlink: string) => void;
+
+  /** Community admin/mod — when true, each card's kebab gets Pin / Unpin
+   *  entries (Unpin when the post is already pinned). The consumer gates
+   *  this by the current user's role and handles the broadcast. */
+  canPin?: boolean;
+  onPinPost?: (author: string, permlink: string) => void;
+  onUnpinPost?: (author: string, permlink: string) => void;
+
+  /** Broadcasts a poll vote (custom_json id=`polls`). When provided, poll
+   *  posts in the feed render an inline <PollVoteWidget/>. */
+  onVotePoll?: (
+    author: string,
+    permlink: string,
+    choiceNums: number[],
+  ) => void | boolean | Promise<void | boolean>;
 
   // Click-throughs.
   onUserClick?: (username: string) => void;
@@ -349,6 +365,10 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onToggleBookmark,
   isPostBookmarked,
   onDeletePost,
+  canPin,
+  onPinPost,
+  onUnpinPost,
+  onVotePoll,
   onUserClick,
   onPostClick,
   getPostUrl,
@@ -562,6 +582,19 @@ export const BlogPostList: FC<BlogPostListProps> = ({
               </div>
 
               <PostMediaCarousel media={postMedia} />
+
+              {/* Inline poll voting for poll posts (content_type === 'poll'). */}
+              {onVotePoll && item.json_metadata?.content_type === 'poll' && (
+                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                  <PollVoteWidget
+                    author={item.author}
+                    permlink={item.permlink}
+                    currentUser={currentUser}
+                    onVotePoll={onVotePoll}
+                    parsedMetadata={item.json_metadata}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="border-t border-[var(--hrk-border-subtle)] px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
@@ -598,6 +631,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 }
                 onReport={item.author !== currentUser && onReportPost ? () => onReportPost(item.author, item.permlink) : undefined}
                 onDelete={item.author === currentUser && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
+                onPin={canPin && !item.stats?.is_pinned && onPinPost ? () => onPinPost(item.author, item.permlink) : undefined}
+                onUnpin={canPin && item.stats?.is_pinned && onUnpinPost ? () => onUnpinPost(item.author, item.permlink) : undefined}
                 disableCommentsModal={!!onCommentClick}
                 onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
                 ecencyToken={ecencyToken}

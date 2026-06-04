@@ -89,6 +89,20 @@ export interface CommunityDetailProps {
    *  card kebab gets a red Delete entry when `currentUser === author`. */
   onDeletePost?: (author: string, permlink: string) => void
 
+  /** Community admin/mod — surfaces Pin / Unpin entries on each post's
+   *  kebab. The consumer gates `canPin` by role and broadcasts. */
+  canPin?: boolean
+  onPinPost?: (author: string, permlink: string) => void
+  onUnpinPost?: (author: string, permlink: string) => void
+
+  /** Broadcasts a poll vote — forwarded to the feed's <BlogPostList/> so
+   *  poll posts can be voted on inline. */
+  onVotePoll?: (
+    author: string,
+    permlink: string,
+    choiceNums: number[],
+  ) => void | boolean | Promise<void | boolean>
+
   // Composer tokens
   ecencyToken?: string
   threeSpeakApiKey?: string
@@ -184,9 +198,9 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id']
 
 const POST_SORT_TABS: { id: PostSort; label: string }[] = [
-  { id: 'trending', label: 'Trending' },
-  { id: 'hot', label: 'Hot' },
   { id: 'created', label: 'New' },
+  { id: 'hot', label: 'Hot' },
+  { id: 'trending', label: 'Trending' },
 ]
 
 const ACTIVITY_TYPE_META: Record<string, { icon: typeof Bell; tone: string }> = {
@@ -245,6 +259,10 @@ const CommunityDetail = ({
   onToggleCommunityBookmark,
   isCommunityBookmarked = false,
   onDeletePost,
+  canPin,
+  onPinPost,
+  onUnpinPost,
+  onVotePoll,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -284,7 +302,7 @@ const CommunityDetail = ({
     [controlledActiveTab, onActiveTabChange],
   )
 
-  const [internalPostSort, setInternalPostSort] = useState<PostSort>('trending')
+  const [internalPostSort, setInternalPostSort] = useState<PostSort>('created')
   const postSort = controlledPostSort ?? internalPostSort
   const setPostSort = useCallback(
     (next: PostSort) => {
@@ -503,6 +521,10 @@ const CommunityDetail = ({
       onToggleBookmark,
       isPostBookmarked,
       onDeletePost,
+      canPin,
+      onPinPost,
+      onUnpinPost,
+      onVotePoll,
       onUserClick,
       onPostClick,
       getPostUrl,
@@ -533,6 +555,10 @@ const CommunityDetail = ({
       onToggleBookmark,
       isPostBookmarked,
       onDeletePost,
+      canPin,
+      onPinPost,
+      onUnpinPost,
+      onVotePoll,
       onUserClick,
       onPostClick,
       getPostUrl,

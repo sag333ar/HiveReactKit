@@ -22,6 +22,8 @@ import {
   Gift,
   MoreVertical,
   Pencil,
+  Pin,
+  PinOff,
   Repeat,
   Repeat2,
   Share2,
@@ -49,6 +51,11 @@ export interface MoreActionsMenuProps {
    *  Consumer decides whether to add or remove based on `isBookmarked`. */
   onToggleBookmark?: () => void;
   isBookmarked?: boolean;
+  /** Show the Pin item (community admins/mods). Caller gates visibility
+   *  by role; the kit just renders the entry. */
+  onPin?: () => void;
+  /** Show the Unpin item (community admins/mods, when already pinned). */
+  onUnpin?: () => void;
   /** Show the Delete item (rendered last, in red, gated by the caller
    *  to the author themselves — the kit does no ownership check). */
   onDelete?: () => void;
@@ -71,6 +78,8 @@ export function MoreActionsMenu({
   onReport,
   onToggleBookmark,
   isBookmarked = false,
+  onPin,
+  onUnpin,
   onDelete,
   buttonClassName,
   ariaLabel = 'More actions',
@@ -142,6 +151,8 @@ export function MoreActionsMenu({
     !onTip &&
     !onReport &&
     !onToggleBookmark &&
+    !onPin &&
+    !onUnpin &&
     !onDelete
   )
     return null;
@@ -234,6 +245,28 @@ export function MoreActionsMenu({
                   className={`h-3.5 w-3.5 ${isBookmarked ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'}`}
                 />
                 <span>{isBookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
+              </button>
+            )}
+            {onPin && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onPin)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Pin className="h-3.5 w-3.5 text-[var(--hrk-brand)]" />
+                <span>Pin to community</span>
+              </button>
+            )}
+            {onUnpin && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onUnpin)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <PinOff className="h-3.5 w-3.5" />
+                <span>Unpin</span>
               </button>
             )}
             {onReport && (
