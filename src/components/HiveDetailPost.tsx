@@ -603,19 +603,27 @@ export function HiveDetailPost({
   // its own <ThreeSpeakPlayer>, which fetches the embed-api manifest
   // and mounts an HLS-driven <video controls> — i.e. exactly the
   // shape the user described.
-  const threeSpeakBodyRefs = useMemo<Array<{ author: string; permlink: string }>>(() => {
+  const threeSpeakBodyRefs = useMemo<Array<{ author: string; permlink: string; thumbnail?: string }>>(() => {
     if (!processedBody) return [];
     const seen = new Set<string>();
-    const out: Array<{ author: string; permlink: string }> = [];
-    const push = (author: string, permlink: string) => {
+    const out: Array<{ author: string; permlink: string; thumbnail?: string }> = [];
+    const push = (author: string, permlink: string, thumbnail?: string) => {
       const key = `${author}/${permlink}`;
       if (seen.has(key)) return;
       seen.add(key);
-      out.push({ author, permlink });
+      out.push({ author, permlink, thumbnail });
     };
+    let m: RegExpExecArray | null;
+    // 0) 3Speak's canonical embed markdown is a linked thumbnail:
+    //      [![](THUMB)](https://3speak.tv/watch?v=author/permlink)
+    //    Capture THUMB so the inline player shows the post's own poster
+    //    (matching the composer preview) instead of the API's first frame.
+    const linkedThumbRe = /\[!\[[^\]]*\]\(([^)\s]+)\)\]\(\s*https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^)\s]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    while ((m = linkedThumbRe.exec(processedBody)) !== null) {
+      push(m[2].toLowerCase(), m[3].toLowerCase(), m[1]);
+    }
     // `?v=author/permlink` — works for both `/embed?v=…` and `/watch?v=…`
     const queryRe = /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
-    let m: RegExpExecArray | null;
     while ((m = queryRe.exec(processedBody)) !== null) {
       push(m[1].toLowerCase(), m[2].toLowerCase());
     }
@@ -1065,7 +1073,7 @@ export function HiveDetailPost({
     targets.forEach(({ el, author, permlink }) => {
       el.dataset.mounted = '1';
       const root = createRoot(el);
-      root.render(<ThreeSpeakPlayer author={author} permlink={permlink} hideThumbnail />);
+      root.render(<ThreeSpeakPlayer author={author} permlink={permlink} />);
       roots.push(root);
     });
     return () => {
@@ -1635,7 +1643,7 @@ export function HiveDetailPost({
                     <ThreeSpeakPlayer
                       author={ref.author}
                       permlink={ref.permlink}
-                      hideThumbnail
+                      thumbnail={ref.thumbnail}
                     />
                   </div>
                 ))}

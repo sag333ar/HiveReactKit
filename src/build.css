@@ -315,8 +315,42 @@
   object-fit: contain;
 }
 .threeSpeakNative .threeSpeakNativeThumb {
-  z-index: 1;
+  z-index: 3;
   pointer-events: none;
+}
+.threeSpeakNative .threeSpeakNativeSkeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: threeSpeakShimmer 1.4s ease infinite;
+}
+.threeSpeakNative .threeSpeakNativeSkeletonDisc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.45);
+}
+@keyframes threeSpeakShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 .threeSpeakNative video {
   z-index: 2;

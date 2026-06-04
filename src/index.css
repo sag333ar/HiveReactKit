@@ -265,8 +265,47 @@
   object-fit: contain;
 }
 .threeSpeakNative .threeSpeakNativeThumb {
-  z-index: 1;
+  /* Above the <video> so the poster covers the video's first frame
+     before play. The thumbnail is only mounted until first play, after
+     which the video is the top layer again. */
+  z-index: 3;
   pointer-events: none;
+}
+/* Skeleton shown while the embed manifest resolves — a shimmering box
+   filling the reserved player area, with a faint play disc. */
+.threeSpeakNative .threeSpeakNativeSkeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: threeSpeakShimmer 1.4s ease infinite;
+}
+.threeSpeakNative .threeSpeakNativeSkeletonDisc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.45);
+}
+@keyframes threeSpeakShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 .threeSpeakNative video {
   z-index: 2;

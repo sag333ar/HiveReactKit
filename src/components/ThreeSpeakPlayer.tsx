@@ -16,6 +16,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
+import { Play, Loader2 } from 'lucide-react';
 
 interface ThreeSpeakPlayerProps {
   author: string;
@@ -25,6 +26,11 @@ interface ThreeSpeakPlayerProps {
    *  before play is unwanted. Defaults to false: the thumbnail is
    *  shown until first play. */
   hideThumbnail?: boolean;
+  /** Poster image to show before first play. Takes priority over the
+   *  embed API's thumbnail — pass the post's own thumbnail (e.g. the
+   *  one in the 3Speak markdown) so the preview matches the composer
+   *  instead of falling back to the video's first frame. */
+  thumbnail?: string;
 }
 
 interface EmbedMeta {
@@ -36,6 +42,32 @@ interface EmbedMeta {
   short?: boolean;
   isPlaceholder?: boolean;
   status?: string;
+}
+
+/** Strip a `images.hive.blog/<WxH>/` or `images.ecency.com/<WxH>/`
+ *  resize prefix so we can rebuild the proxy chain from the original URL. */
+function stripImageProxy(url: string): string {
+  let out = url.trim();
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(/^https:\/\/images\.(?:hive\.blog|ecency\.com)\/\d+x\d+\//i, '');
+  } while (out !== prev);
+  return out;
+}
+
+/** Poster candidates in priority order: Hive proxy → Ecency proxy → the
+ *  original URL. data:/blob: URLs can't be proxied, so they pass through. */
+function posterCandidates(url: string | undefined): string[] {
+  const raw = stripImageProxy((url ?? '').trim());
+  if (!raw) return [];
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return [raw];
+  const chain = [
+    `https://images.hive.blog/0x0/${raw}`,
+    `https://images.ecency.com/0x0/${raw}`,
+    raw,
+  ];
+  return chain.filter((u, i) => u && chain.indexOf(u) === i);
 }
 
 const EMBED_API = 'https://play.3speak.tv/api/embed';
@@ -158,7 +190,7 @@ function attachHls(
   };
 }
 
-export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: ThreeSpeakPlayerProps) {
+export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false, thumbnail }: ThreeSpeakPlayerProps) {
   const [meta, setMeta] = useState<EmbedMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Actual video aspect ratio (W / H) read from `loadedmetadata`.
@@ -172,7 +204,26 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
    *  thereafter. We deliberately don't reset on pause, so the user
    *  sees the paused frame instead of the thumbnail snapping back. */
   const [hasPlayed, setHasPlayed] = useState(false);
+  /** Latched true the moment the user taps play, so we can swap the play
+   *  icon for a spinner immediately instead of leaving the poster looking
+   *  inert while HLS buffers the first segments. */
+  const [starting, setStarting] = useState(false);
+  /** Index into the poster proxy chain (Hive → Ecency → raw). Advances
+   *  when the current candidate fails to load. */
+  const [posterStep, setPosterStep] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const startPlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setStarting(true);
+    // play() may reject (not yet ready / autoplay policy). On reject we
+    // surface the poster + play icon again so the tap is retryable.
+    const p = video.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => setStarting(false));
+    }
+  };
 
   // Fetch metadata + manifest URL — tries `/api/watch` (legacy-safe)
   // then `/api/embed`.
@@ -182,6 +233,8 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
     setError(null);
     setAspectRatio(null);
     setHasPlayed(false);
+    setStarting(false);
+    setPosterStep(0);
     fetchThreeSpeakMeta(author, permlink, () => cancelled)
       .then((data) => {
         if (!cancelled) setMeta(data);
@@ -279,6 +332,10 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
       ? { aspectRatio: `${aspectRatio}` }
       : undefined;
 
+  // Poster proxy chain (Hive → Ecency → raw). Prefer the caller-supplied
+  // thumbnail, falling back to the embed API's.
+  const posters = posterCandidates(thumbnail || meta?.thumbnail);
+
   if (error) {
     return (
       <div className={wrapperClass} data-state="error">
@@ -289,8 +346,15 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
 
   if (!meta) {
     return (
-      <div className={wrapperClass} data-state="loading">
-        <div className="threeSpeakNativeMessage">Loading video…</div>
+      <div className={wrapperClass} style={inlineStyle} data-state="loading">
+        {/* Skeleton placeholder while the embed manifest resolves —
+            an animated shimmer filling the reserved video box plus a
+            faint play disc, instead of a bare "Loading…" line. */}
+        <div className="threeSpeakNativeSkeleton" aria-hidden="true">
+          <span className="threeSpeakNativeSkeletonDisc">
+            <Play className="h-6 w-6 translate-x-0.5 text-white/60 sm:h-7 sm:w-7" fill="currentColor" />
+          </span>
+        </div>
       </div>
     );
   }
@@ -306,19 +370,42 @@ export function ThreeSpeakPlayer({ author, permlink, hideThumbnail = false }: Th
           When `hideThumbnail` is set (e.g. by HiveDetailPost), the
           <img> is suppressed entirely — the video element shows its
           own pre-play empty state instead. */}
-      {!hideThumbnail && meta.thumbnail && !hasPlayed && (
-        <img
-          src={meta.thumbnail}
-          alt=""
-          className="threeSpeakNativeThumb"
-          aria-hidden="true"
-        />
+      {!hideThumbnail && posters.length > 0 && posterStep < posters.length && !hasPlayed && (
+        <>
+          <img
+            // Key on the candidate so a failed proxy re-requests the next.
+            key={posterStep}
+            src={posters[posterStep]}
+            alt=""
+            className="threeSpeakNativeThumb"
+            aria-hidden="true"
+            onError={() => setPosterStep((s) => s + 1)}
+          />
+          {/* Centered play overlay over the thumbnail — mirrors the post
+              composer's video preview. Tapping it starts inline playback;
+              the icon swaps to a spinner while the first segments buffer
+              so the tap never feels inert. */}
+          <button
+            type="button"
+            aria-label="Play video"
+            onClick={startPlayback}
+            className="absolute inset-0 z-10 flex items-center justify-center"
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm transition hover:scale-105 hover:bg-black/70 sm:h-16 sm:w-16">
+              {starting ? (
+                <Loader2 className="h-6 w-6 animate-spin text-white sm:h-7 sm:w-7" />
+              ) : (
+                <Play className="h-6 w-6 translate-x-0.5 text-white sm:h-7 sm:w-7" fill="currentColor" />
+              )}
+            </span>
+          </button>
+        </>
       )}
       <video
         ref={videoRef}
         controls
         playsInline
-        preload="metadata"
+        preload="auto"
       />
     </div>
   );
