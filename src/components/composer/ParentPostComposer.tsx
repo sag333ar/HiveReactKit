@@ -26,9 +26,11 @@ import {
   BarChart3,
   Bold,
   Check,
+  ChevronDown,
   Code,
   Coins,
   FileText,
+  FolderOpen,
   HelpCircle,
   Image as ImageIcon,
   Italic,
@@ -321,6 +323,10 @@ export interface ParentPostComposerProps {
   submitLabelWithVideo?: string;
   /** Page title shown in the sticky header (default "Create post"). */
   title?: string;
+  /** Add a top safe-area inset to the sticky header so its buttons clear
+   *  the device status bar / notch. Enable on full-screen routes; leave
+   *  off inside modals/sheets that already sit below the notch. */
+  safeAreaTop?: boolean;
   /** Hint shown when the wallet is awaiting approval during the broadcast. */
   walletApprovalLabel?: string;
   /** When true, the composer renders a blinking "approve in wallet" banner. */
@@ -495,6 +501,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   submitLabel = 'Publish',
   submitLabelWithVideo = 'Save',
   title: pageTitle = 'Create post',
+  safeAreaTop = false,
   walletApprovalLabel = 'Open Keychain App & Approve',
   awaitingWalletApproval = false,
   draftKey,
@@ -675,6 +682,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPostTemplatesOpen, setIsPostTemplatesOpen] = useState(false);
   const [isPostTemplatesBusy, setIsPostTemplatesBusy] = useState(false);
+  // Which view the templates panel opens in — driven by the 2-option
+  // "Templates" menu (Load a template / Save as template).
+  const [postTemplatesView, setPostTemplatesView] = useState<'list' | 'save'>('list');
+  // Open state for the small "Templates" dropdown menu.
+  const [isTemplatesMenuOpen, setIsTemplatesMenuOpen] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   useEffect(() => {
@@ -1472,6 +1484,13 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     !isSubmitting &&
     (!requirePoll || !!pollData);
 
+  // Enables "Save as template" — there must be something worth saving.
+  const hasComposerContent = !!(
+    title.trim() ||
+    description.trim() ||
+    body.trim()
+  );
+
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     setIsSubmitting(true);
@@ -1644,7 +1663,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[var(--hrk-bg-surface-sunken)] text-white">
       {/* ── Sticky header ─────────────────────────────────────────────── */}
-      <header className="shrink-0 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)]">
+      <header
+        className="shrink-0 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-sunken)]"
+        style={safeAreaTop ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : undefined}
+      >
         <div className="mx-auto flex max-w-screen-2xl items-center gap-2 sm:gap-3 px-3 sm:px-6 py-2.5">
           <button
             type="button"
@@ -1707,17 +1729,65 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               post as a new template. Apply asks for confirmation before
               overwriting the in-flight post. */}
           {postTemplates !== undefined && (
-            <button
-              type="button"
-              onClick={() => setIsPostTemplatesOpen(true)}
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-              title="Browse or save post templates"
-              aria-label="Open post templates"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Templates</span>
-            </button>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsTemplatesMenuOpen((o) => !o)}
+                disabled={isSubmitting}
+                aria-haspopup="menu"
+                aria-expanded={isTemplatesMenuOpen}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Load or save post templates"
+                aria-label="Templates"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Templates</span>
+                <ChevronDown className={`h-3 w-3 transition-transform ${isTemplatesMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isTemplatesMenuOpen && (
+                <>
+                  {/* Click-away backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsTemplatesMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-50 mt-1 w-52 overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] py-1 shadow-xl"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsTemplatesMenuOpen(false);
+                        setPostTemplatesView('list');
+                        setIsPostTemplatesOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+                    >
+                      <FolderOpen className="h-3.5 w-3.5 text-[var(--hrk-brand)]" />
+                      <span>Load a template</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!hasComposerContent}
+                      onClick={() => {
+                        setIsTemplatesMenuOpen(false);
+                        setPostTemplatesView('save');
+                        setIsPostTemplatesOpen(true);
+                      }}
+                      title={hasComposerContent ? 'Save the current post as a template' : 'Write something first to save a template'}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Save className="h-3.5 w-3.5 text-[var(--hrk-brand)]" />
+                      <span>Save as template</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
           <button
             type="button"
@@ -2813,6 +2883,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           onSaveTemplate={handleSavePostTemplate}
           onDeleteTemplate={handleDeletePostTemplate}
           onApplyTemplate={handleApplyPostTemplate}
+          initialView={postTemplatesView}
         />
       )}
       <PollCreator

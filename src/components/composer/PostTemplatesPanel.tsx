@@ -16,7 +16,7 @@
  * itself happens client-side — the kit knows how to refill its own form
  * from a `PostTemplate` payload.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2, X, FileText, Save, Trash2, Wand2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import type { Beneficiary } from '../../utils/beneficiaries';
 
@@ -73,6 +73,10 @@ export interface PostTemplatesPanelProps {
    *  state via the existing `applyTemplate` ref (or by remounting the
    *  composer). */
   onApplyTemplate: (template: PostTemplate) => void;
+  /** Which view to show when the panel opens — `'list'` (load a template)
+   *  or `'save'` (save the current post as a new template). Defaults to
+   *  `'list'`. */
+  initialView?: 'list' | 'save';
 }
 
 function PostTemplatesPanel({
@@ -84,8 +88,14 @@ function PostTemplatesPanel({
   onSaveTemplate,
   onDeleteTemplate,
   onApplyTemplate,
+  initialView = 'list',
 }: PostTemplatesPanelProps): React.JSX.Element | null {
-  const [view, setView] = useState<'list' | 'save'>('list');
+  const [view, setView] = useState<'list' | 'save'>(initialView);
+
+  // Sync to the requested view each time the panel is (re)opened.
+  useEffect(() => {
+    if (isOpen) setView(initialView);
+  }, [isOpen, initialView]);
   const [name, setName] = useState('');
   const [confirmApply, setConfirmApply] = useState<PostTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<PostTemplate | null>(null);
