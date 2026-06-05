@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   ArrowLeft,
+  Menu,
   User,
   Users,
   MessageCircle,
@@ -67,6 +68,10 @@ export interface UserDetailProfileProps {
   username: string;
   currentUsername?: string;
   onBack?: () => void;
+  /** Opens the host app's navigation (left) drawer. When set, a hamburger
+   *  button appears at the far left of the header so the drawer stays
+   *  reachable from this full-screen profile page. */
+  onOpenMenu?: () => void;
   showBackButton?: boolean;
 
   /**
@@ -429,6 +434,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   username,
   currentUsername,
   onBack,
+  onOpenMenu,
   showBackButton = false,
   tabShown,
   ecencyToken,
@@ -2651,6 +2657,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         {/* ── Compact Header: Avatar + Name + Stats + Actions ── */}
         <div className="sticky top-0 z-30 h-[calc(56px+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-[var(--hrk-bg-surface)]/95 backdrop-blur-sm border-b border-[var(--hrk-border-subtle)] flex items-center">
           <div className="px-4 py-2 flex items-center gap-2 w-full">
+            {/* Open app navigation drawer — keeps the drawers reachable on
+                this full-screen page without navigating home first. */}
+            {onOpenMenu && (
+              <button
+                onClick={onOpenMenu}
+                aria-label="Open menu"
+                className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0"
+              >
+                <Menu className="h-5 w-5 text-[var(--hrk-text-secondary)]" />
+              </button>
+            )}
             {/* Back */}
             {showBackButton && onBack && (
               <button
