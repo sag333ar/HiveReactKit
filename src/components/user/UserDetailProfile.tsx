@@ -545,6 +545,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Following[]>([]);
   const [badges, setBadges] = useState<string[]>([]);
+  // HivePosh-linked social accounts (X / Reddit). Drives the header badges.
+  const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>({});
   const [witnessVotes, setWitnessVotes] = useState<string[]>([]);
   const [votingPowerData, setVotingPowerData] = useState<{
     upvotePower: number; downvotePower: number; resourceCredits: number;
@@ -626,6 +628,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   }, []);
   const isMobile = useIsMobile();
   const targetUsername = username.replace(/^@/, "").trim();
+
+  // Fetch HivePosh-linked X / Reddit accounts for the header badges.
+  useEffect(() => {
+    if (!targetUsername) { setHiveposh({}); return; }
+    let cancelled = false;
+    setHiveposh({});
+    fetch(`https://hiveposh.com/api/v0/linked-accounts/${targetUsername}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { twitter_username?: string; reddit_username?: string } | null) => {
+        if (cancelled || !data) return;
+        setHiveposh({
+          twitter: data.twitter_username || undefined,
+          reddit: data.reddit_username || undefined,
+        });
+      })
+      .catch(() => { /* badges simply don't show */ });
+    return () => { cancelled = true; };
+  }, [targetUsername]);
+
   // Hive accounts are lowercase but route params / shared links sometimes
   // arrive with capital letters. Compare case-insensitively so the
   // "own profile" affordances (edit overlay etc.) don't silently disappear.
@@ -2930,10 +2951,45 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               )}
               {/* Name + details */}
               <div className="flex-1 min-w-0 pb-0.5">
-                <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate drop-shadow-md">
-                  {profile.name || targetUsername}
-                  <span className="text-xs sm:text-sm text-[var(--hrk-text-secondary)] drop-shadow-md"> (@{targetUsername})</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="min-w-0 truncate text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md">
+                    {profile.name || targetUsername}
+                    <span className="text-xs sm:text-sm text-[var(--hrk-text-secondary)] drop-shadow-md"> (@{targetUsername})</span>
+                  </h2>
+                  {/* HivePosh-linked socials — tap opens hiveposh.com. */}
+                  {(hiveposh.twitter || hiveposh.reddit) && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      {hiveposh.twitter && (
+                        <a
+                          href="https://hiveposh.com/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`X / Twitter: @${hiveposh.twitter}`}
+                          aria-label="X / Twitter (via HivePosh)"
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                          </svg>
+                        </a>
+                      )}
+                      {hiveposh.reddit && (
+                        <a
+                          href="https://hiveposh.com/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`Reddit: u/${hiveposh.reddit}`}
+                          aria-label="Reddit (via HivePosh)"
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff4500] text-white transition-colors hover:opacity-90"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                            <path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0zm4.388 8.74c.654 0 1.184.53 1.184 1.184a1.18 1.18 0 0 1-.582 1.018c.012.092.018.185.018.28 0 1.83-2.143 3.314-4.788 3.314s-4.788-1.484-4.788-3.314c0-.094.006-.187.017-.278a1.18 1.18 0 0 1-.585-1.02 1.184 1.184 0 0 1 2.006-.852 5.86 5.86 0 0 1 3.184-1.008l.605-2.842a.26.26 0 0 1 .31-.2l2.005.426a.842.842 0 1 1-.087.41l-1.793-.382-.54 2.55a5.86 5.86 0 0 1 3.135 1.012 1.18 1.18 0 0 1 .963-.498zM9.747 11.84a.842.842 0 1 0 1.684 0 .842.842 0 0 0-1.684 0zm5.265.842a.842.842 0 1 0 0-1.684.842.842 0 0 0 0 1.684zm-.585 1.795a.26.26 0 0 0-.366.003c-.397.397-1.214.537-1.94.537s-1.543-.14-1.94-.537a.26.26 0 0 0-.367.367c.61.61 1.737.69 2.307.69s1.697-.08 2.307-.69a.26.26 0 0 0 .005-.366z" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {profile.about && (
                   <p className="text-[var(--hrk-text-primary)] text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
                     {profile.about}
