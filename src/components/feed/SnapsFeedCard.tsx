@@ -37,6 +37,7 @@ import { PollVoteWidget } from '../PollVoteWidget';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import type { RewardOption } from '../../utils/commentOptions';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX, useIpfsKind } from '../IpfsMedia';
 import { HiveLink } from '../common/HiveLink';
@@ -290,38 +291,6 @@ function stripViaAppsCredit(body: string): string {
       /\s*(?:<br\s*\/?>)?\s*via Apps from\s+https?:\/\/\S+\s*$/i,
       '',
     );
-}
-
-/**
- * Detect "re-snap" — a snap whose body is essentially just a URL
- * pointing at another snap on a Hive frontend (peakd, hive.blog,
- * ecency, inleo, snapie.io, hivesuite.app). When that's the case we
- * render the original post inline via <ReSnapEmbed/> instead of the
- * normal body, with a "RE-SNAP" badge in the top-right.
- *
- * Returns the referenced { author, permlink } when the body matches,
- * or `null` to render the body normally.
- */
-function detectReSnapTarget(body: string): { author: string; permlink: string } | null {
-  const trimmed = (body || '').trim();
-  if (!trimmed) return null;
-  // Allow optional surrounding markdown link `[label](url)` shape, plain
-  // `<a href>`, or a bare URL. Reject anything with extra text outside.
-  const tryUrl = (raw: string): { author: string; permlink: string } | null => {
-    const target = parseHiveFrontendUrl(raw);
-    return target && target.kind === 'post'
-      ? { author: target.author, permlink: target.permlink }
-      : null;
-  };
-  // Bare URL only (most common case — matches the reference payload).
-  if (/^https?:\/\/\S+$/.test(trimmed)) return tryUrl(trimmed);
-  // Markdown link only.
-  const md = trimmed.match(/^\[[^\]]*\]\((https?:\/\/[^)\s]+)\)$/);
-  if (md) return tryUrl(md[1]);
-  // Anchor tag only.
-  const a = trimmed.match(/^<a\s[^>]*href=["'](https?:\/\/[^"']+)["'][^>]*>[^<]*<\/a>$/i);
-  if (a) return tryUrl(a[1]);
-  return null;
 }
 
 function parseBody(post: Post): ParsedBody {
@@ -1441,12 +1410,27 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   renderHeaderActions,
   actionsAsMenu,
 }) => {
-  const parsed = useMemo(() => parseBody(post), [post.body, post.json_metadata]);
-  // When the body is just a URL pointing at another snap, switch the
-  // body region over to <ReSnapEmbed/> instead of the normal media
-  // strip + markdown render. The original snap then appears inline
-  // with a "RE-SNAP" badge — exactly matches the Snapie behaviour.
-  const reSnapTarget = useMemo(() => detectReSnapTarget(post.body ?? ''), [post.body]);
+  const reSnapTarget = useMemo(
+    () => detectHivePostReference(stripViaAppsCredit(post.body ?? '')),
+    [post.body],
+  );
+  const reSnapTargetKey = reSnapTarget ? `${reSnapTarget.author}/${reSnapTarget.permlink}` : null;
+  const [visibleReSnapKey, setVisibleReSnapKey] = useState<string | null>(null);
+  const shouldStripReSnapUrl = !!reSnapTargetKey && visibleReSnapKey === reSnapTargetKey;
+  const bodyForContent = useMemo(
+    () => shouldStripReSnapUrl ? stripHivePostReference(post.body ?? '', reSnapTarget) : (post.body ?? ''),
+    [post.body, reSnapTarget, shouldStripReSnapUrl],
+  );
+  const parsed = useMemo(
+    () => parseBody({ ...post, body: bodyForContent }),
+    [post, bodyForContent],
+  );
+  const handleReSnapPreviewVisibility = useCallback((visible: boolean) => {
+    setVisibleReSnapKey((current) => {
+      if (visible) return reSnapTargetKey;
+      return current === reSnapTargetKey ? null : current;
+    });
+  }, [reSnapTargetKey]);
   const isHivesuitePost = useMemo(
     () => hasHivesuiteFamilyTag(post),
     [post.json_metadata],
@@ -1490,7 +1474,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   }, []);
 
   const renderedBodyHtml = useMemo(() => {
-    const raw = post.body ?? '';
+    const raw = bodyForContent;
     if (!raw || !renderHive) return '';
     let body = raw;
 
@@ -1575,7 +1559,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     } catch {
       return '';
     }
-  }, [post.body, renderHive]);
+  }, [bodyForContent, renderHive]);
 
   const myReplyKey = useMemo(() => {
     if (!currentUser || !Array.isArray(post.replies) || post.replies.length === 0) return undefined;
@@ -1714,19 +1698,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         className="cursor-pointer space-y-2 overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
-        {reSnapTarget ? (
-          // Body was just a URL pointing at another snap — render the
-          // original inline as a compact embed with a "RE-SNAP" badge.
-          // Tapping the embed opens the original snap's detail page.
-          <ReSnapEmbed
-            author={reSnapTarget.author}
-            permlink={reSnapTarget.permlink}
-            observer={currentUser}
-            onPostClick={onPostClick}
-            onUserClick={onUserClick}
-          />
-        ) : (
-          <>
         <AttachmentStrip attachments={parsed.attachments} />
         {renderedBodyHtml ? (
           // No `line-clamp-6` here: webkit-line-clamp is an
@@ -1796,7 +1767,19 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             getTagUrl={getTagUrl}
           />
         ) : null}
-          </>
+        {reSnapTarget && (
+          // Referenced Hive post/comment/snap appears inline after the
+          // author's own content. Depth 0 → compact post preview; depth
+          // ≥ 1 → re-snap card.
+          <ReSnapEmbed
+            author={reSnapTarget.author}
+            permlink={reSnapTarget.permlink}
+            observer={currentUser}
+            onPostClick={onPostClick}
+            onUserClick={onUserClick}
+            onPreviewVisibilityChange={handleReSnapPreviewVisibility}
+            showTopLevelPostPreview
+          />
         )}
       </div>
 

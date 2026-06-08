@@ -19,9 +19,10 @@
  * SnapsFeedCard, so a re-snap opens the original snap's detail page.
  */
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { Repeat } from 'lucide-react';
+import { FileText, Repeat } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import type { Post } from '@/types/post';
+import { getHivePostLevel } from '@/utils/hivePostReferences';
 
 interface ReSnapEmbedProps {
   /** Snap author whose post is being re-snapped. */
@@ -36,6 +37,13 @@ interface ReSnapEmbedProps {
   onPostClick?: (author: string, permlink: string) => void;
   /** Optional callback for tapping the embedded author. */
   onUserClick?: (username: string) => void;
+  /** Emits true when a preview card is shown (post or re-snap). Emits false
+   *  when the fetch fails or top-level posts are hidden (`showTopLevelPostPreview`
+   *  is false). */
+  onPreviewVisibilityChange?: (visible: boolean) => void;
+  /** When true, depth-0 targets render a compact "Post" preview instead of
+   *  being hidden. Used in Snaps feed and detail pages. */
+  showTopLevelPostPreview?: boolean;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -86,34 +94,53 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   observer,
   onPostClick,
   onUserClick,
+  onPreviewVisibilityChange,
+  showTopLevelPostPreview = false,
 }) => {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
+  const [hiddenTopLevelPost, setHiddenTopLevelPost] = useState(false);
+  const [previewKind, setPreviewKind] = useState<'resnap' | 'post' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErrored(false);
     setPost(null);
+    setHiddenTopLevelPost(false);
+    setPreviewKind(null);
+    onPreviewVisibilityChange?.(false);
     apiService.getPostContent(author, permlink, observer ?? '')
       .then((p) => {
         if (cancelled) return;
         if (!p || !(p as Post).author) {
           setErrored(true);
           setLoading(false);
+          onPreviewVisibilityChange?.(false);
           return;
         }
-        setPost(p as Post);
+        const fetchedPost = p as Post;
+        const isTopLevelPost = getHivePostLevel(fetchedPost) === 0;
+        if (isTopLevelPost && !showTopLevelPostPreview) {
+          setHiddenTopLevelPost(true);
+          setLoading(false);
+          onPreviewVisibilityChange?.(false);
+          return;
+        }
+        setPost(fetchedPost);
+        setPreviewKind(isTopLevelPost ? 'post' : 'resnap');
         setLoading(false);
+        onPreviewVisibilityChange?.(true);
       })
       .catch(() => {
         if (cancelled) return;
         setErrored(true);
         setLoading(false);
+        onPreviewVisibilityChange?.(false);
       });
     return () => { cancelled = true; };
-  }, [author, permlink, observer]);
+  }, [author, permlink, observer, onPreviewVisibilityChange, showTopLevelPostPreview]);
 
   const previewImage = useMemo(
     () => post ? firstImageUrl(post.body ?? '', post.json_metadata as unknown) : null,
@@ -130,17 +157,76 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
     else onPostClick?.(author, permlink);
   };
 
+  if (hiddenTopLevelPost) return null;
+
+  if (!loading && !errored && post && previewKind === 'post') {
+    const communityLabel = post.community_title || post.community || '';
+    const title = post.title || `@${post.author}/${post.permlink}`;
+    return (
+      <div
+        className="@container w-full cursor-pointer overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] transition hover:border-[var(--hrk-brand)]/50"
+        onClick={handleOpen}
+      >
+        <div className="flex flex-col gap-3 p-3 @[28rem]:flex-row">
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt=""
+              loading="lazy"
+              className="h-36 w-full shrink-0 rounded-md object-cover @[28rem]:h-32 @[28rem]:w-44"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          )}
+          <div className="min-w-0 w-full flex-1">
+            <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2 text-xs text-[var(--hrk-text-tertiary)]">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+                  className="flex min-w-0 items-center gap-1.5 hover:text-[var(--hrk-brand)]"
+                >
+                  <img
+                    src={`https://images.hive.blog/u/${post.author}/avatar`}
+                    alt=""
+                    className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=20`;
+                    }}
+                  />
+                  <span className="truncate font-medium">@{post.author}</span>
+                </button>
+                <span className="shrink-0">·</span>
+                <span className="shrink-0">{formatTimeAgo(post.created)}</span>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--hrk-brand)]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
+                <FileText className="h-3 w-3" />
+                Post
+              </span>
+            </div>
+            <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-[var(--hrk-text-primary)] @[28rem]:text-base">
+              {title}
+            </h3>
+            {previewText && (
+              <p className="mt-1 line-clamp-3 break-words text-sm leading-relaxed text-[var(--hrk-text-secondary)]">
+                {previewText}
+              </p>
+            )}
+            {communityLabel && (
+              <span className="mt-2 inline-flex max-w-full rounded-md bg-[var(--hrk-brand)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
+                <span className="truncate">{communityLabel}</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="relative cursor-pointer overflow-hidden rounded-lg border border-emerald-500/30 bg-[var(--hrk-bg-surface-sunken)] transition hover:border-emerald-500/60"
+      className="@container w-full cursor-pointer overflow-hidden rounded-lg border border-emerald-500/30 bg-[var(--hrk-bg-surface-sunken)] transition hover:border-emerald-500/60"
       onClick={handleOpen}
     >
-      {/* RE-SNAP badge — top-right corner, always visible. */}
-      <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
-        <Repeat className="h-3 w-3" />
-        Re-snap
-      </span>
-
       {loading ? (
         <div className="space-y-2 p-3">
           <div className="flex items-center gap-2">
@@ -159,34 +245,40 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
         </div>
       ) : (
         <div className="p-3">
-          {/* Header — embedded author + time. */}
-          <div className="mb-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
-              className="shrink-0"
-            >
-              <img
-                src={`https://images.hive.blog/u/${post.author}/avatar`}
-                alt={post.author}
-                className="h-7 w-7 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=28`;
-                }}
-              />
-            </button>
-            <div className="min-w-0">
+          {/* Header — embedded author + time + badge. */}
+          <div className="mb-2 flex min-w-0 items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
-                className="block truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
+                className="shrink-0"
               >
-                @{post.author}
+                <img
+                  src={`https://images.hive.blog/u/${post.author}/avatar`}
+                  alt={post.author}
+                  className="h-7 w-7 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=28`;
+                  }}
+                />
               </button>
-              <span className="text-[11px] text-[var(--hrk-brand)]">
-                {formatTimeAgo(post.created)}
-              </span>
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+                  className="block truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
+                >
+                  @{post.author}
+                </button>
+                <span className="text-[11px] text-[var(--hrk-brand)]">
+                  {formatTimeAgo(post.created)}
+                </span>
+              </div>
             </div>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+              <Repeat className="h-3 w-3" />
+              Re-snap
+            </span>
           </div>
 
           {previewImage && (

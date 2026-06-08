@@ -35,12 +35,14 @@ import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
+import ReSnapEmbed from './feed/ReSnapEmbed';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
 import { WorldMappinMap } from './WorldMappinMap';
 import { extractWorldMappinPin } from '../utils/worldMappin';
 import { useTranslatedText } from '@/i18n/useTranslatedText';
+import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -550,14 +552,33 @@ export function HiveDetailPost({
     }
   }, [post?.body, processBody, parentTags]);
 
+  const reSnapTarget = useMemo(
+    () => detectHivePostReference(processedBody),
+    [processedBody],
+  );
+  const reSnapTargetKey = reSnapTarget ? `${reSnapTarget.author}/${reSnapTarget.permlink}` : null;
+  const [visibleReSnapKey, setVisibleReSnapKey] = useState<string | null>(null);
+  const handleReSnapPreviewVisibility = useCallback((visible: boolean) => {
+    setVisibleReSnapKey((current) => {
+      if (visible) return reSnapTargetKey;
+      return current === reSnapTargetKey ? null : current;
+    });
+  }, [reSnapTargetKey]);
+  const shouldStripReSnapUrl = !!reSnapTargetKey && visibleReSnapKey === reSnapTargetKey;
+
+  const bodyForContent = useMemo(
+    () => shouldStripReSnapUrl ? stripHivePostReference(processedBody, reSnapTarget) : processedBody,
+    [processedBody, reSnapTarget, shouldStripReSnapUrl],
+  );
+
   // WorldMappin geo-pin: posts embed `[//]:# (!worldmappin <lat> lat <lng>
   // long <descr> d3scr)` to declare a location. Extract the first pin so we
   // can render an interactive Leaflet map below the body. The marker is a
   // markdown comment, so the renderer drops it from the visible HTML — no
   // need to strip it manually.
   const worldMappinPin = useMemo(
-    () => extractWorldMappinPin(processedBody),
-    [processedBody],
+    () => extractWorldMappinPin(bodyForContent),
+    [bodyForContent],
   );
 
   // Seed accounts for the `@`-mention autocomplete inside every inline
@@ -576,9 +597,9 @@ export function HiveDetailPost({
       out.push(v);
     };
     add(post?.author);
-    for (const m of extractMentionsFromBody(processedBody)) add(m);
+    for (const m of extractMentionsFromBody(bodyForContent)) add(m);
     return out;
-  }, [post?.author, processedBody]);
+  }, [post?.author, bodyForContent]);
 
   // IPFS gateway URLs (no file extension) — extract them up front and
   // render via <IpfsMedia> in their own gallery. They can be image OR
@@ -587,12 +608,12 @@ export function HiveDetailPost({
   // pattern Snaps feed cards use: pull them out before the markdown
   // engine sees them, so the body itself stays clean.
   const ipfsMediaUrls = useMemo<string[]>(() => {
-    if (!processedBody) return [];
+    if (!bodyForContent) return [];
     const re = new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags);
     const seen = new Set<string>();
     const out: string[] = [];
     let m: RegExpExecArray | null;
-    while ((m = re.exec(processedBody)) !== null) {
+    while ((m = re.exec(bodyForContent)) !== null) {
       const url = m[0];
       if (!seen.has(url)) {
         seen.add(url);
@@ -600,7 +621,7 @@ export function HiveDetailPost({
       }
     }
     return out;
-  }, [processedBody]);
+  }, [bodyForContent]);
 
   // 3Speak URLs (`play.3speak.tv/embed?v=author/permlink` or `/watch?…`
   // or the canonical `3speak.tv/v/author/permlink` path) extracted
@@ -610,7 +631,7 @@ export function HiveDetailPost({
   // and mounts an HLS-driven <video controls> — i.e. exactly the
   // shape the user described.
   const threeSpeakBodyRefs = useMemo<Array<{ author: string; permlink: string; thumbnail?: string }>>(() => {
-    if (!processedBody) return [];
+    if (!bodyForContent) return [];
     const seen = new Set<string>();
     const out: Array<{ author: string; permlink: string; thumbnail?: string }> = [];
     const push = (author: string, permlink: string, thumbnail?: string) => {
@@ -625,29 +646,29 @@ export function HiveDetailPost({
     //    Capture THUMB so the inline player shows the post's own poster
     //    (matching the composer preview) instead of the API's first frame.
     const linkedThumbRe = /\[!\[[^\]]*\]\(([^)\s]+)\)\]\(\s*https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^)\s]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
-    while ((m = linkedThumbRe.exec(processedBody)) !== null) {
+    while ((m = linkedThumbRe.exec(bodyForContent)) !== null) {
       push(m[2].toLowerCase(), m[3].toLowerCase(), m[1]);
     }
     // `?v=author/permlink` — works for both `/embed?v=…` and `/watch?v=…`
     const queryRe = /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
-    while ((m = queryRe.exec(processedBody)) !== null) {
+    while ((m = queryRe.exec(bodyForContent)) !== null) {
       push(m[1].toLowerCase(), m[2].toLowerCase());
     }
     // Canonical path form `3speak.tv/v/author/permlink`.
     const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
-    while ((m = pathRe.exec(processedBody)) !== null) {
+    while ((m = pathRe.exec(bodyForContent)) !== null) {
       push(m[1].toLowerCase(), m[2].toLowerCase());
     }
     return out;
-  }, [processedBody]);
+  }, [bodyForContent]);
 
   const renderedBody = useMemo(() => {
-    if (!processedBody || !renderMarkdown) return '';
+    if (!bodyForContent || !renderMarkdown) return '';
     try {
       // Pre-link bare @mentions to markdown links so the underlying
       // content-renderer doesn't reorder lines — see preLinkMentions for
       // the bug it works around.
-      let safeBody = preLinkMentions(processedBody, renderOptions?.userLinkUrlFn);
+      let safeBody = preLinkMentions(bodyForContent, renderOptions?.userLinkUrlFn);
       // Strip IPFS URLs (and any iframe/video shell wrapping one) before
       // the markdown engine sees them — they're rendered separately via
       // <IpfsMedia> above the body. Leaving them in produces "(Unsupported
@@ -771,7 +792,7 @@ export function HiveDetailPost({
     } catch {
       return '';
     }
-  }, [processedBody, renderMarkdown, threeSpeakRef]);
+  }, [bodyForContent, renderMarkdown, threeSpeakRef]);
 
   // Distinct metadata images — every URL declared in
   // `json_metadata.image` / `json_metadata.images` / `json_metadata.video.thumbnail`
@@ -1699,6 +1720,19 @@ export function HiveDetailPost({
                 </SelectionTranslator>
               ) : (
                 <p className="text-[var(--hrk-text-tertiary)] text-sm italic">No content available.</p>
+              )}
+              {reSnapTarget && (
+                <div className={renderedBody ? 'mt-4' : ''}>
+                  <ReSnapEmbed
+                    author={reSnapTarget.author}
+                    permlink={reSnapTarget.permlink}
+                    observer={currentUser}
+                    onPostClick={onNavigateToPost}
+                    onUserClick={onUserClick}
+                    onPreviewVisibilityChange={handleReSnapPreviewVisibility}
+                    showTopLevelPostPreview
+                  />
+                </div>
               )}
             </div>
 
