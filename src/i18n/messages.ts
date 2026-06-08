@@ -24,6 +24,7 @@ export type KitMessageKey =
   | "tab.followers" | "tab.following" | "tab.wallet"
   | "tab.engineTokens"
   | "tab.votingPower" | "tab.badges" | "tab.witnessVotes"
+  | "tab.curation"
   // Profile meta
   | "meta.followers" | "meta.following" | "meta.posts"
   // Action menu
@@ -39,6 +40,7 @@ export type KitMessageKey =
   | "empty.notFollowing" | "empty.noBadges" | "empty.noWitnessVotes"
   | "empty.noPendingAuthor" | "empty.noPendingCuration" | "empty.curationHint"
   | "empty.votingPowerUnavailable" | "empty.userNotFound"
+  | "empty.noCuration"
   // Status / poll
   | "status.active" | "status.ended"
   | "poll.selectAnOption" | "poll.selectUpTo" | "poll.changeYourVote"
@@ -77,6 +79,7 @@ const en: Record<KitMessageKey, string> = {
   "tab.votingPower": "Voting Power",
   "tab.badges": "Badges",
   "tab.witnessVotes": "Witness Votes",
+  "tab.curation": "Curation",
 
   // Profile meta
   "meta.followers": "Followers",
@@ -116,6 +119,8 @@ const en: Record<KitMessageKey, string> = {
   "empty.curationHint": "Rewards appear for posts you voted on with pending payouts",
   "empty.votingPowerUnavailable": "Voting power data unavailable",
   "empty.userNotFound": "User not found",
+  "empty.noCuration": "No curation history found",
+
 
   // Status / poll
   "status.active": "Active",
@@ -177,6 +182,7 @@ const es: Record<KitMessageKey, string> = {
   "tab.votingPower": "Poder de voto",
   "tab.badges": "Insignias",
   "tab.witnessVotes": "Votos de testigo",
+  "tab.curation": "Curación",
 
   // Profile meta
   "meta.followers": "Seguidores",
@@ -217,6 +223,7 @@ const es: Record<KitMessageKey, string> = {
     "Las recompensas aparecen para las publicaciones que has votado con pagos pendientes",
   "empty.votingPowerUnavailable": "Datos de poder de voto no disponibles",
   "empty.userNotFound": "Usuario no encontrado",
+  "empty.noCuration": "No se encontró historial de curación",
 
   // Status / poll
   "status.active": "Activa",

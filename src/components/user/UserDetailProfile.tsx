@@ -41,6 +41,8 @@ import {
   Key,
   Pencil as PencilIcon,
   Loader2 as Loader2Icon,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -61,6 +63,8 @@ import type { Post } from "@/types/post";
 import type { Follower, Following } from "@/types/user";
 import type { Poll } from "@/types/poll";
 import type { PendingAuthorRow, PendingCurationRow } from "@/types/reward";
+import { activityListService } from "@/services/activityListService";
+import type { ActivityListItem } from "@/types/activityList";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -354,7 +358,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -536,6 +540,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
+  const [curations, setCurations] = useState<ActivityListItem[]>([]);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
@@ -568,7 +573,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false,
-    votingPower: false, badges: false, witnessVotes: false, growth: false,
+    votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -810,6 +815,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setReplies([]);
     setFollowers([]);
     setFollowing([]);
+    setCurations([]);
     // Save previous profile's tab + scroll state
     if (prevUsernameRef.current && prevUsernameRef.current !== targetUsername) {
       profileStateCache[prevUsernameRef.current] = {
@@ -845,7 +851,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         tabScrollRef.current?.scrollTo({ left: 0 });
       }
     });
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true });
     setBadges([]);
     setWitnessVotes([]);
     setVotingPowerData(null);
@@ -889,6 +895,22 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
       try {
         switch (activeTab) {
+          case "curation": {
+            const VOTE_FILTER_LOW = (1n << 0n).toString();
+            const raw = await activityListService.getAccountHistory(
+              targetUsername,
+              -1,
+              100,
+              VOTE_FILTER_LOW,
+              '0'
+            );
+            const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
+            const voterItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+            setCurations(voterItems);
+            const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+            setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
+            break;
+          }
           case "blogs": {
             const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
             setBlogs(data);
@@ -1131,7 +1153,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
    *  own transactions scroll listener). Listing them explicitly here
    *  prevents a wrong-tab scroll from accidentally appending data to a
    *  different tab's state. */
-  const PAGINATED_TABS: TabType[] = ["blogs", "posts", "comments", "replies", "followers", "following"];
+  const PAGINATED_TABS: TabType[] = ["blogs", "posts", "comments", "replies", "followers", "following", "curation"];
 
   const loadMore = useCallback(async () => {
     if (!PAGINATED_TABS.includes(activeTab)) return;
@@ -1140,6 +1162,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     try {
       switch (activeTab) {
+        case "curation": {
+          const last = curations[curations.length - 1];
+          if (!last) break;
+          const VOTE_FILTER_LOW = (1n << 0n).toString();
+          const raw = await activityListService.getNextAccountHistoryPage(
+            targetUsername,
+            last.index,
+            100,
+            VOTE_FILTER_LOW,
+            '0'
+          );
+          const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
+          const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+          setCurations((prev) => [...prev, ...newItems]);
+          const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+          setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
+          break;
+        }
         case "blogs": {
           const last = blogs[blogs.length - 1];
           if (!last) break;
@@ -1222,7 +1262,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following, curations]);
 
   // ─── Infinite scroll — direct scroll listener on the nested scroll
   // container. We tried IntersectionObserver first, but it proved
@@ -1270,7 +1310,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) {
       loadMore();
     }
-  }, [loadingMore, activeTab, hasMore, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, loadMore]);
+  }, [loadingMore, activeTab, hasMore, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, curations.length, loadMore]);
 
   // ─── Action handlers ─────────────────────────────────────────────────────
 
@@ -2272,6 +2312,95 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    if (activeTab === "curation") {
+      if (loadingContent && curations.length === 0) {
+        return renderPostSkeleton();
+      }
+      if (curations.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Heart className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noCuration")}</p>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-3">
+          {curations.map((item, index) => {
+            const isDownvote = (item.details?.weight ?? 0) < 0;
+            const isUnvote = (item.details?.weight ?? 0) === 0;
+            const weightPercent = Math.abs((item.details?.weight ?? 0) / 100).toFixed(2);
+            
+            return (
+              <div
+                key={`${item.id}-${index}`}
+                className="overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] p-4 transition-colors hover:bg-[var(--hrk-bg-surface-raised)] cursor-pointer"
+                onClick={() => {
+                  if (item.author && item.permlink) {
+                    onPostClick?.(item.author, item.permlink, "");
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={`https://images.hive.blog/u/${item.author}/avatar`}
+                      alt={item.author}
+                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--hrk-border-subtle)]"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+                      }}
+                    />
+                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--hrk-bg-surface)] ${
+                      isUnvote 
+                        ? "bg-gray-600 text-white"
+                        : isDownvote
+                          ? "bg-red-500 text-white"
+                          : "bg-green-500 text-white"
+                    }`}>
+                      {isUnvote ? (
+                        <Heart className="w-2.5 h-2.5 fill-current" />
+                      ) : isDownvote ? (
+                        <ArrowDown className="w-2.5 h-2.5 stroke-[3px]" />
+                      ) : (
+                        <ArrowUp className="w-2.5 h-2.5 stroke-[3px]" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                      <span className="text-xs font-semibold text-white">
+                        {isUnvote 
+                          ? "Removed vote on" 
+                          : isDownvote 
+                            ? `Downvoted (${weightPercent}%)` 
+                            : `Upvoted (${weightPercent}%)`}
+                      </span>
+                      <span className="text-xs text-[var(--hrk-text-tertiary)]">post by</span>
+                      <HiveLink
+                        href={getUserUrl?.(item.author || '')}
+                        onActivate={() => onUserClick?.(item.author || '')}
+                        className="text-xs font-medium text-blue-400 hover:underline"
+                      >
+                        @{item.author}
+                      </HiveLink>
+                    </div>
+                    <p className="text-sm font-medium text-white truncate mt-1">
+                      {item.permlink}
+                    </p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-[var(--hrk-text-tertiary)]">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{activityListService.getRelativeTime(item.timestamp + 'Z')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
     if (activeTab === "activities") {
       return (
         <ActivityList
@@ -2649,6 +2778,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "comments", label: t("tab.comments"), icon: MessageCircle },
     { id: "replies", label: t("tab.replies"), icon: Reply },
     { id: "activities", label: t("tab.activities"), icon: Activity },
+    { id: "curation", label: t("tab.curation"), icon: Heart },
     { id: "authorRewards", label: t("tab.authorRewards"), icon: Award },
     { id: "curationRewards", label: t("tab.curationRewards"), icon: TrendingUp },
     { id: "growth", label: t("tab.growth"), icon: TrendingUp },

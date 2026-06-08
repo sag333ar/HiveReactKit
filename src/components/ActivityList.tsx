@@ -102,7 +102,7 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] sm:px-3 sm:py-2 sm:text-sm dark:border-[var(--hrk-border-subtle)] dark:bg-[var(--hrk-bg-app)] dark:text-[var(--hrk-text-primary)] dark:hover:bg-[var(--hrk-bg-surface)]"
+        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-2 py-1.5 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] sm:px-3 sm:py-2 sm:text-sm"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -121,10 +121,10 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
 
           <div
             role="listbox"
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-xl border-t border-gray-200 bg-white shadow-2xl dark:border-[var(--hrk-border-subtle)] dark:bg-[var(--hrk-bg-surface)] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[60vh] sm:w-72 sm:rounded-lg sm:border"
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-xl border-t border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-2xl sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[60vh] sm:w-72 sm:rounded-lg sm:border sm:border-[var(--hrk-border-subtle)]"
           >
             {/* Header / search */}
-            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-[var(--hrk-border-subtle)] dark:bg-[var(--hrk-bg-surface)]">
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-2">
               <Search className="h-4 w-4 shrink-0 text-[var(--hrk-text-tertiary)]" />
               <input
                 ref={searchInputRef}
@@ -153,7 +153,7 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                   className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
                     value === "all"
                       ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
-                      : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-primary)] dark:hover:bg-[var(--hrk-bg-surface-raised)]"
+                      : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
                   }`}
                 >
                   <span>All</span>
@@ -176,7 +176,7 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                         className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
                           selected
                             ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
-                            : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-primary)] dark:hover:bg-[var(--hrk-bg-surface-raised)]"
+                            : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
                         }`}
                       >
                         <span className="truncate">{opt.label}</span>
@@ -238,11 +238,12 @@ const ActivityList: React.FC<ActivityListProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastIndex, setLastIndex] = useState<number>(-1);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+const dropdownRef = useRef<HTMLDivElement>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const lastIndexRef = useRef<number>(-1);
   const hasMoreRef = useRef<boolean>(true);
   const isLoadingRef = useRef<boolean>(false);
+  const isIntersectingRef = useRef<boolean>(false);
   // HIVE-per-VEST ratio, used to display stake / unstake / delegate
   // operations in HP (the chain stores them as raw VESTS).
   const [vestsToHp, setVestsToHp] = useState<number | null>(null);
@@ -511,7 +512,9 @@ const ActivityList: React.FC<ActivityListProps> = ({
     const root = scrollRootRef?.current ?? findScrollableAncestor(node);
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0]?.isIntersecting) {
+        const isIntersecting = entries[0]?.isIntersecting ?? false;
+        isIntersectingRef.current = isIntersecting;
+        if (isIntersecting) {
           loadMoreActivities();
         }
       },
@@ -532,6 +535,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
     scrollTarget.addEventListener('scroll', checkNearBottom, { passive: true } as AddEventListenerOptions);
 
     return () => {
+      isIntersectingRef.current = false;
       observer.disconnect();
       scrollTarget.removeEventListener('scroll', checkNearBottom);
     };
@@ -550,6 +554,15 @@ const ActivityList: React.FC<ActivityListProps> = ({
 
     setFilteredActivities(filtered);
   }, [activities, localDirectionFilter, localOperationFilter]);
+
+  // Trigger more loads if the sentinel is still intersecting (visible on screen) but we are not currently loading.
+  // This is essential when client-side filters (like Vote + Out) yield only a few items,
+  // leaving the sentinel visible in the viewport without generating a scrollbar.
+  useEffect(() => {
+    if (isIntersectingRef.current && hasMore && !loading && !loadingMore) {
+      loadMoreActivities();
+    }
+  }, [filteredActivities, hasMore, loading, loadingMore, loadMoreActivities]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -637,7 +650,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
     return (
       <div
         key={activityId}
-        className="bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-[14px] p-4 transition-[background-color,border-color] duration-150 ease-out hover:bg-gray-50 dark:hover:bg-[var(--hrk-bg-surface-raised)] dark:hover:border-[var(--hrk-border-default)]"
+        className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-[14px] p-4 transition-[background-color,border-color] duration-150 ease-out hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)]"
       >
         <div className="flex items-start gap-3">
           {/* Avatar/Icon */}
@@ -691,7 +704,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                   <MoreVertical className="w-4 h-4 text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]" />
                 </button>
                 {openDropdown === activityId && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-lg shadow-lg z-10">
+                  <div className="absolute right-0 mt-2 w-48 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg shadow-lg z-10">
                     <button
                       onClick={() => {
                         toggleExpanded(activityId);
@@ -737,7 +750,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
             </div>
 
             {isExpanded && (
-              <div className="mt-3 p-3 bg-gray-50 dark:bg-[var(--hrk-bg-app)] rounded-lg">
+              <div className="mt-3 p-3 bg-[var(--hrk-bg-app)] rounded-lg">
                 <h4 className="text-sm font-medium text-[var(--hrk-text-primary)] dark:text-[var(--hrk-text-primary)] mb-2">Transaction Details</h4>
                 <pre className="text-xs text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] whitespace-pre-wrap overflow-x-auto">
                   {JSON.stringify(activity.details, null, 2)}
@@ -754,7 +767,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
     return (
       <div className="space-y-6">
         {/* Navigation Bar with Filters Loading */}
-        <div className="bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-lg p-4">
+        <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-4">
           <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
             {/* Search Loading */}
             <div className="flex-1 max-w-md">
@@ -773,7 +786,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
           </div>
 
           {/* Stats Loading */}
-          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-[var(--hrk-border-subtle)]">
+          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[var(--hrk-border-subtle)]">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-4 bg-[var(--hrk-bg-hover)] dark:bg-[var(--hrk-bg-surface-raised)] rounded animate-pulse w-20" />
             ))}
@@ -785,7 +798,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="flex items-center justify-between py-3 px-4 bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-lg"
+              className="flex items-center justify-between py-3 px-4 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-8 h-8 bg-[var(--hrk-bg-hover)] dark:bg-[var(--hrk-bg-surface-raised)] rounded-full animate-pulse flex-shrink-0" />
@@ -829,13 +842,13 @@ const ActivityList: React.FC<ActivityListProps> = ({
       ? 'bg-green-500 text-white'
       : localDirectionFilter === 'out'
         ? 'bg-blue-500 text-white'
-        : 'bg-white text-[var(--hrk-text-primary)] dark:bg-[var(--hrk-bg-surface-raised)] dark:text-white';
+        : 'bg-[var(--hrk-bg-surface-raised)] text-white';
 
   return (
     <div className="space-y-4">
       {/* Compact filter bar — single row on every breakpoint. Toggle pinned
           to the start, filter + refresh pushed to the end on desktop. */}
-      <div className="bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-lg p-2 sm:p-3">
+      <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-2 sm:p-3">
         <div className="flex items-center justify-between gap-1.5 sm:gap-2">
           {/* 3-position direction toggle. Default is centre (All). */}
           <div
@@ -899,7 +912,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
             <button
               onClick={() => loadActivities()}
               disabled={loading || loadingMore}
-              className="shrink-0 rounded-md border border-gray-200 bg-gray-50 p-1.5 text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] disabled:cursor-not-allowed disabled:opacity-50 sm:p-2 dark:border-[var(--hrk-border-subtle)] dark:bg-[var(--hrk-bg-app)] dark:text-[var(--hrk-text-secondary)] dark:hover:bg-[var(--hrk-bg-surface)]"
+              className="shrink-0 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] p-1.5 text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] disabled:cursor-not-allowed disabled:opacity-50 sm:p-2"
               aria-label="Refresh"
             >
               <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading || loadingMore ? 'animate-spin' : ''}`} />
@@ -908,7 +921,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
         </div>
 
         {/* Compact stats — single row on mobile too */}
-        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-200 pt-2 text-xs text-[var(--hrk-text-tertiary)] dark:border-[var(--hrk-border-subtle)] dark:text-[var(--hrk-text-tertiary)]">
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--hrk-border-subtle)] pt-2 text-xs text-[var(--hrk-text-tertiary)]">
           <span>Total: <span className="font-semibold text-[var(--hrk-text-primary)] dark:text-white">{activities.length}</span></span>
           <span>Shown: <span className="font-semibold text-[var(--hrk-text-primary)] dark:text-white">{filteredActivities.length}</span></span>
           <span>In: <span className="font-semibold text-green-600 dark:text-green-400">{activities.filter(a => a.direction === 'in').length}</span></span>
@@ -933,7 +946,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
             {filteredActivities.map((activity, index) => (
               <div
                 key={`${activity.id}-${index}`}
-                className="flex items-center justify-between py-3 px-4 bg-white dark:bg-[var(--hrk-bg-surface)] border border-gray-200 dark:border-[var(--hrk-border-subtle)] rounded-[12px] transition-[background-color,border-color] duration-150 ease-out hover:bg-gray-50 dark:hover:bg-[var(--hrk-bg-surface-raised)] dark:hover:border-[var(--hrk-border-default)] cursor-pointer"
+                className="flex items-center justify-between py-3 px-4 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-[12px] transition-[background-color,border-color] duration-150 ease-out hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] cursor-pointer"
                 onClick={(e) => {
                   onSelectActivity?.(activity);
                 }}
@@ -959,7 +972,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                         <img
                           src={`https://images.hive.blog/u/${leadAvatarUser}/avatar`}
                           alt={leadAvatarUser}
-                          className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-gray-200 dark:ring-[var(--hrk-border-subtle)]"
+                          className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--hrk-border-subtle)]"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
@@ -972,7 +985,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                     return null;
                   })()}
                   <div
-                    className={`w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    className={`w-8 h-8 bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0 ${
                       (activity.type === 'transfer' && (activity.from || activity.to)) ||
                       (activity.type === 'vote' && activity.voter) ||
                       (activity.type === 'comment_benefactor_reward' && activity.author) ||
@@ -1015,7 +1028,7 @@ const ActivityList: React.FC<ActivityListProps> = ({
                         <p className="text-xs text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
                           {activityListService.getRelativeTime(activity.timestamp + 'Z')}
                         </p>
-                        <div className="border border-gray-200 dark:border-[var(--hrk-border-default)] rounded p-2 bg-gray-50 dark:bg-[var(--hrk-bg-surface-raised)]/50 mt-1">
+                        <div className="border border-[var(--hrk-border-default)] rounded p-2 bg-[var(--hrk-bg-surface-raised)]/50 mt-1">
                           <div className="text-xs text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)] space-y-1 font-mono break-words">
                             {activity.type === 'custom_json' && (
                               <>
@@ -1070,8 +1083,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
                     <span
                       className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
                         activity.direction === 'in'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          ? 'bg-green-900/30 text-green-300'
+                          : 'bg-blue-900/30 text-blue-300'
                       }`}
                     >
                       {activity.direction === 'in' ? '+' : '−'} {activity.amount}
