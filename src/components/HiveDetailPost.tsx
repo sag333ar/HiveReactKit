@@ -1970,6 +1970,7 @@ export function HiveDetailPost({
                   ?? post.active_votes?.length
                   ?? 0
                 }
+                initialFlagWeight={post.stats?.flag_weight}
                 initialCommentsCount={post.children || 0}
                 postCreatedAt={post.created}
                 onUpvote={onUpvote}

@@ -1824,6 +1824,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             ?? (post.active_votes as ActiveVote[] | undefined)?.length
             ?? 0
           }
+          initialFlagWeight={(post as { stats?: { flag_weight?: number } }).stats?.flag_weight}
           initialCommentsCount={post.children || 0}
           postCreatedAt={post.created}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}

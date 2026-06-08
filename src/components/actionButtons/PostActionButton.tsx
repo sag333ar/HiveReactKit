@@ -7,6 +7,7 @@ import {
   Flag,
   Loader2,
   Gift,
+  HeartCrack,
 } from "lucide-react";
 import { VoteSlider } from "@/components/VoteSlider";
 import UpvoteListModal from "@/components/UpvoteListModal";
@@ -17,6 +18,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
+import { postHasDownvotes } from "@/utils/postVotes";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -46,6 +48,10 @@ export interface PostActionButtonProps {
    *  popular posts. Pass this when you have the canonical total so
    *  the chip reads "1.2k" instead of being capped at 1000. */
   initialVoteCount?: number;
+  /** Hive `stats.flag_weight` — non-zero means the post has downvotes.
+   *  Pair with `initialVotes` so the broken-heart indicator is reliable
+   *  even when the capped `active_votes` array omits flag voters. */
+  initialFlagWeight?: number;
   /** Optional: Pre-loaded comments count from the Post object (item.children). Skips the API call when provided. */
   initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
@@ -190,6 +196,7 @@ export function PostActionButton({
   payoutDetails,
   initialVotes,
   initialVoteCount,
+  initialFlagWeight,
   initialCommentsCount,
   onUpvote,
   onSubmitComment,
@@ -275,6 +282,7 @@ export function PostActionButton({
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
+  const [showDownvoteListModal, setShowDownvoteListModal] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({
@@ -327,6 +335,11 @@ export function PostActionButton({
     isLoggedIn &&
     !!currentUser &&
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
+
+  const hasDownvotes = useMemo(
+    () => postHasDownvotes(votes, initialFlagWeight),
+    [votes, initialFlagWeight],
+  );
 
   // ── "I already commented" hover preview (mirrors hSnaps PostCard) ───
   // When `hasCommented` is true and a `myReplyKey` is provided, hovering
@@ -471,6 +484,10 @@ export function PostActionButton({
     setShowUpvoteListModal(true);
   };
 
+  const handleDownvoteListClick = () => {
+    setShowDownvoteListModal(true);
+  };
+
   const handleUpvoteFromModal = () => {
     setShowUpvoteListModal(false);
     if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
@@ -600,6 +617,21 @@ export function PostActionButton({
             <span>{voteCount}</span>
           </button>
         </div>
+        {hasDownvotes && (
+          <div className="relative group">
+            <span className={tooltipClass}>View downvotes</span>
+            <button
+              type="button"
+              onClick={handleDownvoteListClick}
+              className={`${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
+              aria-label="View downvotes"
+            >
+              <HeartCrack
+                className={`${iconSizeClass} shrink-0 text-red-400`}
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Comments — split into icon + count when the host wires both
@@ -879,6 +911,20 @@ export function PostActionButton({
           hiveIconUrl={hiveIconUrl}
           onUserClick={onUserClick}
           getUserUrl={getUserUrl}
+          voteFilter="upvotes"
+        />
+      )}
+
+      {showDownvoteListModal && (
+        <UpvoteListModal
+          author={author}
+          permlink={permlink}
+          onClose={() => setShowDownvoteListModal(false)}
+          currentUser={currentUser ?? undefined}
+          hiveIconUrl={hiveIconUrl}
+          onUserClick={onUserClick}
+          getUserUrl={getUserUrl}
+          voteFilter="downvotes"
         />
       )}
 

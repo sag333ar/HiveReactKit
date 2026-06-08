@@ -21,6 +21,7 @@ import { ActiveVote } from "@/types/video";
 import type { Post } from "@/types/post";
 import { VoteSlider } from "./VoteSlider";
 import { toast } from "@/hooks";
+import { isDownvote } from "@/utils/postVotes";
 
 interface UpvoteListModalProps {
   author?: string;
@@ -51,8 +52,12 @@ interface UpvoteListModalProps {
   /** Unit suffix for each voter's `value` (e.g. "MHP"). Shown after the
    *  number in voters-only mode; no Hive reward icon is rendered. */
   valueUnit?: string;
-  /** Header title override. Defaults to "Votes (Hive Rewards)". */
+  /** Header title override. Defaults to "Votes (Hive Rewards)" or
+   *  "Downvotes" when `voteFilter` is `"downvotes"`. */
   title?: string;
+  /** When `"downvotes"`, only negative votes are listed (opened from
+   *  the broken-heart indicator). Default `"upvotes"`. */
+  voteFilter?: 'upvotes' | 'downvotes';
   /** Makes each voter row navigate to the account's profile. Mainly
    *  used in voters-only mode. */
   onUserClick?: (username: string) => void;
@@ -140,6 +145,13 @@ const SORT_LABELS: Record<SortMode, string> = {
   curation: "Curation Rewards",
 };
 
+const DOWNVOTE_SORT_LABELS: Partial<Record<SortMode, string>> = {
+  value: "Flag Weight",
+  voter: "Voter",
+  newest: "Newest",
+  oldest: "Oldest",
+};
+
 const UpvoteListModal = ({
   author,
   permlink,
@@ -152,9 +164,12 @@ const UpvoteListModal = ({
   fetchVoters,
   valueUnit,
   title,
+  voteFilter = 'upvotes',
   onUserClick,
   getUserUrl,
 }: UpvoteListModalProps) => {
+  const isDownvoteMode = voteFilter === 'downvotes';
+  const resolvedTitle = title ?? (isDownvoteMode ? 'Downvotes' : 'Votes (Hive Rewards)');
   // Voters-only mode: a plain list of account names was supplied (or a
   // resolver to fetch them), so we skip the post fetch + reward
   // derivations and render the avatar/name grid (optionally with a
@@ -180,8 +195,15 @@ const UpvoteListModal = ({
   const [sort, setSort] = useState<SortMode>("value");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
+  const scopedVotes = useMemo(
+    () => votes.filter((vote) => (isDownvoteMode ? isDownvote(vote) : !isDownvote(vote))),
+    [votes, isDownvoteMode],
+  );
+
   const hasAlreadyVoted =
-    !!currentUser && votes.some((v) => v.voter === currentUser);
+    !isDownvoteMode
+    && !!currentUser
+    && scopedVotes.some((v) => v.voter === currentUser);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -263,32 +285,40 @@ const UpvoteListModal = ({
 
   const totalRshares = useMemo(
     () =>
-      votes.reduce(
-        (sum, v) => sum + Math.max(0, Number(v.rshares) || 0),
+      scopedVotes.reduce(
+        (sum, v) => sum + (isDownvoteMode
+          ? Math.abs(Number(v.rshares) || 0)
+          : Math.max(0, Number(v.rshares) || 0)),
         0,
       ),
-    [votes],
+    [scopedVotes, isDownvoteMode],
   );
   const totalWeight = useMemo(
     () =>
-      votes.reduce(
-        (sum, v) => sum + Math.max(0, Number(v.weight) || 0),
+      scopedVotes.reduce(
+        (sum, v) => sum + (isDownvoteMode
+          ? Math.abs(Number(v.weight) || 0)
+          : Math.max(0, Number(v.weight) || 0)),
         0,
       ),
-    [votes],
+    [scopedVotes, isDownvoteMode],
   );
 
   const enrichedVotes = useMemo(() => {
-    return votes.map((vote) => {
-      const rshares = Math.max(0, Number(vote.rshares) || 0);
-      const weight = Math.max(0, Number(vote.weight) || 0);
-      const value =
-        totalRshares > 0 ? (rshares / totalRshares) * totalPayout : 0;
-      const curation =
-        totalWeight > 0 ? (weight / totalWeight) * totalCurationPool : 0;
+    return scopedVotes.map((vote) => {
+      const rawRshares = Number(vote.rshares) || 0;
+      const rawWeight = Number(vote.weight) || 0;
+      const rshares = isDownvoteMode ? Math.abs(rawRshares) : Math.max(0, rawRshares);
+      const weight = isDownvoteMode ? Math.abs(rawWeight) : Math.max(0, rawWeight);
+      const value = isDownvoteMode
+        ? rshares
+        : totalRshares > 0 ? (rshares / totalRshares) * totalPayout : 0;
+      const curation = isDownvoteMode
+        ? 0
+        : totalWeight > 0 ? (weight / totalWeight) * totalCurationPool : 0;
       return { ...vote, value, curation };
     });
-  }, [votes, totalRshares, totalWeight, totalPayout, totalCurationPool]);
+  }, [scopedVotes, isDownvoteMode, totalRshares, totalWeight, totalPayout, totalCurationPool]);
 
   const sortedVotes = useMemo(() => {
     const list = enrichedVotes.slice();
@@ -314,7 +344,8 @@ const UpvoteListModal = ({
   // into a final grey "rest" segment so the chart stays legible on a
   // post with hundreds of voters.
   const breakdownSegments = useMemo(() => {
-    if (totalPayout <= 0) return [] as { color: string; widthPct: number; voter: string }[];
+    const pool = isDownvoteMode ? totalRshares : totalPayout;
+    if (pool <= 0) return [] as { color: string; widthPct: number; voter: string }[];
     const byValue = enrichedVotes
       .slice()
       .sort((a, b) => b.value - a.value);
@@ -322,20 +353,20 @@ const UpvoteListModal = ({
     const top = byValue.slice(0, TOP);
     const rest = byValue.slice(TOP);
     const segs = top.map((v, i) => ({
-      color: SLICE_COLORS[i % SLICE_COLORS.length],
-      widthPct: (v.value / totalPayout) * 100,
+      color: isDownvoteMode ? '#f87171' : SLICE_COLORS[i % SLICE_COLORS.length],
+      widthPct: (v.value / pool) * 100,
       voter: v.voter,
     }));
     if (rest.length > 0) {
       const restSum = rest.reduce((s, v) => s + v.value, 0);
       segs.push({
         color: "var(--hrk-border-strong)",
-        widthPct: (restSum / totalPayout) * 100,
+        widthPct: (restSum / pool) * 100,
         voter: `+${rest.length} more`,
       });
     }
     return segs;
-  }, [enrichedVotes, totalPayout]);
+  }, [enrichedVotes, totalPayout, totalRshares, isDownvoteMode]);
 
   // ── Voters-only derivations ────────────────────────────────────────
   // When voters carry a `value` (e.g. each voter's MHP weight) we sort
@@ -414,8 +445,13 @@ const UpvoteListModal = ({
         <div className="flex items-center justify-between gap-3 border-b border-[var(--hrk-border-subtle)] px-4 py-3 sm:px-5 sm:py-4">
           <div className="flex flex-1 items-center gap-3 min-w-0">
             <h2 className="text-base sm:text-lg font-semibold text-white truncate">
-              {title ?? 'Votes (Hive Rewards)'}
+              {resolvedTitle}
             </h2>
+            {!isVotersMode && !loading && scopedVotes.length > 0 && (
+              <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--hrk-text-tertiary)]">
+                {scopedVotes.length.toLocaleString()}
+              </span>
+            )}
             {isVotersMode && !loading && (
               <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--hrk-text-tertiary)]">
                 {resolvedVoters.length.toLocaleString()}
@@ -439,7 +475,9 @@ const UpvoteListModal = ({
               aria-haspopup="menu"
               aria-expanded={sortMenuOpen}
             >
-              <span className="hidden sm:inline">{SORT_LABELS[sort].toUpperCase()}</span>
+              <span className="hidden sm:inline">
+                {(isDownvoteMode ? DOWNVOTE_SORT_LABELS[sort] : SORT_LABELS[sort])?.toUpperCase() ?? 'SORT'}
+              </span>
               <span className="sm:hidden">SORT</span>
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
@@ -449,7 +487,7 @@ const UpvoteListModal = ({
                 className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+                {(Object.keys(isDownvoteMode ? DOWNVOTE_SORT_LABELS : SORT_LABELS) as SortMode[]).map((mode) => (
                   <li key={mode}>
                     <button
                       type="button"
@@ -462,7 +500,7 @@ const UpvoteListModal = ({
                         sort === mode ? "text-[var(--hrk-brand)]" : "text-[var(--hrk-text-secondary)]"
                       }`}
                     >
-                      {SORT_LABELS[mode]}
+                      {isDownvoteMode ? DOWNVOTE_SORT_LABELS[mode] : SORT_LABELS[mode]}
                     </button>
                   </li>
                 ))}
@@ -471,7 +509,7 @@ const UpvoteListModal = ({
           </div>
           )}
 
-          {!isVotersMode && !showVoteSlider && (
+          {!isVotersMode && !isDownvoteMode && !showVoteSlider && (
             <button
               onClick={() => {
                 if (onClickUpvoteButton) {
@@ -536,10 +574,12 @@ const UpvoteListModal = ({
         )}
 
         {/* Breakdown */}
-        {!isVotersMode && !loading && !showVoteSlider && votes.length > 0 && (
+        {!isVotersMode && !loading && !showVoteSlider && scopedVotes.length > 0 && (
           <div className="border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/40 px-4 py-3 sm:px-5">
             <p className="text-xs text-[var(--hrk-text-tertiary)] mb-1.5">
-              Breakdown for {votes.length} {votes.length === 1 ? "vote" : "votes"}
+              Breakdown for {scopedVotes.length} {scopedVotes.length === 1
+                ? (isDownvoteMode ? 'downvote' : 'vote')
+                : (isDownvoteMode ? 'downvotes' : 'votes')}
             </p>
             <div
               className="flex h-2.5 w-full overflow-hidden rounded-md bg-[var(--hrk-bg-surface)]"
@@ -638,14 +678,14 @@ const UpvoteListModal = ({
               onUpvote={handleUpvote}
               onCancel={() => setShowVoteSlider(false)}
             />
-          ) : votes.length === 0 ? (
+          ) : scopedVotes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-sm text-[var(--hrk-text-tertiary)]">
-              No votes yet.
+              {isDownvoteMode ? 'No downvotes yet.' : 'No votes yet.'}
             </div>
           ) : (
             <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
               {sortedVotes.map((vote) => {
-                const percent = ((vote.percent ?? 0) / 100).toFixed(2);
+                const percent = (Math.abs(vote.percent ?? 0) / 100).toFixed(2);
                 const valueShown =
                   sort === "curation" ? vote.curation : vote.value;
                 const href = getUserUrl?.(vote.voter);
@@ -673,18 +713,22 @@ const UpvoteListModal = ({
                         <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
                           {formatReputation(vote.reputation)}
                         </span>
-                        <span className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-[var(--hrk-success)]">
-                          {valueShown.toFixed(3)}
-                          <img
-                            src={resolvedHiveIcon}
-                            alt=""
-                            className="h-3.5 w-3.5 object-contain"
-                            aria-hidden
-                          />
+                        <span className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold ${
+                          isDownvoteMode ? 'text-red-400' : 'text-[var(--hrk-success)]'
+                        }`}>
+                          {isDownvoteMode ? `-${percent}%` : valueShown.toFixed(3)}
+                          {!isDownvoteMode && (
+                            <img
+                              src={resolvedHiveIcon}
+                              alt=""
+                              className="h-3.5 w-3.5 object-contain"
+                              aria-hidden
+                            />
+                          )}
                         </span>
                       </div>
                       <div className="text-[11px] text-[var(--hrk-text-tertiary)]">
-                        {percent}%
+                        {isDownvoteMode ? `Flag weight · ${valueShown.toLocaleString()}` : `${percent}%`}
                         {/* Append a literal `Z` to the timestamp so it
                             parses as UTC. condenser_api.get_active_votes
                             returns `time` without a timezone suffix —

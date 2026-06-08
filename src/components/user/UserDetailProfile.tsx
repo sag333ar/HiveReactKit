@@ -1726,6 +1726,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               ?? item.active_votes?.length
               ?? 0
             }
+            initialFlagWeight={(item as { stats?: { flag_weight?: number } }).stats?.flag_weight}
             initialCommentsCount={item.children || 0}
             postCreatedAt={item.created}
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
