@@ -160,40 +160,42 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   if (hiddenTopLevelPost) return null;
 
   if (!loading && !errored && post && previewKind === 'post') {
-    const communityLabel = post.community_title || post.community || '';
     const title = post.title || `@${post.author}/${post.permlink}`;
     return (
       <div
-        className="@container w-full cursor-pointer overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] transition hover:border-[var(--hrk-brand)]/50"
+        className="w-full cursor-pointer overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] transition hover:border-[var(--hrk-brand)]/50 p-2.5"
         onClick={handleOpen}
       >
-        <div className="flex flex-col gap-3 p-3 @[28rem]:flex-row">
+        <div className="flex items-center gap-3">
           {previewImage && (
             <img
               src={previewImage}
               alt=""
               loading="lazy"
-              className="h-36 w-full shrink-0 rounded-md object-cover @[28rem]:h-32 @[28rem]:w-44"
+              className="h-16 w-16 shrink-0 rounded-md object-cover"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
-          <div className="min-w-0 w-full flex-1">
-            <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2 text-xs text-[var(--hrk-text-tertiary)]">
+          <div className="min-w-0 flex-1">
+            <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-[var(--hrk-text-primary)]">
+              {title}
+            </h3>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--hrk-text-tertiary)]">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
-                  className="flex min-w-0 items-center gap-1.5 hover:text-[var(--hrk-brand)]"
+                  className="flex items-center gap-1 hover:text-[var(--hrk-brand)] font-medium"
                 >
                   <img
                     src={`https://images.hive.blog/u/${post.author}/avatar`}
                     alt=""
-                    className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    className="h-4.5 w-4.5 shrink-0 rounded-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=20`;
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=18`;
                     }}
                   />
-                  <span className="truncate font-medium">@{post.author}</span>
+                  <span className="truncate">@{post.author}</span>
                 </button>
                 <span className="shrink-0">·</span>
                 <span className="shrink-0">{formatTimeAgo(post.created)}</span>
@@ -203,19 +205,6 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
                 Post
               </span>
             </div>
-            <h3 className="line-clamp-2 break-words text-sm font-semibold leading-snug text-[var(--hrk-text-primary)] @[28rem]:text-base">
-              {title}
-            </h3>
-            {previewText && (
-              <p className="mt-1 line-clamp-3 break-words text-sm leading-relaxed text-[var(--hrk-text-secondary)]">
-                {previewText}
-              </p>
-            )}
-            {communityLabel && (
-              <span className="mt-2 inline-flex max-w-full rounded-md bg-[var(--hrk-brand)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
-                <span className="truncate">{communityLabel}</span>
-              </span>
-            )}
           </div>
         </div>
       </div>

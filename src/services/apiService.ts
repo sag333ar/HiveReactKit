@@ -425,7 +425,7 @@ class ApiService {
         [author, permlink]
       );
       return {
-        numOfUpvotes: result?.net_votes ?? 0,
+        numOfUpvotes: result?.active_votes?.length ?? Math.max(0, result?.net_votes ?? 0),
         numOfComments: result?.children ?? 0,
         hiveValue: result?.pending_payout_value
           ? parseFloat(result.pending_payout_value)

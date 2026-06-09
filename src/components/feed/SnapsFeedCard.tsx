@@ -1820,9 +1820,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           initialVotes={(post.active_votes as ActiveVote[] | undefined) ?? []}
           initialVoteCount={
             (post as { stats?: { total_votes?: number } }).stats?.total_votes
-            ?? (post as { net_votes?: number }).net_votes
             ?? (post.active_votes as ActiveVote[] | undefined)?.length
-            ?? 0
+            ?? Math.max(0, (post as { net_votes?: number }).net_votes ?? 0)
           }
           initialFlagWeight={(post as { stats?: { flag_weight?: number } }).stats?.flag_weight}
           initialCommentsCount={post.children || 0}

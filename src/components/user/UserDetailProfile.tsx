@@ -1594,9 +1594,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     // or commented so we never offer an action the chain would reject.
     const itemVoteCount =
       (item as { stats?: { total_votes?: number } }).stats?.total_votes
-      ?? (item as { net_votes?: number }).net_votes
       ?? item.active_votes?.length
-      ?? 0;
+      ?? Math.max(0, (item as { net_votes?: number }).net_votes ?? 0);
     const canDeleteItem = (item.active_votes?.length ?? 0) === 0 && itemVoteCount <= 0 && (item.children ?? 0) === 0;
 
     // Extract numeric payout value
@@ -1761,10 +1760,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             payoutDetails={payoutDetails}
             initialVotes={item.active_votes || []}
             initialVoteCount={
-              (item as { stats?: { total_votes?: number }; net_votes?: number }).stats?.total_votes
-              ?? (item as { net_votes?: number }).net_votes
+              (item as { stats?: { total_votes?: number } }).stats?.total_votes
               ?? item.active_votes?.length
-              ?? 0
+              ?? Math.max(0, (item as { net_votes?: number }).net_votes ?? 0)
             }
             initialFlagWeight={(item as { stats?: { flag_weight?: number } }).stats?.flag_weight}
             initialCommentsCount={item.children || 0}

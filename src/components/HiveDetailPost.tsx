@@ -1262,18 +1262,30 @@ export function HiveDetailPost({
     return '0.000';
   }, [post]);
 
+  // Calculate total count of Upvotes + Downvotes
+  const totalVotesCount = useMemo(() => {
+    if (!post) return 0;
+
+    const totalVotes = (post as { stats?: { total_votes?: number } }).stats?.total_votes;
+    if (typeof totalVotes === 'number' && totalVotes > 0) {
+      return totalVotes;
+    }
+
+    if (post.active_votes && post.active_votes.length > 0) {
+      return post.active_votes.length;
+    }
+
+    const netVotes = (post as { net_votes?: number }).net_votes ?? 0;
+    return Math.max(0, netVotes);
+  }, [post]);
+
   // A post can only be deleted on-chain while it has no votes and no
   // replies. Hide the Delete entry-point once anyone has voted or
   // commented so we never offer an action the chain would reject.
   const canDeletePost = useMemo(() => {
     if (!post) return false;
-    const voteCount =
-      (post as { stats?: { total_votes?: number } }).stats?.total_votes
-      ?? (post as { net_votes?: number }).net_votes
-      ?? post.active_votes?.length
-      ?? 0;
-    return (post.active_votes?.length ?? 0) === 0 && voteCount <= 0 && (post.children ?? 0) === 0;
-  }, [post]);
+    return (post.active_votes?.length ?? 0) === 0 && totalVotesCount <= 0 && (post.children ?? 0) === 0;
+  }, [post, totalVotesCount]);
 
   const payoutTooltip = useMemo(() => {
     if (!post) return '';
@@ -1964,12 +1976,7 @@ export function HiveDetailPost({
                 payoutDetails={payoutDetails}
                 awaitingWalletApproval={awaitingWalletApproval}
                 initialVotes={post.active_votes || []}
-                initialVoteCount={
-                  (post as { stats?: { total_votes?: number }; net_votes?: number }).stats?.total_votes
-                  ?? (post as { net_votes?: number }).net_votes
-                  ?? post.active_votes?.length
-                  ?? 0
-                }
+                initialVoteCount={totalVotesCount}
                 initialFlagWeight={post.stats?.flag_weight}
                 initialCommentsCount={post.children || 0}
                 postCreatedAt={post.created}
