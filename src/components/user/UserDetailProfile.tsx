@@ -60,7 +60,7 @@ import { HiveLink } from "../common/HiveLink";
 import { getHiveApiEndpoint } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
-import type { Follower, Following } from "@/types/user";
+import type { Follower, Following, Account } from "@/types/user";
 import type { Poll } from "@/types/poll";
 import type { PendingAuthorRow, PendingCurationRow } from "@/types/reward";
 import { activityListService } from "@/services/activityListService";
@@ -550,6 +550,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Following[]>([]);
   const [badges, setBadges] = useState<string[]>([]);
+  const [badgeAccounts, setBadgeAccounts] = useState<Account[]>([]);
+  const [hivebuzzBadges, setHivebuzzBadges] = useState<any[]>([]);
   // HivePosh-linked social accounts (X / Reddit). Drives the header badges.
   const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>({});
   const [witnessVotes, setWitnessVotes] = useState<string[]>([]);
@@ -853,6 +855,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     });
     setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true });
     setBadges([]);
+    setBadgeAccounts([]);
+    setHivebuzzBadges([]);
     setWitnessVotes([]);
     setVotingPowerData(null);
     setVoteWeight(100);
@@ -1111,6 +1115,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               .map((f) => f.follower)
               .filter((name) => name.startsWith("badge-"));
             setBadges(badgeNames);
+            if (badgeNames.length > 0) {
+              const accounts = await userService.getAccounts(badgeNames, signal);
+              setBadgeAccounts(accounts);
+            } else {
+              setBadgeAccounts([]);
+            }
+
+            try {
+              const hbResponse = await fetch(`https://hivebuzz.me/api/badges/${targetUsername}`, { signal });
+              if (hbResponse.ok) {
+                const hbData = await hbResponse.json();
+                if (Array.isArray(hbData)) {
+                  const earned = hbData.filter((b: any) => b.state === "on" || b.state === "exp");
+                  setHivebuzzBadges(earned);
+                }
+              }
+            } catch (hbErr) {
+              console.error("Failed to fetch HiveBuzz badges", hbErr);
+            }
             break;
           }
           case "witnessVotes": {
@@ -1843,6 +1866,104 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     </div>
   );
 
+  const renderBadgeItem = (account: Account, index: number) => {
+    let profileName = account.name;
+    let profileAbout = "";
+    let profileImage = `https://images.hive.blog/u/${account.name}/avatar`;
+
+    try {
+      const metadata = account.posting_json_metadata
+        ? JSON.parse(account.posting_json_metadata)
+        : account.json_metadata
+        ? JSON.parse(account.json_metadata)
+        : null;
+      if (metadata?.profile) {
+        if (metadata.profile.name) {
+          profileName = metadata.profile.name;
+        }
+        if (metadata.profile.about) {
+          profileAbout = metadata.profile.about;
+        }
+        if (metadata.profile.profile_image) {
+          profileImage = metadata.profile.profile_image;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse metadata for badge", account.name, e);
+    }
+
+    return (
+      <div
+        key={`${account.name}-${index}`}
+        className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] transition-colors flex items-start gap-3"
+      >
+        <HiveLink
+          href={getUserUrl?.(account.name)}
+          onActivate={() => onUserClick?.(account.name)}
+          className="flex-shrink-0"
+          aria-label={`${profileName} badge detail`}
+        >
+          <img
+            src={profileImage}
+            alt={profileName}
+            className="w-12 h-12 rounded-lg bg-[var(--hrk-bg-surface-raised)] object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${account.name}/avatar`;
+            }}
+          />
+        </HiveLink>
+        <div className="flex-1 min-w-0">
+          <HiveLink
+            href={getUserUrl?.(account.name)}
+            onActivate={() => onUserClick?.(account.name)}
+            className="font-semibold text-white hover:text-blue-400 text-sm block truncate"
+          >
+            B/{profileName}
+          </HiveLink>
+          {profileAbout && (
+            <p className="text-xs text-[var(--hrk-text-tertiary)] mt-1 line-clamp-2" title={profileAbout}>
+              {profileAbout}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHiveBuzzBadgeItem = (badge: any, index: number) => {
+    const cleanDescription = badge.description
+      ? badge.description.replace(/<[^>]*>/g, '')
+      : '';
+
+    return (
+      <div
+        key={`${badge.name}-${badge.id}-${index}`}
+        className="border border-[var(--hrk-border-subtle)] rounded-lg p-4 bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] transition-colors flex items-start gap-3"
+      >
+        <div className="flex-shrink-0">
+          <img
+            src={badge.url}
+            alt={badge.title}
+            className="w-12 h-12 object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://hivebuzz.me/badges/first-post.png';
+            }}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-white text-sm truncate">
+            {badge.title}
+          </h4>
+          {cleanDescription && (
+            <p className="text-xs text-[var(--hrk-text-tertiary)] mt-1 line-clamp-2" title={cleanDescription}>
+              {cleanDescription}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // ─── Render: Skeleton Loaders ─────────────────────────────────────────────
 
   /** Post/blog/snap/comment/reply card skeleton */
@@ -2541,7 +2662,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     // Badges tab
     if (activeTab === "badges") {
       if (loadingContent) return renderUserSkeleton();
-      if (badges.length === 0) {
+      if (badges.length === 0 && hivebuzzBadges.length === 0) {
         return (
           <div className="text-center py-12">
             <Award className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
@@ -2550,8 +2671,42 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         );
       }
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {badges.map((name, i) => renderUserItem(name, i))}
+        <div className="space-y-8">
+          {/* Section 1: Community Badges */}
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-3 tracking-wide uppercase opacity-90">Community Badges</h3>
+            {badges.length === 0 ? (
+              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No community badges assigned</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {badgeAccounts.length > 0
+                  ? badgeAccounts.map((acc, i) => renderBadgeItem(acc, i))
+                  : badges.map((name, i) => renderUserItem(name, i))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: HiveBuzz Badges */}
+          <div className="border-t border-[var(--hrk-border-subtle)] pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-white tracking-wide uppercase opacity-90">HiveBuzz Badges</h3>
+              <a
+                href={`https://hivebuzz.me/@${targetUsername}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-blue-400 hover:underline uppercase tracking-wider font-semibold"
+              >
+                powered by hivebuzz
+              </a>
+            </div>
+            {hivebuzzBadges.length === 0 ? (
+              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No HiveBuzz badges earned yet</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {hivebuzzBadges.map((badge, i) => renderHiveBuzzBadgeItem(badge, i))}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
