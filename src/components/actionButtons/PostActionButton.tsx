@@ -18,7 +18,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
-import { postHasDownvotes } from "@/utils/postVotes";
+import { postHasDownvotes, isDownvote } from "@/utils/postVotes";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -279,6 +279,17 @@ export function PostActionButton({
   const [voteCount, setVoteCount] = useState<number>(
     initialVoteCount ?? initialVotes?.length ?? 0,
   );
+  const upvoteCount = useMemo(() => {
+    if (votes.length > 0) {
+      return votes.filter((v) => !isDownvote(v)).length;
+    }
+    return voteCount;
+  }, [votes, voteCount]);
+
+  const downvoteCount = useMemo(() => {
+    return votes.filter((v) => isDownvote(v)).length;
+  }, [votes]);
+
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [showUpvoteListModal, setShowUpvoteListModal] = useState(false);
@@ -459,6 +470,19 @@ export function PostActionButton({
       // before the chain round-trip lands. `fetchVotes` below will
       // overwrite this with the canonical number once the active
       // votes propagate (~3-6 s on Hive).
+      if (currentUser) {
+        const myVote: ActiveVote = {
+          voter: currentUser,
+          percent: percent * 100,
+          rshares: 1,
+        };
+        setVotes((prev) => {
+          if (prev.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase())) {
+            return prev;
+          }
+          return [...prev, myVote];
+        });
+      }
       if (initialVoteCount === undefined) {
         setVoteCount((c) => c + 1);
       } else {
@@ -614,7 +638,7 @@ export function PostActionButton({
             className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
             aria-label="View upvotes"
           >
-            <span>{voteCount}</span>
+            <span>{upvoteCount}</span>
           </button>
         </div>
         {hasDownvotes && (
@@ -623,12 +647,13 @@ export function PostActionButton({
             <button
               type="button"
               onClick={handleDownvoteListClick}
-              className={`${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
+              className={`flex items-center text-gray-300 hover:text-red-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
               aria-label="View downvotes"
             >
               <HeartCrack
                 className={`${iconSizeClass} shrink-0 text-red-400`}
               />
+              <span>{downvoteCount}</span>
             </button>
           </div>
         )}
