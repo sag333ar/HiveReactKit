@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Menu,
+  User,
   Tag,
   Clock,
   BarChart2,
@@ -245,6 +246,7 @@ export interface HiveDetailPostProps {
    *  button appears at the far left of the header so the drawer is reachable
    *  from this full-screen page. */
   onOpenMenu?: () => void;
+  onOpenProfileMenu?: () => void;
   onUserClick?: (username: string) => void;
   /** Called when user clicks "View parent post" — navigate to the parent post. */
   onNavigateToPost?: (author: string, permlink: string) => void;
@@ -391,6 +393,7 @@ export function HiveDetailPost({
   backgroundColor,
   onBack,
   onOpenMenu,
+  onOpenProfileMenu,
   onUserClick,
   onCommunityClick,
   getUserUrl,
@@ -1626,6 +1629,30 @@ export function HiveDetailPost({
                   })
                 : undefined}
             />
+            {onOpenProfileMenu && (
+              <button
+                onClick={onOpenProfileMenu}
+                className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-full transition-colors flex-shrink-0"
+                aria-label="Open user menu"
+              >
+                {currentUser ? (
+                  <img
+                    src={`https://images.hive.blog/u/${currentUser}/avatar`}
+                    alt={currentUser}
+                    className="h-6 w-6 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                      const fallback = e.currentTarget.nextSibling as HTMLElement | null;
+                      if (fallback) fallback.style.display = 'block';
+                    }}
+                  />
+                ) : null}
+                <User
+                  className="h-5 w-5 text-[var(--hrk-text-secondary)]"
+                  style={{ display: currentUser ? 'none' : 'block' }}
+                />
+              </button>
+            )}
           </div>
         </div>
 

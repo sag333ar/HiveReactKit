@@ -76,6 +76,7 @@ export interface UserDetailProfileProps {
    *  button appears at the far left of the header so the drawer stays
    *  reachable from this full-screen profile page. */
   onOpenMenu?: () => void;
+  onOpenProfileMenu?: () => void;
   showBackButton?: boolean;
 
   /**
@@ -439,6 +440,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   currentUsername,
   onBack,
   onOpenMenu,
+  onOpenProfileMenu,
   showBackButton = false,
   tabShown,
   ecencyToken,
@@ -3159,6 +3161,30 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   </div>
                 )}
               </div>
+              {onOpenProfileMenu && (
+                <button
+                  onClick={onOpenProfileMenu}
+                  className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-full transition-colors flex-shrink-0"
+                  aria-label="Open user menu"
+                >
+                  {currentUsername ? (
+                    <img
+                      src={`https://images.hive.blog/u/${currentUsername}/avatar`}
+                      alt={currentUsername}
+                      className="h-6 w-6 rounded-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                        const fallback = e.currentTarget.nextSibling as HTMLElement | null;
+                        if (fallback) fallback.style.display = 'block';
+                      }}
+                    />
+                  ) : null}
+                  <User
+                    className="h-5 w-5 text-[var(--hrk-text-secondary)]"
+                    style={{ display: currentUsername ? 'none' : 'block' }}
+                  />
+                </button>
+              )}
             </div>
           </div>
         </div>
