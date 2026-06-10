@@ -583,6 +583,39 @@ export const Wallet: React.FC<WalletProps> = ({
     transactionError,
   } = useWalletStore();
 
+  const [filterOutgoing, setFilterOutgoing] = useState(false);
+  const [filterIncoming, setFilterIncoming] = useState(false);
+  const [filterExcludeSpam, setFilterExcludeSpam] = useState(false);
+  const [filterTransfers, setFilterTransfers] = useState(false);
+
+  const filteredTransactions = React.useMemo(() => {
+    return transactions.filter((tx) => {
+      const isSent = tx.type === "sent";
+
+      // 1 & 2. Outgoing / Incoming filter
+      // If either filter is active, only show the active one(s). Otherwise show both.
+      if (filterOutgoing || filterIncoming) {
+        if (isSent && !filterOutgoing) return false;
+        if (!isSent && !filterIncoming) return false;
+      }
+
+      // 3. Exclude 0.001
+      if (filterExcludeSpam) {
+        const isZeroZeroOne = tx.amount.startsWith("0.001 ") || tx.amount === "0.001";
+        if (isZeroZeroOne) return false;
+      }
+
+      // 4. Transfers (only show transfer/tip kind)
+      if (filterTransfers) {
+        const meta = describeTx(tx);
+        const isTransfer = meta.kind === "transfer" || meta.kind === "tip";
+        if (!isTransfer) return false;
+      }
+
+      return true;
+    });
+  }, [transactions, filterOutgoing, filterIncoming, filterExcludeSpam, filterTransfers]);
+
   // Sentinel for infinite scroll on the transaction history list. We
   // attach a scroll listener to the nearest scrollable ancestor of this
   // sentinel (could be the kit's mainScrollRef when embedded in the
@@ -913,11 +946,55 @@ export const Wallet: React.FC<WalletProps> = ({
               <h3 className="text-sm font-bold text-[var(--hrk-text-secondary)] tracking-wide uppercase">
                 Transaction History
               </h3>
-              {transactions.length > 0 && (
+              {filteredTransactions.length !== transactions.length ? (
+                <span className="text-xs text-[var(--hrk-text-tertiary)]">
+                  Showing {filteredTransactions.length} of {transactions.length}
+                </span>
+              ) : transactions.length > 0 ? (
                 <span className="text-xs text-[var(--hrk-text-tertiary)]">
                   {transactions.length} transactions
                 </span>
-              )}
+              ) : null}
+            </div>
+
+            {/* Filter checkboxes */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 px-2 py-2 bg-[var(--hrk-bg-surface-raised)]/35 rounded-lg border border-[var(--hrk-border-subtle)]/50 text-xs text-[var(--hrk-text-secondary)] font-medium">
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterOutgoing}
+                  onChange={(e) => setFilterOutgoing(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Outgoing</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterIncoming}
+                  onChange={(e) => setFilterIncoming(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Incoming</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterExcludeSpam}
+                  onChange={(e) => setFilterExcludeSpam(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Exclude 0.001</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterTransfers}
+                  onChange={(e) => setFilterTransfers(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Transfers</span>
+              </label>
             </div>
 
             {isLoadingTransactions && (
@@ -936,7 +1013,7 @@ export const Wallet: React.FC<WalletProps> = ({
               </div>
             )}
 
-            {!isLoadingTransactions && !transactionError && transactions.length === 0 && (
+            {!isLoadingTransactions && !transactionError && filteredTransactions.length === 0 && (
               <div className="text-center p-8 rounded-lg bg-[var(--hrk-bg-app)] border border-[var(--hrk-border-subtle)]">
                 <p className="text-sm text-[var(--hrk-text-tertiary)]">No transactions found</p>
               </div>
@@ -944,7 +1021,7 @@ export const Wallet: React.FC<WalletProps> = ({
 
             {!isLoadingTransactions &&
               username &&
-              transactions.map((tx) => (
+              filteredTransactions.map((tx) => (
                 <TransactionRow key={tx.trx_id + tx.id} tx={tx} />
               ))}
 
