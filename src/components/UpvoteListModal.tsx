@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * UpvoteListModal — opens from a post's "upvote count" pill and
  * shows every voter on the post with the share of the Hive reward
@@ -64,6 +65,8 @@ interface UpvoteListModalProps {
   /** Builds a profile URL so voter rows render as real <a href> links
    *  (open-in-new-tab). Paired with `onUserClick` for SPA nav. */
   getUserUrl?: (username: string) => string;
+  /** True total vote count from the chain to display when the active_votes array is capped */
+  totalVoteCount?: number;
 }
 
 type SortMode = "value" | "voter" | "newest" | "oldest" | "curation";
@@ -167,6 +170,7 @@ const UpvoteListModal = ({
   voteFilter = 'upvotes',
   onUserClick,
   getUserUrl,
+  totalVoteCount,
 }: UpvoteListModalProps) => {
   const isDownvoteMode = voteFilter === 'downvotes';
   const resolvedTitle = title ?? (isDownvoteMode ? 'Downvotes' : 'Votes (Hive Rewards)');
@@ -194,6 +198,10 @@ const UpvoteListModal = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sort, setSort] = useState<SortMode>("value");
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastFetchedVoterAlphabetical, setLastFetchedVoterAlphabetical] = useState("");
+  const [hasLoadedMoreOnce, setHasLoadedMoreOnce] = useState(false);
 
   const scopedVotes = useMemo(
     () => votes.filter((vote) => (isDownvoteMode ? isDownvote(vote) : !isDownvote(vote))),
@@ -408,6 +416,63 @@ const UpvoteListModal = ({
     return segs;
   }, [sortedVoters, voterTotalValue]);
 
+  const loadMoreVotes = async () => {
+    if (!author || !permlink || loadingMore) return;
+    setLoadingMore(true);
+
+    try {
+      const nextStart = hasLoadedMoreOnce ? lastFetchedVoterAlphabetical : "";
+      const fetchedRaw = await apiService.listVotes(author, permlink, nextStart, 1000);
+
+      const mapped: ActiveVote[] = fetchedRaw.map((v: any) => ({
+        voter: v.voter,
+        percent: v.vote_percent,
+        rshares: parseInt(v.rshares) || 0,
+        time: v.last_update,
+        weight: parseInt(v.weight) || 0,
+      }));
+
+      const votesMap = new Map<string, ActiveVote>();
+      votes.forEach((v) => votesMap.set(v.voter, v));
+
+      const newVoters = mapped
+        .map((v) => v.voter)
+        .filter((name) => !votesMap.has(name));
+
+      if (newVoters.length > 0) {
+        const batchSize = 100;
+        for (let i = 0; i < newVoters.length; i += batchSize) {
+          const chunk = newVoters.slice(i, i + batchSize);
+          const accounts = await apiService.getAccounts(chunk);
+          accounts.forEach((acc: any) => {
+            const idx = mapped.findIndex((m) => m.voter === acc.name);
+            if (idx !== -1) {
+              mapped[idx].reputation = acc.reputation;
+            }
+          });
+        }
+      }
+
+      mapped.forEach((v) => {
+        if (!votesMap.has(v.voter)) {
+          votesMap.set(v.voter, v);
+        }
+      });
+
+      const mergedList = Array.from(votesMap.values());
+      setVotes(mergedList);
+
+      if (fetchedRaw.length > 0) {
+        setLastFetchedVoterAlphabetical(fetchedRaw[fetchedRaw.length - 1].voter);
+      }
+      setHasLoadedMoreOnce(true);
+    } catch (error) {
+      console.error("Failed to load more votes:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const onOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -447,9 +512,9 @@ const UpvoteListModal = ({
             <h2 className="text-base sm:text-lg font-semibold text-white truncate">
               {resolvedTitle}
             </h2>
-            {!isVotersMode && !loading && scopedVotes.length > 0 && (
+            {!isVotersMode && !loading && (scopedVotes.length > 0 || (totalVoteCount ?? 0) > 0) && (
               <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--hrk-text-tertiary)]">
-                {scopedVotes.length.toLocaleString()}
+                {Math.max(scopedVotes.length, totalVoteCount ?? 0).toLocaleString()}
               </span>
             )}
             {isVotersMode && !loading && (
@@ -574,10 +639,10 @@ const UpvoteListModal = ({
         )}
 
         {/* Breakdown */}
-        {!isVotersMode && !loading && !showVoteSlider && scopedVotes.length > 0 && (
+        {!isVotersMode && !loading && !showVoteSlider && (scopedVotes.length > 0 || (totalVoteCount ?? 0) > 0) && (
           <div className="border-b border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)]/40 px-4 py-3 sm:px-5">
             <p className="text-xs text-[var(--hrk-text-tertiary)] mb-1.5">
-              Breakdown for {scopedVotes.length} {scopedVotes.length === 1
+              Breakdown for {Math.max(scopedVotes.length, totalVoteCount ?? 0).toLocaleString()} {Math.max(scopedVotes.length, totalVoteCount ?? 0) === 1
                 ? (isDownvoteMode ? 'downvote' : 'vote')
                 : (isDownvoteMode ? 'downvotes' : 'votes')}
             </p>
@@ -770,6 +835,25 @@ const UpvoteListModal = ({
                 );
               })}
             </ul>
+          )}
+          {!isVotersMode && !loading && !showVoteSlider && scopedVotes.length < (totalVoteCount ?? 0) && (
+            <div className="flex justify-center mt-4 pb-2">
+              <button
+                type="button"
+                onClick={loadMoreVotes}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white disabled:text-gray-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                {loadingMore ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                    Loading more...
+                  </>
+                ) : (
+                  "Load More Votes"
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>

@@ -639,6 +639,7 @@ export default function InlineCommentItem({
                   handleUpvoteClick();
                 }}
                 onUserClick={onUserClick}
+                totalVoteCount={voteCount}
               />
             )}
 

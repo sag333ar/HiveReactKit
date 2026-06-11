@@ -457,6 +457,44 @@ class ApiService {
     }
   }
 
+  async listVotes(
+    author: string,
+    permlink: string,
+    startVoter: string = "",
+    limit: number = 1000
+  ): Promise<any[]> {
+    try {
+      const result: any = await dhiveClient.call(
+        "database_api",
+        "list_votes",
+        {
+          start: [author, permlink, startVoter],
+          limit: limit,
+          order: "by_comment_voter",
+        }
+      );
+      if (result && Array.isArray(result.votes)) {
+        return result.votes.filter(
+          (v: any) => v.author === author && v.permlink === permlink
+        );
+      }
+      return [];
+    } catch (error) {
+      console.error("Error calling list_votes:", error);
+      return [];
+    }
+  }
+
+  async getAccounts(usernames: string[]): Promise<any[]> {
+    try {
+      if (usernames.length === 0) return [];
+      return await dhiveClient.database.getAccounts(usernames);
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+      return [];
+    }
+  }
+
   async getCommentsList(
     author: string,
     permlink: string,

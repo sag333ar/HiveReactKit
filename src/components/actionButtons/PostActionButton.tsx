@@ -280,8 +280,12 @@ export function PostActionButton({
     initialVoteCount ?? initialVotes?.length ?? 0,
   );
   const upvoteCount = useMemo(() => {
+    const downvotes = votes.filter((v) => isDownvote(v)).length;
+    if (voteCount > votes.length) {
+      return Math.max(0, voteCount - downvotes);
+    }
     if (votes.length > 0) {
-      return votes.filter((v) => !isDownvote(v)).length;
+      return votes.length - downvotes;
     }
     return voteCount;
   }, [votes, voteCount]);
@@ -301,6 +305,19 @@ export function PostActionButton({
     visible: false,
   });
   const [voteLoading, setVoteLoading] = useState(false);
+
+  // Keep local state in sync with incoming props
+  useEffect(() => {
+    setVotes(initialVotes ?? []);
+  }, [initialVotes]);
+
+  useEffect(() => {
+    setVoteCount(initialVoteCount ?? initialVotes?.length ?? 0);
+  }, [initialVoteCount, initialVotes]);
+
+  useEffect(() => {
+    setCommentsCount(initialCommentsCount ?? 0);
+  }, [initialCommentsCount]);
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
@@ -937,6 +954,7 @@ export function PostActionButton({
           onUserClick={onUserClick}
           getUserUrl={getUserUrl}
           voteFilter="upvotes"
+          totalVoteCount={upvoteCount}
         />
       )}
 
@@ -950,6 +968,7 @@ export function PostActionButton({
           onUserClick={onUserClick}
           getUserUrl={getUserUrl}
           voteFilter="downvotes"
+          totalVoteCount={downvoteCount}
         />
       )}
 

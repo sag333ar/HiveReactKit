@@ -1274,12 +1274,9 @@ export function HiveDetailPost({
       return totalVotes;
     }
 
-    if (post.active_votes && post.active_votes.length > 0) {
-      return post.active_votes.length;
-    }
-
+    const activeVotesLen = post.active_votes?.length ?? 0;
     const netVotes = (post as { net_votes?: number }).net_votes ?? 0;
-    return Math.max(0, netVotes);
+    return Math.max(activeVotesLen, netVotes);
   }, [post]);
 
   // A post can only be deleted on-chain while it has no votes and no

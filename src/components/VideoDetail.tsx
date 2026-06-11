@@ -489,6 +489,7 @@ const VideoDetail = ({ username, permlink, onAuthorClick, onVideoClick, onTagCli
           permlink={permlinkParam}
           onClose={() => setShowUpvotes(false)}
           onUserClick={onAuthorClick}
+          totalVoteCount={video?.numOfUpvotes ?? undefined}
         />
       )}
 
