@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { BarChart2, CheckCircle2, Circle, Send } from 'lucide-react';
 import { userService } from '@/services/userService';
 import type { Poll } from '@/types/poll';
+import { TranslatedText } from './TranslatedText';
 
 export interface PollVoteWidgetProps {
   author: string;
@@ -146,7 +147,7 @@ export function PollVoteWidget({
       </div>
 
       <p className="px-3 pb-2 text-sm font-semibold text-white">
-        {poll?.question ?? parsedMetadata?.question ?? ''}
+        <TranslatedText text={poll?.question ?? parsedMetadata?.question ?? ''} />
       </p>
 
       {showVoteUI && needsSubmitButton && (
@@ -213,7 +214,7 @@ export function PollVoteWidget({
                     <span
                       className={`truncate text-xs ${isSelected ? 'font-medium text-blue-300' : isVoted && !isChangingVote ? 'font-medium text-green-300' : isVoted && isChangingVote ? 'text-green-700' : 'text-[var(--hrk-text-primary)]'}`}
                     >
-                      {choice.choice_text}
+                      <TranslatedText text={choice.choice_text} />
                     </span>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1.5 text-[10px] text-[var(--hrk-text-tertiary)]">

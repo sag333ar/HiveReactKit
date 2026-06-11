@@ -34,6 +34,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
 import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
+import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
@@ -1865,7 +1866,7 @@ export function HiveDetailPost({
 
                   {/* Question */}
                   <p className="px-4 pb-3 text-sm font-semibold text-white">
-                    {poll?.question ?? parsedMetadata?.question}
+                    <TranslatedText text={poll?.question ?? parsedMetadata?.question} />
                   </p>
 
                   {/* Selection hint */}
@@ -1928,7 +1929,7 @@ export function HiveDetailPost({
                             <div className="flex items-center gap-2 min-w-0">
                               {iconEl}
                               <span className={`text-sm truncate ${isSelected ? 'text-blue-300 font-medium' : isVoted && !isChangingVote ? 'text-green-300 font-medium' : isVoted && isChangingVote ? 'text-green-700' : 'text-[var(--hrk-text-primary)]'}`}>
-                                {choice.choice_text}
+                                <TranslatedText text={choice.choice_text} />
                               </span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0 text-[11px] text-[var(--hrk-text-tertiary)]">

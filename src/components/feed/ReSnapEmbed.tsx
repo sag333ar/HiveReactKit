@@ -19,10 +19,11 @@
  * SnapsFeedCard, so a re-snap opens the original snap's detail page.
  */
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { FileText, Repeat } from 'lucide-react';
+import { Repeat } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import type { Post } from '@/types/post';
 import { getHivePostLevel } from '@/utils/hivePostReferences';
+import { AttachmentStrip, parseBody, type Attachment } from './AttachmentStrip';
 
 interface ReSnapEmbedProps {
   /** Snap author whose post is being re-snapped. */
@@ -56,8 +57,6 @@ function formatTimeAgo(dateString: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-/** Pull the first image URL out of a body. Mirrors the simple cases
- *  SnapsFeedCard handles in its own parser — enough for the preview. */
 function firstImageUrl(body: string, jsonMetadata: unknown): string | null {
   if (jsonMetadata) {
     const meta = typeof jsonMetadata === 'string'
@@ -75,13 +74,17 @@ function firstImageUrl(body: string, jsonMetadata: unknown): string | null {
   return null;
 }
 
-/** Strip the markdown image / bare URL we already render so the text
- *  preview underneath doesn't duplicate the image. */
 function plainTextPreview(body: string): string {
   return body
     .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
     .replace(/<img[^>]+>/gi, '')
     .replace(/https?:\/\/\S+?\.(?:jpe?g|png|gif|webp|avif)(?:\?\S*)?/gi, '')
+    .replace(/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/gi, '')
+    .replace(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[^&\s]+|https?:\/\/youtu\.be\/\S+|https?:\/\/(?:www\.)?youtube\.com\/shorts\/\S+/gi, '')
+    .replace(/https?:\/\/(?:play\.)?3speak\.tv\/\S+/gi, '')
+    .replace(/https?:\/\/audio\.3speak\.tv\/play\?\S+/gi, '')
+    .replace(/https?:\/\/\S+?\.(?:mp3|wav|ogg|m4a|aac|flac|webm|opus)(?:\?[^\s"'<>)]*)?/gi, '')
+    .replace(/https?:\/\/(?:open|play)\.spotify\.com\/(?:track|playlist|album|artist|episode|show)\/[a-zA-Z0-9]+(?:\?[^\s"'<>)]*)?/gi, '')
     .replace(/<[^>]+>/g, '')
     .replace(/[*_~`>#-]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -141,6 +144,9 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
       });
     return () => { cancelled = true; };
   }, [author, permlink, observer, onPreviewVisibilityChange, showTopLevelPostPreview]);
+
+  const parsed = useMemo(() => (post ? parseBody(post) : null), [post]);
+  const attachments = parsed?.attachments ?? [];
 
   const previewImage = useMemo(
     () => post ? firstImageUrl(post.body ?? '', post.json_metadata as unknown) : null,
@@ -266,7 +272,9 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
             </span>
           </div>
 
-          {previewImage && (
+          {attachments.length > 0 ? (
+            <AttachmentStrip attachments={attachments} />
+          ) : previewImage ? (
             <img
               src={previewImage}
               alt=""
@@ -274,7 +282,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
               className="mb-2 max-h-72 w-full rounded-md object-cover"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-          )}
+          ) : null}
           {previewText && (
             <p className="line-clamp-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-[var(--hrk-text-secondary)]">
               {previewText}

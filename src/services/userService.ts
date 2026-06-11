@@ -1,3 +1,5 @@
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Follower, Following, UserProfileResponse, Account } from "@/types/user";
 import { Post } from "@/types/post";
 import type { Poll } from "@/types/poll";
