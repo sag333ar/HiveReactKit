@@ -1834,10 +1834,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     type="button"
                     onClick={() => handleAppPick(opt.id)}
                     aria-pressed={isActive}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    title={opt.label}
+                    className={`inline-flex items-center gap-1.5 rounded-full border transition-colors ${
                       isActive
-                        ? 'border-[var(--hrk-brand)] bg-[var(--hrk-brand)] text-white'
-                        : 'border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-brand)]/60'
+                        ? 'border-[var(--hrk-brand)] bg-[var(--hrk-brand)] text-white px-2.5 py-1 text-xs font-medium'
+                        : 'border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-brand)]/60 p-1.5'
                     }`}
                   >
                     {opt.avatarUrl && (
@@ -1847,7 +1848,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                         className="h-4 w-4 shrink-0 rounded-full object-cover"
                       />
                     )}
-                    {opt.label}
+                    {isActive && opt.label}
                   </button>
                 );
               })}
