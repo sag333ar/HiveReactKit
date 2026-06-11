@@ -559,11 +559,12 @@ const Index = () => {
   // This is exactly what `fetchFeedPage` does in `hive-snaps-reactjs`'s
   // `services/hiveService.ts` (CONTAINER_ACCOUNTS map), so a feed slot in
   // the demo and the hSnaps home screen render the same set of posts.
-  const CONTAINER_ACCOUNTS_DEMO: Record<SnapsFeedKey, string> = {
+  const CONTAINER_ACCOUNTS_DEMO: Partial<Record<SnapsFeedKey, string>> = {
     snaps: "peak.snaps",
     ecency: "ecency.waves",
     threads: "leothreads",
     liketu: "liketu.moments",
+    // snapie and hivesuite omitted from the demo (separate container accounts).
   };
 
   const SnapsFeedViewDemo = () => {

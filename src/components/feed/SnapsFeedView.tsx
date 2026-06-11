@@ -394,6 +394,8 @@ export function SnapsFeedView({
    *  mobile branch and inside each desktop column. */
   const renderBody = (key: SnapsFeedKey) => {
     const slot = feeds[key];
+    // Guard: if the host hasn't wired up this feed yet, show nothing.
+    if (!slot) return null;
     return (
       <>
         {slot.error && (
@@ -413,6 +415,27 @@ export function SnapsFeedView({
       </>
     );
   };
+
+  const desktopWrapperRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (cols === 1) return;
+    const el = desktopWrapperRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.hrk-feed-column-scroll')) return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+
+      const dy = e.deltaY;
+      for (const key of feedOptions) {
+        const col = columnRefs.current[key];
+        if (col) col.scrollTop += dy;
+      }
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [cols, pageScroll, feedOptions]);
 
   // ── Mobile: single column with pill switcher ─────────────────────────
   if (cols === 1) {
@@ -471,43 +494,6 @@ export function SnapsFeedView({
     );
   }
 
-  // Hybrid scroll: each column has its own `overflow-y-auto
-  // overscroll-contain`, so hovering and scrolling on a column moves THAT
-  // column only. When the wheel target is OUTSIDE any column (toolbar,
-  // gap between columns, page padding), the handler below distributes the
-  // wheel delta to every column in lockstep — so all 4 feeds scroll up or
-  // down together, exactly as if the page itself were scrolling.
-  //
-  // Horizontal-dominant wheel events (sideways trackpad swipes) are NOT
-  // intercepted: we let the browser bubble the event up to the page
-  // wrapper / dashboard layout so any ancestor with horizontal overflow
-  // handles it natively. Without this, swallowing every wheel event
-  // killed full-page side-scroll across the app.
-  //
-  // Native non-passive listener via useEffect — React's synthetic
-  // `onWheel` is registered as passive in React 17+, so calling
-  // `preventDefault()` inside a synthetic handler logs "Unable to
-  // preventDefault inside passive event listener invocation". The
-  // native registration with `{ passive: false }` lets us actually
-  // suppress the default scroll on the gestures we want to take over.
-  const desktopWrapperRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = desktopWrapperRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest('[data-snaps-column-body]')) return;
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      e.preventDefault();
-      for (const key of feedOptions) {
-        const node = columnRefs.current[key];
-        if (node) node.scrollTop += e.deltaY;
-      }
-    };
-    el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-  }, [feedOptions]);
 
   return (
     <div

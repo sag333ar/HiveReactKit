@@ -271,6 +271,9 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         error: state.liketu.error,
         onLoadMore: () => { void loadMore('liketu'); },
       },
+      // Snapie and HiveSuite feeds are not yet supported at the community level.
+      snapie: { posts: [], loading: false, hasMore: false, error: null },
+      hivesuite: { posts: [], loading: false, hasMore: false, error: null },
     }),
     [state, filterPost, loadMore],
   );

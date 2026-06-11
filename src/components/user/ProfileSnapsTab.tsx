@@ -299,6 +299,9 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         error: state.liketu.error,
         onLoadMore: () => { void loadMore('liketu'); },
       },
+      // Snapie and HiveSuite not yet supported at profile level.
+      snapie: { posts: [], loading: false, hasMore: false, error: null },
+      hivesuite: { posts: [], loading: false, hasMore: false, error: null },
     }),
     [state, filterPost, loadMore],
   );
