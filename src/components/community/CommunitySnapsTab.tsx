@@ -100,6 +100,7 @@ export interface CommunitySnapsTabProps {
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab. Forwarded into <SnapsFeedView/>. */
   actionsAsMenu?: boolean;
+  pageScroll?: boolean;
 }
 
 const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
@@ -107,6 +108,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
   currentUser,
   reportedPosts = [],
   reportedAuthors = [],
+  pageScroll,
   ...feedProps
 }) => {
   const [state, setState] = useState<Record<SnapSubType, SubTypeState>>(
@@ -282,6 +284,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
     <SnapsFeedView
       feeds={feeds}
       currentUser={currentUser}
+      pageScroll={pageScroll}
       {...feedProps}
     />
   );

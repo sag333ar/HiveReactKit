@@ -969,6 +969,7 @@ const CommunityDetail = ({
             awaitingWalletApproval={awaitingWalletApproval}
             defaultReward={defaultReward}
             actionsAsMenu={actionsAsMenu}
+            pageScroll={true}
           />
         )}
 

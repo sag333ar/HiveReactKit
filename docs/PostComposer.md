@@ -66,7 +66,7 @@ These tokens enable rich media features. When a token is not provided, the corre
 | `threeSpeakApiKey` | `string` | No | `undefined` | 3Speak API key. Enables **audio recording/upload** and **video upload** (TUS chunked protocol). Without it, audio and video buttons are hidden |
 | `giphyApiKey` | `string` | No | `undefined` | GIPHY API key. Enables **GIF search** modal. Without it, the GIF button is hidden |
 | `templateToken` | `string` | No | `undefined` | HReplier API JWT token. Enables **template picker** — fetches saved templates and inserts at cursor. Without it, the template button is hidden |
-| `templateApiBaseUrl` | `string` | No | `https://hreplier-api.sagarkothari88.one/data/templates` | Custom template API endpoint. Override when self-hosting the template service |
+| `templateApiBaseUrl` | `string` | No | `https://api.hivesuite.app/data/templates` | Custom template API endpoint. Override when self-hosting the template service |
 
 ### Toolbar Visibility
 
@@ -387,7 +387,7 @@ VITE_ECENCY_TOKEN=your-ecency-token
 VITE_THREE_SPEAK_API_KEY=your-3speak-key
 VITE_GIPHY_API_KEY=your-giphy-key
 VITE_TEMPLATE_TOKEN=your-jwt-token
-VITE_TEMPLATE_API_BASE_URL=https://hreplier-api.sagarkothari88.one/data/templates
+VITE_TEMPLATE_API_BASE_URL=https://api.hivesuite.app/data/templates
 ```
 
 ```tsx

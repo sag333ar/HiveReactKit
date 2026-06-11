@@ -334,7 +334,7 @@ class CommunityService {
     signal?: AbortSignal,
   ): Promise<{ id: number; author: string; permlink: string }[]> {
     const url =
-      `https://hreplier-api.sagarkothari88.one/snaps/tags` +
+      `https://api.hivesuite.app/snaps/tags` +
       `?container=${encodeURIComponent(parent)}` +
       `&tags=${encodeURIComponent(communityId)}`;
     const response = await fetch(url, {

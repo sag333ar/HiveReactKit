@@ -132,7 +132,7 @@ import { UserDetailProfile } from 'hive-react-kit';
 | `threeSpeakApiKey` | `string` | `undefined` | 3Speak API key. Enables audio recording/upload and video upload (TUS protocol). Hidden when not provided |
 | `giphyApiKey` | `string` | `undefined` | GIPHY API key. Enables GIF search. Hidden when not provided |
 | `templateToken` | `string` | `undefined` | HReplier API JWT token. Enables template picker. Hidden when not provided |
-| `templateApiBaseUrl` | `string` | `https://hreplier-api...` | Custom template API endpoint. Override when self-hosting |
+| `templateApiBaseUrl` | `string` | `https://api.hivesuite.app...` | Custom template API endpoint. Override when self-hosting |
 
 **Social Action Callbacks**
 

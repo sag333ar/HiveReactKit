@@ -7,7 +7,7 @@ export interface TemplateModel {
   template: string;
 }
 
-const DEFAULT_API_BASE_URL = 'https://hreplier-api.sagarkothari88.one/data/templates';
+const DEFAULT_API_BASE_URL = 'https://api.hivesuite.app/data/templates';
 
 const headers = (token: string) => ({
   'Authorization': token,

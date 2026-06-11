@@ -109,7 +109,7 @@ export interface UserDetailProfileProps {
   giphyApiKey?: string;
   /** HReplier API token — enables template picker in comment composer */
   templateToken?: string;
-  /** Custom template API endpoint (defaults to https://hreplier-api.sagarkothari88.one/data/templates) */
+  /** Custom template API endpoint (defaults to https://api.hivesuite.app/data/templates) */
   templateApiBaseUrl?: string;
 
   // Filter lists — posts/authors already reported by the consumer app

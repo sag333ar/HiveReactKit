@@ -200,10 +200,6 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
                 <span className="shrink-0">·</span>
                 <span className="shrink-0">{formatTimeAgo(post.created)}</span>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[var(--hrk-brand)]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hrk-brand-fg-soft)]">
-                <FileText className="h-3 w-3" />
-                Post
-              </span>
             </div>
           </div>
         </div>

@@ -349,7 +349,7 @@ class UserService {
     signal?: AbortSignal,
     parent: string = DEFAULT_SNAP_PARENT,
   ): Promise<{ id: number; author: string; permlink: string }[]> {
-    const url = `https://hreplier-api.sagarkothari88.one/snaps?author=${encodeURIComponent(username)}&parent=${encodeURIComponent(parent)}`;
+    const url = `https://api.hivesuite.app/snaps?author=${encodeURIComponent(username)}&parent=${encodeURIComponent(parent)}`;
     const response = await this._fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },

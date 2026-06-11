@@ -59,7 +59,7 @@ These tokens enable rich media features in the comment composer toolbar. When a 
 | `threeSpeakApiKey` | `string` | No | `undefined` | 3Speak API key. Enables **audio recording/upload** and **video upload** (TUS protocol). Without it, audio and video buttons are hidden |
 | `giphyApiKey` | `string` | No | `undefined` | GIPHY API key. Enables **GIF search**. Without it, the GIF button is hidden |
 | `templateToken` | `string` | No | `undefined` | HReplier API JWT token. Enables **template picker** (insert saved reply templates). Without it, the template button is hidden |
-| `templateApiBaseUrl` | `string` | No | `https://hreplier-api.sagarkothari88.one/data/templates` | Custom template API endpoint. Override when self-hosting the template service |
+| `templateApiBaseUrl` | `string` | No | `https://api.hivesuite.app/data/templates` | Custom template API endpoint. Override when self-hosting the template service |
 
 > **Note:** Bold, Italic, Link, Code, @Mention, and Emoji toolbar buttons are always available — they don't require any external token.
 
