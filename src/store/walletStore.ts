@@ -580,7 +580,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   transactionError: null,
   hasMoreTransactions: true,
   isLoadingMoreTransactions: false,
-  selectedCurrency: detectedLocalCurrency,
+  selectedCurrency: "USD",
   localCurrency: detectedLocalCurrency,
   exchangeRates: { USD: 1 },
 
