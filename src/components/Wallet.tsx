@@ -402,6 +402,51 @@ const BalanceRow: React.FC<BalanceRowProps> = ({
   </div>
 );
 
+const WalletTile: React.FC<WalletTileProps & {
+  actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" }[];
+}> = ({
+  label,
+  value,
+  icon,
+  iconBgClass = "bg-blue-500/15",
+  iconTextClass = "text-blue-400",
+  valueClass = "text-[var(--hrk-text-primary)]",
+  actions,
+}) => (
+  <div className="p-3 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2.5 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
+    <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {icon && (
+          <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconTextClass}`}>
+            {icon}
+          </div>
+        )}
+        <span className="font-semibold text-xs sm:text-sm text-[var(--hrk-text-secondary)] truncate">{label}</span>
+      </div>
+      <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
+        <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
+        {actions && actions.length > 0 && (
+          <div className="flex gap-2 flex-wrap justify-end">
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                onClick={a.onClick}
+                className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
+                  a.variant === "secondary"
+                    ? "bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)]"
+                    : "bg-blue-600 text-white hover:bg-blue-500"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 interface ExpandableBalancesProps {
   walletData: WalletData | null;
   isOwn: boolean;
@@ -725,51 +770,6 @@ export const Wallet: React.FC<WalletProps> = ({
     | null;
   const [activeModal, setActiveModal] = useState<ActionModal>(null);
   const [claiming, setClaiming] = useState(false);
-
-  const WalletTile: React.FC<WalletTileProps & {
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" }[];
-  }> = ({
-    label,
-    value,
-    icon,
-    iconBgClass = "bg-blue-500/15",
-    iconTextClass = "text-blue-400",
-    valueClass = "text-[var(--hrk-text-primary)]",
-    actions,
-  }) => (
-    <div className="p-3 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2.5 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
-      <div className="flex items-center justify-between gap-2 min-w-0 flex-wrap">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          {icon && (
-            <div className={`p-2 rounded-full flex items-center justify-center flex-shrink-0 ${iconBgClass} ${iconTextClass}`}>
-              {icon}
-            </div>
-          )}
-          <span className="font-semibold text-xs sm:text-sm text-[var(--hrk-text-secondary)] truncate">{label}</span>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3 ml-auto flex-wrap justify-end">
-          <span className={`font-medium text-xs sm:text-sm whitespace-nowrap ${valueClass}`}>{value ?? "-"}</span>
-          {actions && actions.length > 0 && (
-            <div className="flex gap-2 flex-wrap justify-end">
-              {actions.map((a) => (
-                <button
-                  key={a.label}
-                  onClick={a.onClick}
-                  className={`px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold tracking-wide transition-colors ${
-                    a.variant === "secondary"
-                      ? "bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-hover)]"
-                      : "bg-blue-600 text-white hover:bg-blue-500"
-                  }`}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   type WalletSubTab = "delegations" | "transactions";
   const [subTab, setSubTab] = useState<WalletSubTab>("delegations");
