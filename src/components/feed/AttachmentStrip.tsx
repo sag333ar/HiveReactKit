@@ -39,9 +39,11 @@ export type Attachment =
   | { kind: 'twitter'; id: string }
   | { kind: 'audio'; url: string }
   | { kind: '3speak-audio'; url: string }
-  | { kind: 'spotify'; url: string };
+  | { kind: 'spotify'; url: string }
+  | { kind: 'odysee'; url: string };
 
 export const SPOTIFY_REGEX = /https?:\/\/(?:open|play)\.spotify\.com\/(?:track|playlist|album|artist|episode|show)\/[a-zA-Z0-9]+(?:\?[^\s"'<>)]*)?/gi;
+export const ODYSEE_REGEX = /https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^\s"'<>)]+/gi;
 export const TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/gi;
 export const YOUTUBE_REGEX =
   /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([^&\s]+)|https?:\/\/youtu\.be\/([^?\s]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([^?\s]+)/gi;
@@ -162,6 +164,21 @@ export function parseBody(post: Post): ParsedBody {
   const spotifyUrls: string[] = [];
   while ((m = SPOTIFY_REGEX.exec(raw))) spotifyUrls.push(m[0]);
 
+  // Extract Odysee URLs: first from <iframe src="..."> attributes (common in
+  // Hive posts that already embed the /$/embed/ URL directly), then bare URLs.
+  const odyseeUrls: string[] = [];
+  const odyseeSeen = new Set<string>();
+  const odyseeIframeRe = /<iframe\b[^>]*\bsrc=["'](https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^"']+)["'][^>]*>/gi;
+  while ((m = odyseeIframeRe.exec(raw))) {
+    const url = m[1];
+    if (!odyseeSeen.has(url)) { odyseeSeen.add(url); odyseeUrls.push(url); }
+  }
+  const odyseeReParse = new RegExp(ODYSEE_REGEX.source, ODYSEE_REGEX.flags);
+  while ((m = odyseeReParse.exec(raw))) {
+    const url = m[0];
+    if (!odyseeSeen.has(url)) { odyseeSeen.add(url); odyseeUrls.push(url); }
+  }
+
   const attachments: Attachment[] = [
     ...uniqImageUrls(imageUrls).map((url) => ({ kind: 'image' as const, url })),
     ...uniq(ipfsUrls).map((url) => ({ kind: 'ipfs' as const, url })),
@@ -171,6 +188,7 @@ export function parseBody(post: Post): ParsedBody {
     ...uniq(threeSpeakAudioUrls).map((url) => ({ kind: '3speak-audio' as const, url })),
     ...uniq(audioUrls).map((url) => ({ kind: 'audio' as const, url })),
     ...uniq(spotifyUrls).map((url) => ({ kind: 'spotify' as const, url })),
+    ...uniq(odyseeUrls).map((url) => ({ kind: 'odysee' as const, url })),
   ];
 
   let text = raw;
@@ -183,6 +201,10 @@ export function parseBody(post: Post): ParsedBody {
   text = text.replace(AUDIO_FILE_REGEX, '');
   text = text.replace(TWITTER_REGEX, '');
   text = text.replace(SPOTIFY_REGEX, '');
+  // Strip entire Odysee <iframe> tags first (so only the URL inside src is removed,
+  // not leaving a dangling iframe shell), then bare Odysee URLs.
+  text = text.replace(/<iframe\b[^>]*\bsrc=["'][^"']*(?:odysee\.com|lbry\.tv)[^"']*["'][^>]*>(?:\s*<\/iframe>)?/gi, '');
+  text = text.replace(new RegExp(ODYSEE_REGEX.source, ODYSEE_REGEX.flags), '');
   text = text.replace(/<[^>]+>/g, ''); // strip remaining HTML
   text = text.replace(/\[([^\]]+)\]\(([^\s)]+)\)/g, '$1 $2'); // [text](url) → "text url"
   text = text.replace(/[*_~`>#-]+/g, ' ');
@@ -251,8 +273,30 @@ export const attachmentLabel = (a: Attachment): string => {
   if (a.kind === 'twitter') return 'Tweet';
   if (a.kind === '3speak-audio') return '3Speak audio';
   if (a.kind === 'spotify') return 'Spotify';
+  if (a.kind === 'odysee') return 'Odysee';
   return 'Audio';
 };
+
+/** Convert an Odysee watch URL to its embeddable `/$/embed/…` form.
+ *  Returns null if the URL doesn't match the expected path structure. */
+export function buildOdyseeEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host !== 'odysee.com' && host !== 'lbry.tv') return null;
+    // Convert to embed URL if not already
+    const embedPath = u.pathname.startsWith('/$/embed/')
+      ? u.pathname
+      : `/$/embed${u.pathname}`;
+    // Preserve existing query params, then add disable_comments to hide
+    // the "Discuss" button that appears on Odysee's end-of-video screen.
+    const params = new URLSearchParams(u.search);
+    params.set('disable_comments', '1');
+    return `https://odysee.com${embedPath}?${params.toString()}`;
+  } catch {
+    return null;
+  }
+}
 
 export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
   const [height, setHeight] = useState<number | null>(null);
@@ -777,6 +821,21 @@ export const MediaPopup: FC<{
               </div>
             );
           })()}
+
+          {attachment.kind === 'odysee' && (() => {
+            const embedUrl = buildOdyseeEmbedUrl(attachment.url);
+            return embedUrl ? (
+              <div className="w-full overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
+                <iframe
+                  src={embedUrl}
+                  title="Odysee Video"
+                  className="h-full w-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : null;
+          })()}
         </div>
       </div>
     </div>
@@ -986,6 +1045,36 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
               loading="lazy"
             />
           </div>
+        </div>
+      );
+    }
+    if (current.kind === 'odysee') {
+      const embedUrl = buildOdyseeEmbedUrl(current.url);
+      return (
+        <div
+          className="flex h-full w-full items-center justify-center bg-black"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {embedUrl ? (
+            <iframe
+              src={embedUrl}
+              title="Odysee Video"
+              className="border-0"
+              style={{ aspectRatio: '16/9', height: '100%', maxHeight: '100%', maxWidth: '100%' }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <a
+              href={current.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[var(--hrk-brand)] underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Open on Odysee
+            </a>
+          )}
         </div>
       );
     }

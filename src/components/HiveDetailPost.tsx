@@ -38,6 +38,7 @@ import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
+import { ODYSEE_REGEX, buildOdyseeEmbedUrl } from './feed/AttachmentStrip';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -627,6 +628,30 @@ export function HiveDetailPost({
     return out;
   }, [bodyForContent]);
 
+  /** Odysee / LBRY videos embedded as <iframe src="https://odysee.com/$/embed/...">.
+   *  The @snapie/renderer strips these iframes (Odysee is not on its allowlist),
+   *  so we extract the embed URL before rendering and mount native iframes below. */
+  const odyseeBodyRefs = useMemo<string[]>(() => {
+    if (!bodyForContent) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    // Match src attribute of <iframe> tags that point to odysee.com or lbry.tv
+    const iframeRe = /<iframe\b[^>]*\bsrc=["'](https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^"']+)["'][^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = iframeRe.exec(bodyForContent)) !== null) {
+      const url = m[1];
+      if (!seen.has(url)) { seen.add(url); out.push(url); }
+    }
+    // Also catch bare Odysee URLs that aren't in an iframe yet
+    const bareRe = /https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^\s"'<>)]+/gi;
+    while ((m = bareRe.exec(bodyForContent)) !== null) {
+      // Skip embed-path URLs that were already captured from iframes to avoid duplication
+      const url = m[0];
+      if (!seen.has(url)) { seen.add(url); out.push(url); }
+    }
+    return out;
+  }, [bodyForContent]);
+
   // 3Speak URLs (`play.3speak.tv/embed?v=author/permlink` or `/watch?…`
   // or the canonical `3speak.tv/v/author/permlink` path) extracted
   // directly from the body. Same body-only philosophy as the IPFS
@@ -730,6 +755,25 @@ export function HiveDetailPost({
       // 3) Canonical-path URLs (`/v/author/permlink`).
       safeBody = safeBody.replace(
         /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        '',
+      );
+      // Strip Odysee URLs/iframes from the body — they are rendered as
+      // dedicated players via `odyseeBodyRefs`, same body-only approach
+      // as 3Speak / IPFS above.
+      //
+      // 1) Full <iframe> tags whose src is on odysee.com / lbry.tv
+      safeBody = safeBody.replace(
+        /<iframe\b[^>]*\bsrc=["'][^"']*(?:odysee\.com|lbry\.tv)[^"']*["'][^>]*>(?:\s*<\/iframe>)?/gi,
+        '',
+      );
+      // 2) Markdown links whose href is an Odysee URL
+      safeBody = safeBody.replace(
+        /\[([^\]]+)\]\(\s*(https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^)\s]+)\s*\)/gi,
+        '',
+      );
+      // 3) Bare Odysee URLs
+      safeBody = safeBody.replace(
+        new RegExp(ODYSEE_REGEX.source, ODYSEE_REGEX.flags),
         '',
       );
       let html = renderMarkdown(safeBody);
@@ -1123,6 +1167,10 @@ export function HiveDetailPost({
       });
     };
   }, [renderedBody]);
+
+  // NOTE: The useLayoutEffect Odysee anchor-replacement approach is superseded
+  // by the odyseeBodyRefs pre-extraction approach (mirrors threeSpeakBodyRefs).
+  // Kept as a safety net for edge cases where a bare Odysee URL slips through.
 
   // Intercept anchor clicks inside the rendered body. Two policies:
   //   - Hive-ecosystem URLs (peakd, hive.blog, ecency, inleo) → keep the
@@ -1723,6 +1771,28 @@ export function HiveDetailPost({
                     />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Odysee / LBRY videos embedded via <iframe src="https://odysee.com/$/embed/…">.
+                The @snapie/renderer strips these (not on its allowlist) so we
+                pre-extract and render them here — same pattern as 3Speak. */}
+            {odyseeBodyRefs.length > 0 && (
+              <div className="space-y-3 pb-4">
+                {odyseeBodyRefs.map((url) => {
+                  const embedUrl = buildOdyseeEmbedUrl(url) ?? url;
+                  return (
+                    <div key={url} className="overflow-hidden rounded-xl bg-black" style={{ aspectRatio: '16/9' }}>
+                      <iframe
+                        src={embedUrl}
+                        title="Odysee Video"
+                        className="h-full w-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
@@ -16,6 +17,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
+import { buildOdyseeEmbedUrl } from '../feed/AttachmentStrip';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
@@ -216,6 +218,7 @@ export default function InlineCommentItem({
     return () => container.removeEventListener('click', handleClick);
   }, [onNavigateToPost, onUserClick]);
 
+
   // Parse metadata
   const metadata = (comment as any).json_metadata_parsed ||
     (() => { try { return comment.json_metadata ? JSON.parse(comment.json_metadata) : undefined; } catch { return undefined; } })();
@@ -266,6 +269,16 @@ export default function InlineCommentItem({
       // doesn't reorder lines (see preLinkMentions for the bug).
       let safeBody = preLinkMentions(sanitizedBody, renderOptions?.userLinkUrlFn);
       safeBody = preLinkUrls(safeBody);
+      // Strip Odysee URLs — they are rendered as inline iframes by the
+      // useLayoutEffect below, so remove them here to avoid duplication.
+      safeBody = safeBody.replace(
+        /\[([^\]]+)\]\(\s*(https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^)\s]+)\s*\)/gi,
+        '',
+      );
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^\s"'<>)]+/gi,
+        '',
+      );
       let html = renderHiveContent(safeBody);
       html = html.replace(
         /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
@@ -277,6 +290,42 @@ export default function InlineCommentItem({
       return '';
     }
   }, [sanitizedBody, renderHiveContent]);
+
+  // DOM-walk: replace Odysee anchor tags with inline iframe embeds.
+  // Must be placed AFTER the renderedBody declaration it depends on.
+  useLayoutEffect(() => {
+    const container = bodyRef.current;
+    if (!container) return;
+    const roots: { unmount: () => void }[] = [];
+
+    container.querySelectorAll<HTMLAnchorElement>('a').forEach((anchor) => {
+      const href = anchor.getAttribute('href') ?? '';
+      if (!/https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\//i.test(href)) return;
+      const embedUrl = buildOdyseeEmbedUrl(href);
+      if (!embedUrl) return;
+      const div = document.createElement('div');
+      div.style.cssText = 'width:100%;aspect-ratio:16/9;background:#000;border-radius:0.5rem;overflow:hidden;margin:0.5rem 0';
+      anchor.replaceWith(div);
+      const root = createRoot(div);
+      root.render(
+        <iframe
+          src={embedUrl}
+          title="Odysee Video"
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      );
+      roots.push(root);
+    });
+
+    if (roots.length === 0) return;
+    return () => {
+      queueMicrotask(() => {
+        roots.forEach((r) => { try { r.unmount(); } catch { /* swallow */ } });
+      });
+    };
+  }, [renderedBody]);
 
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
 

@@ -153,6 +153,7 @@ import {
   IMG_HTML_REGEX,
   IMG_URL_REGEX,
   SPOTIFY_REGEX,
+  ODYSEE_REGEX,
   type Attachment,
   type BodySegment,
 } from './AttachmentStrip';
@@ -388,6 +389,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     body = body.replace(AUDIO_FILE_REGEX, '');
     body = body.replace(TWITTER_REGEX, '');
     body = body.replace(SPOTIFY_REGEX, '');
+    // Strip Odysee <iframe> tags (body contains the embed iframe directly)
+    // and any bare Odysee URLs so they aren't duplicated with AttachmentStrip.
+    body = body.replace(/<iframe\b[^>]*\bsrc=["'][^"']*(?:odysee\.com|lbry\.tv)[^"']*["'][^>]*>(?:\s*<\/iframe>)?/gi, '');
+    body = body.replace(new RegExp(ODYSEE_REGEX.source, ODYSEE_REGEX.flags), '');
 
     // Tighten — collapse runs of 3+ blank lines to exactly one, trim
     // edges. (Without this the rendered HTML can pick up huge blank
