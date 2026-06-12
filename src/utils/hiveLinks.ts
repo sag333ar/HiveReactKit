@@ -121,3 +121,18 @@ export function preLinkMentions(
     },
   );
 }
+
+/**
+ * Pre-convert bare URLs in a markdown body into explicit markdown auto-links `<url>`
+ * so `@hiveio/content-renderer` doesn't shuffle them to the end of the text node.
+ * 
+ * Works similarly to `preLinkMentions`, by preventing `HtmlDOMParser` from
+ * extracting text-node URLs and appending them.
+ */
+export function preLinkUrls(body: string): string {
+  if (!body) return body;
+  return body.replace(
+    /(^|[^<"'(])(https?:\/\/[^\s<>"']+?)(?=[.,!?]*(?:[\s>)"']|$))/gi,
+    (_match, pre, url) => `${pre}<${url}>`
+  );
+}

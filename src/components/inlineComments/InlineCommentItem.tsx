@@ -15,7 +15,7 @@ import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
-import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
@@ -264,7 +264,8 @@ export default function InlineCommentItem({
     try {
       // Pre-link bare @mentions so the underlying content-renderer
       // doesn't reorder lines (see preLinkMentions for the bug).
-      const safeBody = preLinkMentions(sanitizedBody, renderOptions?.userLinkUrlFn);
+      let safeBody = preLinkMentions(sanitizedBody, renderOptions?.userLinkUrlFn);
+      safeBody = preLinkUrls(safeBody);
       let html = renderHiveContent(safeBody);
       html = html.replace(
         /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,

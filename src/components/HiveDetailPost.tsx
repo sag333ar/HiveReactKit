@@ -32,7 +32,7 @@ import { SelectionTranslator } from './SelectionTranslator';
 import { LanguagePickerButton } from './LanguagePickerButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
-import { parseHiveFrontendUrl, preLinkMentions } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
@@ -671,8 +671,9 @@ export function HiveDetailPost({
     try {
       // Pre-link bare @mentions to markdown links so the underlying
       // content-renderer doesn't reorder lines — see preLinkMentions for
-      // the bug it works around.
+      // the bug. We also pre-link bare URLs for the same reason.
       let safeBody = preLinkMentions(bodyForContent, renderOptions?.userLinkUrlFn);
+      safeBody = preLinkUrls(safeBody);
       // Strip IPFS URLs (and any iframe/video shell wrapping one) before
       // the markdown engine sees them — they're rendered separately via
       // <IpfsMedia> above the body. Leaving them in produces "(Unsupported

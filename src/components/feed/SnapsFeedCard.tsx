@@ -23,7 +23,7 @@ import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
 import type { RewardOption } from '../../utils/commentOptions';
-import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX } from '../IpfsMedia';
@@ -397,7 +397,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
 
     if (!body) return '';
     try {
-      let html = renderHive(body);
+      // Pre-link mentions and URLs before rendering to fix parsing bugs
+      let safeBody = preLinkMentions(body);
+      safeBody = preLinkUrls(safeBody);
+      let html = renderHive(safeBody);
       // Match the kit's HiveDetailPost: rewrite the embed iframe to
       // `play.3speak.tv` (the legacy `3speak.tv/embed` shape doesn't
       // accept iframe mode in some browsers).
