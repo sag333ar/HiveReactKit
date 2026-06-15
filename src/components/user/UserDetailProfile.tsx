@@ -1547,69 +1547,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // media list so the user can zoom + arrow-key through every image
   // / embed attached to a profile-feed card.
 
-  const PostImageCarousel: React.FC<{ media: PostMedia[] }> = ({ media }) => {
-    const [idx, setIdx] = useState(0);
-    const [previewStart, setPreviewStart] = useState<number | null>(null);
-    if (media.length === 0) return null;
-    const safeIdx = Math.min(idx, media.length - 1);
-    const current = media[safeIdx];
-    const onTileClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (current.kind === "twitter") {
-        window.open(current.url, "_blank", "noopener,noreferrer");
-        return;
-      }
-      setPreviewStart(safeIdx);
-    };
-    return (
-      <>
-        {/* Mobile renders a fixed landscape thumbnail (28 × 20 ≈ 7:5);
-            tablet+ stretches to fill the row height again. */}
-        <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-raised)] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
-          <button
-            onClick={onTileClick}
-            className="absolute inset-0 block cursor-pointer"
-            aria-label="Open media preview"
-          >
-            <PostMediaTile media={current} />
-          </button>
-          {media.length > 1 && (
-            <>
-              <button
-                onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev - 1 + media.length) % media.length); }}
-                className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
-                title="Previous"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev + 1) % media.length); }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
-                title="Next"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                {safeIdx + 1}/{media.length}
-              </span>
-            </>
-          )}
-        </div>
-
-        {previewStart !== null && (
-          <MediaLightbox
-            items={media.filter((m) => m.kind !== "twitter")}
-            startIndex={Math.min(
-              previewStart,
-              Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== "twitter").length - 1),
-            )}
-            onClose={() => setPreviewStart(null)}
-          />
-        )}
-      </>
-    );
-  };
-
   const renderPostItem = (item: Post, type: "blog" | "post" | "comment" | "reply", onItemClick?: () => void) => {
     const postMedia = extractPostMedia(item);
     const previewText = item.json_metadata?.description || (item.body ? extractPlainText(item.body) : "");
@@ -3525,8 +3462,17 @@ export default UserDetailProfile;
  */
 const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const mediaKey = media.kind + ":" + ("url" in media ? media.url : media.id);
-  useEffect(() => { setLoaded(false); }, [mediaKey]);
+  useEffect(() => {
+    setLoaded(false);
+    // Cached images (common when switching feeds back to ones we've
+    // already shown) are marked `complete` by the browser before React
+    // attaches `onLoad`, so that event never fires and the spinner would
+    // sit forever. Detect the already-decoded case here and clear it.
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) setLoaded(true);
+  }, [mediaKey]);
 
   if (media.kind === "image") {
     return (
@@ -3537,6 +3483,7 @@ const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
           </span>
         )}
         <img
+          ref={imgRef}
           src={media.url}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
@@ -3558,6 +3505,7 @@ const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
           </span>
         )}
         <img
+          ref={imgRef}
           src={`https://i.ytimg.com/vi/${media.id}/hqdefault.jpg`}
           alt=""
           className="absolute inset-0 h-full w-full object-cover opacity-90"
@@ -3595,3 +3543,77 @@ const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
     </span>
   );
 };
+
+/**
+ * Right-side media strip on each post card. Combines images, YouTube,
+ * 3Speak, and X / Twitter status links into one carousel that fills
+ * the card row's full height and is inset from the edges (`my-3 mr-3`
+ * + rounded corners) for breathing room. Click on a tile opens it in
+ * the lightbox below — except Twitter, which opens in a new tab.
+ *
+ * Moved to module scope so it doesn't unmount and reset loaded states
+ * on parent renders.
+ */
+const PostImageCarousel: React.FC<{ media: PostMedia[] }> = ({ media }) => {
+  const [idx, setIdx] = useState(0);
+  const [previewStart, setPreviewStart] = useState<number | null>(null);
+  if (media.length === 0) return null;
+  const safeIdx = Math.min(idx, media.length - 1);
+  const current = media[safeIdx];
+  const onTileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (current.kind === "twitter") {
+      window.open(current.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    setPreviewStart(safeIdx);
+  };
+  return (
+    <>
+      {/* Mobile renders a fixed landscape thumbnail (28 × 20 ≈ 7:5);
+          tablet+ stretches to fill the row height again. */}
+      <div className="relative my-2 mr-2 h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-[var(--hrk-bg-surface-raised)] sm:my-3 sm:mr-3 sm:h-auto sm:w-32 sm:self-stretch md:w-40 lg:w-48">
+        <button
+          onClick={onTileClick}
+          className="absolute inset-0 block cursor-pointer"
+          aria-label="Open media preview"
+        >
+          <PostMediaTile media={current} />
+        </button>
+        {media.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev - 1 + media.length) % media.length); }}
+              className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+              title="Previous"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setIdx((prev) => (prev + 1) % media.length); }}
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+              title="Next"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <span className="absolute bottom-1.5 right-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {safeIdx + 1}/{media.length}
+            </span>
+          </>
+        )}
+      </div>
+
+      {previewStart !== null && (
+        <MediaLightbox
+          items={media.filter((m) => m.kind !== "twitter")}
+          startIndex={Math.min(
+            previewStart,
+            Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== "twitter").length - 1),
+          )}
+          onClose={() => setPreviewStart(null)}
+        />
+      )}
+    </>
+  );
+};
+
