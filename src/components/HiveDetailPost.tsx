@@ -829,12 +829,12 @@ export function HiveDetailPost({
         },
       );
 
-      // Wrap <img> tags that have a non-empty alt attribute in <figure>/<figcaption>
+      // Wrap <img> tags that have a non-empty alt attribute in <figure>
       html = html.replace(
         /<img\s([^>]*?)alt="([^"]+)"([^>]*?)\/?\s*>/gi,
         (_match: string, before: string, alt: string, after: string) => {
           const imgTag = `<img ${before}alt="${alt}"${after}>`;
-          return `<figure class="hive-img-figure">${imgTag}<figcaption>${alt}</figcaption></figure>`;
+          return `<figure class="hive-img-figure">${imgTag}</figure>`;
         }
       );
       return html;
