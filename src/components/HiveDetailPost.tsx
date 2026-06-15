@@ -25,6 +25,12 @@ import {
   History,
   FileCode2,
   Pencil,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  Square,
+  X,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -457,9 +463,252 @@ export function HiveDetailPost({
   const [rawViewOpen, setRawViewOpen] = useState(false);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const postBodyRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [votedChoices, setVotedChoices] = useState<number[]>([]);
+
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [spokenWords, setSpokenWords] = useState<{ word: string; element: HTMLElement }[]>([]);
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+
+  const tokenizeElement = useCallback((element: HTMLElement | null, startWordIndex: number = 0): number => {
+    if (!element) return startWordIndex;
+    
+    // Clean up any existing tts-word-spans first to make it idempotent
+    const existing = element.querySelectorAll('.tts-word-span');
+    existing.forEach((span) => {
+      const parent = span.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(span.textContent || ''), span);
+      }
+    });
+    element.normalize(); // merge adjacent text nodes
+    
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+    const textNodes: Node[] = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      const parent = node.parentElement;
+      if (parent && parent.tagName !== 'SCRIPT' && parent.tagName !== 'STYLE' && parent.tagName !== 'IFRAME' && !parent.closest('.tts-word-span')) {
+        textNodes.push(node);
+      }
+    }
+
+    let wordIndex = startWordIndex;
+    for (const node of textNodes) {
+      const parent = node.parentNode;
+      if (!parent) continue;
+
+      const text = node.nodeValue || '';
+      const tokens = text.split(/(\s+)/);
+      const fragment = document.createDocumentFragment();
+
+      for (const token of tokens) {
+        if (/\S/.test(token)) {
+          const span = document.createElement('span');
+          span.className = 'tts-word-span transition-all duration-150 rounded cursor-pointer hover:bg-[var(--hrk-bg-surface-raised)]';
+          span.dataset.wordIndex = String(wordIndex);
+          span.textContent = token;
+          fragment.appendChild(span);
+          wordIndex++;
+        } else {
+          fragment.appendChild(document.createTextNode(token));
+        }
+      }
+      parent.replaceChild(fragment, node);
+    }
+    
+    return wordIndex;
+  }, []);
+
+  const detokenizeElement = useCallback((element: HTMLElement | null) => {
+    if (!element) return;
+    const spans = element.querySelectorAll('.tts-word-span');
+    spans.forEach((span) => {
+      const parent = span.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(span.textContent || ''), span);
+      }
+    });
+    element.normalize();
+  }, []);
+
+  const speakFromIndex = useCallback((startIndex: number) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis || !post) return;
+
+    window.speechSynthesis.cancel();
+
+    const remainingWordsList = spokenWords.slice(startIndex);
+    if (remainingWordsList.length === 0) {
+      window.speechSynthesis.cancel();
+      detokenizeElement(titleRef.current);
+      if (postBodyRef.current) {
+        const bodyEl = postBodyRef.current.querySelector('.hive-post-body') as HTMLElement || postBodyRef.current;
+        detokenizeElement(bodyEl);
+      }
+      setIsSpeaking(false);
+      return;
+    }
+    const remainingText = remainingWordsList.map(w => w.word).join(' ');
+    const utterance = new SpeechSynthesisUtterance(remainingText);
+    
+    if (language) {
+      utterance.lang = language;
+    }
+
+    utterance.onboundary = (event: SpeechSynthesisEvent) => {
+      if (event.name === 'word') {
+        const relativeText = remainingText.slice(0, event.charIndex);
+        const relativeWordCount = (relativeText.match(/\S+/g) || []).length;
+        setActiveWordIndex(startIndex + relativeWordCount);
+      }
+    };
+
+    utterance.onend = () => {
+      window.speechSynthesis.cancel();
+      detokenizeElement(titleRef.current);
+      if (postBodyRef.current) {
+        const bodyEl = postBodyRef.current.querySelector('.hive-post-body') as HTMLElement || postBodyRef.current;
+        detokenizeElement(bodyEl);
+      }
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = (e) => {
+      if (e.error !== 'interrupted') {
+        window.speechSynthesis.cancel();
+        detokenizeElement(titleRef.current);
+        if (postBodyRef.current) {
+          const bodyEl = postBodyRef.current.querySelector('.hive-post-body') as HTMLElement || postBodyRef.current;
+          detokenizeElement(bodyEl);
+        }
+        setIsSpeaking(false);
+      }
+    };
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }, [post, spokenWords, language, detokenizeElement]);
+
+  const handleSpeechToggle = useCallback(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      detokenizeElement(titleRef.current);
+      if (postBodyRef.current) {
+        const bodyEl = postBodyRef.current.querySelector('.hive-post-body') as HTMLElement || postBodyRef.current;
+        detokenizeElement(bodyEl);
+      }
+      setIsSpeaking(false);
+      setActiveWordIndex(0);
+    } else {
+      if (!post) return;
+      
+      // Tokenize elements
+      const bodyStartIndex = tokenizeElement(titleRef.current, 0);
+      const bodyEl = postBodyRef.current?.querySelector('.hive-post-body') as HTMLElement || postBodyRef.current;
+      tokenizeElement(bodyEl, bodyStartIndex);
+
+      // Extract all tokenized word spans
+      const titleSpans = titleRef.current?.querySelectorAll('.tts-word-span') || [];
+      const bodySpans = bodyEl?.querySelectorAll('.tts-word-span') || [];
+      const allSpans = [...Array.from(titleSpans), ...Array.from(bodySpans)] as HTMLElement[];
+
+      if (allSpans.length === 0) return;
+
+      const wordsList = allSpans.map((span) => ({
+        word: span.textContent || '',
+        element: span,
+      }));
+
+      setSpokenWords(wordsList);
+      setActiveWordIndex(0);
+      setIsSpeaking(true);
+
+      const fullText = wordsList.map(w => w.word).join(' ');
+      const utterance = new SpeechSynthesisUtterance(fullText);
+      if (language) utterance.lang = language;
+
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
+        if (event.name === 'word') {
+          const relativeText = fullText.slice(0, event.charIndex);
+          const relativeWordCount = (relativeText.match(/\S+/g) || []).length;
+          setActiveWordIndex(relativeWordCount);
+        }
+      };
+
+      utterance.onend = () => {
+        window.speechSynthesis.cancel();
+        detokenizeElement(titleRef.current);
+        detokenizeElement(bodyEl);
+        setIsSpeaking(false);
+      };
+
+      utterance.onerror = (e) => {
+        if (e.error !== 'interrupted') {
+          window.speechSynthesis.cancel();
+          detokenizeElement(titleRef.current);
+          detokenizeElement(bodyEl);
+          setIsSpeaking(false);
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+  }, [isSpeaking, post, language, tokenizeElement, detokenizeElement]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Sync highlight and center scrolling
+  useEffect(() => {
+    if (!isSpeaking || spokenWords.length === 0) return;
+
+    spokenWords.forEach((item, idx) => {
+      const isActive = idx === activeWordIndex;
+      if (isActive) {
+        item.element.className = 'tts-word-span transition-all duration-150 rounded cursor-pointer bg-[var(--hrk-brand)]/20 border-b border-[var(--hrk-brand)] font-semibold';
+        item.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        item.element.className = 'tts-word-span transition-all duration-150 rounded cursor-pointer hover:bg-[var(--hrk-bg-surface-raised)]';
+      }
+    });
+  }, [activeWordIndex, isSpeaking, spokenWords]);
+
+  // Handle skip reading on word click directly in content
+  useEffect(() => {
+    if (!isSpeaking) return;
+
+    const handleWordClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.classList.contains('tts-word-span')) {
+        if (target.closest('a')) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        const index = parseInt(target.dataset.wordIndex || '0', 10);
+        speakFromIndex(index);
+      }
+    };
+
+    const titleEl = titleRef.current;
+    const bodyEl = postBodyRef.current;
+
+    titleEl?.addEventListener('click', handleWordClick);
+    bodyEl?.addEventListener('click', handleWordClick);
+
+    return () => {
+      titleEl?.removeEventListener('click', handleWordClick);
+      bodyEl?.removeEventListener('click', handleWordClick);
+    };
+  }, [isSpeaking, speakFromIndex]);
 
   // Hive content renderer using @snapie/renderer (supports YouTube, 3Speak, IPFS, X.com).
   // Defaults point at peakd so the in-body click interceptor catches user mentions
@@ -842,6 +1091,31 @@ export function HiveDetailPost({
       return '';
     }
   }, [bodyForContent, renderMarkdown, threeSpeakRef]);
+
+  const titleContent = useMemo(() => {
+    return (
+      <SelectionTranslator>
+        <h1 ref={titleRef} className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-4">
+          {translatedTitle || post?.title}
+        </h1>
+      </SelectionTranslator>
+    );
+  }, [translatedTitle, post?.title]);
+
+  const bodyContent = useMemo(() => {
+    if (!renderedBody) {
+      return <p className="text-[var(--hrk-text-tertiary)] text-sm italic">No content available.</p>;
+    }
+    return (
+      <SelectionTranslator>
+        <TranslatedBody
+          ref={postBodyRef}
+          className="hive-post-body"
+          html={renderedBody}
+        />
+      </SelectionTranslator>
+    );
+  }, [renderedBody]);
 
   // Distinct metadata images — every URL declared in
   // `json_metadata.image` / `json_metadata.images` / `json_metadata.video.thumbnail`
@@ -1533,10 +1807,8 @@ export function HiveDetailPost({
     );
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)]" style={bgStyle}>
+    <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
       <div className="flex flex-col overflow-y-auto h-full">
 
         {/* ── Compact Header: Back + Avatar + Name + Stats (same pattern as UserDetailProfile) ── */}
@@ -1628,6 +1900,22 @@ export function HiveDetailPost({
                 language={language}
                 onSelectLanguage={onSelectLanguage}
               />
+            )}
+
+            {/* Text-to-speech button to read post */}
+            {typeof window !== 'undefined' && !!window.speechSynthesis && (
+              <button
+                onClick={handleSpeechToggle}
+                className={`p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0 ${isSpeaking ? 'text-[var(--hrk-brand)] bg-[var(--hrk-bg-surface-raised)]' : 'text-[var(--hrk-text-secondary)]'}`}
+                aria-label={isSpeaking ? "Stop reading post" : "Read post aloud"}
+                title={isSpeaking ? "Stop reading post" : "Read post aloud"}
+              >
+                {isSpeaking ? (
+                  <VolumeX className="h-5 w-5 animate-pulse text-red-400" />
+                ) : (
+                  <Volume2 className="h-5 w-5" />
+                )}
+              </button>
             )}
 
             {/* Header kebab — Bookmark · Share · Report. Each item is
@@ -1735,15 +2023,7 @@ export function HiveDetailPost({
               </button>
             )}
 
-            {/* Post title + meta. Title gets its own
-                SelectionTranslator so selecting words from the
-                heading raises the Translate pill — the body's
-                wrapper below doesn't include the H1. */}
-            <SelectionTranslator>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-4">
-                {translatedTitle || post.title}
-              </h1>
-            </SelectionTranslator>
+            {titleContent}
 
             {/* Metadata-driven gallery and 3Speak preview have been
                 removed deliberately. The detail page should render
@@ -1818,17 +2098,7 @@ export function HiveDetailPost({
                 SelectionTranslator so the user can highlight any
                 passage and get a one-tap Google translation. */}
             <div className="pb-6">
-              {renderedBody ? (
-                <SelectionTranslator>
-                  <TranslatedBody
-                    ref={postBodyRef}
-                    className="hive-post-body"
-                    html={renderedBody}
-                  />
-                </SelectionTranslator>
-              ) : (
-                <p className="text-[var(--hrk-text-tertiary)] text-sm italic">No content available.</p>
-              )}
+              {bodyContent}
               {reSnapTarget && (
                 <div className={renderedBody ? 'mt-4' : ''}>
                   <ReSnapEmbed
@@ -2164,7 +2434,6 @@ export function HiveDetailPost({
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
