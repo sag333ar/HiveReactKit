@@ -100,6 +100,65 @@ const BeneficiaryAvatar: React.FC<{ account: string; size?: number; className?: 
     }}
   />
 );
+interface BeneficiaryWeightInputProps {
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (val: number) => void;
+  className?: string;
+}
+
+const BeneficiaryWeightInput: React.FC<BeneficiaryWeightInputProps> = ({
+  value,
+  min,
+  max,
+  disabled = false,
+  onChange,
+  className = '',
+}) => {
+  const [localVal, setLocalVal] = useState(String(value));
+
+  useEffect(() => {
+    setLocalVal(String(value));
+  }, [value]);
+
+  const handleChange = (valStr: string) => {
+    const parts = valStr.split('.');
+    if (parts[1] && parts[1].length > 2) {
+      return;
+    }
+    setLocalVal(valStr);
+    const parsed = Number(valStr);
+    if (!isNaN(parsed) && valStr.trim() !== '') {
+      if (parsed >= min && parsed <= max) {
+        onChange(parsed);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    let parsed = Number(localVal) || 0;
+    parsed = Math.max(min, Math.min(max, parsed));
+    onChange(parsed);
+    setLocalVal(String(parsed));
+  };
+
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      step="any"
+      min={min}
+      max={max}
+      value={localVal}
+      disabled={disabled}
+      onChange={(e) => handleChange(e.target.value)}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
 
 const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   isOpen,
@@ -164,11 +223,11 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   const updateWeight = (account: string, next: number) => {
     if (lockedAccountsSet.has(account)) return;
     setError(null);
-    const clamped = Math.max(1, Math.min(100, Math.round(next)));
+    const clamped = Math.max(0.01, Math.min(100, Math.round(next * 100) / 100));
     const others = list
       .filter((b) => !lockedAccountsSet.has(b.account) && b.account !== account)
       .reduce((s, b) => s + b.weight, 0);
-    const allowed = Math.max(1, userCap - others);
+    const allowed = Math.max(0.01, userCap - others);
     const finalWeight = Math.min(clamped, allowed);
     setList((prev) =>
       prev.map((b) => (b.account === account ? { ...b, weight: finalWeight } : b)),
@@ -199,7 +258,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
       setError(`Total cannot exceed ${userCap}%.`);
       return false;
     }
-    const w = Math.max(1, Math.min(remaining, Math.round(weight) || 1));
+    const w = Math.max(0.01, Math.min(remaining, Math.round(weight * 100) / 100 || 0.01));
     setList((prev) => [...prev, { account, weight: w }]);
     setError(null);
     return true;
@@ -207,10 +266,10 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
 
   const handleAddDraft = () => {
     if (!draftAccount.trim()) return;
-    const ok = addBeneficiary(draftAccount, draftWeight || 1);
+    const ok = addBeneficiary(draftAccount, draftWeight || 0.01);
     if (ok) {
       setDraftAccount('');
-      setDraftWeight(Math.max(1, Math.min(remaining - (draftWeight || 1), remaining)));
+      setDraftWeight(Math.max(0.01, Math.min(remaining - (draftWeight || 0.01), remaining)));
     }
   };
 
@@ -232,7 +291,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
     onInc: () => void,
     onChangeValue: (next: number) => void,
     disabled = false,
-    minVal = 1,
+    minVal = 0.01,
     maxVal = 100,
   ) => (
     <div className="flex items-center gap-1 shrink-0">
@@ -245,14 +304,12 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
-      <input
-        type="number"
-        inputMode="numeric"
+      <BeneficiaryWeightInput
+        value={value}
         min={minVal}
         max={maxVal}
-        value={value}
         disabled={disabled}
-        onChange={(e) => onChangeValue(Number(e.target.value))}
+        onChange={onChangeValue}
         className="h-8 w-12 rounded border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-1 text-center text-xs text-white focus:border-[var(--hrk-info)] outline-none disabled:opacity-50"
       />
       <span className="text-xs text-[var(--hrk-text-tertiary)] w-3">%</span>
@@ -371,15 +428,15 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               <div className="flex items-center justify-between sm:justify-end gap-2">
                 {renderWeightStepper(
                   draftWeight,
-                  () => setDraftWeight((v) => Math.max(1, v - 1)),
-                  () => setDraftWeight((v) => Math.min(remaining || 1, v + 1)),
+                  () => setDraftWeight((v) => Math.max(0.01, v - 1)),
+                  () => setDraftWeight((v) => Math.min(remaining || 0.01, v + 1)),
                   (n) => {
-                    const next = Math.max(1, Math.min(remaining || 1, n || 1));
+                    const next = Math.max(0.01, Math.min(remaining || 0.01, n || 0.01));
                     setDraftWeight(next);
                   },
                   false,
-                  1,
-                  Math.max(1, remaining),
+                  0.01,
+                  Math.max(0.01, remaining),
                 )}
                 <button
                   type="button"
@@ -409,7 +466,7 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
               <div className="flex flex-wrap gap-2">
                 {sortedFavorites.map((f) => {
                   const account = normalizeBeneficiaryAccount(f.account);
-                  const weight = Math.max(1, Math.min(100, Math.round(f.weight) || 1));
+                  const weight = Math.max(0.01, Math.min(100, Math.round(f.weight * 100) / 100 || 0.01));
                   return (
                     <button
                       key={`${account}-${weight}`}

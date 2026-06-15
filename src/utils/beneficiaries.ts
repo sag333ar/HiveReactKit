@@ -47,7 +47,7 @@ export function sanitizeBeneficiaries(list: Beneficiary[] | undefined): Benefici
   for (const b of list) {
     const account = normalizeBeneficiaryAccount(b.account);
     if (!account) continue;
-    const weight = Math.max(0, Math.min(100, Math.round(Number(b.weight) || 0)));
+    const weight = Math.max(0, Math.min(100, Math.round((Number(b.weight) || 0) * 100) / 100));
     if (weight <= 0) continue;
     map.set(account, weight);
   }
@@ -85,7 +85,7 @@ export function enforceVideoBeneficiaries(
   if (userTotal > cap) {
     const factor = cap / userTotal;
     scaled = withoutFund
-      .map((b) => ({ ...b, weight: Math.max(1, Math.floor(b.weight * factor)) }))
+      .map((b) => ({ ...b, weight: Math.max(0.01, Math.floor(b.weight * factor * 100) / 100) }))
       .filter((b) => b.weight > 0);
     // After flooring, the total may be slightly under the cap; that is fine —
     // Hive does not require the beneficiaries to sum to 100%.
@@ -136,7 +136,7 @@ export function enforceLockedBeneficiaries(
     } else {
       const factor = userCap / userTotal;
       scaledUser = userWithoutConflicts
-        .map((b) => ({ ...b, weight: Math.max(1, Math.floor(b.weight * factor)) }))
+        .map((b) => ({ ...b, weight: Math.max(0.01, Math.floor(b.weight * factor * 100) / 100) }))
         .filter((b) => b.weight > 0);
     }
   }
