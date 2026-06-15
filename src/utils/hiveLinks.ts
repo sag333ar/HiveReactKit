@@ -129,10 +129,55 @@ export function preLinkMentions(
  * Works similarly to `preLinkMentions`, by preventing `HtmlDOMParser` from
  * extracting text-node URLs and appending them.
  */
+const MEDIA_DOMAINS = [
+  'youtube.com',
+  'youtu.be',
+  '3speak.tv',
+  '3speak.co',
+  'odysee.com',
+  'lbry.tv',
+  'spotify.com',
+  'vimeo.com',
+  'twitch.tv',
+  'soundcloud.com',
+  'twitter.com',
+  'x.com',
+];
+
+const IMAGE_EXTENSIONS = /\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:\?[^\s"'<>)]*)?$/i;
+const AUDIO_EXTENSIONS = /\.(?:mp3|wav|ogg|m4a|aac|flac|webm|opus)(?:\?[^\s"'<>)]*)?$/i;
+
+function isEmbeddableUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr);
+    const host = url.hostname.toLowerCase();
+    const pathname = url.pathname;
+    
+    // Check domains
+    const isDomain = MEDIA_DOMAINS.some(domain => host === domain || host.endsWith('.' + domain));
+    if (isDomain) return true;
+
+    // Check IPFS
+    if (pathname.includes('/ipfs/')) return true;
+
+    // Check image and audio extensions
+    if (IMAGE_EXTENSIONS.test(urlStr) || AUDIO_EXTENSIONS.test(urlStr)) return true;
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function preLinkUrls(body: string): string {
   if (!body) return body;
   return body.replace(
     /(^|[^<"'(])(https?:\/\/[^\s<>"']+?)(?=[.,!?]*(?:[\s>)"']|$))/gi,
-    (_match, pre, url) => `${pre}<${url}>`
+    (_match, pre, url) => {
+      if (isEmbeddableUrl(url)) {
+        return _match;
+      }
+      return `${pre}<${url}>`;
+    }
   );
 }
