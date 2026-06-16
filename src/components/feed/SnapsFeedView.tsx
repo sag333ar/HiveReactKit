@@ -441,13 +441,19 @@ export function SnapsFeedView({
   if (cols === 1) {
     return (
       <div className="mx-auto flex max-w-[720px] flex-col gap-3">
-        {toolbar}
-        <div className="sticky top-0 z-20 -mx-2 overflow-x-auto bg-[var(--hrk-bg-app)]/85 px-2 py-1 backdrop-blur">
-          <FeedSegmentControl
-            options={feedOptions.map(segOpt)}
-            value={activeFeed}
-            onChange={(id) => setActiveFeed(id as SnapsFeedKey)}
-          />
+        <div className="sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2">
+          <div className="overflow-x-auto min-w-0 flex-1 scrollbar-none">
+            <FeedSegmentControl
+              options={feedOptions.map(segOpt)}
+              value={activeFeed}
+              onChange={(id) => setActiveFeed(id as SnapsFeedKey)}
+            />
+          </div>
+          {toolbar && (
+            <div className="shrink-0">
+              {toolbar}
+            </div>
+          )}
         </div>
         <div className="flex flex-col">{renderBody(activeFeed)}</div>
         {footer}
