@@ -543,6 +543,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [comments, setComments] = useState<Post[]>([]);
   const [replies, setReplies] = useState<Post[]>([]);
   const [curations, setCurations] = useState<ActivityListItem[]>([]);
+  const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(-1);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
@@ -820,6 +821,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setFollowers([]);
     setFollowing([]);
     setCurations([]);
+    setLowestCurationIndex(-1);
     // Save previous profile's tab + scroll state
     if (prevUsernameRef.current && prevUsernameRef.current !== targetUsername) {
       profileStateCache[prevUsernameRef.current] = {
@@ -914,6 +916,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             const voterItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
             setCurations(voterItems);
             const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+            setLowestCurationIndex(lowestIndex);
             setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
             break;
           }
@@ -1188,12 +1191,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     try {
       switch (activeTab) {
         case "curation": {
-          const last = curations[curations.length - 1];
-          if (!last) break;
+          if (lowestCurationIndex <= 0) {
+            setHasMore((prev) => ({ ...prev, curation: false }));
+            break;
+          }
           const VOTE_FILTER_LOW = (1n << 0n).toString();
           const raw = await activityListService.getNextAccountHistoryPage(
             targetUsername,
-            last.index,
+            lowestCurationIndex,
             100,
             VOTE_FILTER_LOW,
             '0'
@@ -1202,6 +1207,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
           setCurations((prev) => [...prev, ...newItems]);
           const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+          setLowestCurationIndex(lowestIndex);
           setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
           break;
         }
@@ -1287,7 +1293,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following, curations]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following, curations, lowestCurationIndex]);
 
   // ─── Infinite scroll — direct scroll listener on the nested scroll
   // container. We tried IntersectionObserver first, but it proved
