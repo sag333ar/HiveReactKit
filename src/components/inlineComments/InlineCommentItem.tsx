@@ -767,6 +767,7 @@ export default function InlineCommentItem({
                         </div>
                       </div>
                       <PostComposer
+                        isInlineComment={true}
                         onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                         onCancel={onCancelReply}
                         currentUser={currentUser}
@@ -839,6 +840,7 @@ export default function InlineCommentItem({
                     </div>
                   </div>
                   <PostComposer
+                    isInlineComment={true}
                     onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                     onCancel={onCancelReply}
                     currentUser={currentUser}

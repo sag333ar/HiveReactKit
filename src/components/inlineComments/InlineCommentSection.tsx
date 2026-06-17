@@ -325,6 +325,7 @@ export default function InlineCommentSection({
             </div>
           </div>
           <PostComposer
+            isInlineComment={true}
             onSubmit={(body) => handleCommentSubmit(author, permlink, body)}
             currentUser={currentUser}
             parentAuthor={author}

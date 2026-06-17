@@ -218,6 +218,8 @@ const BeneficiariesEditor: React.FC<BeneficiariesEditorProps> = ({
   );
   const remaining = Math.max(0, userCap - userTotal);
 
+
+
   if (!isOpen) return null;
 
   const updateWeight = (account: string, next: number) => {

@@ -41,6 +41,7 @@ export interface PostComposerProps {
   placeholder?: string;
   parentAuthor?: string;
   parentPermlink?: string;
+  isInlineComment?: boolean;
 
   /** Ecency image hosting token — enables image/video thumbnail upload and paste/drag upload */
   ecencyToken?: string;
@@ -231,6 +232,7 @@ const PostComposer = ({
   placeholder = "Write in Markdown...",
   parentAuthor,
   parentPermlink,
+  isInlineComment = false,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -453,6 +455,7 @@ const PostComposer = ({
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
+    list.push({ account: 'hivesuite.app', weight: 1 });
     return list;
   }, [hasVideo, decentMemes, decentMemesKind]);
   const lockedAccountsList = useMemo(
@@ -464,6 +467,7 @@ const PostComposer = ({
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
     }
+    reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
       for (const entry of meme.beneficiaries[decentMemesKind] ?? []) {
         const acc = entry.account;
@@ -479,6 +483,9 @@ const PostComposer = ({
     enforceLockedBeneficiaries(defaultBeneficiaries, []),
   );
   const currentBeneficiaries = beneficiaries ?? internalBeneficiaries;
+  const visibleBeneficiaries = useMemo(() => {
+    return currentBeneficiaries.filter((b) => b.account !== 'hivesuite.app');
+  }, [currentBeneficiaries]);
   // Whenever the locked-list inputs change, re-enforce so locked rows
   // appear / scale / disappear without the user having to re-open the editor.
   useEffect(() => {
@@ -1496,10 +1503,10 @@ const PostComposer = ({
         {/* Beneficiary strip — chips under the tag strip. Click any chip to
             open the editor; auto-attached entries (threespeakfund + DecentMemes
             creator/submitter/frontend) carry a lock icon and a tooltip. */}
-        {!hideBeneficiaries && currentBeneficiaries.length > 0 && (
+        {!hideBeneficiaries && visibleBeneficiaries.length > 0 && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1 px-0.5">
             <span className="text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)] mr-1">Beneficiaries</span>
-            {currentBeneficiaries.map((b) => {
+            {visibleBeneficiaries.map((b) => {
               const locked = lockedAccountsList.includes(b.account);
               const lockTitle = lockReasons[b.account] ?? `Auto-attached @${b.account}`;
               return (

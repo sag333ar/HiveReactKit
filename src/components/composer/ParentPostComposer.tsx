@@ -720,6 +720,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
+    list.push({ account: 'hivesuite.app', weight: 1 });
     return list;
   }, [hasVideo, decentMemes]);
   const lockedAccountsList = useMemo(
@@ -731,6 +732,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
     }
+    reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
       for (const entry of meme.beneficiaries[decentMemesKind] ?? []) {
         const acc = entry.account;
@@ -745,6 +747,9 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() =>
     enforceLockedBeneficiaries(defaultBeneficiaries, []),
   );
+  const visibleBeneficiaries = useMemo(() => {
+    return beneficiaries.filter((b) => b.account !== 'hivesuite.app');
+  }, [beneficiaries]);
   useEffect(() => {
     setBeneficiaries((prev) => enforceLockedBeneficiaries(prev, lockedBeneficiaries));
   }, [lockedBeneficiaries]);
@@ -2642,7 +2647,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               </div>
 
               {/* Beneficiary strip */}
-              {!hideBeneficiaries && beneficiaries.length > 0 && (
+              {!hideBeneficiaries && visibleBeneficiaries.length > 0 && (
                 <div className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)]/40 p-2.5">
                   <div className="flex items-center gap-2 mb-2 text-xs text-[var(--hrk-text-tertiary)]">
                     <Users className="h-3.5 w-3.5 text-[var(--hrk-text-tertiary)]" />
@@ -2659,7 +2664,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center gap-1">
-                    {beneficiaries.map((b) => {
+                    {visibleBeneficiaries.map((b) => {
                       const locked = lockedAccountsList.includes(b.account);
                       const lockTitle = lockReasons[b.account] ?? `Auto-attached @${b.account}`;
                       return (
