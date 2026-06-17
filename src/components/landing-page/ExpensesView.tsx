@@ -70,6 +70,7 @@ const CURRENCY_DISPLAY: Record<
 const BASE_AMOUNTS = {
   salary3: 1250,
   salary2: 900,
+  salary1: 700,
   rent: 300,
   utilities: 50,
   vps: 175,
@@ -113,6 +114,7 @@ const getAmounts = (currency: Currency, rates: LiveRates) => {
   return {
     salary3: Math.round(BASE_AMOUNTS.salary3 * m),
     salary2: Math.round(BASE_AMOUNTS.salary2 * m),
+    salary1: Math.round(BASE_AMOUNTS.salary1 * m),
     rent: Math.round(BASE_AMOUNTS.rent * m),
     utilities: Math.round(BASE_AMOUNTS.utilities * m),
     vps: Math.round(BASE_AMOUNTS.vps * m),
@@ -162,7 +164,7 @@ function generateExpenses(currency: Currency, rates: LiveRates): MonthRow[] {
   let furnDepRatio = 1;
 
   const startDate = new Date(2022, 0);
-  const endDate = new Date(2026, 2);
+  const endDate = new Date(2026, 5); // June 2026
 
   const cur = new Date(startDate);
   while (cur <= endDate) {
@@ -179,7 +181,8 @@ function generateExpenses(currency: Currency, rates: LiveRates): MonthRow[] {
 
     let salaries = cfg.salary3;
     if (y === 2026 && m >= 1) salaries = cfg.salary2;
-    if (y > 2026) salaries = cfg.salary2;
+    if (y === 2026 && m >= 4) salaries = cfg.salary1;
+    if (y > 2026) salaries = cfg.salary1;
 
     const rent = hasInfra ? cfg.rent : 0;
     const utilities = hasInfra ? cfg.utilities : 0;
@@ -345,10 +348,10 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
             <div className="container mx-auto px-4 text-center">
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm mb-6"
-                style={{ backgroundColor: ACCENT.errorBg, color: ACCENT.error }}
+                style={{ backgroundColor: ACCENT.primaryBg, color: ACCENT.primary }}
               >
                 <FaExclamationTriangle className="w-4 h-4" />
-                Transparency Report — Running in Heavy Debt
+                Transparency Report — Honest Numbers
               </div>
               <h1 className="text-4xl md:text-5xl font-extrabold mb-4" style={{ color: textColor }}>
                 Our Expenses — Every Single{" "}
@@ -597,10 +600,10 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                     icon: FaHandHoldingHeart,
                     iconColor: ACCENT.success,
                     borderColor: ACCENT.success,
-                    label: "Revenue / Funding",
-                    value: fmt(0),
+                    label: "Community Returns",
+                    value: "~$80–110/mo",
                     valueColor: ACCENT.success,
-                    sub: "Zero. Nothing. Nada.",
+                    sub: "Author rewards + Witness blocks",
                   },
                 ].map(({ icon: Icon, iconColor, borderColor, label, value, valueColor, sub }) => (
                   <div
@@ -611,7 +614,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                     <Icon className="w-8 h-8 mx-auto mb-2" style={{ color: iconColor }} />
                     <p className="text-sm uppercase tracking-wide mb-1" style={{ color: textColor, opacity: 0.6 }}>{label}</p>
                     <p className="text-2xl font-extrabold" style={{ color: valueColor }}>{value}</p>
-                    {sub && <p className="text-xs mt-1 font-semibold" style={{ color: ACCENT.error }}>{sub}</p>}
+                    {sub && <p className="text-xs mt-1 font-semibold" style={{ color: ACCENT.success }}>{sub}</p>}
                   </div>
                 ))}
               </div>
@@ -682,7 +685,7 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                     iconBg: ACCENT.primaryBg,
                     iconColor: ACCENT.primary,
                     label: "Developer Salaries",
-                    desc: `3 devs (Jan 2022 – Jan 2026): ${fmt(cfg.salary3)}/mo\n2 devs (Feb 2026 – present): ${fmt(cfg.salary2)}/mo`,
+                    desc: `3 devs (Jan 2022 – Jan 2026): ${fmt(cfg.salary3)}/mo\n2 devs (Feb 2026 – Apr 2026): ${fmt(cfg.salary2)}/mo\n2 devs (May 2026 – present): ${fmt(cfg.salary1)}/mo`,
                   },
                   {
                     icon: FaBuilding,
@@ -755,15 +758,16 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                   }}
                 >
                   <div className="text-center mb-6">
-                    <FaHeartBroken className="w-12 h-12 mx-auto mb-4" style={{ color: ACCENT.error }} />
-                    <h2 className="text-3xl font-extrabold mb-2" style={{ color: ACCENT.error }}>The Hard Truth</h2>
+                    <FaChartLine className="w-12 h-12 mx-auto mb-4" style={{ color: ACCENT.accent }} />
+                    <h2 className="text-3xl font-extrabold mb-2" style={{ color: textColor }}>The Honest Picture</h2>
                   </div>
 
                   <div className="space-y-4 text-base" style={{ color: textColor, opacity: 0.9 }}>
                     <p>
-                      We have spent{" "}
+                      We have invested{" "}
                       <span className="font-extrabold" style={{ color: ACCENT.error }}>{fmt(totalWithCapital)}</span>{" "}
-                      of our own money building apps, running infrastructure, and supporting the Hive ecosystem.
+                      of our own money building apps, running infrastructure, and contributing to the Hive ecosystem —
+                      with no external funding, no DHF grants, no ads, and no monetization of any kind.
                     </p>
                     <p>
                       Except for 3Speak-funded projects —{" "}
@@ -771,105 +775,109 @@ const ExpensesView: React.FC<ExpensesViewProps> = ({
                       <span className="font-semibold" style={{ color: textColor }}>CheckInWithXYZ</span>{" "}
                       &{" "}
                       <span className="font-semibold" style={{ color: textColor }}>3Speak</span>{" "}
-                      — we have{" "}
-                      <span className="font-extrabold" style={{ color: ACCENT.error }}>never received any funding</span>{" "}
-                      for any of our other projects. Everything else has been entirely self-funded.
+                      — everything else has been entirely self-funded. All apps are free and open-source, built for the community.
                     </p>
                     <p>
-                      We have{" "}
-                      <span className="font-bold" style={{ color: ACCENT.error }}>never asked for DHF funding or any grants</span>.
-                      We have not monetized any of our apps. We have not put ads in our apps. Everything is free, open-source,
-                      and built for the Hive community.
+                      To be fair and honest:{" "}
+                      <span className="font-semibold" style={{ color: ACCENT.success }}>the community does give back</span>.
+                      Daily developer update posts on Hive earn{" "}
+                      <span className="font-semibold" style={{ color: ACCENT.success }}>~$1–2 in author rewards per post</span>.
+                      Producing blocks as a Hive witness brings in{" "}
+                      <span className="font-semibold" style={{ color: ACCENT.success }}>~$40–50/month in staked HIVE</span>{" "}
+                      as block rewards. That is real, meaningful support — and we are genuinely grateful for every vote and every upvote.
                     </p>
                     <p>
-                      On top of all this, we are holding{" "}
+                      We are also holding{" "}
                       <span className="font-extrabold" style={{ color: ACCENT.accent }}>Hive Power (staked HIVE) worth $11,000</span>{" "}
-                      — locked for 3 months — and we are continuously investing and increasing our stake in Hive.
-                      We don't just build on Hive, we put our money where our mouth is.
-                    </p>
-                    <p>
-                      Since July 2023, we also send approximately{" "}
-                      <span className="font-bold" style={{ color: textColor }}>$10 to $20 worth of support every month</span>{" "}
-                      to community initiatives like{" "}
+                      — locked for 3 months — and continuously increasing our stake.
+                      Since July 2023, we support community initiatives like{" "}
                       <span className="font-semibold">Ladies of Hive</span>,{" "}
                       <span className="font-semibold">Shadow Hunters</span>,{" "}
                       <span className="font-semibold">Reflection Hunters</span>,{" "}
                       <span className="font-semibold">Bird Watchers</span>,{" "}
                       <span className="font-semibold">Power Plant Vegan</span>,{" "}
                       <span className="font-semibold">India United</span>, and{" "}
-                      <span className="font-semibold">Amazing Drinks</span>.
-                      On top of that, we actively support many Hive users by upvoting their content and
-                      rewarding them with Hive inflation through our curation efforts.
-                    </p>
-                    <p>
-                      This is not sustainable. We are running in{" "}
-                      <span className="font-extrabold" style={{ color: ACCENT.error }}>heavy debt</span>.
-                      Every month, the expenses pile up — salaries, rent, hosting, infrastructure — and nothing comes back.
+                      <span className="font-semibold">Amazing Drinks</span>{" "}
+                      with $10–20/month, and actively upvote Hive creators through our curation efforts.
                     </p>
                     <p className="font-semibold" style={{ color: textColor }}>
-                      This is taking a heavy toll — financially, mentally, and emotionally. Building for years without any
-                      return is exhausting. But we keep going because we believe in Hive and its community.
+                      The gap between expenses and returns is large — but the community's support, small as it may seem,
+                      is the motivation that keeps us going. We build because we believe in Hive and its people.
                     </p>
                   </div>
 
                   <div className="my-6" style={{ height: 1, backgroundColor: dividerColor }} />
 
-                  <div className="text-center">
-                    <h3 className="text-2xl font-extrabold mb-3" style={{ color: ACCENT.accent }}>
-                      All We Ask Is Your Witness Vote
+                  <div className="text-left">
+                    <h3 className="text-2xl font-extrabold mb-5 text-center" style={{ color: ACCENT.accent }}>
+                      What We Ask
                     </h3>
-                    <p className="mb-6 max-w-lg mx-auto" style={{ color: textColor, opacity: 0.85 }}>
-                      We have never asked for money. We are not asking for money now.
-                      Just your{" "}
-                      <span className="font-bold" style={{ color: ACCENT.accent }}>
-                        Hive witness vote for @sagarkothari88
-                      </span>{" "}
-                      — that's it. That small gesture of support means the world to us and helps us
-                      keep building for the ecosystem.
+                    <div className="space-y-4 mb-6">
+                      <div
+                        className="flex items-start gap-4 p-4 rounded-xl"
+                        style={{ backgroundColor: ACCENT.primaryBg }}
+                      >
+                        <FaHandHoldingHeart className="w-6 h-6 mt-0.5 shrink-0" style={{ color: ACCENT.primary }} />
+                        <div>
+                          <p className="font-bold mb-1" style={{ color: textColor }}>Vote @sagarkothari88 as your Hive Witness</p>
+                          <p className="text-sm" style={{ color: textColor, opacity: 0.7 }}>
+                            A witness vote costs you nothing. It helps keep our infrastructure funded and signals
+                            to the chain that you value the work we do for this ecosystem.
+                          </p>
+                          <a
+                            href="https://vote.hive.uno/@sagarkothari88"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary btn-sm mt-3 gap-2"
+                          >
+                            <FaHandHoldingHeart className="w-4 h-4" />
+                            Vote as Witness
+                          </a>
+                        </div>
+                      </div>
+                      <div
+                        className="flex items-start gap-4 p-4 rounded-xl"
+                        style={{ backgroundColor: ACCENT.successBg }}
+                      >
+                        <FaUsers className="w-6 h-6 mt-0.5 shrink-0" style={{ color: ACCENT.success }} />
+                        <div>
+                          <p className="font-bold mb-1" style={{ color: textColor }}>Upvote our daily developer updates on Hive</p>
+                          <p className="text-sm" style={{ color: textColor, opacity: 0.7 }}>
+                            Every day we post a dev update on Hive sharing what we built, fixed, or shipped.
+                            A simple upvote on those posts — even a small one — is genuinely enough motivation
+                            to keep going. No tips, no DHF, no funding. Just your upvote.
+                          </p>
+                          <a
+                            href="https://peakd.com/@sagarkothari88"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm mt-3 gap-2"
+                            style={{ backgroundColor: ACCENT.success, color: "#fff" }}
+                          >
+                            <FaUsers className="w-4 h-4" />
+                            Follow @sagarkothari88 on Hive
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-center text-sm" style={{ color: textColor, opacity: 0.6 }}>
+                      That is all. No funding ask. No grants. Just your witness vote and an occasional upvote
+                      — that is enough to keep us building for this community.
                     </p>
-                    <a
-                      href="https://vote.hive.uno/@sagarkothari88"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-primary btn-lg gap-2"
-                    >
-                      <FaHandHoldingHeart className="w-5 h-5" />
-                      Vote @sagarkothari88 as Witness
-                    </a>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Debt vs Revenue bar */}
+          {/* Closing note */}
           <section className="py-8">
             <div className="container mx-auto px-4">
-              <div className="max-w-3xl mx-auto text-center">
-                <h3 className="text-xl font-bold mb-4" style={{ color: textColor }}>
-                  Debt vs Revenue
-                </h3>
-                <div className="w-full rounded-full h-8 overflow-hidden mb-2" style={{ backgroundColor: ACCENT.progressTrack }}>
-                  <div
-                    className="h-full rounded-full flex items-center justify-end pr-3"
-                    style={{
-                      width: "100%",
-                      background: `linear-gradient(90deg, ${ACCENT.error}, rgba(248,113,113,0.7))`,
-                    }}
-                  >
-                    <span className="text-xs font-bold text-white">DEBT: {fmt(totalWithCapital)}</span>
-                  </div>
-                </div>
-                <div className="w-full rounded-full h-8 overflow-hidden" style={{ backgroundColor: ACCENT.progressTrack }}>
-                  <div
-                    className="h-full rounded-full flex items-center pl-3"
-                    style={{ width: "2%", minWidth: "80px", backgroundColor: ACCENT.success }}
-                  >
-                    <span className="text-xs font-bold text-white">{fmt(0)}</span>
-                  </div>
-                </div>
-                <p className="text-xs mt-2" style={{ color: textColor, opacity: 0.45 }}>
-                  Revenue bar is at minimum width because the actual value is {fmt(0)}
+              <div className="max-w-2xl mx-auto text-center">
+                <p className="text-sm" style={{ color: textColor, opacity: 0.5 }}>
+                  These numbers are shared openly because we believe in transparency.
+                  The community's support — through witness votes, upvotes, and kind words —
+                  is what makes this work meaningful. Thank you.
                 </p>
               </div>
             </div>
