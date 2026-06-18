@@ -100,6 +100,8 @@ export interface PostActionButtonProps {
   onEdit?: () => void;
   /** Called when reblog is clicked (when logged in). */
   onReblog?: () => void;
+  isReblogged?: boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   /** Called when re-snap is clicked (when logged in). Re-snap appends
    *  a new snap to the latest peak.snaps container whose body is a URL
    *  to the original snap — receivers render the original inline. */
@@ -203,6 +205,8 @@ export function PostActionButton({
   onComments,
   onEdit,
   onReblog,
+  isReblogged = false,
+  onCheckReblogged,
   onReSnap,
   onShare,
   onTip,
@@ -358,6 +362,12 @@ export function PostActionButton({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [author, permlink, hasInitialComments]);
+
+  useEffect(() => {
+    if (onCheckReblogged) {
+      onCheckReblogged(author, permlink);
+    }
+  }, [author, permlink, onCheckReblogged]);
 
   const hasVoted =
     isLoggedIn &&
@@ -784,34 +794,54 @@ export function PostActionButton({
       {/* Secondary actions — either inline icons (default) or collapsed
           into a single 3-dot kebab popover when `actionsAsMenu` is set. */}
       {actionsAsMenu ? (
-        <MoreActionsMenu
-          onEdit={onEdit}
-          onReblog={onReblog ? handleReblogClick : undefined}
-          onReSnap={onReSnap ? handleReSnapClick : undefined}
-          onShare={handleShareClick}
-          onTip={onTip ? handleTipClick : undefined}
-          onReport={reportHandler ? handleReportClick : undefined}
-          onToggleBookmark={onToggleBookmark}
-          isBookmarked={isBookmarked}
-          onPin={onPin}
-          onUnpin={onUnpin}
-          onDelete={onDelete}
-        />
+        <>
+          {onReblog && isReblogged && (
+            <div className="relative group">
+              <span className={tooltipClass}>Reblogged</span>
+              <button
+                type="button"
+                onClick={handleReblogClick}
+                className={`flex items-center hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass} text-[var(--hrk-brand)]`}
+                aria-label="Reblog"
+              >
+                <Repeat2
+                  className={`${iconSizeClass} fill-current text-[var(--hrk-brand)]`}
+                />
+              </button>
+            </div>
+          )}
+          <MoreActionsMenu
+            onEdit={onEdit}
+            onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
+            isReblogged={isReblogged}
+            onReSnap={onReSnap ? handleReSnapClick : undefined}
+            onShare={handleShareClick}
+            onTip={onTip ? handleTipClick : undefined}
+            onReport={reportHandler ? handleReportClick : undefined}
+            onToggleBookmark={onToggleBookmark}
+            isBookmarked={isBookmarked}
+            onPin={onPin}
+            onUnpin={onUnpin}
+            onDelete={onDelete}
+          />
+        </>
       ) : (
         <>
           {/* Reblog */}
-          {onReblog && (
-          <div className="relative group">
-            <span className={tooltipClass}>Reblog</span>
-            <button
-              type="button"
-              onClick={handleReblogClick}
-              className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
-              aria-label="Reblog"
-            >
-              <Repeat2 className={iconSizeClass} />
-            </button>
-          </div>
+          {onReblog && isReblogged && (
+            <div className="relative group">
+              <span className={tooltipClass}>Reblogged</span>
+              <button
+                type="button"
+                onClick={handleReblogClick}
+                className={`flex items-center hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass} text-[var(--hrk-brand)]`}
+                aria-label="Reblog"
+              >
+                <Repeat2
+                  className={`${iconSizeClass} fill-current text-[var(--hrk-brand)]`}
+                />
+              </button>
+            </div>
           )}
 
           {/* Share */}
@@ -829,32 +859,32 @@ export function PostActionButton({
 
           {/* Report — hidden on the user's own content. */}
           {reportHandler && (
-          <div className="relative group">
-            <span className={tooltipClass}>Report</span>
-            <button
-              type="button"
-              onClick={handleReportClick}
-              className={`flex items-center text-gray-300 hover:text-red-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
-              aria-label="Report"
-            >
-              <Flag className={iconSizeClass} />
-            </button>
-          </div>
+            <div className="relative group">
+              <span className={tooltipClass}>Report</span>
+              <button
+                type="button"
+                onClick={handleReportClick}
+                className={`flex items-center text-gray-300 hover:text-red-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
+                aria-label="Report"
+              >
+                <Flag className={iconSizeClass} />
+              </button>
+            </div>
           )}
 
           {/* Tip */}
           {onTip && (
-          <div className="relative group">
-            <span className={tooltipClass}>Tip</span>
-            <button
-              type="button"
-              onClick={handleTipClick}
-              className={`flex items-center text-gray-300 hover:text-green-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
-              aria-label="Tip"
-            >
-              <Gift className={iconSizeClass} />
-            </button>
-          </div>
+            <div className="relative group">
+              <span className={tooltipClass}>Tip</span>
+              <button
+                type="button"
+                onClick={handleTipClick}
+                className={`flex items-center text-gray-300 hover:text-green-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
+                aria-label="Tip"
+              >
+                <Gift className={iconSizeClass} />
+              </button>
+            </div>
           )}
 
           {/* Owner kebab — small 3-dot menu containing the Edit and
@@ -864,9 +894,11 @@ export function PostActionButton({
               alongside the inline icons when `actionsAsMenu` is off
               (snap cards already collapse everything into their
               combined kebab via the props on MoreActionsMenu above). */}
-          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin) && (
+          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin || (onReblog && !isReblogged)) && (
             <MoreActionsMenu
               onEdit={onEdit}
+              onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
+              isReblogged={isReblogged}
               onToggleBookmark={onToggleBookmark}
               isBookmarked={isBookmarked}
               onPin={onPin}

@@ -36,6 +36,7 @@ export interface MoreActionsMenuProps {
   onEdit?: () => void;
   /** Show the Reblog item. */
   onReblog?: () => void;
+  isReblogged?: boolean;
   /** Show the Re-snap item. Re-snap broadcasts a new snap whose body is
    *  a URL pointing back at this snap — receivers render the original
    *  inline with a "RE-SNAP" badge. */
@@ -72,6 +73,7 @@ const GAP = 4;
 export function MoreActionsMenu({
   onEdit,
   onReblog,
+  isReblogged = false,
   onReSnap,
   onShare,
   onTip,
@@ -194,10 +196,15 @@ export function MoreActionsMenu({
                 type="button"
                 role="menuitem"
                 onClick={run(onReblog)}
+                aria-pressed={isReblogged}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
-                <Repeat2 className="h-3.5 w-3.5 text-gray-300" />
-                <span>Reblog</span>
+                <Repeat2
+                  className={`h-3.5 w-3.5 ${
+                    isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
+                  }`}
+                />
+                <span>{isReblogged ? 'Reblogged' : 'Reblog'}</span>
               </button>
             )}
             {onReSnap && (

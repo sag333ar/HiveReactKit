@@ -62,6 +62,8 @@ export interface SnapsFeedViewProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  isPostReblogged?: (author: string, permlink: string) => boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   /** Called when the viewer taps "Re-snap" in a snap's more menu.
    *  Host implements the broadcast — see SnapsFeedCard's `onReSnap`.
    *  The `parentTags` argument carries the original snap's
@@ -238,6 +240,8 @@ export function SnapsFeedView({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onReSnap,
   onTip,
   onSharePost,
@@ -356,6 +360,8 @@ export function SnapsFeedView({
     onSubmitComment,
     onClickCommentUpvote,
     onReblog,
+    isPostReblogged,
+    onCheckReblogged,
     onReSnap,
     onTip,
     onSharePost,

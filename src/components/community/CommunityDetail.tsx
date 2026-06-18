@@ -72,6 +72,8 @@ export interface CommunityDetailProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>
   onReblog?: (author: string, permlink: string) => void
+  isPostReblogged?: (author: string, permlink: string) => boolean
+  onCheckReblogged?: (author: string, permlink: string) => void
   onTip?: (author: string, permlink: string) => void
   onSharePost?: (author: string, permlink: string) => void
   onReportPost?: (author: string, permlink: string) => void
@@ -263,6 +265,8 @@ const CommunityDetail = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onTip,
   onSharePost,
   onReportPost,
@@ -543,6 +547,8 @@ const CommunityDetail = ({
       onSubmitComment,
       onClickCommentUpvote,
       onReblog,
+      isPostReblogged,
+      onCheckReblogged,
       onTip,
       onSharePost,
       onReportPost,
@@ -577,6 +583,8 @@ const CommunityDetail = ({
       onSubmitComment,
       onClickCommentUpvote,
       onReblog,
+      isPostReblogged,
+      onCheckReblogged,
       onTip,
       onSharePost,
       onReportPost,
@@ -948,6 +956,8 @@ const CommunityDetail = ({
             onSubmitComment={onSubmitComment}
             onClickCommentUpvote={onClickCommentUpvote}
             onReblog={onReblog}
+            isPostReblogged={isPostReblogged}
+            onCheckReblogged={onCheckReblogged}
             onTip={onTip}
             onSharePost={onSharePost}
             onCommentClick={onCommentClick}

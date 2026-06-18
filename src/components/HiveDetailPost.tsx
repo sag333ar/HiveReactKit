@@ -31,6 +31,7 @@ import {
   Pause,
   Square,
   X,
+  Repeat2,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -166,6 +167,7 @@ export interface HiveDetailPostProps {
   };
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
+  isReblogged?: boolean;
   onShare?: () => void;
   onTip?: () => void;
   onReport?: () => void;
@@ -378,6 +380,7 @@ export function HiveDetailPost({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isReblogged = false,
   onShare,
   onTip,
   onReport,
@@ -1948,6 +1951,8 @@ export function HiveDetailPost({
               }
               onShare={onHeaderShare ?? onShare}
               onReport={onHeaderReport ?? onReport}
+              onReblog={onReblog}
+              isReblogged={isReblogged}
               onVersionHistory={() => setVersionHistoryOpen(true)}
               onViewRaw={() => setRawViewOpen(true)}
               onEdit={onEdit && currentUser && post.author === currentUser
@@ -2461,6 +2466,8 @@ interface HeaderMoreMenuProps {
    *  `post.author === currentUser`, so the trigger row stays hidden
    *  for everyone else. */
   onEdit?: () => void;
+  onReblog?: () => void;
+  isReblogged?: boolean;
 }
 
 const HEADER_MENU_WIDTH = 180;
@@ -2474,6 +2481,8 @@ function HeaderMoreMenu({
   onVersionHistory,
   onViewRaw,
   onEdit,
+  onReblog,
+  isReblogged = false,
 }: HeaderMoreMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -2527,7 +2536,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -2559,6 +2568,22 @@ function HeaderMoreMenu({
               >
                 <Pencil className="h-3.5 w-3.5 text-gray-300" />
                 <span>Edit post</span>
+              </button>
+            )}
+            {onReblog && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onReblog)}
+                aria-pressed={isReblogged}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Repeat2
+                  className={`h-3.5 w-3.5 ${
+                    isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
+                  }`}
+                />
+                <span>{isReblogged ? 'Reblogged' : 'Reblog'}</span>
               </button>
             )}
             {onToggleBookmark && (

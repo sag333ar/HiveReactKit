@@ -136,6 +136,8 @@ export interface UserDetailProfileProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  isPostReblogged?: (author: string, permlink: string) => boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
   /** Per-row bookmark toggle on every Blogs / Posts / Comments / Replies
@@ -460,6 +462,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onTip,
   onReportPost,
   onToggleBookmark,
@@ -1738,7 +1742,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={item.author !== currentUsername && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+            onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+            isReblogged={isPostReblogged ? isPostReblogged(item.author, item.permlink) : false}
+            onCheckReblogged={onCheckReblogged}
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
             onTip={item.author !== currentUsername && onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={item.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
@@ -2701,6 +2707,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onSubmitComment={onSubmitComment}
             onClickCommentUpvote={onClickCommentUpvote}
             onReblog={onReblog}
+            isPostReblogged={isPostReblogged}
+            onCheckReblogged={onCheckReblogged}
             onTip={onTip}
             onSharePost={onSharePost}
             onCommentClick={onCommentClick}
@@ -2798,6 +2806,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               onSubmitComment={onSubmitComment}
               onClickCommentUpvote={onClickCommentUpvote}
               onReblog={onReblog}
+              isPostReblogged={isPostReblogged}
+              onCheckReblogged={onCheckReblogged}
               onTip={onTip}
               onSharePost={onSharePost}
               onCommentClick={onCommentClick}

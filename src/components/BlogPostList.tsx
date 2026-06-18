@@ -47,6 +47,8 @@ export interface BlogPostListProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  isPostReblogged?: (author: string, permlink: string) => boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
@@ -358,6 +360,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onTip,
   onSharePost,
   onCommentClick,
@@ -622,7 +626,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}
-                onReblog={item.author !== currentUser && onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+                onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
+                isReblogged={isPostReblogged ? isPostReblogged(item.author, item.permlink) : false}
+                onCheckReblogged={onCheckReblogged}
                 onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
                 onTip={item.author !== currentUser && onTip ? () => onTip(item.author, item.permlink) : undefined}
                 onToggleBookmark={

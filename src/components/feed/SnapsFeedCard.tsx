@@ -37,6 +37,8 @@ export interface SnapsFeedCardProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  isPostReblogged?: (author: string, permlink: string) => boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   /** Called when the viewer taps "Re-snap" in the snap's more menu.
    *  Host implements the broadcast — body is a URL pointing at the
    *  original snap (`http(s)://<frontend>/@<author>/<permlink>`) so
@@ -243,6 +245,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onReSnap,
   onTip,
   onSharePost,
@@ -702,7 +706,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
-          onReblog={post.author !== currentUser && onReblog ? () => onReblog(post.author, post.permlink) : undefined}
+          onReblog={onReblog ? () => onReblog(post.author, post.permlink) : undefined}
+          isReblogged={isPostReblogged ? isPostReblogged(post.author, post.permlink) : false}
+          onCheckReblogged={onCheckReblogged}
           onReSnap={onReSnap ? () => onReSnap(post.author, post.permlink, parentMetaTags) : undefined}
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}

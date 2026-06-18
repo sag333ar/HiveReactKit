@@ -58,6 +58,8 @@ export interface PollListItemProps {
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
+  isPostReblogged?: (author: string, permlink: string) => boolean;
+  onCheckReblogged?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
@@ -92,6 +94,8 @@ const PollListItem: React.FC<PollListItemProps> = ({
   onSubmitComment,
   onClickCommentUpvote,
   onReblog,
+  isPostReblogged,
+  onCheckReblogged,
   onTip,
   onSharePost,
   onCommentClick,
@@ -379,7 +383,9 @@ const PollListItem: React.FC<PollListItemProps> = ({
           onUpvote={onUpvote ? (percent) => onUpvote(poll.author, poll.permlink, percent) : undefined}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
-          onReblog={poll.author !== currentUsername && onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
+          onReblog={onReblog ? () => onReblog(poll.author, poll.permlink) : undefined}
+          isReblogged={isPostReblogged ? isPostReblogged(poll.author, poll.permlink) : false}
+          onCheckReblogged={onCheckReblogged}
           onShare={onSharePost ? () => onSharePost(poll.author, poll.permlink) : undefined}
           onTip={poll.author !== currentUsername && onTip ? () => onTip(poll.author, poll.permlink) : undefined}
           onReport={poll.author !== currentUsername && onRequestReportPost ? () => onRequestReportPost(poll.author, poll.permlink) : undefined}
