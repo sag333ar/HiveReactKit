@@ -43,6 +43,7 @@ import {
   Loader2 as Loader2Icon,
   ArrowUp,
   ArrowDown,
+  RefreshCw,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -548,6 +549,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [replies, setReplies] = useState<Post[]>([]);
   const [curations, setCurations] = useState<ActivityListItem[]>([]);
   const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(-1);
+  const [refreshCurationTrigger, setRefreshCurationTrigger] = useState<number>(0);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
@@ -918,6 +920,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             );
             const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
             const voterItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+            voterItems.sort((a, b) => b.index - a.index);
             setCurations(voterItems);
             const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
             setLowestCurationIndex(lowestIndex);
@@ -1168,7 +1171,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [targetUsername, activeTab]);
+  }, [targetUsername, activeTab, refreshCurationTrigger]);
 
   // Filtered data for rendering — always reflects latest filter props
   const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
@@ -1209,6 +1212,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           );
           const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
           const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+          newItems.sort((a, b) => b.index - a.index);
           setCurations((prev) => [...prev, ...newItems]);
           const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
           setLowestCurationIndex(lowestIndex);
@@ -2386,16 +2390,39 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       if (loadingContent && curations.length === 0) {
         return renderPostSkeleton();
       }
+
+      const handleRefreshCuration = () => {
+        setRefreshCurationTrigger(prev => prev + 1);
+      };
+
+      const renderRefreshButton = () => (
+        <div className="flex justify-end mb-2">
+          <button
+            type="button"
+            onClick={handleRefreshCuration}
+            disabled={loadingContent}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50 transition-colors focus:outline-none cursor-pointer"
+            title="Refresh"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loadingContent ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      );
+
       if (curations.length === 0) {
         return (
-          <div className="text-center py-12">
-            <Heart className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noCuration")}</p>
+          <div className="space-y-3">
+            {renderRefreshButton()}
+            <div className="text-center py-12">
+              <Heart className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+              <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noCuration")}</p>
+            </div>
           </div>
         );
       }
       return (
         <div className="space-y-3">
+          {renderRefreshButton()}
           {curations.map((item, index) => {
             const isDownvote = (item.details?.weight ?? 0) < 0;
             const isUnvote = (item.details?.weight ?? 0) === 0;
