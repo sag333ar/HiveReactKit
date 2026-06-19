@@ -45,7 +45,7 @@ import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
-import { ODYSEE_REGEX, buildOdyseeEmbedUrl } from './feed/AttachmentStrip';
+import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX } from './feed/AttachmentStrip';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -904,6 +904,33 @@ export function HiveDetailPost({
     return out;
   }, [bodyForContent]);
 
+  // Extract YouTube video IDs from bodyForContent
+  const youtubeBodyRefs = useMemo<string[]>(() => {
+    if (!bodyForContent) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    // 1) Match src attribute of <iframe> tags that point to youtube or youtube-nocookie
+    const iframeRe = /<iframe\b[^>]*\bsrc=["'](https?:\/\/(?:www\.)?(?:youtube\.com|youtube-nocookie\.com)\/(?:embed\/|watch\?v=)([^"'\s&]+)[^"']*)["'][^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = iframeRe.exec(bodyForContent)) !== null) {
+      const id = m[2];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    }
+    // 2) Also catch bare/markdown YouTube URLs
+    const ytRe = new RegExp(YOUTUBE_REGEX.source, YOUTUBE_REGEX.flags);
+    while ((m = ytRe.exec(bodyForContent)) !== null) {
+      const id = m[1] || m[2] || m[3];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    }
+    return out;
+  }, [bodyForContent]);
+
   // 3Speak URLs (`play.3speak.tv/embed?v=author/permlink` or `/watch?…`
   // or the canonical `3speak.tv/v/author/permlink` path) extracted
   // directly from the body. Same body-only philosophy as the IPFS
@@ -1026,6 +1053,26 @@ export function HiveDetailPost({
       // 3) Bare Odysee URLs
       safeBody = safeBody.replace(
         new RegExp(ODYSEE_REGEX.source, ODYSEE_REGEX.flags),
+        '',
+      );
+
+      // Strip YouTube URLs/iframes from the body — they are rendered as
+      // dedicated players via `youtubeBodyRefs`, same body-only approach
+      // as 3Speak / IPFS / Odysee above.
+      //
+      // 1) Full <iframe> tags whose src is on youtube.com or youtube-nocookie.com
+      safeBody = safeBody.replace(
+        /<iframe\b[^>]*\bsrc=["'][^"']*(?:youtube\.com|youtube-nocookie\.com)[^"']*["'][^>]*>(?:\s*<\/iframe>)?/gi,
+        '',
+      );
+      // 2) Markdown links whose href is a YouTube URL
+      safeBody = safeBody.replace(
+        /\[([^\]]+)\]\(\s*(https?:\/\/(?:www\.)?youtube\.com\/[^\s)]+|https?:\/\/youtu\.be\/[^\s)]+)\s*\)/gi,
+        '',
+      );
+      // 3) Bare YouTube URLs
+      safeBody = safeBody.replace(
+        new RegExp(YOUTUBE_REGEX.source, YOUTUBE_REGEX.flags),
         '',
       );
       let html = renderMarkdown(safeBody);
@@ -2078,6 +2125,23 @@ export function HiveDetailPost({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* YouTube videos pulled from body URLs. */}
+            {youtubeBodyRefs.length > 0 && (
+              <div className="space-y-3 pb-4">
+                {youtubeBodyRefs.map((id) => (
+                  <div key={id} className="overflow-hidden rounded-xl bg-black" style={{ aspectRatio: '16/9' }}>
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${id}?rel=0&playsinline=1`}
+                      title="YouTube Video"
+                      className="h-full w-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ))}
               </div>
             )}
 
