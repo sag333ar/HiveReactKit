@@ -27,6 +27,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 //     ancestor, so each feed paginates on its own until exhausted.
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
+import { ArrowUp } from 'lucide-react';
 import FeedSegmentControl from './FeedSegmentControl';
 import type { RewardOption } from '../../utils/commentOptions';
 
@@ -40,6 +41,9 @@ export interface SnapsFeedSlot {
   error?: string | null;
   onLoadMore?: () => void;
   onRefresh?: () => void;
+  newCount?: number;
+  newAvatars?: string[];
+  onShowNew?: () => void;
 }
 
 export interface SnapsFeedViewProps {
@@ -167,6 +171,7 @@ export interface SnapsFeedViewProps {
    *  page-level scrollbar instead of four independent ones. Column
    *  headers stay visible via `sticky top-0`. Mobile is unaffected. */
   pageScroll?: boolean;
+  onActiveFeedChange?: (feed: SnapsFeedKey) => void;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -275,6 +280,7 @@ export function SnapsFeedView({
   renderHeaderActions,
   actionsAsMenu,
   pageScroll,
+  onActiveFeedChange,
 }: SnapsFeedViewProps) {
   const cols = useFeedColumnCount();
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
@@ -294,7 +300,50 @@ export function SnapsFeedView({
   // Keep the module cache in sync on every change.
   useEffect(() => {
     lastActiveFeed = activeFeed;
-  }, [activeFeed]);
+    if (onActiveFeedChange) onActiveFeedChange(activeFeed);
+  }, [activeFeed, onActiveFeedChange]);
+
+  const [scrolledFeeds, setScrolledFeeds] = useState<Record<SnapsFeedKey, boolean>>({
+    snaps: false,
+    ecency: false,
+    threads: false,
+    liketu: false,
+  });
+  const [mobileScrolled, setMobileScrolled] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Monitor parent scrolling for mobile layout
+  useEffect(() => {
+    if (cols !== 1) return;
+    let scrollParent: HTMLElement | Window | null = null;
+    let curr: HTMLElement | null = containerRef.current;
+    while (curr) {
+      const overflow = window.getComputedStyle(curr).overflowY;
+      if (curr.scrollHeight > curr.clientHeight && (overflow === 'auto' || overflow === 'scroll')) {
+        scrollParent = curr;
+        break;
+      }
+      curr = curr.parentElement;
+    }
+    if (!scrollParent) {
+      scrollParent = window;
+    }
+
+    const handleScroll = () => {
+      const scrollTop = scrollParent === window 
+        ? window.scrollY 
+        : (scrollParent as HTMLElement).scrollTop;
+      setMobileScrolled(scrollTop > 150);
+    };
+
+    scrollParent.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => {
+      if (scrollParent) {
+        scrollParent.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [cols]);
 
   // Per-column scroll containers. Restored from `scrollCache` on
   // mount; saved into `scrollCache` on unmount via the cleanup of a
@@ -341,9 +390,17 @@ export function SnapsFeedView({
     for (const key of ['snaps', 'ecency', 'threads', 'liketu'] as SnapsFeedKey[]) {
       const el = columnRefs.current[key];
       if (!el) continue;
-      const fn = () => { scrollCache[key] = el.scrollTop; };
+      const fn = () => {
+        scrollCache[key] = el.scrollTop;
+        const isScrolled = el.scrollTop > 150;
+        setScrolledFeeds((prev) => {
+          if (prev[key] === isScrolled) return prev;
+          return { ...prev, [key]: isScrolled };
+        });
+      };
       el.addEventListener('scroll', fn, { passive: true });
       handlers.push({ el, fn, key });
+      fn();
     }
     return () => { for (const h of handlers) h.el.removeEventListener('scroll', h.fn); };
   }, [cols]);
@@ -445,8 +502,11 @@ export function SnapsFeedView({
 
   // ── Mobile: single column with pill switcher ─────────────────────────
   if (cols === 1) {
+    const slot = feeds[activeFeed];
+    const showPill = !!(slot && slot.newCount && slot.newCount > 0 && mobileScrolled);
+
     return (
-      <div className="mx-auto flex max-w-[720px] flex-col gap-3">
+      <div ref={containerRef} className="mx-auto flex max-w-[720px] flex-col gap-3">
         <div className="sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2">
           <div className="overflow-x-auto min-w-0 flex-1 scrollbar-none">
             <FeedSegmentControl
@@ -461,7 +521,33 @@ export function SnapsFeedView({
             </div>
           )}
         </div>
-        <div className="flex flex-col">{renderBody(activeFeed)}</div>
+        <div className="relative flex flex-col">
+          {showPill && (
+            <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
+              <button
+                type="button"
+                onClick={slot.onShowNew}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1d9bf0] px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-[#1a8cd8] active:scale-95 cursor-pointer"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                {slot.newAvatars && slot.newAvatars.length > 0 && (
+                  <div className="flex -space-x-1.5 overflow-hidden mr-1">
+                    {slot.newAvatars.slice(0, 3).map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt=""
+                        className="inline-block h-5 w-5 rounded-full ring-2 ring-[#1d9bf0] object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+                <span>{slot.newCount} posted</span>
+              </button>
+            </div>
+          )}
+          {renderBody(activeFeed)}
+        </div>
         {footer}
       </div>
     );
@@ -479,27 +565,55 @@ export function SnapsFeedView({
   // ancestor it finds, so pagination works in both modes.
   if (pageScroll) {
     return (
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
+      <div ref={containerRef} className="mx-auto flex max-w-[1600px] flex-col gap-3">
         {toolbar}
         <div className="grid grid-cols-4 gap-4">
-          {feedOptions.map((k) => (
-            <div key={k} className="flex flex-col">
-              <h2 className="sticky top-0 z-10 mb-3 flex shrink-0 items-center gap-2 bg-[var(--hrk-bg-app)]/95 py-1 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)] backdrop-blur">
-                <img
-                  src={finalAvatars[k]}
-                  alt=""
-                  className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
-                />
-                {finalLabels[k]}
-              </h2>
-              {/* No per-column overflow — content grows naturally and the
-                  page wrapper handles scrolling. The columnRef is still
-                  attached so SnapsFeedList knows what to observe. */}
-              <div ref={setColumnRef(k)} className="pr-1">
-                {renderBody(k)}
+          {feedOptions.map((k) => {
+            const slot = feeds[k];
+            const showPill = !!(slot && slot.newCount && slot.newCount > 0 && mobileScrolled);
+            return (
+              <div key={k} className="relative flex flex-col">
+                <h2 className="sticky top-0 z-10 mb-3 flex shrink-0 items-center gap-2 bg-[var(--hrk-bg-app)]/95 py-1 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)] backdrop-blur">
+                  <img
+                    src={finalAvatars[k]}
+                    alt=""
+                    className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
+                  />
+                  {finalLabels[k]}
+                </h2>
+                {showPill && (
+                  <div className="sticky top-12 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
+                    <button
+                      type="button"
+                      onClick={slot.onShowNew}
+                      className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1d9bf0] px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-[#1a8cd8] active:scale-95 cursor-pointer"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                      {slot.newAvatars && slot.newAvatars.length > 0 && (
+                        <div className="flex -space-x-1.5 overflow-hidden mr-1">
+                          {slot.newAvatars.slice(0, 3).map((url, idx) => (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt=""
+                              className="inline-block h-5 w-5 rounded-full ring-2 ring-[#1d9bf0] object-cover"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <span>{slot.newCount} posted</span>
+                    </button>
+                  </div>
+                )}
+                {/* No per-column overflow — content grows naturally and the
+                    page wrapper handles scrolling. The columnRef is still
+                    attached so SnapsFeedList knows what to observe. */}
+                <div ref={setColumnRef(k)} className="pr-1">
+                  {renderBody(k)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {footer}
       </div>
@@ -509,30 +623,62 @@ export function SnapsFeedView({
 
   return (
     <div
-      ref={desktopWrapperRef}
+      ref={(el) => {
+        desktopWrapperRef.current = el;
+        containerRef.current = el;
+      }}
       className="mx-auto flex h-full min-h-0 max-w-[1600px] flex-col gap-3"
     >
       {toolbar}
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-4">
-        {feedOptions.map((k) => (
-          <div key={k} className="flex h-full min-h-0 flex-col">
-            <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
-              <img
-                src={finalAvatars[k]}
-                alt=""
-                className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
-              />
-              {finalLabels[k]}
-            </h2>
-            <div
-              ref={setColumnRef(k)}
-              data-snaps-column-body
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 hrk-feed-column-scroll"
-            >
-              {renderBody(k)}
+        {feedOptions.map((k) => {
+          const slot = feeds[k];
+          const isColumnScrolled = scrolledFeeds[k];
+          const showPill = !!(slot && slot.newCount && slot.newCount > 0 && isColumnScrolled);
+          return (
+            <div key={k} className="flex h-full min-h-0 flex-col">
+              <h2 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
+                <img
+                  src={finalAvatars[k]}
+                  alt=""
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-[var(--hrk-border-default)]"
+                />
+                {finalLabels[k]}
+              </h2>
+              <div
+                ref={setColumnRef(k)}
+                data-snaps-column-body
+                className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 hrk-feed-column-scroll"
+              >
+                {showPill && (
+                  <div className="sticky top-2 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
+                    <button
+                      type="button"
+                      onClick={slot.onShowNew}
+                      className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1d9bf0] px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-[#1a8cd8] active:scale-95 cursor-pointer"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                      {slot.newAvatars && slot.newAvatars.length > 0 && (
+                        <div className="flex -space-x-1.5 overflow-hidden mr-1">
+                          {slot.newAvatars.slice(0, 3).map((url, idx) => (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt=""
+                              className="inline-block h-5 w-5 rounded-full ring-2 ring-[#1d9bf0] object-cover"
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <span>{slot.newCount} posted</span>
+                    </button>
+                  </div>
+                )}
+                {renderBody(k)}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {footer}
     </div>
