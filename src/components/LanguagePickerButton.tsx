@@ -29,6 +29,10 @@ interface LanguagePickerButtonProps {
   /** Optional override for the language list. Defaults to the same
    *  15-language set used by the selection-translate popover. */
   languages?: SelectionTranslateLanguage[];
+  /** Optional class name to override styling. */
+  className?: string;
+  /** Optional flag to render as a menu item instead of header button. */
+  isMenuItem?: boolean;
 }
 
 const MENU_WIDTH = 220;
@@ -38,6 +42,8 @@ export function LanguagePickerButton({
   language,
   onSelectLanguage,
   languages = DEFAULT_TRANSLATE_LANGUAGES,
+  className,
+  isMenuItem = false,
 }: LanguagePickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -100,7 +106,7 @@ export function LanguagePickerButton({
               top: pos.top,
               left: pos.left,
               width: MENU_WIDTH,
-              zIndex: 2000,
+              zIndex: 2010,
             }}
             className="overflow-hidden rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
@@ -136,8 +142,8 @@ export function LanguagePickerButton({
             </ul>
           </div>,
           document.body,
-        )
-      : null;
+          )
+        : null;
 
   return (
     <>
@@ -153,13 +159,17 @@ export function LanguagePickerButton({
         aria-haspopup="menu"
         aria-expanded={open}
         className={
-          "p-1.5 rounded-lg transition-colors flex-shrink-0 " +
-          (isTranslated
-            ? "bg-[var(--hrk-brand-soft)] text-[var(--hrk-brand)] hover:bg-[var(--hrk-bg-hover)]"
-            : "hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-secondary)]")
+          isMenuItem
+            ? "flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+            : "p-1.5 rounded-lg transition-colors flex-shrink-0 " +
+              (isTranslated
+                ? "bg-[var(--hrk-brand-soft)] text-[var(--hrk-brand)] hover:bg-[var(--hrk-bg-hover)]"
+                : "hover:bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-secondary)]") +
+              (className ? " " + className : "")
         }
       >
-        <Globe className="h-5 w-5" />
+        <Globe className={isMenuItem ? "h-3.5 w-3.5 text-gray-300" : "h-5 w-5"} />
+        {isMenuItem ? <span>Translate</span> : null}
       </button>
       {menu}
     </>

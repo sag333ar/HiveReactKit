@@ -32,6 +32,7 @@ import {
   Square,
   X,
   Repeat2,
+  Globe,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -1013,7 +1014,7 @@ export function HiveDetailPost({
       //     we remove the whole link construct here — BEFORE the bare-
       //     URL strip, which would otherwise gut the URL inside `(…)`
       //     and break these matches.
-      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/[^)\s]+`;
+      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/(?:watch\?|embed\?|v\/)[^)\s]+`;
       // Linked thumbnail image: `[![alt](img)](3speak-url)`.
       safeBody = safeBody.replace(
         new RegExp(String.raw`\[!\[[^\]]*\]\([^)]*\)\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
@@ -1134,6 +1135,16 @@ export function HiveDetailPost({
         (_match: string, before: string, alt: string, after: string) => {
           const imgTag = `<img ${before}alt="${alt}"${after}>`;
           return `<figure class="hive-img-figure">${imgTag}</figure>`;
+        }
+      );
+
+      // Group adjacent <figure> tags into an image gallery
+      html = html.replace(
+        /(?:<figure class="hive-img-figure">[\s\S]*?<\/figure>(?:\s*<br\s*\/?>\s*|\s+)?){2,}/gi,
+        (match) => {
+          // Remove the <br> tags between figures
+          const cleaned = match.replace(/\s*<br\s*\/?>\s*/gi, '');
+          return `<span class="hive-image-gallery">${cleaned}</span>`;
         }
       );
       return html;
@@ -1949,6 +1960,7 @@ export function HiveDetailPost({
               <LanguagePickerButton
                 language={language}
                 onSelectLanguage={onSelectLanguage}
+                className="hidden sm:block"
               />
             )}
 
@@ -1956,7 +1968,7 @@ export function HiveDetailPost({
             {typeof window !== 'undefined' && !!window.speechSynthesis && (
               <button
                 onClick={handleSpeechToggle}
-                className={`p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0 ${isSpeaking ? 'text-[var(--hrk-brand)] bg-[var(--hrk-bg-surface-raised)]' : 'text-[var(--hrk-text-secondary)]'}`}
+                className={`hidden sm:block p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0 ${isSpeaking ? 'text-[var(--hrk-brand)] bg-[var(--hrk-bg-surface-raised)]' : 'text-[var(--hrk-text-secondary)]'}`}
                 aria-label={isSpeaking ? "Stop reading post" : "Read post aloud"}
                 title={isSpeaking ? "Stop reading post" : "Read post aloud"}
               >
@@ -2015,6 +2027,10 @@ export function HiveDetailPost({
                       : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),
                   })
                 : undefined}
+              language={language}
+              onSelectLanguage={onSelectLanguage}
+              isSpeaking={isSpeaking}
+              onSpeechToggle={handleSpeechToggle}
             />
             {onOpenProfileMenu && (
               <button
@@ -2532,6 +2548,10 @@ interface HeaderMoreMenuProps {
   onEdit?: () => void;
   onReblog?: () => void;
   isReblogged?: boolean;
+  language?: string;
+  onSelectLanguage?: (code: string) => void;
+  isSpeaking?: boolean;
+  onSpeechToggle?: () => void;
 }
 
 const HEADER_MENU_WIDTH = 180;
@@ -2547,6 +2567,10 @@ function HeaderMoreMenu({
   onEdit,
   onReblog,
   isReblogged = false,
+  language,
+  onSelectLanguage,
+  isSpeaking = false,
+  onSpeechToggle,
 }: HeaderMoreMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -2600,7 +2624,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog && !onSelectLanguage && !onSpeechToggle) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -2699,6 +2723,38 @@ function HeaderMoreMenu({
               >
                 <FileCode2 className="h-3.5 w-3.5 text-gray-300" />
                 <span>View Raw</span>
+              </button>
+            )}
+            {onSelectLanguage && language !== undefined && (
+              <div className="sm:hidden">
+                <LanguagePickerButton
+                  language={language}
+                  onSelectLanguage={(langCode) => {
+                    setOpen(false);
+                    onSelectLanguage(langCode);
+                  }}
+                  isMenuItem={true}
+                />
+              </div>
+            )}
+            {typeof window !== 'undefined' && !!window.speechSynthesis && onSpeechToggle && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onSpeechToggle)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)] sm:hidden"
+              >
+                {isSpeaking ? (
+                  <>
+                    <VolumeX className="h-3.5 w-3.5 text-red-400 animate-pulse" />
+                    <span>Stop reading</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 className="h-3.5 w-3.5 text-gray-300" />
+                    <span>Read aloud</span>
+                  </>
+                )}
               </button>
             )}
             {onReport && (

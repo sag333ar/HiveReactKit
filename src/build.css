@@ -136,9 +136,32 @@
 .hive-post-body img {
   max-width: 100%;
   height: auto;
+  max-height: 80vh;
+  object-fit: contain;
   border-radius: 0.75rem;
   margin: 1rem auto;
   display: block;
+}
+
+/* Image Gallery (Consecutive Images) */
+.hive-post-body .hive-image-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  justify-content: center;
+}
+.hive-post-body .hive-image-gallery .hive-img-figure {
+  flex: 1 1 0%;
+  min-width: 200px;
+  margin: 0;
+}
+.hive-post-body .hive-image-gallery .hive-img-figure img {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-height: 80vh;
 }
 .hive-post-body blockquote {
   border-left: 4px solid #3b82f680;
@@ -540,6 +563,8 @@
 .snaps-feed-body img {
   max-width: 100%;
   height: auto;
+  max-height: 80vh;
+  object-fit: contain;
   border-radius: 0.5rem;
   margin: 0.25rem 0;
 }
