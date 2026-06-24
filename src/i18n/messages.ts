@@ -21,8 +21,8 @@ export type KitMessageKey =
   | "tab.blogs" | "tab.posts" | "tab.snaps" | "tab.polls"
   | "tab.comments" | "tab.replies" | "tab.activities"
   | "tab.authorRewards" | "tab.curationRewards" | "tab.growth"
-  | "tab.followers" | "tab.following" | "tab.wallet"
-  | "tab.engineTokens"
+  | "tab.followers" | "tab.following" | "tab.follows" | "tab.wallet"
+  | "tab.engineTokens" | "tab.rewards"
   | "tab.votingPower" | "tab.badges" | "tab.witnessVotes"
   | "tab.curation"
   // Profile meta
@@ -74,12 +74,14 @@ const en: Record<KitMessageKey, string> = {
   "tab.growth": "Growth",
   "tab.followers": "Followers",
   "tab.following": "Following",
+  "tab.follows": "Follows",
   "tab.wallet": "Wallet",
   "tab.engineTokens": "Tokens",
   "tab.votingPower": "Voting Power",
   "tab.badges": "Badges",
   "tab.witnessVotes": "Witness Votes",
   "tab.curation": "Curation",
+  "tab.rewards": "Rewards",
 
   // Profile meta
   "meta.followers": "Followers",
@@ -177,12 +179,14 @@ const es: Record<KitMessageKey, string> = {
   "tab.growth": "Crecimiento",
   "tab.followers": "Seguidores",
   "tab.following": "Siguiendo",
+  "tab.follows": "Conexiones",
   "tab.wallet": "Cartera",
   "tab.engineTokens": "Tokens",
   "tab.votingPower": "Poder de voto",
   "tab.badges": "Insignias",
   "tab.witnessVotes": "Votos de testigo",
   "tab.curation": "Curación",
+  "tab.rewards": "Recompensas",
 
   // Profile meta
   "meta.followers": "Seguidores",

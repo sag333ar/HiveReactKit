@@ -98,8 +98,22 @@ export interface UserDetailProfileProps {
    */
   activeTab?: TabType;
   /** Called whenever the user clicks a different tab. Fires whether or
-   *  not `activeTab` is supplied. */
+   *  not `activeTab` is supplied. Always fires with the PARENT tab name
+   *  (e.g. `"posts"`, not `"blogs"`). */
   onActiveTabChange?: (tab: TabType) => void;
+  /**
+   * Called whenever the user switches a sub-tab toggle (Blogs/Posts,
+   * Comments/Replies, etc.). Receives both the parent tab name and the
+   * sub-tab name so the host app can sync the URL (e.g. `?subtab=blogs`).
+   */
+  onSubTabChange?: (parentTab: TabType, subTab: string) => void;
+  /**
+   * Initial sub-tab to activate within the parent `activeTab`. Lets the
+   * host app restore a sub-tab from the URL on first render.
+   * E.g. `initialSubTab="replies"` opens the Replies sub-tab inside the
+   * parent Replies tab.
+   */
+  initialSubTab?: string;
 
   // Composer tokens (threaded to AddCommentInput via PostActionButton → CommentsModal)
   /** Ecency image hosting token — enables image and video thumbnail upload in comment composer */
@@ -362,7 +376,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -518,26 +532,181 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onPostingAuthority,
   activeTab: controlledActiveTab,
   onActiveTabChange,
+  onSubTabChange,
+  initialSubTab,
 }) => {
   const t = useKitT();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Default to the first tab in tabShown (or "blogs" when tabShown is omitted)
-  // so we never briefly render a tab the consumer didn't include.
+  const isControlled = controlledActiveTab !== undefined;
   const initialTab: TabType = controlledActiveTab
     ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
-  const [internalActiveTab, setInternalActiveTab] = useState<TabType>(initialTab);
-  const isControlled = controlledActiveTab !== undefined;
-  const activeTab: TabType = isControlled ? (controlledActiveTab as TabType) : internalActiveTab;
-  // Centralised setter so every internal call site (cache restore, tab
-  // clicks, follower/following deep-links) also notifies the parent when
-  // controlled — and updates internal state when uncontrolled.
+
+  // Tab mapping helper to translate individual sub-tabs into their parent tab groups.
+  const mapToParentTab = useCallback((tab: TabType): TabType => {
+    if (tab === "blogs" || tab === "posts") return "posts";
+    if (tab === "comments" || tab === "replies") return "replies";
+    if (tab === "authorRewards" || tab === "curationRewards" || tab === "rewards") return "rewards";
+    if (tab === "followers" || tab === "following" || tab === "follows") return "followers";
+    if (tab === "activities" || tab === "curation") return "activities";
+    if (tab === "wallet" || tab === "votingPower" || tab === "tokens") return "wallet";
+    return tab;
+  }, []);
+
+  const normalizedInitialTab = mapToParentTab(initialTab);
+  const [internalActiveTab, setInternalActiveTab] = useState<TabType>(normalizedInitialTab);
+
+  const rawActiveTab: TabType = isControlled ? (controlledActiveTab as TabType) : internalActiveTab;
+  const activeTab: TabType = mapToParentTab(rawActiveTab);
+
+  // Sub-tab states — initialize from initialSubTab prop so host apps can
+  // restore sub-tabs from URL params (e.g. ?subtab=replies).
+  const [postsSubTab, setPostsSubTab] = useState<"blogs" | "posts">(
+    (initialSubTab === "posts" || initialSubTab === "blogs")
+      ? initialSubTab as "blogs" | "posts"
+      : (initialTab === "posts" ? "posts" : "blogs")
+  );
+  const [repliesSubTab, setRepliesSubTab] = useState<"comments" | "replies">(
+    (initialSubTab === "replies" || initialSubTab === "comments")
+      ? initialSubTab as "comments" | "replies"
+      : (initialTab === "replies" ? "replies" : "comments")
+  );
+  const [rewardsSubTab, setRewardsSubTab] = useState<"authorRewards" | "curationRewards">(
+    (initialSubTab === "authorRewards" || initialSubTab === "curationRewards")
+      ? initialSubTab as "authorRewards" | "curationRewards"
+      : (initialTab === "curationRewards" ? "curationRewards" : "authorRewards")
+  );
+  const [followsSubTab, setFollowsSubTab] = useState<"followers" | "following">(
+    (initialSubTab === "following" || initialSubTab === "followers")
+      ? initialSubTab as "followers" | "following"
+      : (initialTab === "following" ? "following" : "followers")
+  );
+  const [activitiesSubTab, setActivitiesSubTab] = useState<"activities" | "curation">(
+    (initialSubTab === "curation" || initialSubTab === "activities")
+      ? initialSubTab as "activities" | "curation"
+      : (initialTab === "curation" ? "curation" : "activities")
+  );
+  const [walletSubTab, setWalletSubTab] = useState<"wallet" | "tokens" | "votingPower">(
+    (initialSubTab === "votingPower" || initialSubTab === "tokens" || initialSubTab === "wallet")
+      ? initialSubTab as "wallet" | "tokens" | "votingPower"
+      : (initialTab === "votingPower" ? "votingPower" : (walletInitialView === "tokens" ? "tokens" : "wallet"))
+  );
+
+  // Sync sub-tab states when initialSubTab changes
+  useEffect(() => {
+    if (!initialSubTab) return;
+    if (initialSubTab === "blogs" || initialSubTab === "posts") {
+      setPostsSubTab(initialSubTab);
+    } else if (initialSubTab === "comments" || initialSubTab === "replies") {
+      setRepliesSubTab(initialSubTab);
+    } else if (initialSubTab === "authorRewards" || initialSubTab === "curationRewards") {
+      setRewardsSubTab(initialSubTab);
+    } else if (initialSubTab === "followers" || initialSubTab === "following") {
+      setFollowsSubTab(initialSubTab);
+    } else if (initialSubTab === "activities" || initialSubTab === "curation") {
+      setActivitiesSubTab(initialSubTab);
+    } else if (initialSubTab === "wallet" || initialSubTab === "tokens" || initialSubTab === "votingPower") {
+      setWalletSubTab(initialSubTab as "wallet" | "tokens" | "votingPower");
+    }
+  }, [initialSubTab]);
+
+  // Sync default sub-tab states when parent controlledActiveTab changes from outside
+  const parent = controlledActiveTab ? mapToParentTab(controlledActiveTab as TabType) : null;
+  useEffect(() => {
+    if (!parent) return;
+    if (prevParentRef.current !== parent) {
+      if (parent === "posts" && (!initialSubTab || (initialSubTab !== "blogs" && initialSubTab !== "posts"))) {
+        setPostsSubTab("blogs");
+      } else if (parent === "replies" && (!initialSubTab || (initialSubTab !== "comments" && initialSubTab !== "replies"))) {
+        setRepliesSubTab("comments");
+      } else if (parent === "rewards" && (!initialSubTab || (initialSubTab !== "authorRewards" && initialSubTab !== "curationRewards"))) {
+        setRewardsSubTab("authorRewards");
+      } else if (parent === "followers" && (!initialSubTab || (initialSubTab !== "followers" && initialSubTab !== "following"))) {
+        setFollowsSubTab("followers");
+      } else if (parent === "activities" && (!initialSubTab || (initialSubTab !== "activities" && initialSubTab !== "curation"))) {
+        setActivitiesSubTab("activities");
+      } else if (parent === "wallet" && (!initialSubTab || (initialSubTab !== "wallet" && initialSubTab !== "tokens" && initialSubTab !== "votingPower"))) {
+        setWalletSubTab("wallet");
+      }
+      prevParentRef.current = parent;
+    }
+  }, [parent, initialSubTab]);
+
+  // Sync wallet view changes
+  useEffect(() => {
+    if (walletInitialView === "tokens") {
+      setWalletSubTab("tokens");
+    } else if (walletInitialView === "wallet" && walletSubTab === "tokens") {
+      setWalletSubTab("wallet");
+    }
+  }, [walletInitialView]);
+
+  const getSubTabToReport = useCallback((parent: TabType): TabType => {
+    if (parent === "posts") return postsSubTab;
+    if (parent === "replies") return repliesSubTab;
+    if (parent === "rewards") return rewardsSubTab;
+    if (parent === "followers") return followsSubTab;
+    if (parent === "activities") return activitiesSubTab;
+    if (parent === "wallet") return walletSubTab;
+    return parent;
+  }, [postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab]);
+
+  // Centralised setter — maps sub-tab clicks to their parent & updates sub-tab state.
+  // IMPORTANT: always report the PARENT tab via onActiveTabChange so that consumers
+  // that validate against a parent-tab list (e.g. effectiveProfileTabs) don't get a
+  // sub-tab name they can't resolve, causing the view to snap back to the first tab.
   const setActiveTab = useCallback((next: TabType) => {
-    if (!isControlled) setInternalActiveTab(next);
-    onActiveTabChange?.(next);
-  }, [isControlled, onActiveTabChange]);
+    const parent = mapToParentTab(next);
+    const currentParent = mapToParentTab(rawActiveTab);
+
+    const isSubTabChange = parent === currentParent && (
+      (parent === "posts" && postsSubTab !== next) ||
+      (parent === "replies" && repliesSubTab !== next) ||
+      (parent === "rewards" && rewardsSubTab !== next) ||
+      (parent === "followers" && followsSubTab !== next) ||
+      (parent === "activities" && activitiesSubTab !== next) ||
+      (parent === "wallet" && walletSubTab !== next)
+    );
+
+    if (isSubTabChange) {
+      // Clicking a sub-tab toggle — update internal sub-tab state only
+      if (next === "blogs" || next === "posts") { setPostsSubTab(next); onSubTabChange?.("posts", next); }
+      else if (next === "comments" || next === "replies") { setRepliesSubTab(next); onSubTabChange?.("replies", next); }
+      else if (next === "authorRewards" || next === "curationRewards") { setRewardsSubTab(next); onSubTabChange?.("rewards", next); }
+      else if (next === "followers" || next === "following") { setFollowsSubTab(next); onSubTabChange?.("followers", next); }
+      else if (next === "activities" || next === "curation") { setActivitiesSubTab(next); onSubTabChange?.("activities", next); }
+      else if (next === "wallet" || next === "tokens" || next === "votingPower") {
+        setWalletSubTab(next as "wallet" | "tokens" | "votingPower");
+        onSubTabChange?.("wallet", next);
+      }
+
+      // Wallet view changes also notify via the dedicated onWalletViewChange prop.
+      if (parent === "wallet" && next === "tokens") {
+        onWalletViewChange?.("tokens");
+      } else if (parent === "wallet" && next === "wallet") {
+        onWalletViewChange?.("wallet");
+      }
+    } else if (parent !== currentParent) {
+      // Clicking a DIFFERENT parent tab in the tab bar — reset sub-tab to first default
+      if (parent === "posts") { setPostsSubTab("blogs"); }
+      else if (parent === "replies") { setRepliesSubTab("comments"); }
+      else if (parent === "rewards") { setRewardsSubTab("authorRewards"); }
+      else if (parent === "followers") { setFollowsSubTab("followers"); }
+      else if (parent === "activities") { setActivitiesSubTab("activities"); }
+      else if (parent === "wallet") { setWalletSubTab("wallet"); }
+
+      if (!isControlled) {
+        setInternalActiveTab(parent);
+      }
+      onActiveTabChange?.(parent);
+    }
+  }, [
+    isControlled, onActiveTabChange, onSubTabChange, onWalletViewChange, mapToParentTab, rawActiveTab,
+    postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
+  ]);
   const prevUsernameRef = useRef<string>("");
+  const prevParentRef = useRef<TabType | null>(null);
   const activeTabRef = useRef<TabType>(activeTab);
   activeTabRef.current = activeTab;
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
@@ -583,8 +752,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
-    activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false,
-    votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true,
+    activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false,
+    votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -851,7 +1020,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     // the controlled value alone (calling setActiveTab here would call
     // onActiveTabChange and force the parent off its remembered tab).
     if (!isControlled) {
-      setActiveTab(cachedTabValid ? (cached!.tab as TabType) : firstTab);
+      const tabToRestore = cachedTabValid ? (cached!.tab as TabType) : firstTab;
+      setInternalActiveTab(mapToParentTab(tabToRestore));
+      onActiveTabChange?.(tabToRestore);
     }
     // Restore scroll positions after render
     requestAnimationFrame(() => {
@@ -863,7 +1034,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         tabScrollRef.current?.scrollTo({ left: 0 });
       }
     });
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true });
+    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
     setBadges([]);
     setBadgeAccounts([]);
     setHivebuzzBadges([]);
@@ -897,46 +1068,47 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setLoadingContent(true);
       setRewardsStillLoading(false);
 
-      // Clear stale reward data when switching to reward tabs
-      if (activeTab === "authorRewards") {
+      // Clear stale reward data when switching to rewards parent tab
+      if (activeTab === "rewards") {
         setAuthorRewards([]);
         setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
-      }
-      if (activeTab === "curationRewards") {
         setCurationRewards([]);
         setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
       }
 
       try {
         switch (activeTab) {
-          case "curation": {
-            const VOTE_FILTER_LOW = (1n << 0n).toString();
-            const raw = await activityListService.getAccountHistory(
-              targetUsername,
-              -1,
-              100,
-              VOTE_FILTER_LOW,
-              '0'
-            );
-            const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
-            const voterItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
-            voterItems.sort((a, b) => b.index - a.index);
-            setCurations(voterItems);
-            const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
-            setLowestCurationIndex(lowestIndex);
-            setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
-            break;
-          }
-          case "blogs": {
-            const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
-            setBlogs(data);
-            setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
+          case "activities": {
+            if (activitiesSubTab === "curation") {
+              const VOTE_FILTER_LOW = (1n << 0n).toString();
+              const raw = await activityListService.getAccountHistory(
+                targetUsername,
+                -1,
+                100,
+                VOTE_FILTER_LOW,
+                '0'
+              );
+              const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
+              const voterItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+              voterItems.sort((a, b) => b.index - a.index);
+              setCurations(voterItems);
+              const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+              setLowestCurationIndex(lowestIndex);
+              setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
+            }
+            // "activities" sub-tab data is handled by the <ActivityList> component itself
             break;
           }
           case "posts": {
-            const data = filterPost(await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal));
-            setPosts(data);
-            setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
+            if (postsSubTab === "blogs") {
+              const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              setBlogs(data);
+              setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
+            } else {
+              const data = filterPost(await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              setPosts(data);
+              setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
+            }
             break;
           }
           case "snaps": {
@@ -950,163 +1122,159 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             setHasMore((prev) => ({ ...prev, polls: false }));
             break;
           }
-          case "comments": {
-            const data = filterPost(await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal));
-            setComments(data);
-            setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
-            break;
-          }
           case "replies": {
-            // Same shape as the Comments tab. The ONE difference that
-            // matters: replies come from many authors, so `filterPost`
-            // (ignored / reported authors) can shrink the page below
-            // PAGE_SIZE even when more pages exist — so `hasMore` is
-            // decided from the RAW fetched count, and we filter only
-            // for display. (Comments are single-author, so it never
-            // hit this.)
-            const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal);
-            setReplies(filterPost(raw));
-            setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
+            if (repliesSubTab === "comments") {
+              const data = filterPost(await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              setComments(data);
+              setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
+            } else {
+              const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+              setReplies(filterPost(raw));
+              setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
+            }
             break;
           }
           case "followers": {
-            const data = await userService.getFollowers(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
-            setFollowers(data);
-            setHasMore((prev) => ({ ...prev, followers: data.length >= FOLLOWER_PAGE_SIZE }));
-            break;
-          }
-          case "following": {
-            const data = await userService.getFollowing(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
-            setFollowing(data);
-            setHasMore((prev) => ({ ...prev, following: data.length >= FOLLOWER_PAGE_SIZE }));
-            break;
-          }
-          case "authorRewards": {
-            setRewardsStillLoading(true);
-            const data = await userService.getPendingAuthorRewards(
-              targetUsername,
-              (rows, totalHbd, totalHpEq) => {
-                if (signal.aborted) return;
-                setAuthorRewards([...rows]);
-                setAuthorRewardsTotals({ totalHbd, totalHpEq });
-                setLoadingContent(false);
-              },
-              signal
-            );
-            setAuthorRewards(data.rows);
-            setAuthorRewardsTotals({ totalHbd: data.totalHbd, totalHpEq: data.totalHpEq });
-            setRewardsStillLoading(false);
-            break;
-          }
-          case "curationRewards": {
-            setRewardsStillLoading(true);
-            const data = await userService.getPendingCurationRewards(
-              targetUsername,
-              (rows, totalHp, totalHbd) => {
-                if (signal.aborted) return;
-                setCurationRewards([...rows]);
-                setCurationRewardsTotals({ totalHp, totalHbd });
-                setLoadingContent(false);
-              },
-              signal
-            );
-            setCurationRewards(data.rows);
-            setCurationRewardsTotals({ totalHp: data.totalHp, totalHbd: data.totalHbd });
-            setRewardsStillLoading(false);
-            break;
-          }
-          case "votingPower": {
-            const [accounts, , feedHistory] = await Promise.all([
-              userService.getAccounts([targetUsername], signal),
-              userService.getDynamicGlobalProperties(signal),
-              userService.getFeedHistory(signal),
-            ]);
-            const account = accounts?.[0];
-            if (account) {
-              const HIVE_VOTING_MANA_REGENERATION_SECONDS = 5 * 60 * 60 * 24;
-              const parseAsset = (v: any) => parseFloat(String(v).split(" ")[0]) || 0;
-
-              // Effective vesting shares
-              const effectiveVests =
-                parseAsset(account.vesting_shares) +
-                parseAsset(account.received_vesting_shares) -
-                parseAsset(account.delegated_vesting_shares);
-              const maxMana = effectiveVests * 1000000;
-
-              // Upvote power — regenerate from voting_manabar
-              const elapsedUp = Math.floor(Date.now() / 1000) - account.voting_manabar.last_update_time;
-              let currentManaUp = parseFloat(String(account.voting_manabar.current_mana)) +
-                (elapsedUp * maxMana) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
-              if (currentManaUp > maxMana) currentManaUp = maxMana;
-              const upvotePower = maxMana > 0 ? (currentManaUp / maxMana) * 100 : 0;
-
-              // Downvote power — regenerate from downvote_manabar
-              const maxManaDown = maxMana / 4;
-              const elapsedDown = Math.floor(Date.now() / 1000) - account.downvote_manabar.last_update_time;
-              let currentManaDown = parseFloat(String(account.downvote_manabar.current_mana)) +
-                (elapsedDown * maxManaDown) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
-              if (currentManaDown > maxManaDown) currentManaDown = maxManaDown;
-              const downvotePower = maxManaDown > 0 ? (currentManaDown / maxManaDown) * 100 : 0;
-
-              // Resource credits
-              let resourceCredits = 0;
-              try {
-                const rcResp = await fetch(getHiveApiEndpoint(), {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ jsonrpc: "2.0", method: "rc_api.find_rc_accounts", params: { accounts: [targetUsername] }, id: 1 }),
-                  signal,
-                });
-                const rcData = await rcResp.json();
-                const rcAccount = rcData?.result?.rc_accounts?.[0];
-                if (rcAccount) {
-                  const rcCurrent = parseFloat(rcAccount.rc_manabar.current_mana);
-                  const rcMax = parseFloat(rcAccount.max_rc);
-                  if (rcMax > 0) resourceCredits = (rcCurrent / rcMax) * 100;
-                }
-              } catch {
-                // RC fetch failed — leave at 0
-              }
-
-              // Reward fund & price feed for vote value slider
-              let rewardBalance = 0;
-              let recentClaims = 0;
-              let feedPrice = 0;
-              try {
-                const rfResp = await fetch(getHiveApiEndpoint(), {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_reward_fund", params: ["post"], id: 1 }),
-                  signal,
-                });
-                const rfData = await rfResp.json();
-                const rf = rfData?.result;
-                if (rf) {
-                  rewardBalance = parseAsset(rf.reward_balance);
-                  recentClaims = parseFloat(rf.recent_claims) || 0;
-                }
-              } catch {
-                // Reward fund fetch failed
-              }
-              if (feedHistory?.current_median_history) {
-                const base = parseAsset(feedHistory.current_median_history.base);
-                const quote = parseAsset(feedHistory.current_median_history.quote) || 1;
-                feedPrice = base / quote;
-              }
-
-              const clampedUpvotePower = Math.min(upvotePower, 100);
-              setVotingPowerData({
-                upvotePower: clampedUpvotePower,
-                downvotePower: Math.min(downvotePower, 100),
-                resourceCredits: Math.min(resourceCredits, 100),
-                maxMana,
-                rewardBalance,
-                recentClaims,
-                feedPrice,
-              });
-              // Set slider to user's current voting power
-              setVoteWeight(parseFloat(clampedUpvotePower.toFixed(2)));
+            if (followsSubTab === "followers") {
+              const data = await userService.getFollowers(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
+              setFollowers(data);
+              setHasMore((prev) => ({ ...prev, followers: data.length >= FOLLOWER_PAGE_SIZE }));
+            } else {
+              const data = await userService.getFollowing(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
+              setFollowing(data);
+              setHasMore((prev) => ({ ...prev, following: data.length >= FOLLOWER_PAGE_SIZE }));
             }
+            break;
+          }
+          case "rewards": {
+            if (rewardsSubTab === "authorRewards") {
+              setRewardsStillLoading(true);
+              const data = await userService.getPendingAuthorRewards(
+                targetUsername,
+                (rows, totalHbd, totalHpEq) => {
+                  if (signal.aborted) return;
+                  setAuthorRewards([...rows]);
+                  setAuthorRewardsTotals({ totalHbd, totalHpEq });
+                  setLoadingContent(false);
+                },
+                signal
+              );
+              setAuthorRewards(data.rows);
+              setAuthorRewardsTotals({ totalHbd: data.totalHbd, totalHpEq: data.totalHpEq });
+              setRewardsStillLoading(false);
+            } else {
+              setRewardsStillLoading(true);
+              const data = await userService.getPendingCurationRewards(
+                targetUsername,
+                (rows, totalHp, totalHbd) => {
+                  if (signal.aborted) return;
+                  setCurationRewards([...rows]);
+                  setCurationRewardsTotals({ totalHp, totalHbd });
+                  setLoadingContent(false);
+                },
+                signal
+              );
+              setCurationRewards(data.rows);
+              setCurationRewardsTotals({ totalHp: data.totalHp, totalHbd: data.totalHbd });
+              setRewardsStillLoading(false);
+            }
+            break;
+          }
+          case "wallet": {
+            if (walletSubTab === "votingPower") {
+              const [accounts, , feedHistory] = await Promise.all([
+                userService.getAccounts([targetUsername], signal),
+                userService.getDynamicGlobalProperties(signal),
+                userService.getFeedHistory(signal),
+              ]);
+              const account = accounts?.[0];
+              if (account) {
+                const HIVE_VOTING_MANA_REGENERATION_SECONDS = 5 * 60 * 60 * 24;
+                const parseAsset = (v: any) => parseFloat(String(v).split(" ")[0]) || 0;
+
+                // Effective vesting shares
+                const effectiveVests =
+                  parseAsset(account.vesting_shares) +
+                  parseAsset(account.received_vesting_shares) -
+                  parseAsset(account.delegated_vesting_shares);
+                const maxMana = effectiveVests * 1000000;
+
+                // Upvote power — regenerate from voting_manabar
+                const elapsedUp = Math.floor(Date.now() / 1000) - account.voting_manabar.last_update_time;
+                let currentManaUp = parseFloat(String(account.voting_manabar.current_mana)) +
+                  (elapsedUp * maxMana) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
+                if (currentManaUp > maxMana) currentManaUp = maxMana;
+                const upvotePower = maxMana > 0 ? (currentManaUp / maxMana) * 100 : 0;
+
+                // Downvote power — regenerate from downvote_manabar
+                const maxManaDown = maxMana / 4;
+                const elapsedDown = Math.floor(Date.now() / 1000) - account.downvote_manabar.last_update_time;
+                let currentManaDown = parseFloat(String(account.downvote_manabar.current_mana)) +
+                  (elapsedDown * maxManaDown) / HIVE_VOTING_MANA_REGENERATION_SECONDS;
+                if (currentManaDown > maxManaDown) currentManaDown = maxManaDown;
+                const downvotePower = maxManaDown > 0 ? (currentManaDown / maxManaDown) * 100 : 0;
+
+                // Resource credits
+                let resourceCredits = 0;
+                try {
+                  const rcResp = await fetch(getHiveApiEndpoint(), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jsonrpc: "2.0", method: "rc_api.find_rc_accounts", params: { accounts: [targetUsername] }, id: 1 }),
+                    signal,
+                  });
+                  const rcData = await rcResp.json();
+                  const rcAccount = rcData?.result?.rc_accounts?.[0];
+                  if (rcAccount) {
+                    const rcCurrent = parseFloat(rcAccount.rc_manabar.current_mana);
+                    const rcMax = parseFloat(rcAccount.max_rc);
+                    if (rcMax > 0) resourceCredits = (rcCurrent / rcMax) * 100;
+                  }
+                } catch {
+                  // RC fetch failed — leave at 0
+                }
+
+                // Reward fund & price feed for vote value slider
+                let rewardBalance = 0;
+                let recentClaims = 0;
+                let feedPrice = 0;
+                try {
+                  const rfResp = await fetch(getHiveApiEndpoint(), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_reward_fund", params: ["post"], id: 1 }),
+                    signal,
+                  });
+                  const rfData = await rfResp.json();
+                  const rf = rfData?.result;
+                  if (rf) {
+                    rewardBalance = parseAsset(rf.reward_balance);
+                    recentClaims = parseFloat(rf.recent_claims) || 0;
+                  }
+                } catch {
+                  // Reward fund fetch failed
+                }
+                if (feedHistory?.current_median_history) {
+                  const base = parseAsset(feedHistory.current_median_history.base);
+                  const quote = parseAsset(feedHistory.current_median_history.quote) || 1;
+                  feedPrice = base / quote;
+                }
+
+                const clampedUpvotePower = Math.min(upvotePower, 100);
+                setVotingPowerData({
+                  upvotePower: clampedUpvotePower,
+                  downvotePower: Math.min(downvotePower, 100),
+                  resourceCredits: Math.min(resourceCredits, 100),
+                  maxMana,
+                  rewardBalance,
+                  recentClaims,
+                  feedPrice,
+                });
+                // Set slider to user's current voting power
+                setVoteWeight(parseFloat(clampedUpvotePower.toFixed(2)));
+              }
+            }
+            // wallet and tokens sub-tabs: Wallet component handles its own data
             break;
           }
           case "badges": {
@@ -1171,7 +1339,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [targetUsername, activeTab, refreshCurationTrigger]);
+  }, [targetUsername, activeTab, refreshCurationTrigger, postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab]);
 
   // Filtered data for rendering — always reflects latest filter props
   const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
@@ -1188,111 +1356,98 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
    *  own transactions scroll listener). Listing them explicitly here
    *  prevents a wrong-tab scroll from accidentally appending data to a
    *  different tab's state. */
-  const PAGINATED_TABS: TabType[] = ["blogs", "posts", "comments", "replies", "followers", "following", "curation"];
+  const PAGINATED_TABS: TabType[] = ["posts", "replies", "activities", "followers"];
 
   const loadMore = useCallback(async () => {
     if (!PAGINATED_TABS.includes(activeTab)) return;
-    if (loadingMore || !hasMore[activeTab] || !targetUsername) return;
+
+    let currentHasMore = false;
+    if (activeTab === "posts") currentHasMore = hasMore[postsSubTab];
+    else if (activeTab === "replies") currentHasMore = hasMore[repliesSubTab];
+    else if (activeTab === "followers") currentHasMore = hasMore[followsSubTab];
+    else if (activeTab === "activities") currentHasMore = hasMore[activitiesSubTab];
+
+    if (loadingMore || !currentHasMore || !targetUsername) return;
     setLoadingMore(true);
 
     try {
       switch (activeTab) {
-        case "curation": {
-          if (lowestCurationIndex <= 0) {
-            setHasMore((prev) => ({ ...prev, curation: false }));
-            break;
+        case "activities": {
+          if (activitiesSubTab === "curation") {
+            if (lowestCurationIndex <= 0) {
+              setHasMore((prev) => ({ ...prev, curation: false }));
+              break;
+            }
+            const VOTE_FILTER_LOW = (1n << 0n).toString();
+            const raw = await activityListService.getNextAccountHistoryPage(
+              targetUsername,
+              lowestCurationIndex,
+              100,
+              VOTE_FILTER_LOW,
+              '0'
+            );
+            const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
+            const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
+            newItems.sort((a, b) => b.index - a.index);
+            setCurations((prev) => [...prev, ...newItems]);
+            const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
+            setLowestCurationIndex(lowestIndex);
+            setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
           }
-          const VOTE_FILTER_LOW = (1n << 0n).toString();
-          const raw = await activityListService.getNextAccountHistoryPage(
-            targetUsername,
-            lowestCurationIndex,
-            100,
-            VOTE_FILTER_LOW,
-            '0'
-          );
-          const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
-          const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
-          newItems.sort((a, b) => b.index - a.index);
-          setCurations((prev) => [...prev, ...newItems]);
-          const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
-          setLowestCurationIndex(lowestIndex);
-          setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
-          break;
-        }
-        case "blogs": {
-          const last = blogs[blogs.length - 1];
-          if (!last) break;
-          const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-          setBlogs((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, blogs: newItems.length >= PAGE_SIZE - 1 }));
           break;
         }
         case "posts": {
-          const last = posts[posts.length - 1];
-          if (!last) break;
-          const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-          setPosts((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
-          break;
-        }
-        case "snaps": {
-          // Load-more for the snaps tab is handled inside <ProfileSnapsTab/>.
-          break;
-        }
-        case "comments": {
-          // Mirror the Posts pattern exactly — same cursor semantics
-          // (start_author = the user, start_permlink = last comment),
-          // same trim-cursor-if-echoed dedupe. The previous Set-based
-          // dedupe was over-aggressive and would drop legitimate items.
-          const last = comments[comments.length - 1];
-          if (!last) break;
-          const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-          setComments((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, comments: newItems.length >= PAGE_SIZE - 1 }));
+          if (postsSubTab === "blogs") {
+            const last = blogs[blogs.length - 1];
+            if (!last) break;
+            const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
+            setBlogs((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, blogs: newItems.length >= PAGE_SIZE - 1 }));
+          } else {
+            const last = posts[posts.length - 1];
+            if (!last) break;
+            const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
+            setPosts((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
+          }
           break;
         }
         case "replies": {
-          // Mirror the Comments cursor pattern exactly. Confirmed against
-          // peakd: a profile for "sagar-test1" paginates with
-          // start_author = "shaktimaaan", start_permlink = "h1lowxug" —
-          // those are the LAST REPLY's own author and permlink, not the
-          // parent post's. A previous attempt used `parent_author /
-          // parent_permlink` here, which sent the wrong cursor and made
-          // the node either echo the same page or return nothing.
-          // Cursor = last reply's own author + permlink (matches PeakD:
-          // start_author="commentrewarder", start_permlink="re-…").
-          const last = replies[replies.length - 1];
-          if (!last) break;
-          const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
-          // Drop the cursor item if the node echoed it as the first row.
-          const newItems = filterPost(raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw);
-          setReplies((prev) => [...prev, ...newItems]);
-          // `hasMore` from the RAW page size, not the filtered count —
-          // multi-author replies can be thinned by `filterPost` yet
-          // still have more pages behind them.
-          setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
+          if (repliesSubTab === "comments") {
+            const last = comments[comments.length - 1];
+            if (!last) break;
+            const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
+            setComments((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, comments: newItems.length >= PAGE_SIZE - 1 }));
+          } else {
+            const last = replies[replies.length - 1];
+            if (!last) break;
+            const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const newItems = filterPost(raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw);
+            setReplies((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
+          }
           break;
         }
         case "followers": {
-          const last = followers[followers.length - 1];
-          if (!last) break;
-          const data = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
-          // First item matches cursor, skip it
-          const newItems = data.length > 0 && data[0].follower === last.follower ? data.slice(1) : data;
-          setFollowers((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, followers: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
-          break;
-        }
-        case "following": {
-          const last = following[following.length - 1];
-          if (!last) break;
-          const data = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
-          const newItems = data.length > 0 && data[0].following === last.following ? data.slice(1) : data;
-          setFollowing((prev) => [...prev, ...newItems]);
-          setHasMore((prev) => ({ ...prev, following: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+          if (followsSubTab === "followers") {
+            const last = followers[followers.length - 1];
+            if (!last) break;
+            const data = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
+            const newItems = data.length > 0 && data[0].follower === last.follower ? data.slice(1) : data;
+            setFollowers((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, followers: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+          } else {
+            const last = following[following.length - 1];
+            if (!last) break;
+            const data = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
+            const newItems = data.length > 0 && data[0].following === last.following ? data.slice(1) : data;
+            setFollowing((prev) => [...prev, ...newItems]);
+            setHasMore((prev) => ({ ...prev, following: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+          }
           break;
         }
       }
@@ -1301,7 +1456,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, blogs, posts, comments, replies, followers, following, curations, lowestCurationIndex]);
+  }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, postsSubTab, repliesSubTab, followsSubTab, activitiesSubTab, blogs, posts, comments, replies, followers, following, curations, lowestCurationIndex]);
 
   // ─── Infinite scroll — direct scroll listener on the nested scroll
   // container. We tried IntersectionObserver first, but it proved
@@ -1343,13 +1498,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Manually peek the scroll position and fire again — bounded by
   // `hasMore` / `loadingMore` so it can't loop forever.
   useEffect(() => {
-    if (loadingMore || !hasMore[activeTab]) return;
+    const currentHasMore = activeTab === "posts" ? hasMore[postsSubTab]
+      : activeTab === "replies" ? hasMore[repliesSubTab]
+      : activeTab === "followers" ? hasMore[followsSubTab]
+      : activeTab === "activities" ? hasMore[activitiesSubTab]
+      : false;
+    if (loadingMore || !currentHasMore) return;
     const el = mainScrollRef.current;
     if (!el) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) {
       loadMore();
     }
-  }, [loadingMore, activeTab, hasMore, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, curations.length, loadMore]);
+  }, [loadingMore, activeTab, hasMore, postsSubTab, repliesSubTab, followsSubTab, activitiesSubTab, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, curations.length, loadMore]);
 
   // ─── Action handlers ─────────────────────────────────────────────────────
 
@@ -2321,48 +2481,209 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   // ─── Render: Tab content ─────────────────────────────────────────────────
 
+  // Helper: render curation history content
+  const renderCurationContent = () => {
+    if (loadingContent && curations.length === 0) return renderPostSkeleton();
+
+    if (curations.length === 0) {
+      return (
+        <div className="space-y-3">
+          <div className="text-center py-12">
+            <Heart className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noCuration")}</p>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        {curations.map((item, index) => {
+          const isDownvote = (item.details?.weight ?? 0) < 0;
+          const isUnvote = (item.details?.weight ?? 0) === 0;
+          const weightPercent = Math.abs((item.details?.weight ?? 0) / 100).toFixed(2);
+          return (
+            <div
+              key={`${item.id}-${index}`}
+              className="overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] p-4 transition-colors hover:bg-[var(--hrk-bg-surface-raised)] cursor-pointer"
+              onClick={() => {
+                if (item.author && item.permlink) {
+                  onPostClick?.(item.author, item.permlink, "");
+                }
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={`https://images.hive.blog/u/${item.author}/avatar`}
+                    alt={item.author}
+                    className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--hrk-border-subtle)]"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+                    }}
+                  />
+                  <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--hrk-bg-surface)] ${
+                    isUnvote ? "bg-gray-600 text-white" : isDownvote ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                  }`}>
+                    {isUnvote ? (<Heart className="w-2.5 h-2.5 fill-current" />) : isDownvote ? (<ArrowDown className="w-2.5 h-2.5 stroke-[3px]" />) : (<ArrowUp className="w-2.5 h-2.5 stroke-[3px]" />)}
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <span className="text-xs font-semibold text-white">
+                      {isUnvote ? "Removed vote on" : isDownvote ? `Downvoted (${weightPercent}%)` : `Upvoted (${weightPercent}%)`}
+                    </span>
+                    <span className="text-xs text-[var(--hrk-text-tertiary)]">post by</span>
+                    <HiveLink href={getUserUrl?.(item.author || '')} onActivate={() => onUserClick?.(item.author || '')} className="text-xs font-medium text-blue-400 hover:underline">
+                      @{item.author}
+                    </HiveLink>
+                  </div>
+                  <p className="text-sm font-medium text-white truncate mt-1">{item.permlink}</p>
+                  <div className="flex items-center gap-1 mt-1 text-xs text-[var(--hrk-text-tertiary)]">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{activityListService.getRelativeTime(item.timestamp + 'Z')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Helper: render voting power content
+  const renderVotingPowerContent = () => {
+    if (loadingContent) {
+      return (
+        <div className="max-w-lg mx-auto space-y-6 animate-pulse">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="space-y-2">
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-32" />
+              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
+            </div>
+          ))}
+          <div className="mt-4 p-4 bg-[var(--hrk-bg-surface)] rounded-xl border border-[var(--hrk-border-subtle)]">
+            <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-40 mb-3" />
+            <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
+          </div>
+        </div>
+      );
+    }
+    if (!votingPowerData) {
+      return (
+        <div className="text-center py-12">
+          <Gauge className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+          <p className="text-[var(--hrk-text-tertiary)]">{t("empty.votingPowerUnavailable")}</p>
+        </div>
+      );
+    }
+    const { maxMana, rewardBalance, recentClaims, feedPrice } = votingPowerData;
+    const sliderPower = voteWeight;
+    const REGEN_SECONDS = 5 * 60 * 60 * 24;
+    const rshares = maxMana * (sliderPower / 100) * 0.02;
+    const hiveValue = recentClaims > 0 ? (rshares / recentClaims) * rewardBalance : 0;
+    const hbdValue = hiveValue * feedPrice;
+    const rechargeSeconds = ((100 - sliderPower) / 100) * REGEN_SECONDS;
+    const formatRechargeTime = (totalSeconds: number): string => {
+      if (totalSeconds <= 0) return t("common.fullyCharged");
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      if (days > 0) return `Full in ${days} day${days > 1 ? "s" : ""} ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+      if (hours > 0) return `Full in ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+      return `Full in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    };
+    const formatVal = (n: number, d = 2) => isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    const bars = [
+      { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "var(--hrk-success)" },
+      { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "var(--hrk-warning)" },
+      { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "var(--hrk-info)" },
+    ];
+    return (
+      <div className="max-w-lg mx-auto space-y-6">
+        <div className="p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] flex flex-col items-center">
+          <div className="inline-flex flex-col items-center px-5 py-2.5 rounded-full bg-blue-600/20 border border-blue-500/40 mb-5">
+            <span className="text-sm sm:text-base font-bold text-white tracking-wide">
+              VOTE VALUE: <span className="text-blue-400">${formatVal(hbdValue)}</span>
+              <span className="text-[var(--hrk-text-tertiary)] ml-1.5">({sliderPower.toFixed(2)}%)</span>
+            </span>
+            <span className="text-xs text-[var(--hrk-text-tertiary)] mt-1">
+              <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
+              <span className="mx-1.5">·</span>
+              <span className="text-[var(--hrk-text-secondary)]">~{formatVal(hiveValue, 3)} HIVE</span>
+            </span>
+          </div>
+          <div className="w-full flex items-center gap-3">
+            <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">0%</span>
+            <input
+              type="range" min={0} max={100} step={0.01} value={sliderPower}
+              onChange={(e) => setVoteWeight(Number(e.target.value))}
+              className="flex-1 h-2.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+              style={{ background: `linear-gradient(to right, var(--hrk-info) 0%, var(--hrk-info) ${sliderPower}%, var(--hrk-border-default) ${sliderPower}%, var(--hrk-border-default) 100%)` }}
+            />
+            <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">100%</span>
+          </div>
+          <p className="mt-3 text-sm text-[var(--hrk-text-tertiary)]">{formatRechargeTime(rechargeSeconds)}</p>
+        </div>
+        {bars.map((bar) => (
+          <div key={bar.label} className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-[var(--hrk-text-secondary)]">{bar.label}</span>
+              <span className="text-sm font-bold text-white">{bar.value.toFixed(2)}%</span>
+            </div>
+            <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-3">
+              <div className="h-3 rounded-full transition-all duration-500 ease-out" style={{ width: `${Math.min(bar.value, 100)}%`, backgroundColor: bar.color }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const subTabBtnClass = (active: boolean) =>
+    `inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+      active
+        ? "bg-[var(--hrk-brand)] text-white shadow-sm"
+        : "text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)]"
+    }`;
+
+  /** Renders the sub-tab toggle pill anchored to the top-left of the tab section. */
+  const renderSubTabToggle = (buttons: React.ReactNode, extra?: React.ReactNode) => (
+    <div className="flex items-center justify-between mb-3 w-full">
+      <div className="inline-flex rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-0.5 gap-0.5">
+        {buttons}
+      </div>
+      {extra}
+    </div>
+  );
+
   const renderTabContent = () => {
     if (activeTab === "growth") {
       return <UserGrowth username={targetUsername} />;
     }
 
     if (activeTab === "wallet") {
-      // Controlled by the consumer (URL) when `onWalletViewChange` is
-      // wired; otherwise driven by local state.
-      const currentWalletView = onWalletViewChange ? walletInitialView : walletView;
-      const selectWalletView = (key: "wallet" | "tokens") => {
-        if (onWalletViewChange) onWalletViewChange(key);
-        else setWalletView(key);
-      };
       return (
-        <div className="max-w-3xl mx-auto">
-          {/* Sub-toggle: native Hive wallet vs. Hive Engine (layer-2)
-              tokens. The Tokens view is only offered when the consumer
-              wires `renderEngineTokens` (it owns the engine data layer). */}
-          {renderEngineTokens && (
-            <div className="mb-4 inline-flex rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-0.5">
-              {([["wallet", t("tab.wallet"), WalletIcon], ["tokens", t("tab.engineTokens"), CoinsIcon]] as const).map(
-                ([key, label, Icon]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => selectWalletView(key)}
-                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      currentWalletView === key
-                        ? "bg-[var(--hrk-brand)] text-white"
-                        : "text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)]"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ),
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("wallet")} className={subTabBtnClass(walletSubTab === "wallet")}>
+                <WalletIcon className="h-4 w-4" />{t("tab.wallet") || "Wallet"}
+              </button>
+              {renderEngineTokens && (
+                <button type="button" onClick={() => setActiveTab("tokens")} className={subTabBtnClass(walletSubTab === "tokens")}>
+                  <CoinsIcon className="h-4 w-4" />{t("tab.engineTokens") || "Tokens"}
+                </button>
               )}
-            </div>
+              <button type="button" onClick={() => setActiveTab("votingPower")} className={subTabBtnClass(walletSubTab === "votingPower")}>
+                <Gauge className="h-4 w-4" />{t("tab.votingPower") || "Voting Power"}
+              </button>
+            </>
           )}
-
-          {currentWalletView === "tokens" && renderEngineTokens ? (
+          {walletSubTab === "tokens" && renderEngineTokens ? (
             renderEngineTokens(targetUsername, targetUsername === currentUsername)
+          ) : walletSubTab === "votingPower" ? (
+            renderVotingPowerContent()
           ) : (
             <Wallet
               username={targetUsername}
@@ -2386,432 +2707,163 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
-    if (activeTab === "curation") {
-      if (loadingContent && curations.length === 0) {
-        return renderPostSkeleton();
-      }
-
+    if (activeTab === "activities") {
       const handleRefreshCuration = () => {
         setRefreshCurationTrigger(prev => prev + 1);
       };
 
-      const renderRefreshButton = () => (
-        <div className="flex justify-end mb-2">
-          <button
-            type="button"
-            onClick={handleRefreshCuration}
-            disabled={loadingContent}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50 transition-colors focus:outline-none cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loadingContent ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
+      const refreshBtn = activitiesSubTab === "curation" && (
+        <button
+          type="button"
+          onClick={handleRefreshCuration}
+          disabled={loadingContent}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50 transition-colors focus:outline-none cursor-pointer"
+          title="Refresh"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loadingContent ? 'animate-spin' : ''}`} />
+        </button>
       );
 
-      if (curations.length === 0) {
-        return (
-          <div className="space-y-3">
-            {renderRefreshButton()}
-            <div className="text-center py-12">
-              <Heart className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-              <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noCuration")}</p>
-            </div>
-          </div>
-        );
-      }
       return (
-        <div className="space-y-3">
-          {renderRefreshButton()}
-          {curations.map((item, index) => {
-            const isDownvote = (item.details?.weight ?? 0) < 0;
-            const isUnvote = (item.details?.weight ?? 0) === 0;
-            const weightPercent = Math.abs((item.details?.weight ?? 0) / 100).toFixed(2);
-            
-            return (
-              <div
-                key={`${item.id}-${index}`}
-                className="overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] p-4 transition-colors hover:bg-[var(--hrk-bg-surface-raised)] cursor-pointer"
-                onClick={() => {
-                  if (item.author && item.permlink) {
-                    onPostClick?.(item.author, item.permlink, "");
-                  }
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={`https://images.hive.blog/u/${item.author}/avatar`}
-                      alt={item.author}
-                      className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--hrk-border-subtle)]"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
-                      }}
-                    />
-                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center border-2 border-[var(--hrk-bg-surface)] ${
-                      isUnvote 
-                        ? "bg-gray-600 text-white"
-                        : isDownvote
-                          ? "bg-red-500 text-white"
-                          : "bg-green-500 text-white"
-                    }`}>
-                      {isUnvote ? (
-                        <Heart className="w-2.5 h-2.5 fill-current" />
-                      ) : isDownvote ? (
-                        <ArrowDown className="w-2.5 h-2.5 stroke-[3px]" />
-                      ) : (
-                        <ArrowUp className="w-2.5 h-2.5 stroke-[3px]" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                      <span className="text-xs font-semibold text-white">
-                        {isUnvote 
-                          ? "Removed vote on" 
-                          : isDownvote 
-                            ? `Downvoted (${weightPercent}%)` 
-                            : `Upvoted (${weightPercent}%)`}
-                      </span>
-                      <span className="text-xs text-[var(--hrk-text-tertiary)]">post by</span>
-                      <HiveLink
-                        href={getUserUrl?.(item.author || '')}
-                        onActivate={() => onUserClick?.(item.author || '')}
-                        className="text-xs font-medium text-blue-400 hover:underline"
-                      >
-                        @{item.author}
-                      </HiveLink>
-                    </div>
-                    <p className="text-sm font-medium text-white truncate mt-1">
-                      {item.permlink}
-                    </p>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-[var(--hrk-text-tertiary)]">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{activityListService.getRelativeTime(item.timestamp + 'Z')}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("activities")} className={subTabBtnClass(activitiesSubTab === "activities")}>
+                {t("tab.activities") || "Activities"}
+              </button>
+              <button type="button" onClick={() => setActiveTab("curation")} className={subTabBtnClass(activitiesSubTab === "curation")}>
+                {t("tab.curation") || "Curation"}
+              </button>
+            </>,
+            refreshBtn
+          )}
+          {activitiesSubTab === "activities" ? (
+            <ActivityList
+              username={targetUsername}
+              onClickPermlink={onActivityPermlink}
+              onSelectActivity={onActivitySelect}
+              scrollRootRef={mainScrollRef}
+            />
+          ) : (
+            renderCurationContent()
+          )}
         </div>
       );
     }
 
-    if (activeTab === "activities") {
+    if (activeTab === "rewards") {
       return (
-        <ActivityList
-          username={targetUsername}
-          onClickPermlink={onActivityPermlink}
-          onSelectActivity={onActivitySelect}
-          scrollRootRef={mainScrollRef}
-        />
-      );
-    }
-
-    if (activeTab === "authorRewards") {
-      return renderAuthorRewardsTab();
-    }
-
-    if (activeTab === "curationRewards") {
-      return renderCurationRewardsTab();
-    }
-
-    // Voting Power tab
-    if (activeTab === "votingPower") {
-      if (loadingContent) {
-        return (
-          <div className="max-w-lg mx-auto space-y-6 animate-pulse">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-2">
-                <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-32" />
-                <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
-              </div>
-            ))}
-            <div className="mt-4 p-4 bg-[var(--hrk-bg-surface)] rounded-xl border border-[var(--hrk-border-subtle)]">
-              <div className="h-4 bg-[var(--hrk-bg-surface-raised)] rounded w-40 mb-3" />
-              <div className="h-3 bg-[var(--hrk-bg-surface-raised)] rounded-full w-full" />
-            </div>
-          </div>
-        );
-      }
-      if (!votingPowerData) {
-        return (
-          <div className="text-center py-12">
-            <Gauge className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.votingPowerUnavailable")}</p>
-          </div>
-        );
-      }
-
-      // Vote value calculation
-      const { maxMana, rewardBalance, recentClaims, feedPrice } = votingPowerData;
-
-      // Slider represents mana level — default to user's current VP
-      const sliderPower = voteWeight; // reusing voteWeight state as the mana slider value
-      const REGEN_SECONDS = 5 * 60 * 60 * 24; // 432000s = 5 days
-
-      // Calculate vote value at current slider power (full-weight 100% vote at this mana level)
-      const rshares = maxMana * (sliderPower / 100) * 0.02;
-      const hiveValue = recentClaims > 0 ? (rshares / recentClaims) * rewardBalance : 0;
-      const hbdValue = hiveValue * feedPrice;
-
-      // Recharge time from slider position to 100%
-      const rechargeSeconds = ((100 - sliderPower) / 100) * REGEN_SECONDS;
-
-      const formatRechargeTime = (totalSeconds: number): string => {
-        if (totalSeconds <= 0) return t("common.fullyCharged");
-        const days = Math.floor(totalSeconds / 86400);
-        const hours = Math.floor((totalSeconds % 86400) / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        if (days > 0) return `Full in ${days} day${days > 1 ? "s" : ""} ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-        if (hours > 0) return `Full in ${hours} hour${hours !== 1 ? "s" : ""} ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-        return `Full in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
-      };
-
-      const formatVal = (n: number, d = 2) =>
-        isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
-
-      const bars = [
-        { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "var(--hrk-success)" },
-        { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "var(--hrk-warning)" },
-        { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "var(--hrk-info)" },
-      ];
-      return (
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Vote Value + Mana Slider (PeakD-style) */}
-          <div className="p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] flex flex-col items-center">
-            {/* Vote value badge */}
-            <div className="inline-flex flex-col items-center px-5 py-2.5 rounded-full bg-blue-600/20 border border-blue-500/40 mb-5">
-              <span className="text-sm sm:text-base font-bold text-white tracking-wide">
-                VOTE VALUE: <span className="text-blue-400">${formatVal(hbdValue)}</span>
-                <span className="text-[var(--hrk-text-tertiary)] ml-1.5">({sliderPower.toFixed(2)}%)</span>
-              </span>
-              <span className="text-xs text-[var(--hrk-text-tertiary)] mt-1">
-                <span className="text-white font-medium">{formatVal(hbdValue)} HBD</span>
-                <span className="mx-1.5">·</span>
-                <span className="text-[var(--hrk-text-secondary)]">~{formatVal(hiveValue, 3)} HIVE</span>
-              </span>
-            </div>
-
-            {/* Mana slider */}
-            <div className="w-full flex items-center gap-3">
-              <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">0%</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={0.01}
-                value={sliderPower}
-                onChange={(e) => setVoteWeight(Number(e.target.value))}
-                className="flex-1 h-2.5 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
-                style={{
-                  background: `linear-gradient(to right, var(--hrk-info) 0%, var(--hrk-info) ${sliderPower}%, var(--hrk-border-default) ${sliderPower}%, var(--hrk-border-default) 100%)`,
-                }}
-              />
-              <span className="text-xs font-medium text-[var(--hrk-text-tertiary)] whitespace-nowrap">100%</span>
-            </div>
-
-            {/* Recharge time */}
-            <p className="mt-3 text-sm text-[var(--hrk-text-tertiary)]">
-              {formatRechargeTime(rechargeSeconds)}
-            </p>
-          </div>
-
-          {/* Progress bars */}
-          {bars.map((bar) => (
-            <div key={bar.label} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-[var(--hrk-text-secondary)]">{bar.label}</span>
-                <span className="text-sm font-bold text-white">{bar.value.toFixed(2)}%</span>
-              </div>
-              <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-3">
-                <div
-                  className="h-3 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${Math.min(bar.value, 100)}%`, backgroundColor: bar.color }}
-                />
-              </div>
-            </div>
-          ))}
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("authorRewards")} className={subTabBtnClass(rewardsSubTab === "authorRewards")}>
+                {t("tab.authorRewards") || "Author Rewards"}
+              </button>
+              <button type="button" onClick={() => setActiveTab("curationRewards")} className={subTabBtnClass(rewardsSubTab === "curationRewards")}>
+                {t("tab.curationRewards") || "Curation Rewards"}
+              </button>
+            </>
+          )}
+          {loadingContent ? renderRewardSkeleton() : (
+            rewardsSubTab === "authorRewards" ? renderAuthorRewardsTab() : renderCurationRewardsTab()
+          )}
         </div>
       );
     }
 
-    // Badges tab
-    if (activeTab === "badges") {
-      if (loadingContent) return renderUserSkeleton();
-      if (badges.length === 0 && hivebuzzBadges.length === 0) {
-        return (
-          <div className="text-center py-12">
-            <Award className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noBadges")}</p>
-          </div>
-        );
-      }
+    if (activeTab === "followers") {
       return (
-        <div className="space-y-8">
-          {/* Section 1: Community Badges */}
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-3 tracking-wide uppercase opacity-90">Community Badges</h3>
-            {badges.length === 0 ? (
-              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No community badges assigned</p>
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("followers")} className={subTabBtnClass(followsSubTab === "followers")}>
+                {t("tab.followers") || "Followers"} ({profile.followersCount})
+              </button>
+              <button type="button" onClick={() => setActiveTab("following")} className={subTabBtnClass(followsSubTab === "following")}>
+                {t("tab.following") || "Following"} ({profile.followingCount})
+              </button>
+            </>
+          )}
+          {loadingContent ? renderUserSkeleton() : (
+            (followsSubTab === "followers" ? followers : following).length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+                <p className="text-[var(--hrk-text-tertiary)]">
+                  {followsSubTab === "followers" ? t("empty.noFollowers") || "No followers yet." : t("empty.notFollowing") || "Not following anyone yet."}
+                </p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {badgeAccounts.length > 0
-                  ? badgeAccounts.map((acc, i) => renderBadgeItem(acc, i))
-                  : badges.map((name, i) => renderUserItem(name, i))}
+                {followsSubTab === "followers"
+                  ? followers.map((f, i) => renderUserItem(f.follower, i))
+                  : following.map((f, i) => renderUserItem(f.following, i))}
               </div>
-            )}
-          </div>
+            )
+          )}
+        </div>
+      );
+    }
 
-          {/* Section 2: HiveBuzz Badges */}
-          <div className="border-t border-[var(--hrk-border-subtle)] pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-white tracking-wide uppercase opacity-90">HiveBuzz Badges</h3>
-              <a
-                href={`https://hivebuzz.me/@${targetUsername}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-blue-400 hover:underline uppercase tracking-wider font-semibold"
-              >
-                powered by hivebuzz
-              </a>
+    if (activeTab === "posts") {
+      const data = postsSubTab === "blogs" ? filteredBlogs : filteredPosts;
+      const type = postsSubTab === "blogs" ? "blog" : "post";
+      return (
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("blogs")} className={subTabBtnClass(postsSubTab === "blogs")}>
+                {t("tab.blogs") || "Blogs"}
+              </button>
+              <button type="button" onClick={() => setActiveTab("posts")} className={subTabBtnClass(postsSubTab === "posts")}>
+                {t("tab.posts") || "Posts"}
+              </button>
+            </>
+          )}
+          {loadingContent ? renderPostSkeleton() : data.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+              <p className="text-[var(--hrk-text-tertiary)]">{t(postsSubTab === "blogs" ? "empty.noBlogs" : "empty.noPosts")}</p>
             </div>
-            {hivebuzzBadges.length === 0 ? (
-              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No HiveBuzz badges earned yet</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {hivebuzzBadges.map((badge, i) => renderHiveBuzzBadgeItem(badge, i))}
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {data.map((item) => renderPostItem(item, type, onPostClick ? () => onPostClick(item.author, item.permlink, item.title) : undefined))}
+            </div>
+          )}
         </div>
       );
     }
 
-    // Witness Votes tab
-    if (activeTab === "witnessVotes") {
-      if (loadingContent) return renderUserSkeleton();
-      if (witnessVotes.length === 0) {
-        return (
-          <div className="text-center py-12">
-            <Shield className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noWitnessVotes")}</p>
-          </div>
-        );
-      }
+    if (activeTab === "replies") {
+      const data = repliesSubTab === "comments" ? filteredComments : filteredReplies;
+      const type = repliesSubTab === "comments" ? "comment" : "reply";
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {witnessVotes.map((name, i) => renderUserItem(name, i))}
+        <div className="w-full space-y-2">
+          {renderSubTabToggle(
+            <>
+              <button type="button" onClick={() => setActiveTab("comments")} className={subTabBtnClass(repliesSubTab === "comments")}>
+                {t("tab.comments") || "Comments"}
+              </button>
+              <button type="button" onClick={() => setActiveTab("replies")} className={subTabBtnClass(repliesSubTab === "replies")}>
+                {t("tab.replies") || "Replies"}
+              </button>
+            </>
+          )}
+          {loadingContent ? renderPostSkeleton() : data.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageCircle className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+              <p className="text-[var(--hrk-text-tertiary)]">{t(repliesSubTab === "comments" ? "empty.noComments" : "empty.noReplies")}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {data.map((item) => renderPostItem(item, type, undefined))}
+            </div>
+          )}
         </div>
       );
     }
 
-    // Snaps tab — keep the segmented control mounted while the content below
-    // (skeleton / empty state / list) swaps on sub-type change. This prevents
-    // the whole tab bar from flickering each time the user taps Ecency /
-    // Threads / Liketu.
-    if (activeTab === "snaps") {
-      // Snaps tab uses the same <SnapsFeedView/> shell as the unified Snaps
-      // page — 1-column on mobile (with a pill switcher), 4-column on
-      // tablet+ (peak.snaps · ecency.waves · leothreads · liketu.moments).
-      // Desktop renders each column with its own scrollbar, so the wrapper
-      // gives it a fixed height to clip against. ProfileSnapsTab owns its
-      // own data plane.
-      return (
-        <div className="h-[calc(100vh-260px)] min-h-[420px]">
-          <ProfileSnapsTab
-            // Remount on user change so the per-username pagination cache
-            // hydrates correctly. Without this key the component is reused
-            // across profiles and the cache-mirror effect can briefly
-            // write the previous user's state into the new user's slot.
-            key={targetUsername}
-            username={targetUsername}
-            currentUsername={currentUsername}
-            reportedPosts={reportedPosts}
-            reportedAuthors={reportedAuthors}
-            onUpvote={onUpvote}
-            onSubmitComment={onSubmitComment}
-            onClickCommentUpvote={onClickCommentUpvote}
-            onReblog={onReblog}
-            isPostReblogged={isPostReblogged}
-            onCheckReblogged={onCheckReblogged}
-            onTip={onTip}
-            onSharePost={onSharePost}
-            onCommentClick={onCommentClick}
-            onClickCommentIcon={onClickSnapCommentIcon}
-            onClickCommentCount={onClickSnapCommentCount}
-            onUserClick={onUserClick}
-            onPostClick={onSnapClick
-              ? (author, permlink) => onSnapClick(author, permlink)
-              : onPostClick
-                ? (author, permlink, title) => onPostClick(author, permlink, title ?? "")
-                : undefined}
-            onReportPost={onReportPost
-              ? (author, permlink) => setReportPostTarget({ author, permlink })
-              : undefined}
-            onDeletePost={onDeletePost}
-            onVotePoll={onVotePoll}
-            onEditSnap={onEditSnap}
-            getPostUrl={getPostUrl}
-            getUserUrl={getUserUrl}
-            getTagUrl={getTagUrl}
-            getCommunityUrl={getCommunityUrl}
-            ecencyToken={ecencyToken}
-            threeSpeakApiKey={threeSpeakApiKey}
-            giphyApiKey={giphyApiKey}
-            templateToken={templateToken}
-            templateApiBaseUrl={templateApiBaseUrl}
-            defaultVotePercent={defaultVotePercent}
-            voteWeightStep={voteWeightStep}
-            allowLandscapeVideos={allowLandscapeVideos}
-            awaitingWalletApproval={awaitingWalletApproval}
-            renderHeaderActions={renderSnapHeaderActions}
-          />
-        </div>
-      );
-    }
-
-    if (loadingContent) {
-      return renderSkeletonForTab();
-    }
-
-    // Followers tab
-    if (activeTab === "followers") {
-      if (followers.length === 0) {
-        return (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noFollowers")}</p>
-          </div>
-        );
-      }
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {followers.map((f, i) => renderUserItem(f.follower, i))}
-        </div>
-      );
-    }
-
-    // Following tab
-    if (activeTab === "following") {
-      if (following.length === 0) {
-        return (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.notFollowing")}</p>
-          </div>
-        );
-      }
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {following.map((f, i) => renderUserItem(f.following, i))}
-        </div>
-      );
-    }
-
-    // Polls tab
     if (activeTab === "polls") {
+      if (loadingContent) return renderPollSkeleton();
       if (filteredPolls.length === 0) {
         return (
           <div className="text-center py-12">
@@ -2854,81 +2906,140 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
-    // Content tabs (blogs, posts, comments, replies) — explicit allowlist
-    // so we cannot accidentally render post cards on a tab that has its
-    // own branch above (authorRewards, votingPower, badges, etc.). The
-    // earlier `Record<string, ...>` typing let `contentMap[activeTab]`
-    // silently return `undefined` for unknown tabs, which usually became
-    // `null` but could leak through layout edges on remount transitions.
-    const CONTENT_TABS: TabType[] = ["blogs", "posts", "comments", "replies"];
-    if (!CONTENT_TABS.includes(activeTab)) return null;
-
-    const contentMap: Record<"blogs" | "posts" | "comments" | "replies", { data: Post[]; type: "blog" | "post" | "comment" | "reply"; icon: any }> = {
-      blogs: { data: filteredBlogs, type: "blog", icon: FileText },
-      posts: { data: filteredPosts, type: "post", icon: FileText },
-      comments: { data: filteredComments, type: "comment", icon: MessageCircle },
-      replies: { data: filteredReplies, type: "reply", icon: Reply },
-    };
-
-    const current = contentMap[activeTab as "blogs" | "posts" | "comments" | "replies"];
-    if (!current) return null;
-
-    if (current.data.length === 0) {
-      const EmptyIcon = current.icon;
-      const emptyKey =
-        activeTab === "blogs" ? "empty.noBlogs"
-          : activeTab === "posts" ? "empty.noPosts"
-          : activeTab === "comments" ? "empty.noComments"
-          : activeTab === "replies" ? "empty.noReplies"
-          : "empty.noPosts";
+    if (activeTab === "badges") {
+      if (loadingContent) return renderUserSkeleton();
+      if (badges.length === 0 && hivebuzzBadges.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Award className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noBadges")}</p>
+          </div>
+        );
+      }
       return (
-        <div className="text-center py-12">
-          <EmptyIcon className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
-          <p className="text-[var(--hrk-text-tertiary)]">{t(emptyKey as any)}</p>
+        <div className="space-y-8">
+          <div>
+            <h3 className="text-sm font-semibold text-white mb-3 tracking-wide uppercase opacity-90">Community Badges</h3>
+            {badges.length === 0 ? (
+              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No community badges assigned</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {badgeAccounts.length > 0 ? badgeAccounts.map((acc, i) => renderBadgeItem(acc, i)) : badges.map((name, i) => renderUserItem(name, i))}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-[var(--hrk-border-subtle)] pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-white tracking-wide uppercase opacity-90">HiveBuzz Badges</h3>
+              <a href={`https://hivebuzz.me/@${targetUsername}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline uppercase tracking-wider font-semibold">
+                powered by hivebuzz
+              </a>
+            </div>
+            {hivebuzzBadges.length === 0 ? (
+              <p className="text-xs text-[var(--hrk-text-tertiary)] italic">No HiveBuzz badges earned yet</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {hivebuzzBadges.map((badge, i) => renderHiveBuzzBadgeItem(badge, i))}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
 
-    // The snaps tab has its own dedicated branch earlier in renderTabContent,
-    // so only blogs/posts/comments/replies reach this handler.
-    const getItemClickHandler = (item: Post) => {
-      if ((activeTab === "blogs" || activeTab === "posts") && onPostClick) return () => onPostClick(item.author, item.permlink, item.title);
-      return undefined;
-    };
+    if (activeTab === "witnessVotes") {
+      if (loadingContent) return renderUserSkeleton();
+      if (witnessVotes.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <Shield className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noWitnessVotes")}</p>
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {witnessVotes.map((name, i) => renderUserItem(name, i))}
+        </div>
+      );
+    }
 
-    return (
-      <div className="space-y-3">
-        {current.data.map((item) => renderPostItem(item, current.type, getItemClickHandler(item)))}
-      </div>
-    );
+    if (activeTab === "snaps") {
+      return (
+        <div className="h-[calc(100vh-260px)] min-h-[420px]">
+          <ProfileSnapsTab
+            key={targetUsername}
+            username={targetUsername}
+            currentUsername={currentUsername}
+            reportedPosts={reportedPosts}
+            reportedAuthors={reportedAuthors}
+            onUpvote={onUpvote}
+            onSubmitComment={onSubmitComment}
+            onClickCommentUpvote={onClickCommentUpvote}
+            onReblog={onReblog}
+            isPostReblogged={isPostReblogged}
+            onCheckReblogged={onCheckReblogged}
+            onTip={onTip}
+            onSharePost={onSharePost}
+            onCommentClick={onCommentClick}
+            onClickCommentIcon={onClickSnapCommentIcon}
+            onClickCommentCount={onClickSnapCommentCount}
+            onUserClick={onUserClick}
+            onPostClick={onSnapClick
+              ? (author, permlink) => onSnapClick(author, permlink)
+              : onPostClick
+                ? (author, permlink, title) => onPostClick(author, permlink, title ?? "")
+                : undefined}
+            onReportPost={onReportPost ? (author, permlink) => setReportPostTarget({ author, permlink }) : undefined}
+            onDeletePost={onDeletePost}
+            onVotePoll={onVotePoll}
+            onEditSnap={onEditSnap}
+            getPostUrl={getPostUrl}
+            getUserUrl={getUserUrl}
+            getTagUrl={getTagUrl}
+            getCommunityUrl={getCommunityUrl}
+            ecencyToken={ecencyToken}
+            threeSpeakApiKey={threeSpeakApiKey}
+            giphyApiKey={giphyApiKey}
+            templateToken={templateToken}
+            templateApiBaseUrl={templateApiBaseUrl}
+            defaultVotePercent={defaultVotePercent}
+            voteWeightStep={voteWeightStep}
+            allowLandscapeVideos={allowLandscapeVideos}
+            awaitingWalletApproval={awaitingWalletApproval}
+            renderHeaderActions={renderSnapHeaderActions}
+          />
+        </div>
+      );
+    }
+
+    return null;
   };
 
   // ─── Render: Tabs ────────────────────────────────────────────────────────
 
   const allTabs: { id: TabType; label: string; icon: any }[] = [
-    { id: "blogs", label: t("tab.blogs"), icon: FileText },
-    { id: "posts", label: t("tab.posts"), icon: FileText },
+    { id: "posts", label: t("tab.posts") || "Posts", icon: FileText },
     { id: "snaps", label: t("tab.snaps"), icon: Camera },
     { id: "polls", label: t("tab.polls"), icon: BarChart3 },
-    { id: "comments", label: t("tab.comments"), icon: MessageCircle },
-    { id: "replies", label: t("tab.replies"), icon: Reply },
-    { id: "activities", label: t("tab.activities"), icon: Activity },
-    { id: "curation", label: t("tab.curation"), icon: Heart },
-    { id: "authorRewards", label: t("tab.authorRewards"), icon: Award },
-    { id: "curationRewards", label: t("tab.curationRewards"), icon: TrendingUp },
+    { id: "replies", label: t("tab.replies") || "Replies", icon: Reply },
+    { id: "activities", label: t("tab.activities") || "Activities", icon: Activity },
+    { id: "rewards", label: t("tab.rewards") || "Rewards", icon: Award },
     { id: "growth", label: t("tab.growth"), icon: TrendingUp },
-    { id: "followers", label: t("tab.followers"), icon: Users },
-    { id: "following", label: t("tab.following"), icon: Users },
+    { id: "followers", label: t("tab.followers") || "Followers", icon: Users },
     { id: "wallet", label: t("tab.wallet"), icon: WalletIcon },
-    { id: "votingPower", label: t("tab.votingPower"), icon: Gauge },
     { id: "badges", label: t("tab.badges"), icon: Award },
     { id: "witnessVotes", label: t("tab.witnessVotes"), icon: Shield },
   ];
 
-  // If tabShown is provided, only show those tabs in that exact order.
+  // If tabShown is provided, map all sub-tabs to their parent and deduplicate.
   // If not provided, show all tabs in default order.
-  const tabs = tabShown && tabShown.length > 0
-    ? tabShown
+  const mappedTabShown = tabShown && tabShown.length > 0
+    ? Array.from(new Set(tabShown.map((id) => mapToParentTab(id as TabType))))
+    : undefined;
+
+  const tabs = mappedTabShown
+    ? mappedTabShown
       .map((id) => allTabs.find((t) => t.id === id))
       .filter((t): t is { id: TabType; label: string; icon: any } => t !== undefined)
     : allTabs;
