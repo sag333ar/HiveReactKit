@@ -54,6 +54,7 @@ interface WalletProps {
   ) => void | boolean | Promise<void | boolean>;
   onPowerDown?: (hp: string) => void | boolean | Promise<void | boolean>;
   onTransferToSavings?: (
+    to: string,
     currency: Currency,
     amount: string,
     memo: string,
@@ -450,6 +451,7 @@ const WalletTile: React.FC<WalletTileProps & {
 interface ExpandableBalancesProps {
   walletData: WalletData | null;
   isOwn: boolean;
+  currentUsername?: string;
   onTransferHive?: () => void;
   onPowerUp?: () => void;
   onAddSavingsHbd?: () => void;
@@ -474,6 +476,7 @@ function formatDaysFromNow(iso?: string): string {
 const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
   walletData,
   isOwn,
+  currentUsername,
   onTransferHive,
   onPowerUp,
   onAddSavingsHbd,
@@ -508,9 +511,9 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
             label="Balance"
             value={walletData?.balance ?? "-"}
             valueText="text-blue-300"
-            actions={isOwn && (onTransferHive || onPowerUp) ? [
+            actions={(isOwn || (!isOwn && currentUsername)) && onTransferHive ? [
               ...(onTransferHive ? [{ label: "Transfer", onClick: onTransferHive }] : []),
-              ...(onPowerUp ? [{ label: "Power Up", onClick: onPowerUp, variant: "secondary" as const }] : []),
+              ...(isOwn && onPowerUp ? [{ label: "Power Up", onClick: onPowerUp, variant: "secondary" as const }] : []),
             ] : undefined}
           />
           <BalanceRow
@@ -520,9 +523,9 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
             label="Savings HBD"
             value={walletData?.savings_hbd_balance ?? "-"}
             valueText="text-purple-300"
-            actions={isOwn && (onAddSavingsHbd || onRemoveSavingsHbd) ? [
-              ...(onAddSavingsHbd ? [{ label: "Add", onClick: onAddSavingsHbd }] : []),
-              ...(onRemoveSavingsHbd ? [{ label: "Remove", onClick: onRemoveSavingsHbd, variant: "secondary" as const }] : []),
+            actions={(isOwn || (!isOwn && currentUsername)) && (onAddSavingsHbd || onRemoveSavingsHbd) ? [
+              ...(onAddSavingsHbd ? [{ label: isOwn ? "Add" : "Send HBD Savings", onClick: onAddSavingsHbd }] : []),
+              ...(isOwn && onRemoveSavingsHbd ? [{ label: "Remove", onClick: onRemoveSavingsHbd, variant: "secondary" as const }] : []),
             ] : undefined}
           />
 
@@ -564,9 +567,10 @@ const ExpandableBalances: React.FC<ExpandableBalancesProps> = ({
             label="Hive Power"
             value={walletData?.hive_power ?? "-"}
             valueText="text-orange-300"
-            actions={isOwn ? [
-              ...(onPowerDown ? [{ label: "Power Down", onClick: onPowerDown, variant: "secondary" as const }] : []),
-              ...(powerDownActive && onStopPowerDown ? [{ label: "Stop Power Down", onClick: onStopPowerDown }] : []),
+            actions={(isOwn || (!isOwn && currentUsername)) ? [
+              ...(!isOwn && onPowerUp ? [{ label: "Send Power Up", onClick: onPowerUp, variant: "secondary" as const }] : []),
+              ...(isOwn && onPowerDown ? [{ label: "Power Down", onClick: onPowerDown, variant: "secondary" as const }] : []),
+              ...(isOwn && powerDownActive && onStopPowerDown ? [{ label: "Stop Power Down", onClick: onStopPowerDown }] : []),
             ] : undefined}
           />
 
@@ -888,7 +892,7 @@ export const Wallet: React.FC<WalletProps> = ({
           iconBgClass="bg-emerald-500/15"
           iconTextClass="text-emerald-400"
           valueClass="text-emerald-300"
-          actions={isOwn && onTransfer ? [
+          actions={(isOwn || (!isOwn && currentUsername)) && onTransfer ? [
             { label: "Transfer", onClick: () => setActiveModal({ kind: "transfer", initialCurrency: "HBD" }) },
           ] : undefined}
         />
@@ -897,6 +901,7 @@ export const Wallet: React.FC<WalletProps> = ({
         <ExpandableBalances
           walletData={walletData}
           isOwn={isOwn}
+          currentUsername={currentUsername}
           onTransferHive={onTransfer ? () => setActiveModal({ kind: "transfer", initialCurrency: "HIVE" }) : undefined}
           onPowerUp={onPowerUp ? () => setActiveModal({ kind: "powerUp" }) : undefined}
           onAddSavingsHbd={onTransferToSavings ? () => setActiveModal({ kind: "savingsAdd", currency: "HBD" }) : undefined}
@@ -1061,20 +1066,22 @@ export const Wallet: React.FC<WalletProps> = ({
       </div>
 
       {/* ─── Wallet action modals ──────────────────────────────────── */}
-      {isOwn && username && activeModal?.kind === "transfer" && onTransfer && (
+      {(isOwn || currentUsername) && username && activeModal?.kind === "transfer" && onTransfer && (
         <TransferModal
-          from={username}
-          hiveBalance={walletData?.balance}
-          hbdBalance={walletData?.hbd_balance}
+          from={isOwn ? username : currentUsername!}
+          toDefault={!isOwn ? username : ""}
+          hiveBalance={isOwn ? walletData?.balance : undefined}
+          hbdBalance={isOwn ? walletData?.hbd_balance : undefined}
           initialCurrency={activeModal.initialCurrency}
           onClose={() => setActiveModal(null)}
           onSubmit={withRefresh(onTransfer)!}
         />
       )}
-      {isOwn && username && activeModal?.kind === "powerUp" && onPowerUp && (
+      {(isOwn || currentUsername) && username && activeModal?.kind === "powerUp" && onPowerUp && (
         <PowerUpModal
-          from={username}
-          hiveBalance={walletData?.balance}
+          from={isOwn ? username : currentUsername!}
+          toDefault={!isOwn ? username : undefined}
+          hiveBalance={isOwn ? walletData?.balance : undefined}
           onClose={() => setActiveModal(null)}
           onSubmit={withRefresh(onPowerUp)!}
         />
@@ -1087,12 +1094,13 @@ export const Wallet: React.FC<WalletProps> = ({
           onSubmit={withRefresh(onPowerDown)!}
         />
       )}
-      {isOwn && username && activeModal?.kind === "savingsAdd" && onTransferToSavings && (
+      {(isOwn || currentUsername) && username && activeModal?.kind === "savingsAdd" && onTransferToSavings && (
         <SavingsModal
           mode="add"
-          from={username}
+          from={isOwn ? username : currentUsername!}
+          toDefault={!isOwn ? username : undefined}
           currency={activeModal.currency}
-          availableBalance={activeModal.currency === "HIVE" ? walletData?.balance : walletData?.hbd_balance}
+          availableBalance={isOwn ? (activeModal.currency === "HIVE" ? walletData?.balance : walletData?.hbd_balance) : undefined}
           onClose={() => setActiveModal(null)}
           onSubmit={withRefresh(onTransferToSavings)!}
         />

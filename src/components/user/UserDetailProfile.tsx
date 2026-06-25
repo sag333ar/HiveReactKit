@@ -220,6 +220,7 @@ export interface UserDetailProfileProps {
   onPowerDown?: (hp: string) => void | boolean | Promise<void | boolean>;
   /** Wallet tab — add to savings (transfer_to_savings). */
   onTransferToSavings?: (
+    to: string,
     currency: "HIVE" | "HBD",
     amount: string,
     memo: string,

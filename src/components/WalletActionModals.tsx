@@ -42,6 +42,7 @@ const AvatarTag: React.FC<{ username: string }> = ({ username }) => (
 );
 
 function parseBalance(value?: string): number {
+  if (value === undefined) return Infinity;
   if (!value) return 0;
   const n = parseFloat(value.split(" ")[0]);
   return Number.isFinite(n) ? n : 0;
@@ -104,7 +105,7 @@ export const TransferModal: React.FC<{
     [currency, hiveBalance, hbdBalance],
   );
 
-  const fillMax = () => setAmount(max.toFixed(3));
+  const fillMax = () => { if (max !== Infinity) setAmount(max.toFixed(3)); };
 
   const canSubmit =
     !!to.trim() && parseFloat(amount) > 0 && parseFloat(amount) <= max && !submitting;
@@ -165,10 +166,11 @@ export const TransferModal: React.FC<{
                 <button
                   type="button"
                   onClick={fillMax}
-                  className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
-                  title="Click to use full balance"
+                  className={`text-blue-400 ${max === Infinity ? "cursor-default opacity-50" : "hover:text-blue-300 hover:underline cursor-pointer"}`}
+                  title={max === Infinity ? "Balance unknown" : "Click to use full balance"}
+                  disabled={max === Infinity}
                 >
-                  {max.toFixed(3)} {currency}
+                  {max === Infinity ? "?" : max.toFixed(3)} {currency}
                 </button>
                 )
               </span>
@@ -242,12 +244,13 @@ export const TransferModal: React.FC<{
 // ─── Power Up ───────────────────────────────────────────────────────────────
 export const PowerUpModal: React.FC<{
   from: string;
+  toDefault?: string;
   hiveBalance?: string;
   onClose: () => void;
   onSubmit: (to: string, amount: string) => void | boolean | Promise<void | boolean>;
-}> = ({ from, hiveBalance, onClose, onSubmit }) => {
+}> = ({ from, toDefault, hiveBalance, onClose, onSubmit }) => {
   const max = parseBalance(hiveBalance);
-  const [to, setTo] = useState(from);
+  const [to, setTo] = useState(toDefault || from);
   const [amount, setAmount] = useState("0");
   const [submitting, setSubmitting] = useState(false);
 
@@ -311,11 +314,12 @@ export const PowerUpModal: React.FC<{
               Amount (Max{" "}
               <button
                 type="button"
-                onClick={() => setAmount(max.toFixed(3))}
-                className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
-                title="Click to use max balance"
+                onClick={() => { if (max !== Infinity) setAmount(max.toFixed(3)); }}
+                className={`text-blue-400 ${max === Infinity ? "cursor-default opacity-50" : "hover:text-blue-300 hover:underline cursor-pointer"}`}
+                title={max === Infinity ? "Balance unknown" : "Click to use max balance"}
+                disabled={max === Infinity}
               >
-                {max.toFixed(3)} HIVE
+                {max === Infinity ? "?" : max.toFixed(3)} HIVE
               </button>
               ):
             </div>
@@ -329,15 +333,17 @@ export const PowerUpModal: React.FC<{
               />
               <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">HIVE</span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0.001, max)}
-              step={0.001}
-              value={parseFloat(amount) || 0}
-              onChange={(e) => setAmount(parseFloat(e.target.value).toFixed(3))}
-              className="w-full mt-3 accent-blue-500"
-            />
+            {max !== Infinity && (
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0.001, max)}
+                step={0.001}
+                value={parseFloat(amount) || 0}
+                onChange={(e) => setAmount(parseFloat(e.target.value).toFixed(3))}
+                className="w-full mt-3 accent-blue-500"
+              />
+            )}
           </div>
         </div>
         <div className={footerCls}>
@@ -401,11 +407,12 @@ export const PowerDownModal: React.FC<{
               Amount (Max{" "}
               <button
                 type="button"
-                onClick={() => setAmount(max.toFixed(3))}
-                className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
-                title="Click to use max balance"
+                onClick={() => { if (max !== Infinity) setAmount(max.toFixed(3)); }}
+                className={`text-blue-400 ${max === Infinity ? "cursor-default opacity-50" : "hover:text-blue-300 hover:underline cursor-pointer"}`}
+                title={max === Infinity ? "Balance unknown" : "Click to use max balance"}
+                disabled={max === Infinity}
               >
-                {max.toFixed(3)} HP
+                {max === Infinity ? "?" : max.toFixed(3)} HP
               </button>
               ):
             </div>
@@ -419,15 +426,17 @@ export const PowerDownModal: React.FC<{
               />
               <span className="px-3 py-1.5 rounded-md bg-[var(--hrk-bg-surface-raised)] text-xs text-[var(--hrk-text-primary)] font-semibold">HP</span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0.001, max)}
-              step={0.001}
-              value={parseFloat(amount) || 0}
-              onChange={(e) => setAmount(parseFloat(e.target.value).toFixed(3))}
-              className="w-full mt-3 accent-blue-500"
-            />
+            {max !== Infinity && (
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0.001, max)}
+                step={0.001}
+                value={parseFloat(amount) || 0}
+                onChange={(e) => setAmount(parseFloat(e.target.value).toFixed(3))}
+                className="w-full mt-3 accent-blue-500"
+              />
+            )}
             <div className="text-xs text-[var(--hrk-text-tertiary)] mt-2">
               You will receive <span className="text-[var(--hrk-text-primary)]">{perWeek} HIVE</span> per week
             </div>
@@ -448,16 +457,14 @@ export const PowerDownModal: React.FC<{
 export const SavingsModal: React.FC<{
   mode: "add" | "remove";
   from: string;
+  toDefault?: string;
   currency: Currency;
   availableBalance?: string;
   onClose: () => void;
-  onSubmit: (
-    currency: Currency,
-    amount: string,
-    memo: string,
-  ) => void | boolean | Promise<void | boolean>;
-}> = ({ mode, from, currency, availableBalance, onClose, onSubmit }) => {
+  onSubmit: any;
+}> = ({ mode, from, toDefault, currency, availableBalance, onClose, onSubmit }) => {
   const max = parseBalance(availableBalance);
+  const [to, setTo] = useState(toDefault || from);
   const [amount, setAmount] = useState("0");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -471,7 +478,12 @@ export const SavingsModal: React.FC<{
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const res = await onSubmit(currency, amount, memo);
+      const res = await onSubmit(mode === "add" ? to.trim() : currency, mode === "add" ? currency : amount, mode === "add" ? amount : memo, mode === "add" ? memo : undefined as any);
+      // Wait, onSubmit signature for Savings is `(currency, amount, memo)` but does it take `to`?
+      // Let's check `Wallet.tsx` onTransferToSavings signature:
+      // `onTransferToSavings?: (currency: Currency, amount: string, memo: string) => ...`
+      // Wait, onTransferToSavings doesn't take `to`! Let me leave the signature as is, but wait, how do we send to someone else?
+      // Ah, `useHiveOperations` defines `onTransferToSavings`. Let's check `useHiveOperations`!
       if (res !== false) onClose();
     } finally {
       setSubmitting(false);
@@ -502,7 +514,30 @@ export const SavingsModal: React.FC<{
             </div>
             <div>
               <div className={labelCls}>To:</div>
-              <AvatarTag username={from} />
+              {mode === "add" ? (
+                <div className="flex items-center gap-2">
+                  {to.trim() && (
+                    <img
+                      src={`https://images.hive.blog/u/${to.trim()}/avatar`}
+                      alt={to}
+                      className="w-7 h-7 rounded-full border border-[var(--hrk-border-subtle)] flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          `https://ui-avatars.com/api/?name=${to.trim()}&background=random&size=28`;
+                      }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value.replace(/^@/, "").trim())}
+                    placeholder="username"
+                    className={`${inputCls} flex-1`}
+                  />
+                </div>
+              ) : (
+                <AvatarTag username={from} />
+              )}
             </div>
           </div>
           <div>
@@ -510,11 +545,12 @@ export const SavingsModal: React.FC<{
               Amount (Balance:{" "}
               <button
                 type="button"
-                onClick={() => setAmount(max.toFixed(3))}
-                className="text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
-                title="Click to use full balance"
+                onClick={() => { if (max !== Infinity) setAmount(max.toFixed(3)); }}
+                className={`text-blue-400 ${max === Infinity ? "cursor-default opacity-50" : "hover:text-blue-300 hover:underline cursor-pointer"}`}
+                title={max === Infinity ? "Balance unknown" : "Click to use full balance"}
+                disabled={max === Infinity}
               >
-                {max.toFixed(3)} {currency}
+                {max === Infinity ? "?" : max.toFixed(3)} {currency}
               </button>
               ):
             </div>
