@@ -1,6 +1,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import {
   ArrowLeft,
   Menu,
@@ -537,6 +538,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   initialSubTab,
 }) => {
   const t = useKitT();
+  const tierMap = useSupporterTierMap();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1831,7 +1833,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               <img
                 src={`https://images.hive.blog/u/${item.author}/avatar`}
                 alt={item.author}
-                className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9"
+                className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author])}`}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
                 }}
@@ -1842,7 +1844,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   onActivate={() => onUserClick?.(item.author)}
                   className="text-[11px] font-medium text-white hover:text-blue-400 sm:text-sm"
                 >
-                  @{item.author}
+                  {tierMap[item.author] ? (
+                    <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>@{item.author}</span>
+                  ) : <>@{item.author}</>}
                 </HiveLink>
                 <HiveLink
                   href={getPostUrl?.(item.author, item.permlink)}
@@ -2517,7 +2521,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={`https://images.hive.blog/u/${item.author}/avatar`}
                     alt={item.author}
-                    className="w-10 h-10 rounded-full object-cover ring-1 ring-[var(--hrk-border-subtle)]"
+                    className={`w-10 h-10 rounded-full object-cover ${getSupporterRing(tierMap[item.author], 'ring-1 ring-[var(--hrk-border-subtle)]')}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
                     }}
