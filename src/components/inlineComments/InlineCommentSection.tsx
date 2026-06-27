@@ -394,6 +394,7 @@ export default function InlineCommentSection({
               key={comment.permlink}
               comment={comment}
               allComments={sorted}
+              parentTags={parentTags}
               onReply={handleReply}
               onCancelReply={handleCancelReply}
               onCommentSubmit={handleCommentSubmit}

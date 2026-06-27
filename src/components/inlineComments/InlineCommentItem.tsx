@@ -97,6 +97,7 @@ interface InlineCommentItemProps {
     postBaseUrl?: string;
     ipfsGateway?: string;
   };
+  parentTags?: string[];
 }
 
 const MAX_DEPTH = 4;
@@ -137,6 +138,7 @@ export default function InlineCommentItem({
   allowLandscapeVideos = false,
   awaitingWalletApproval = false,
   renderOptions,
+  parentTags = [],
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -224,9 +226,15 @@ export default function InlineCommentItem({
   const metadata = (comment as any).json_metadata_parsed ||
     (() => { try { return comment.json_metadata ? JSON.parse(comment.json_metadata) : undefined; } catch { return undefined; } })();
 
-  // Show first tag next to username only when developer is sagarkothari88
-  const developerTag = metadata?.developer === 'sagarkothari88' && Array.isArray(metadata?.tags) && metadata.tags.length > 0
-    ? (metadata.tags[0] as string)
+  // Show first tag next to username only when developer is sagarkothari88 and tags contains 'hivesuite', 'hreplier', 'hrepiler' or 'hsnaps'
+  const allowedTags = ['hivesuite', 'hreplier', 'hrepiler', 'hsnaps'];
+  const hasAllowedTag =
+    (Array.isArray(metadata?.tags) && metadata.tags.some((t: any) => allowedTags.includes(String(t).toLowerCase()))) ||
+    (Array.isArray(parentTags) && parentTags.some((t: any) => allowedTags.includes(String(t).toLowerCase())));
+  const allowedDevs = ['sagarkothari88', 'hivesuite.app', 'hreplier', 'hsnaps'];
+  const isDev = allowedDevs.includes(comment.author) || metadata?.developer === 'sagarkothari88';
+  const developerTag = isDev && hasAllowedTag
+    ? (Array.isArray(metadata?.tags) && metadata.tags.length > 0 ? (metadata.tags[0] as string) : 'hivesuite')
     : null;
 
   // Sanitize body
@@ -898,6 +906,7 @@ export default function InlineCommentItem({
               key={reply.permlink}
               comment={reply}
               allComments={allComments}
+              parentTags={parentTags}
               onReply={onReply}
               onCancelReply={onCancelReply}
               onCommentSubmit={onCommentSubmit}
