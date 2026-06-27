@@ -2404,12 +2404,13 @@ export function HiveDetailPost({
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {parsedMetadata.tags.map((tag: string, index: number) => (
-                    <span
+                    <a
                       key={index}
-                      className="px-2.5 py-0.5 bg-blue-900/50 text-blue-300 text-[11px] rounded-full"
+                      href={`/dashboard/tag-blogs/${encodeURIComponent(tag)}`}
+                      className="px-2.5 py-0.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 text-[11px] rounded-full transition-colors cursor-pointer"
                     >
                       #{tag}
-                    </span>
+                    </a>
                   ))}
                 </div>
               </div>
