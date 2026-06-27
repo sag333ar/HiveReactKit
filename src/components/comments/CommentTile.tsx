@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Discussion } from '@/types/comment';
 import { useMemo, useState } from 'react';
+import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { ThumbsUp, MessageSquare, MoreHorizontal, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 // remark-gfm no longer needed since we use hive renderer
@@ -187,6 +188,7 @@ const CommentTile = ({
 
   // Get vote count from stats or net_votes
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
+  const tier = useSupporterTier(comment.author);
 
   return (
     <div className={`${depth > 0 ? 'ml-4 md:ml-8 border-l-2 border-gray-700 pl-4 md:pl-6' : ''}`}>
@@ -197,7 +199,7 @@ const CommentTile = ({
             <img
               src={`https://images.hive.blog/u/${comment.author}/avatar`}
               alt={comment.author}
-              className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ring-2 ring-gray-700"
+              className={`w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ${getSupporterRing(tier, 'ring-2 ring-gray-700')}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
               }}
@@ -213,7 +215,9 @@ const CommentTile = ({
                   // TODO: Navigate to user profile
                 }}
               >
-                @{comment.author}
+                {tier ? (
+                  <span className={`inline-block rounded px-1 py-0.5 text-xs md:text-sm font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
+                ) : <>@{comment.author}</>}
               </button>
               <div className="flex items-center text-xs md:text-sm text-gray-400 space-x-1">
                 <Clock className="w-3 h-3 md:w-4 md:h-4" />

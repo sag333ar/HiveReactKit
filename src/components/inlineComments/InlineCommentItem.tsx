@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
@@ -422,6 +423,8 @@ export default function InlineCommentItem({
     }
   };
 
+  const tier = useSupporterTier(comment.author);
+
   const handleUpvoteClick = () => {
     if (!currentUser) { showToast('Please login to upvote'); return; }
     if (hasAlreadyVoted || isUpvoted) { showToast('You have already upvoted this comment'); return; }
@@ -456,7 +459,7 @@ export default function InlineCommentItem({
               <img
                 src={`https://images.hive.blog/u/${comment.author}/avatar`}
                 alt={comment.author}
-                className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-700"
+                className={`w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-700 ${getSupporterRing(tier)}`}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
                 }}
@@ -466,7 +469,7 @@ export default function InlineCommentItem({
             <img
               src={`https://images.hive.blog/u/${comment.author}/avatar`}
               alt={comment.author}
-              className="w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700"
+              className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700 ${getSupporterRing(tier)}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
               }}
@@ -478,10 +481,16 @@ export default function InlineCommentItem({
               onClick={() => onUserClick(comment.author)}
               className="text-xs md:text-sm font-semibold text-white truncate hover:text-blue-400 hover:underline focus:outline-none focus:text-blue-400 focus:underline"
             >
-              @{comment.author}
+              {tier ? (
+                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
+              ) : <>@{comment.author}</>}
             </button>
           ) : (
-            <span className="text-xs md:text-sm font-semibold text-white truncate">@{comment.author}</span>
+            <span className="text-xs md:text-sm font-semibold text-white truncate">
+              {tier ? (
+                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
+              ) : <>@{comment.author}</>}
+            </span>
           )}
           {comment.author === currentUser && (
             <span className="px-1 py-0.5 text-[9px] md:text-[10px] bg-blue-900 text-blue-200 rounded-full flex-shrink-0">You</span>

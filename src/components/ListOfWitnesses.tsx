@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { Witness, WitnessFilters, ListOfWitnessesProps, WitnessVote, Account } from '../types/witness';
 import { useWitnessStore } from '../store';
 import { witnessService } from '../services/witnessService';
@@ -234,6 +235,7 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
 
     return true;
   }), [witnesses, filters, userWitnessVotes]);
+  const tierMap = useSupporterTierMap();
 
   const handleVotesClick = async (witness: string) => {
     if (onWitnessVoteClick) {
@@ -353,13 +355,17 @@ const ListOfWitnesses: React.FC<ListOfWitnessesProps> = ({
                     <div className="flex items-center space-x-3">
                       <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>#{rank}</span>
                       <img
-                        className="w-10 h-10 rounded-full"
+                        className={`w-10 h-10 rounded-full ${getSupporterRing(tierMap[witness.owner])}`}
                         src={`https://images.hive.blog/u/${witness.owner}/avatar`}
                         alt={witness.owner}
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
                       />
                       <div>
-                        <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>{witness.owner}</div>
+                        <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>
+                          {tierMap[witness.owner] ? (
+                            <span className={`inline-block rounded px-1 py-0.5 text-xs font-medium ${getSupporterBadge(tierMap[witness.owner])}`}>{witness.owner}</span>
+                          ) : witness.owner}
+                        </div>
                         <div className={`text-xs ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Since {new Date(witness.created).getFullYear()}</div>
                       </div>
                     </div>

@@ -1,3 +1,14 @@
+// Supporter tier — provider + helpers consumed by host apps
+export {
+  SupporterTierProvider,
+  useSupporterTierMap,
+  useSupporterTier,
+  getSupporterRing,
+  getSupporterBadge,
+  type SupporterTier,
+  type SupporterTierMap,
+} from './context/SupporterTierContext';
+
 // Main components exports
 export { default as VideoCard } from './components/VideoCard';
 export { default as VideoDetail } from './components/VideoDetail';

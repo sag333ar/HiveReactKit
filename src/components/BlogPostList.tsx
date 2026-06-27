@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-react';
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -390,6 +391,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   defaultReward,
   actionsAsMenu,
 }) => {
+  const tierMap = useSupporterTierMap();
   if (loading && posts.length === 0) {
     return (
       <div className="space-y-3">
@@ -523,7 +525,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                     alt={item.author}
                     loading="lazy"
                     decoding="async"
-                    className="h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover ring-1 ring-[var(--hrk-border-subtle)] sm:h-9 sm:w-9"
+                    className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author], 'ring-1 ring-[var(--hrk-border-subtle)]')}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
                     }}
@@ -534,7 +536,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                       onActivate={() => onUserClick?.(item.author)}
                       className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
-                      @{item.author}
+                      {tierMap[item.author] ? (
+                        <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>@{item.author}</span>
+                      ) : <>@{item.author}</>}
                     </HiveLink>
                     {/* Timestamp is the post permalink so the card has a
                         right-clickable "open in new tab" target even if

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { Post, PostSort } from '@/types/post';
 import { apiService } from '@/services/apiService';
 import { formatDistanceToNow } from 'date-fns';
@@ -37,6 +38,7 @@ export default function PostFeedList({
   onCommentClick,
   onReblogClick,
 }: PostFeedListProps) {
+  const tierMap = useSupporterTierMap();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -229,7 +231,7 @@ export default function PostFeedList({
                 <img
                   src={`https://images.hive.blog/u/${post.author}/avatar`}
                   alt={post.author}
-                  className="w-8 h-8 rounded-full cursor-pointer flex-shrink-0"
+                  className={`w-8 h-8 rounded-full cursor-pointer flex-shrink-0 ${getSupporterRing(tierMap[post.author])}`}
                   onClick={() => onAuthorClick?.(post.author, `https://images.hive.blog/u/${post.author}/avatar`)}
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random`;
@@ -239,7 +241,9 @@ export default function PostFeedList({
                   className="font-medium cursor-pointer hover:text-primary"
                   onClick={() => onAuthorClick?.(post.author, `https://images.hive.blog/u/${post.author}/avatar`)}
                 >
-                  {post.author}
+                  {tierMap[post.author] ? (
+                    <span className={`inline-block rounded px-1 py-0.5 text-sm ${getSupporterBadge(tierMap[post.author])}`}>{post.author}</span>
+                  ) : post.author}
                 </span>
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}>({post.author_reputation.toFixed(2)})</span>
                 <span

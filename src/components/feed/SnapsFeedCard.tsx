@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import { createHiveRenderer } from '@snapie/renderer';
+import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
@@ -447,6 +448,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     return found ?? undefined;
   }, [currentUser, post.replies]);
   const hasCommented = !!myReplyKey;
+  const tier = useSupporterTier(post.author);
 
   const rawPayout = post.payout
     ? post.payout.toFixed(3)
@@ -502,7 +504,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           <img
             src={`https://images.hive.blog/u/${post.author}/avatar`}
             alt={post.author}
-            className="h-9 w-9 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
+            className={`h-9 w-9 rounded-full bg-[var(--hrk-bg-hover)] object-cover ${getSupporterRing(tier)}`}
             onError={(e) => {
               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=36`;
             }}
@@ -514,7 +516,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             onActivate={() => onUserClick?.(post.author)}
             className="truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
           >
-            @{post.author}
+            {tier ? (
+              <span className={`inline-block rounded px-1 py-0.5 text-xs font-semibold sm:text-sm ${getSupporterBadge(tier)}`}>@{post.author}</span>
+            ) : <>@{post.author}</>}
           </HiveLink>
           <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
           {/* Timestamp doubles as the post permalink (X/Twitter
