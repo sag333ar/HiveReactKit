@@ -164,6 +164,7 @@ export interface ParentPostComposerProps {
   /** Reward routing default + favorites for the beneficiary editor. */
   defaultReward?: RewardOption;
   defaultBeneficiaries?: Beneficiary[];
+  lockedBeneficiaries?: Beneficiary[];
   beneficiaryFavorites?: Beneficiary[];
 
   /** Upload tokens — same plumbing the kit's PostComposer uses. */
@@ -460,6 +461,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   maxTags = 10,
   defaultReward = 'default',
   defaultBeneficiaries,
+  lockedBeneficiaries: propLockedBeneficiaries,
   beneficiaryFavorites,
   ecencyToken,
   onSignMessage,
@@ -516,6 +518,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 }) => {
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [description, setDescription] = useState(initialDescription);
   const [body, setBody] = useState(initialBody);
   // Reblog toggle (only meaningful when the host enabled `reblogToggle`).
@@ -715,14 +718,23 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // for an undefined parent, but spelling it out keeps intent obvious.
   const decentMemesKind = 'post' as const;
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
+    console.log('ParentPostComposer: recalculating lockedBeneficiaries. propLockedBeneficiaries:', propLockedBeneficiaries);
     const list: Beneficiary[] = [];
     if (hasVideo) {
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
     list.push({ account: 'hivesuite.app', weight: 1 });
+    if (propLockedBeneficiaries && propLockedBeneficiaries.length > 0) {
+      for (const ben of propLockedBeneficiaries) {
+        if (!list.some((existing) => existing.account === ben.account)) {
+          list.push(ben);
+        }
+      }
+    }
+    console.log('ParentPostComposer: calculated lockedBeneficiaries:', list);
     return list;
-  }, [hasVideo, decentMemes]);
+  }, [hasVideo, decentMemes, propLockedBeneficiaries]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
@@ -741,8 +753,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         reasons[acc] = `Auto-attached by ${label} (${entry.role ?? 'beneficiary'}) — required by the DecentMemes integration`;
       }
     }
+    if (propLockedBeneficiaries && propLockedBeneficiaries.length > 0) {
+      for (const ben of propLockedBeneficiaries) {
+        if (!reasons[ben.account]) {
+          reasons[ben.account] = `Required by community rule (${(ben.weight / 100).toFixed(0)}%)`;
+        }
+      }
+    }
     return reasons;
-  }, [hasVideo, decentMemes]);
+  }, [hasVideo, decentMemes, propLockedBeneficiaries]);
 
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() =>
     enforceLockedBeneficiaries(defaultBeneficiaries, []),
@@ -751,8 +770,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     return beneficiaries.filter((b) => b.account !== 'hivesuite.app');
   }, [beneficiaries]);
   useEffect(() => {
-    setBeneficiaries((prev) => enforceLockedBeneficiaries(prev, lockedBeneficiaries));
-  }, [lockedBeneficiaries]);
+    if (!draftHydrated) return;
+    setBeneficiaries((prev) => {
+      const next = enforceLockedBeneficiaries(prev, lockedBeneficiaries);
+      const isSame =
+        next.length === prev.length &&
+        next.every((item, idx) => item.account === prev[idx].account && item.weight === prev[idx].weight);
+      if (isSame) return prev;
+      return next;
+    });
+  }, [lockedBeneficiaries, draftHydrated]);
   const [isBeneficiariesOpen, setIsBeneficiariesOpen] = useState(false);
   const handleBeneficiariesSave = useCallback(
     (next: Beneficiary[]) => {
@@ -1329,7 +1356,6 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // the user doesn't lose work if they refresh or close the tab. On a
   // successful submit `clearDraftAndReset()` wipes the entry and zeroes the
   // in-memory state.
-  const [draftHydrated, setDraftHydrated] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const initialBeneficiariesRef = useRef(defaultBeneficiaries);
 
@@ -1461,7 +1487,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     setUserTags([]);
     setTagDraft('');
     setReward(defaultReward);
-    setBeneficiaries(enforceLockedBeneficiaries(initialBeneficiariesRef.current, []));
+    setBeneficiaries(enforceLockedBeneficiaries(initialBeneficiariesRef.current, lockedBeneficiaries));
     setAudioEmbedUrl(null);
     setAudioDuration(0);
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
@@ -1474,7 +1500,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     setPollData(null);
     setDecentMemes([]);
     setDraftSavedAt(null);
-  }, [draftKey, defaultReward, videoPreviewUrl]);
+  }, [draftKey, defaultReward, videoPreviewUrl, lockedBeneficiaries]);
 
   const clearDraftManually = useCallback(() => {
     clearDraftAndReset();
