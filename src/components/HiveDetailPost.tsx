@@ -31,8 +31,12 @@ import {
   Pause,
   Square,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
   Repeat2,
   Globe,
+  Zap,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { PostActionButton } from './actionButtons/PostActionButton';
@@ -54,6 +58,8 @@ import { WorldMappinMap } from './WorldMappinMap';
 import { extractWorldMappinPin } from '../utils/worldMappin';
 import { useTranslatedText } from '@/i18n/useTranslatedText';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
+import { extractPostMedia } from '@/utils/postMedia';
+import { DEFAULT_TRANSLATE_LANGUAGES } from '@/i18n/selectionTranslate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -451,6 +457,56 @@ export function HiveDetailPost({
   }, [backgroundColor]);
 
   const [post, setPost] = useState<Post | null>(null);
+
+  // Recommendations state & pagination calculations
+  const [recommendedPosts, setRecommendedPosts] = useState<Post[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const recsRef = useRef<HTMLDivElement>(null);
+  const recsScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!author) return;
+    let active = true;
+    setLoadingRecommendations(true);
+    userService.getUserBlogs(author, 12)
+      .then((blogs) => {
+        if (!active) return;
+        setRecommendedPosts(blogs || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load recommended posts:', err);
+      })
+      .finally(() => {
+        if (active) setLoadingRecommendations(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [author]);
+
+  const currentIndex = useMemo(() => {
+    return recommendedPosts.findIndex(
+      (p) => p.permlink.toLowerCase() === permlink.toLowerCase()
+    );
+  }, [recommendedPosts, permlink]);
+
+  const prevPost = currentIndex > 0 ? recommendedPosts[currentIndex - 1] : null;
+  const nextPost = currentIndex >= 0 && currentIndex < recommendedPosts.length - 1 ? recommendedPosts[currentIndex + 1] : null;
+
+  const scrollToRecommendations = () => {
+    recsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const scrollMobileRecommendations = (direction: 'left' | 'right') => {
+    if (recsScrollRef.current) {
+      const distance = recsScrollRef.current.clientWidth * 0.75;
+      recsScrollRef.current.scrollBy({
+        left: direction === 'left' ? -distance : distance,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   // Title translation follows the language set on <HiveLanguageProvider>.
   // Returns the original synchronously, swaps to translated when the API
   // responds, no-op for English. Cached so subsequent renders are free.
@@ -465,6 +521,10 @@ export function HiveDetailPost({
   // keeps focus management simple.
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [rawViewOpen, setRawViewOpen] = useState(false);
+  // Mobile FAB (⚡) open state
+  const [fabOpen, setFabOpen] = useState(false);
+  // Mobile language bottom-sheet state
+  const [langSheetOpen, setLangSheetOpen] = useState(false);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const postBodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -1951,24 +2011,45 @@ export function HiveDetailPost({
               </div>
             </div>
 
-            {/* Whole-page language picker. Rendered only when the
-                consumer wires both the controlled language and the
-                setter — pairing it with a parent
-                <HiveLanguageProvider> turns this into a one-tap
-                "translate the entire post + all comments" affordance. */}
-            {language !== undefined && onSelectLanguage && (
-              <LanguagePickerButton
-                language={language}
-                onSelectLanguage={onSelectLanguage}
-                className="hidden sm:block"
-              />
+            {/* Next/Prev Navigation — desktop only; on mobile these live in the ⚡ FAB */}
+            {recommendedPosts.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1 bg-[var(--hrk-bg-surface-raised)]/60 border border-[var(--hrk-border-subtle)] rounded-lg p-0.5 mr-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (prevPost) onNavigateToPost?.(prevPost.author, prevPost.permlink);
+                  }}
+                  disabled={!prevPost}
+                  className="p-1 hover:bg-[var(--hrk-bg-surface)] disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                  title={prevPost ? `Previous: ${prevPost.title}` : 'No previous post'}
+                >
+                  <ChevronLeft className="h-4 w-4 text-[var(--hrk-text-secondary)]" />
+                </button>
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] px-1 select-none font-medium">
+                  {currentIndex >= 0 ? `${currentIndex + 1}/${recommendedPosts.length}` : '—'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (nextPost) onNavigateToPost?.(nextPost.author, nextPost.permlink);
+                  }}
+                  disabled={!nextPost}
+                  className="p-1 hover:bg-[var(--hrk-bg-surface)] disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                  title={nextPost ? `Next: ${nextPost.title}` : 'No next post'}
+                >
+                  <ChevronRight className="h-4 w-4 text-[var(--hrk-text-secondary)]" />
+                </button>
+              </div>
             )}
+
+            {/* Language picker is handled by the ⚡ FAB on mobile
+                and by HeaderMoreMenu on desktop — no standalone header button needed */}
 
             {/* Text-to-speech button to read post */}
             {typeof window !== 'undefined' && !!window.speechSynthesis && (
               <button
                 onClick={handleSpeechToggle}
-                className={`hidden sm:block p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0 ${isSpeaking ? 'text-[var(--hrk-brand)] bg-[var(--hrk-bg-surface-raised)]' : 'text-[var(--hrk-text-secondary)]'}`}
+                className={`hidden lg:block p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-lg transition-colors flex-shrink-0 ${isSpeaking ? 'text-[var(--hrk-brand)] bg-[var(--hrk-bg-surface-raised)]' : 'text-[var(--hrk-text-secondary)]'}`}
                 aria-label={isSpeaking ? "Stop reading post" : "Read post aloud"}
                 title={isSpeaking ? "Stop reading post" : "Read post aloud"}
               >
@@ -2073,9 +2154,235 @@ export function HiveDetailPost({
           post={post}
         />
 
-        {/* ── Single-column scrollable content ── */}
+        {/* ── Mobile FAB (⚡) — Translation · Recommendations · Prev/Next ── */}
+        {/* Only visible on small screens; hidden on lg+ where the header controls take over */}
+        <div className="lg:hidden">
+          {/* Backdrop to close FAB on outside click */}
+          {fabOpen && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setFabOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* FAB speed-dial container */}
+          <div className="fixed bottom-6 right-4 z-50 flex flex-col items-end gap-2">
+
+            {/* Speed-dial action items — visible when fabOpen */}
+            <div
+              className={`flex flex-col items-end gap-2 transition-all duration-200 ${
+                fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'
+              }`}
+              aria-hidden={!fabOpen}
+            >
+              {/* Translation — opens bottom sheet on mobile */}
+              {language !== undefined && onSelectLanguage && (
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                    Translate
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setFabOpen(false); setLangSheetOpen(true); }}
+                    className={`w-11 h-11 flex items-center justify-center rounded-full shadow-lg border transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer ${
+                      (language || 'en').toLowerCase() !== 'en'
+                        ? 'bg-blue-600/80 border-blue-400/50'
+                        : 'bg-white/20 backdrop-blur-md border-white/30 hover:bg-white/30'
+                    }`}
+                    aria-label="Translate page"
+                    title={`Translate — current: ${language}`}
+                  >
+                    <Globe className="h-5 w-5 text-white" />
+                  </button>
+                </div>
+              )}
+
+              {/* Recommendations scroll */}
+              {recommendedPosts.length > 1 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                    Recommendations
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { scrollToRecommendations(); setFabOpen(false); }}
+                    className="w-11 h-11 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer"
+                    aria-label="View recommended posts"
+                  >
+                    <Sparkles className="h-5 w-5 text-yellow-300" />
+                  </button>
+                </div>
+              )}
+
+              {/* Prev post */}
+              {recommendedPosts.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap max-w-[160px] truncate">
+                    {prevPost ? prevPost.title : 'No previous'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { if (prevPost) { onNavigateToPost?.(prevPost.author, prevPost.permlink); setFabOpen(false); } }}
+                    disabled={!prevPost}
+                    className="w-11 h-11 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg disabled:opacity-25 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                    aria-label="Previous post"
+                    title={prevPost ? `Previous: ${prevPost.title}` : 'No previous post'}
+                  >
+                    <ChevronLeft className="h-5 w-5 text-white" />
+                  </button>
+                </div>
+              )}
+
+              {/* Next post */}
+              {recommendedPosts.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap max-w-[160px] truncate">
+                    {nextPost ? nextPost.title : 'No next'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { if (nextPost) { onNavigateToPost?.(nextPost.author, nextPost.permlink); setFabOpen(false); } }}
+                    disabled={!nextPost}
+                    className="w-11 h-11 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg disabled:opacity-25 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                    aria-label="Next post"
+                    title={nextPost ? `Next: ${nextPost.title}` : 'No next post'}
+                  >
+                    <ChevronRight className="h-5 w-5 text-white" />
+                  </button>
+                </div>
+              )}
+
+              {/* Post index indicator */}
+              {recommendedPosts.length > 0 && currentIndex >= 0 && (
+                <div className="self-end pr-1">
+                  <span className="text-[10px] font-semibold text-white/80 bg-black/60 backdrop-blur-sm px-2.5 py-0.5 rounded-full shadow border border-white/10">
+                    {currentIndex + 1} / {recommendedPosts.length}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Main ⚡ FAB trigger button */}
+            <button
+              type="button"
+              onClick={() => setFabOpen((v) => !v)}
+              aria-label={fabOpen ? 'Close quick actions' : 'Quick actions'}
+              aria-expanded={fabOpen}
+              className={`flex items-center justify-center rounded-full shadow-2xl transition-all duration-200 cursor-pointer ${
+                fabOpen
+                  ? 'bg-orange-500 rotate-[135deg] scale-110'
+                  : 'bg-gradient-to-br from-yellow-400 to-orange-500 hover:scale-110 active:scale-95 hover:shadow-orange-500/40'
+              }`}
+              style={{ width: 52, height: 52 }}
+            >
+              <Zap
+                className="h-6 w-6 text-white drop-shadow"
+                fill="white"
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* \u2500\u2500 Mobile Language Bottom Sheet \u2500\u2500 */}
+        {language !== undefined && onSelectLanguage && createPortal(
+          <>
+            {/* Backdrop */}
+            <div
+              className={`fixed inset-0 z-[70] bg-black/60 transition-opacity duration-300 lg:hidden ${
+                langSheetOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              }`}
+              onClick={() => setLangSheetOpen(false)}
+              aria-hidden="true"
+            />
+            {/* Sheet panel */}
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Select language"
+              className={`fixed bottom-0 left-0 right-0 z-[71] rounded-t-2xl shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+                langSheetOpen ? 'translate-y-0' : 'translate-y-full'
+              }`}
+              style={{ background: '#111827' }}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/20" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-blue-400" />
+                  <span className="text-sm font-semibold text-white">Translate Page</span>
+                  {(language || 'en').toLowerCase() !== 'en' && (
+                    <span className="text-[10px] bg-blue-600/40 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-full font-medium">
+                      {language.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLangSheetOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                  aria-label="Close language picker"
+                >
+                  <X className="h-4 w-4 text-white/60" />
+                </button>
+              </div>
+
+              {/* Language grid */}
+              <div
+                className="px-4 py-4 grid grid-cols-2 gap-2 max-h-[55vh] overflow-y-auto"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}
+              >
+                {DEFAULT_TRANSLATE_LANGUAGES.map((lang) => {
+                  const isActive = lang.code === language;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        onSelectLanguage(lang.code);
+                        setLangSheetOpen(false);
+                      }}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600/30 border-blue-500/60 text-white'
+                          : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xs font-medium">{lang.label}</span>
+                      <span className="text-[10px] uppercase tracking-wide text-white/40 font-mono">{lang.code}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Reset to English */}
+              {(language || 'en').toLowerCase() !== 'en' && (
+                <div className="px-4 pb-4 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { onSelectLanguage('en'); setLangSheetOpen(false); }}
+                    className="w-full py-2.5 rounded-xl border border-white/10 text-xs text-white/50 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    Reset to English
+                  </button>
+                </div>
+              )}
+              <div className="pb-6" />
+            </div>
+          </>,
+          document.body
+        )}
+
+        {/* \u2500\u2500 Responsive grid scrollable content \u2500\u2500 */}
         <div className="flex-1">
-          <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
+          <div className="max-w-7xl mx-auto px-4 py-4 sm:py-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left Column (Col 8): Main post content & Comments */}
+              <div className="lg:col-span-8 min-w-0">
 
             {/* View Parent — shown when this post is a reply (depth > 0) */}
             {post.depth > 0 && post.parent_author && post.parent_permlink && (
@@ -2518,6 +2825,140 @@ export function HiveDetailPost({
               />
               </SelectionTranslator>
             </div>
+
+            {/* Mobile horizontal recommended carousel */}
+            {recommendedPosts.length > 1 && (
+              <div ref={recsRef} className="block lg:hidden mt-8 mb-16 border-t border-[var(--hrk-border-subtle)] pt-6 pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                    Recommended from @{post.author}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => scrollMobileRecommendations('left')}
+                      className="relative z-10 p-1 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white transition-all cursor-pointer flex items-center justify-center border border-white/10 shadow"
+                      aria-label="Scroll left"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollMobileRecommendations('right')}
+                      className="relative z-10 p-1 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white transition-all cursor-pointer flex items-center justify-center border border-white/10 shadow"
+                      aria-label="Scroll right"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[10px] text-[var(--hrk-text-tertiary)] bg-[var(--hrk-bg-surface-raised)] px-2 py-0.5 rounded-full">Scroll →</span>
+                  </div>
+                </div>
+                
+                <div
+                  ref={recsScrollRef}
+                  className="flex gap-4 overflow-x-auto pb-3 pt-1 snap-x scroll-smooth"
+                  style={{
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgba(255,255,255,0.25) transparent',
+                  }}
+                >
+                  {recommendedPosts.filter(p => p.permlink !== permlink).map((p) => {
+                    const media = extractPostMedia(p);
+                    const imageUrl = media.find(m => m.kind === 'image')?.url || `https://images.hive.blog/u/${p.author}/avatar`;
+                    return (
+                      <div
+                        key={p.permlink}
+                        onClick={() => onNavigateToPost?.(p.author, p.permlink)}
+                        className="w-64 shrink-0 snap-start bg-[var(--hrk-bg-surface-raised)]/40 border border-[var(--hrk-border-subtle)] hover:bg-[var(--hrk-bg-surface-raised)]/80 hover:border-[var(--hrk-border-subtle-active)] transition-all duration-300 rounded-xl p-3 flex gap-3 cursor-pointer select-none group"
+                      >
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="w-16 h-16 rounded-lg object-cover bg-black/20 shrink-0 group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = `https://images.hive.blog/u/${p.author}/avatar`;
+                          }}
+                        />
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <h5 className="text-xs font-semibold text-white line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
+                            {p.title}
+                          </h5>
+                          <span className="text-[9px] text-[var(--hrk-text-tertiary)] block mt-1">
+                            {formatDate(p.created)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Trailing spacer so the last card doesn't hide behind the bottom-right FAB */}
+                  <div className="w-16 shrink-0" />
+                </div>
+              </div>
+            )}
+            </div>
+
+            {/* Right Column: Recommendations Sidebar (Desktop only) */}
+            <div className="hidden lg:block lg:col-span-4 sticky top-[72px] space-y-6">
+              {recommendedPosts.length > 1 && (
+                <div className="bg-[var(--hrk-bg-surface)]/60 border border-[var(--hrk-border-subtle)] backdrop-blur-md rounded-2xl p-5 shadow-lg max-h-[85vh] overflow-y-auto">
+                  <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                    More from @{post.author}
+                  </h4>
+
+                  <div className="space-y-4">
+                    {recommendedPosts.map((p) => {
+                      const isCurrent = p.permlink.toLowerCase() === permlink.toLowerCase();
+                      const media = extractPostMedia(p);
+                      const imageUrl = media.find(m => m.kind === 'image')?.url || `https://images.hive.blog/u/${p.author}/avatar`;
+                      
+                      return (
+                        <div
+                          key={p.permlink}
+                          onClick={() => {
+                            if (!isCurrent) onNavigateToPost?.(p.author, p.permlink);
+                          }}
+                          className={`group flex gap-3 p-2 -mx-2 rounded-xl transition-all duration-300 ${
+                            isCurrent
+                              ? 'bg-blue-500/10 border border-blue-500/20 cursor-default'
+                              : 'cursor-pointer hover:bg-[var(--hrk-bg-surface-raised)]/60'
+                          }`}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt=""
+                            className="w-16 h-16 rounded-lg object-cover bg-black/20 shrink-0 group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = `https://images.hive.blog/u/${p.author}/avatar`;
+                            }}
+                          />
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <h5 className={`text-xs font-semibold leading-snug group-hover:text-blue-400 transition-colors line-clamp-2 ${isCurrent ? 'text-blue-400' : 'text-white'}`}>
+                                {p.title}
+                              </h5>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-[10px] text-[var(--hrk-text-tertiary)]">
+                                {formatDate(p.created)}
+                              </span>
+                              {isCurrent && (
+                                <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded-full font-medium">
+                                  Reading
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            </div>
           </div>
         </div>
       </div>
@@ -2726,8 +3167,10 @@ function HeaderMoreMenu({
                 <span>View Raw</span>
               </button>
             )}
+
+            {/* Translate — desktop only (mobile uses the ⚡ FAB bottom-sheet) */}
             {onSelectLanguage && language !== undefined && (
-              <div className="sm:hidden">
+              <div className="hidden lg:block">
                 <LanguagePickerButton
                   language={language}
                   onSelectLanguage={(langCode) => {
