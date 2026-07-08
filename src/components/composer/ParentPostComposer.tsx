@@ -391,7 +391,7 @@ export interface ParentPostComposerProps {
  *      pane.
  */
 const WORLDMAPPIN_MARKER_REGEX =
-  /\[\/\/\]:#\s*\(\s*!worldmappin\s+(-?\d+(?:\.\d+)?)\s+lat\s+(-?\d+(?:\.\d+)?)\s+long\s+(.*?)\s+d3scr\s*\)/gi;
+  /\[\/\/\]:#\s*\(\s*(?:\[\/\/\]:#\s*\(\s*)*!worldmappin\s+(-?\d+(?:\.\d+)?)\s+lat\s+(-?\d+(?:\.\d+)?)\s+long\s+(.*?)\s+d3scr(?:\s*\))*/gi;
 
 interface ParsedWorldMapPin {
   lat: number;

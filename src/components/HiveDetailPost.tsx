@@ -55,7 +55,7 @@ import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
 import { WorldMappinMap } from './WorldMappinMap';
-import { extractWorldMappinPin } from '../utils/worldMappin';
+import { extractWorldMappinPin, stripWorldMappinMarkers } from '../utils/worldMappin';
 import { useTranslatedText } from '@/i18n/useTranslatedText';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import { extractPostMedia } from '@/utils/postMedia';
@@ -1047,6 +1047,8 @@ export function HiveDetailPost({
       // the bug. We also pre-link bare URLs for the same reason.
       let safeBody = preLinkMentions(bodyForContent, renderOptions?.userLinkUrlFn);
       safeBody = preLinkUrls(safeBody);
+      // Strip WorldMappin markers so they are not rendered inline in the body
+      safeBody = stripWorldMappinMarkers(safeBody);
       // Strip IPFS URLs (and any iframe/video shell wrapping one) before
       // the markdown engine sees them — they're rendered separately via
       // <IpfsMedia> above the body. Leaving them in produces "(Unsupported

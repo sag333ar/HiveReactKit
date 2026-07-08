@@ -21,7 +21,7 @@ export interface WorldMappinPin {
 }
 
 const WORLD_MAPPIN_RE =
-  /\[\/\/\]:#\s*\(\s*!worldmappin\s+(-?\d+(?:\.\d+)?)\s+lat\s+(-?\d+(?:\.\d+)?)\s+long\s+([\s\S]*?)\s+d3scr\s*\)/gi;
+  /\[\/\/\]:#\s*\(\s*(?:\[\/\/\]:#\s*\(\s*)*!worldmappin\s+(-?\d+(?:\.\d+)?)\s+lat\s+(-?\d+(?:\.\d+)?)\s+long\s+([\s\S]*?)\s+d3scr(?:\s*\))*/gi;
 
 /** Pull every WorldMappin marker out of a post body. */
 export function extractWorldMappinPins(body: string): WorldMappinPin[] {
