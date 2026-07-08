@@ -450,7 +450,39 @@ const extractPlainText = (body: string): string => {
 };
 
 // ─── Module-level cache (persists across mount/unmount) ──────────────────────
-const profileStateCache: Record<string, { tab: TabType; scrollTop: number; tabScrollLeft: number }> = {};
+interface ProfileState {
+  tab: TabType;
+  scrollTop: number;
+  tabScrollLeft: number;
+  profile?: ProfileData | null;
+  blogs?: Post[];
+  posts?: Post[];
+  polls?: Poll[];
+  authorRewards?: PendingAuthorRow[];
+  authorRewardsTotals?: { totalHbd: number; totalHpEq: number };
+  curationRewards?: PendingCurationRow[];
+  curationRewardsTotals?: { totalHp: number; totalHbd: number };
+  comments?: Post[];
+  replies?: Post[];
+  followers?: Follower[];
+  following?: Following[];
+  curations?: ActivityListItem[];
+  lowestCurationIndex?: number;
+  witnessVotes?: string[];
+  votingPowerData?: any;
+  badges?: string[];
+  badgeAccounts?: Account[];
+  hivebuzzBadges?: any[];
+  hiveposh?: { twitter?: string; reddit?: string };
+  hasMore?: Record<TabType, boolean>;
+  postsSubTab?: "blogs" | "posts";
+  repliesSubTab?: "comments" | "replies";
+  rewardsSubTab?: "authorRewards" | "curationRewards";
+  followsSubTab?: "followers" | "following";
+  activitiesSubTab?: "activities" | "curation";
+  walletSubTab?: "wallet" | "tokens" | "votingPower";
+}
+const profileStateCache: Record<string, ProfileState> = {};
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -539,8 +571,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 }) => {
   const t = useKitT();
   const tierMap = useSupporterTierMap();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const targetUsername = username.replace(/^@/, "").trim();
+  const cached = profileStateCache[targetUsername];
+
+  const [profile, setProfile] = useState<ProfileData | null>(cached?.profile || null);
+  const [loading, setLoading] = useState(!cached?.profile);
   const [error, setError] = useState<string | null>(null);
   const isControlled = controlledActiveTab !== undefined;
   const initialTab: TabType = controlledActiveTab
@@ -566,36 +601,41 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Sub-tab states — initialize from initialSubTab prop so host apps can
   // restore sub-tabs from URL params (e.g. ?subtab=replies).
   const [postsSubTab, setPostsSubTab] = useState<"blogs" | "posts">(
+    cached?.postsSubTab !== undefined ? cached.postsSubTab :
     (initialSubTab === "posts" || initialSubTab === "blogs")
       ? initialSubTab as "blogs" | "posts"
       : (initialTab === "posts" ? "posts" : "blogs")
   );
   const [repliesSubTab, setRepliesSubTab] = useState<"comments" | "replies">(
+    cached?.repliesSubTab !== undefined ? cached.repliesSubTab :
     (initialSubTab === "replies" || initialSubTab === "comments")
       ? initialSubTab as "comments" | "replies"
       : (initialTab === "replies" ? "replies" : "comments")
   );
   const [rewardsSubTab, setRewardsSubTab] = useState<"authorRewards" | "curationRewards">(
+    cached?.rewardsSubTab !== undefined ? cached.rewardsSubTab :
     (initialSubTab === "authorRewards" || initialSubTab === "curationRewards")
       ? initialSubTab as "authorRewards" | "curationRewards"
       : (initialTab === "curationRewards" ? "curationRewards" : "authorRewards")
   );
   const [followsSubTab, setFollowsSubTab] = useState<"followers" | "following">(
+    cached?.followsSubTab !== undefined ? cached.followsSubTab :
     (initialSubTab === "following" || initialSubTab === "followers")
       ? initialSubTab as "followers" | "following"
       : (initialTab === "following" ? "following" : "followers")
   );
   const [activitiesSubTab, setActivitiesSubTab] = useState<"activities" | "curation">(
+    cached?.activitiesSubTab !== undefined ? cached.activitiesSubTab :
     (initialSubTab === "curation" || initialSubTab === "activities")
       ? initialSubTab as "activities" | "curation"
       : (initialTab === "curation" ? "curation" : "activities")
   );
   const [walletSubTab, setWalletSubTab] = useState<"wallet" | "tokens" | "votingPower">(
+    cached?.walletSubTab !== undefined ? cached.walletSubTab :
     (initialSubTab === "votingPower" || initialSubTab === "tokens" || initialSubTab === "wallet")
       ? initialSubTab as "wallet" | "tokens" | "votingPower"
       : (initialTab === "votingPower" ? "votingPower" : (walletInitialView === "tokens" ? "tokens" : "wallet"))
   );
-
   // Sync sub-tab states when initialSubTab changes
   useEffect(() => {
     if (!initialSubTab) return;
@@ -619,18 +659,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   useEffect(() => {
     if (!parent) return;
     if (prevParentRef.current !== parent) {
-      if (parent === "posts" && (!initialSubTab || (initialSubTab !== "blogs" && initialSubTab !== "posts"))) {
-        setPostsSubTab("blogs");
-      } else if (parent === "replies" && (!initialSubTab || (initialSubTab !== "comments" && initialSubTab !== "replies"))) {
-        setRepliesSubTab("comments");
-      } else if (parent === "rewards" && (!initialSubTab || (initialSubTab !== "authorRewards" && initialSubTab !== "curationRewards"))) {
-        setRewardsSubTab("authorRewards");
-      } else if (parent === "followers" && (!initialSubTab || (initialSubTab !== "followers" && initialSubTab !== "following"))) {
-        setFollowsSubTab("followers");
-      } else if (parent === "activities" && (!initialSubTab || (initialSubTab !== "activities" && initialSubTab !== "curation"))) {
-        setActivitiesSubTab("activities");
-      } else if (parent === "wallet" && (!initialSubTab || (initialSubTab !== "wallet" && initialSubTab !== "tokens" && initialSubTab !== "votingPower"))) {
-        setWalletSubTab("wallet");
+      if (prevParentRef.current !== null) {
+        if (parent === "posts" && (!initialSubTab || (initialSubTab !== "blogs" && initialSubTab !== "posts"))) {
+          setPostsSubTab("blogs");
+        } else if (parent === "replies" && (!initialSubTab || (initialSubTab !== "comments" && initialSubTab !== "replies"))) {
+          setRepliesSubTab("comments");
+        } else if (parent === "rewards" && (!initialSubTab || (initialSubTab !== "authorRewards" && initialSubTab !== "curationRewards"))) {
+          setRewardsSubTab("authorRewards");
+        } else if (parent === "followers" && (!initialSubTab || (initialSubTab !== "followers" && initialSubTab !== "following"))) {
+          setFollowsSubTab("followers");
+        } else if (parent === "activities" && (!initialSubTab || (initialSubTab !== "activities" && initialSubTab !== "curation"))) {
+          setActivitiesSubTab("activities");
+        } else if (parent === "wallet" && (!initialSubTab || (initialSubTab !== "wallet" && initialSubTab !== "tokens" && initialSubTab !== "votingPower"))) {
+          setWalletSubTab("wallet");
+        }
       }
       prevParentRef.current = parent;
     }
@@ -709,33 +751,34 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
   ]);
   const prevUsernameRef = useRef<string>("");
+  const prevRefreshCurationTriggerRef = useRef<number>(0);
   const prevParentRef = useRef<TabType | null>(null);
   const activeTabRef = useRef<TabType>(activeTab);
   activeTabRef.current = activeTab;
   const mainScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Content states
-  const [blogs, setBlogs] = useState<Post[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [comments, setComments] = useState<Post[]>([]);
-  const [replies, setReplies] = useState<Post[]>([]);
-  const [curations, setCurations] = useState<ActivityListItem[]>([]);
-  const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(-1);
+  const [blogs, setBlogs] = useState<Post[]>(cached?.blogs || []);
+  const [posts, setPosts] = useState<Post[]>(cached?.posts || []);
+  const [comments, setComments] = useState<Post[]>(cached?.comments || []);
+  const [replies, setReplies] = useState<Post[]>(cached?.replies || []);
+  const [curations, setCurations] = useState<ActivityListItem[]>(cached?.curations || []);
+  const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(cached?.lowestCurationIndex !== undefined ? cached.lowestCurationIndex : -1);
   const [refreshCurationTrigger, setRefreshCurationTrigger] = useState<number>(0);
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>([]);
-  const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>({ totalHbd: 0, totalHpEq: 0 });
-  const [curationRewards, setCurationRewards] = useState<PendingCurationRow[]>([]);
-  const [curationRewardsTotals, setCurationRewardsTotals] = useState<{ totalHp: number; totalHbd: number }>({ totalHp: 0, totalHbd: 0 });
+  const [polls, setPolls] = useState<Poll[]>(cached?.polls || []);
+  const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>(cached?.authorRewards || []);
+  const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>(cached?.authorRewardsTotals || { totalHbd: 0, totalHpEq: 0 });
+  const [curationRewards, setCurationRewards] = useState<PendingCurationRow[]>(cached?.curationRewards || []);
+  const [curationRewardsTotals, setCurationRewardsTotals] = useState<{ totalHp: number; totalHbd: number }>(cached?.curationRewardsTotals || { totalHp: 0, totalHbd: 0 });
   const [rewardsStillLoading, setRewardsStillLoading] = useState(false);
-  const [followers, setFollowers] = useState<Follower[]>([]);
-  const [following, setFollowing] = useState<Following[]>([]);
-  const [badges, setBadges] = useState<string[]>([]);
-  const [badgeAccounts, setBadgeAccounts] = useState<Account[]>([]);
-  const [hivebuzzBadges, setHivebuzzBadges] = useState<any[]>([]);
+  const [followers, setFollowers] = useState<Follower[]>(cached?.followers || []);
+  const [following, setFollowing] = useState<Following[]>(cached?.following || []);
+  const [badges, setBadges] = useState<string[]>(cached?.badges || []);
+  const [badgeAccounts, setBadgeAccounts] = useState<Account[]>(cached?.badgeAccounts || []);
+  const [hivebuzzBadges, setHivebuzzBadges] = useState<any[]>(cached?.hivebuzzBadges || []);
   // HivePosh-linked social accounts (X / Reddit). Drives the header badges.
-  const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>({});
-  const [witnessVotes, setWitnessVotes] = useState<string[]>([]);
+  const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>(cached?.hiveposh || {});
+  const [witnessVotes, setWitnessVotes] = useState<string[]>(cached?.witnessVotes || []);
   const [votingPowerData, setVotingPowerData] = useState<{
     upvotePower: number; downvotePower: number; resourceCredits: number;
     maxMana: number; rewardBalance: number; recentClaims: number; feedPrice: number;
@@ -753,7 +796,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   // Pagination states
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState<Record<TabType, boolean>>({
+  const [hasMore, setHasMore] = useState<Record<TabType, boolean>>(cached?.hasMore || {
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false,
     votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false,
@@ -779,7 +822,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 0);
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-  }, []);
+    
+    // Save to cache in real-time
+    if (targetUsername) {
+      if (!profileStateCache[targetUsername]) {
+        profileStateCache[targetUsername] = {
+          tab: activeTabRef.current,
+          scrollTop: 0,
+          tabScrollLeft: el.scrollLeft,
+        };
+      } else {
+        profileStateCache[targetUsername].tabScrollLeft = el.scrollLeft;
+      }
+    }
+  }, [targetUsername]);
 
   useEffect(() => {
     // Retry until tabScrollRef is available (tab bar may render after cover image)
@@ -815,7 +871,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     el.scrollBy({ left: direction === "left" ? -150 : 150, behavior: "smooth" });
   }, []);
   const isMobile = useIsMobile();
-  const targetUsername = username.replace(/^@/, "").trim();
 
   // Fetch HivePosh-linked X / Reddit accounts for the header badges.
   useEffect(() => {
@@ -984,37 +1039,127 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     fetchProfile();
   }, [targetUsername, currentUsername]);
 
+  const stateRef = useRef({
+    profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+    polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
+    followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
+    witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
+    rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+      polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
+      followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
+      witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
+      rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
+    };
+  }, [
+    profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+    polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
+    followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
+    witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
+    rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
+  ]);
+
   // ─── Reset state on username change ──────────────────────────────────────
 
   useEffect(() => {
-    setBlogs([]);
-    setPosts([]);
-    setPolls([]);
-    setAuthorRewards([]);
-    setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
-    setCurationRewards([]);
-    setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
-    setComments([]);
-    setReplies([]);
-    setFollowers([]);
-    setFollowing([]);
-    setCurations([]);
-    setLowestCurationIndex(-1);
-    // Save previous profile's tab + scroll state
+    // Save previous profile's tab + scroll state + feed data
     if (prevUsernameRef.current && prevUsernameRef.current !== targetUsername) {
+      const existing = profileStateCache[prevUsernameRef.current];
       profileStateCache[prevUsernameRef.current] = {
         tab: activeTab,
-        scrollTop: mainScrollRef.current?.scrollTop || 0,
-        tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
+        scrollTop: mainScrollRef.current?.scrollTop !== undefined ? mainScrollRef.current.scrollTop : (existing?.scrollTop || 0),
+        tabScrollLeft: tabScrollRef.current?.scrollLeft !== undefined ? tabScrollRef.current.scrollLeft : (existing?.tabScrollLeft || 0),
+        ...stateRef.current,
       };
     }
     prevUsernameRef.current = targetUsername;
 
     // Restore if visited before, otherwise default to first tab.
+    const cached = profileStateCache[targetUsername];
+    if (cached) {
+      setProfile(cached.profile || null);
+      setLoading(!cached.profile);
+      setBlogs(cached.blogs || []);
+      setPosts(cached.posts || []);
+      setComments(cached.comments || []);
+      setReplies(cached.replies || []);
+      setCurations(cached.curations || []);
+      setLowestCurationIndex(cached.lowestCurationIndex !== undefined ? cached.lowestCurationIndex : -1);
+      setPolls(cached.polls || []);
+      setAuthorRewards(cached.authorRewards || []);
+      setAuthorRewardsTotals(cached.authorRewardsTotals || { totalHbd: 0, totalHpEq: 0 });
+      setCurationRewards(cached.curationRewards || []);
+      setCurationRewardsTotals(cached.curationRewardsTotals || { totalHp: 0, totalHbd: 0 });
+      setFollowers(cached.followers || []);
+      setFollowing(cached.following || []);
+      setBadges(cached.badges || []);
+      setBadgeAccounts(cached.badgeAccounts || []);
+      setHivebuzzBadges(cached.hivebuzzBadges || []);
+      setHiveposh(cached.hiveposh || {});
+      setWitnessVotes(cached.witnessVotes || []);
+      setVotingPowerData(cached.votingPowerData || null);
+      setHasMore(cached.hasMore || { blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
+      if (cached.postsSubTab !== undefined) setPostsSubTab(cached.postsSubTab);
+      if (cached.repliesSubTab !== undefined) setRepliesSubTab(cached.repliesSubTab);
+      if (cached.rewardsSubTab !== undefined) setRewardsSubTab(cached.rewardsSubTab);
+      if (cached.followsSubTab !== undefined) setFollowsSubTab(cached.followsSubTab);
+      if (cached.activitiesSubTab !== undefined) setActivitiesSubTab(cached.activitiesSubTab);
+      if (cached.walletSubTab !== undefined) setWalletSubTab(cached.walletSubTab);
+    } else {
+      setProfile(null);
+      setLoading(true);
+      setBlogs([]);
+      setPosts([]);
+      setPolls([]);
+      setAuthorRewards([]);
+      setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
+      setCurationRewards([]);
+      setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
+      setComments([]);
+      setReplies([]);
+      setFollowers([]);
+      setFollowing([]);
+      setCurations([]);
+      setLowestCurationIndex(-1);
+      setWitnessVotes([]);
+      setVotingPowerData(null);
+      setBadges([]);
+      setBadgeAccounts([]);
+      setHivebuzzBadges([]);
+      setHiveposh({});
+      setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
+      
+      const initialTab: TabType = controlledActiveTab
+        ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
+      setPostsSubTab((initialSubTab === "posts" || initialSubTab === "blogs")
+        ? initialSubTab as "blogs" | "posts"
+        : (initialTab === "posts" ? "posts" : "blogs"));
+      setRepliesSubTab((initialSubTab === "replies" || initialSubTab === "comments")
+        ? initialSubTab as "comments" | "replies"
+        : (initialTab === "replies" ? "replies" : "comments"));
+      setRewardsSubTab((initialSubTab === "authorRewards" || initialSubTab === "curationRewards")
+        ? initialSubTab as "authorRewards" | "curationRewards"
+        : (initialTab === "curationRewards" ? "curationRewards" : "authorRewards"));
+      setFollowsSubTab((initialSubTab === "following" || initialSubTab === "followers")
+        ? initialSubTab as "followers" | "following"
+        : (initialTab === "following" ? "following" : "followers"));
+      setActivitiesSubTab((initialSubTab === "curation" || initialSubTab === "activities")
+        ? initialSubTab as "activities" | "curation"
+        : (initialTab === "curation" ? "curation" : "activities"));
+      setWalletSubTab((initialSubTab === "votingPower" || initialSubTab === "tokens" || initialSubTab === "wallet")
+        ? initialSubTab as "wallet" | "tokens" | "votingPower"
+        : (initialTab === "votingPower" ? "votingPower" : (walletInitialView === "tokens" ? "tokens" : "wallet")));
+    }
+    
+    setVoteWeight(100);
+
     // Validate the cached tab is still in tabShown — if the consumer changed
     // the visible tab list, an old cached tab could otherwise render content
     // for a tab that's no longer in the bar.
-    const cached = profileStateCache[targetUsername];
     const firstTab = tabShown && tabShown.length > 0 ? tabShown[0] : "blogs";
     const cachedTabValid = cached?.tab && (
       !tabShown || tabShown.length === 0 || tabShown.includes(cached.tab)
@@ -1027,34 +1172,39 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setInternalActiveTab(mapToParentTab(tabToRestore));
       onActiveTabChange?.(tabToRestore);
     }
-    // Restore scroll positions after render
-    requestAnimationFrame(() => {
-      if (cached) {
-        mainScrollRef.current?.scrollTo({ top: cached.scrollTop });
-        tabScrollRef.current?.scrollTo({ left: cached.tabScrollLeft });
-      } else {
-        mainScrollRef.current?.scrollTo({ top: 0 });
-        tabScrollRef.current?.scrollTo({ left: 0 });
-      }
-    });
-    setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
-    setBadges([]);
-    setBadgeAccounts([]);
-    setHivebuzzBadges([]);
-    setWitnessVotes([]);
-    setVotingPowerData(null);
-    setVoteWeight(100);
   }, [targetUsername]);
+
+  // Restore scroll positions after loading completes and DOM is fully mounted
+  useEffect(() => {
+    if (loading) return;
+
+    const cached = profileStateCache[targetUsername];
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cached) {
+          console.log("[HRK Scroll] Restoring scroll positions - username:", targetUsername, "scrollTop:", cached.scrollTop, "tabScrollLeft:", cached.tabScrollLeft, "scrollHeight:", mainScrollRef.current?.scrollHeight, "clientHeight:", mainScrollRef.current?.clientHeight);
+          mainScrollRef.current?.scrollTo({ top: cached.scrollTop });
+          tabScrollRef.current?.scrollTo({ left: cached.tabScrollLeft });
+        } else {
+          console.log("[HRK Scroll] No cached state found for username:", targetUsername);
+          mainScrollRef.current?.scrollTo({ top: 0 });
+          tabScrollRef.current?.scrollTo({ left: 0 });
+        }
+      });
+    });
+  }, [loading, targetUsername]);
 
   // Save state on unmount (e.g. navigating to HiveDetailPost)
   useEffect(() => {
     return () => {
       const user = prevUsernameRef.current;
       if (user) {
+        const existing = profileStateCache[user];
         profileStateCache[user] = {
           tab: activeTabRef.current,
-          scrollTop: mainScrollRef.current?.scrollTop || 0,
-          tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
+          scrollTop: existing?.scrollTop !== undefined ? existing.scrollTop : (mainScrollRef.current?.scrollTop || 0),
+          tabScrollLeft: existing?.tabScrollLeft !== undefined ? existing.tabScrollLeft : (tabScrollRef.current?.scrollLeft || 0),
+          ...stateRef.current,
         };
       }
     };
@@ -1068,21 +1218,48 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     const fetchTabContent = async () => {
       if (!targetUsername) return;
-      setLoadingContent(true);
-      setRewardsStillLoading(false);
 
-      // Clear stale reward data when switching to rewards parent tab
-      if (activeTab === "rewards") {
-        setAuthorRewards([]);
-        setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
-        setCurationRewards([]);
-        setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
+      // Check if we already have cached data for the active tab/sub-tab
+      let hasCachedData = false;
+      if (activeTab === "posts") {
+        hasCachedData = postsSubTab === "blogs" ? blogs.length > 0 : posts.length > 0;
+      } else if (activeTab === "replies") {
+        hasCachedData = repliesSubTab === "comments" ? comments.length > 0 : replies.length > 0;
+      } else if (activeTab === "polls") {
+        hasCachedData = polls.length > 0;
+      } else if (activeTab === "followers") {
+        hasCachedData = followsSubTab === "followers" ? followers.length > 0 : following.length > 0;
+      } else if (activeTab === "activities") {
+        if (activitiesSubTab === "curation") {
+          const isRefresh = refreshCurationTrigger > prevRefreshCurationTriggerRef.current;
+          hasCachedData = curations.length > 0 && !isRefresh;
+        }
+      } else if (activeTab === "rewards") {
+        hasCachedData = rewardsSubTab === "authorRewards" ? authorRewards.length > 0 : curationRewards.length > 0;
       }
+
+      if (!hasCachedData) {
+        setLoadingContent(true);
+        // Clear stale reward data when switching to rewards parent tab
+        if (activeTab === "rewards") {
+          setAuthorRewards([]);
+          setAuthorRewardsTotals({ totalHbd: 0, totalHpEq: 0 });
+          setCurationRewards([]);
+          setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
+        }
+      }
+      setRewardsStillLoading(false);
 
       try {
         switch (activeTab) {
           case "activities": {
             if (activitiesSubTab === "curation") {
+              const isRefresh = refreshCurationTrigger > prevRefreshCurationTriggerRef.current;
+              prevRefreshCurationTriggerRef.current = refreshCurationTrigger;
+              if (curations.length > 0 && !isRefresh) {
+                setLoadingContent(false);
+                break;
+              }
               const VOTE_FILTER_LOW = (1n << 0n).toString();
               const raw = await activityListService.getAccountHistory(
                 targetUsername,
@@ -1104,10 +1281,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           }
           case "posts": {
             if (postsSubTab === "blogs") {
+              if (blogs.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
               setBlogs(data);
               setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
             } else {
+              if (posts.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const data = filterPost(await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal));
               setPosts(data);
               setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
@@ -1120,6 +1305,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "polls": {
+            if (polls.length > 0) {
+              setLoadingContent(false);
+              break;
+            }
             const data = filterPost(await userService.getUserPolls(targetUsername, signal));
             setPolls(data);
             setHasMore((prev) => ({ ...prev, polls: false }));
@@ -1127,10 +1316,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           }
           case "replies": {
             if (repliesSubTab === "comments") {
+              if (comments.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const data = filterPost(await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal));
               setComments(data);
               setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
             } else {
+              if (replies.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, undefined, undefined, signal);
               setReplies(filterPost(raw));
               setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
@@ -1139,10 +1336,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           }
           case "followers": {
             if (followsSubTab === "followers") {
+              if (followers.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const data = await userService.getFollowers(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
               setFollowers(data);
               setHasMore((prev) => ({ ...prev, followers: data.length >= FOLLOWER_PAGE_SIZE }));
             } else {
+              if (following.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               const data = await userService.getFollowing(targetUsername, null, FOLLOWER_PAGE_SIZE, signal);
               setFollowing(data);
               setHasMore((prev) => ({ ...prev, following: data.length >= FOLLOWER_PAGE_SIZE }));
@@ -1151,6 +1356,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           }
           case "rewards": {
             if (rewardsSubTab === "authorRewards") {
+              if (authorRewards.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               setRewardsStillLoading(true);
               const data = await userService.getPendingAuthorRewards(
                 targetUsername,
@@ -1166,6 +1375,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               setAuthorRewardsTotals({ totalHbd: data.totalHbd, totalHpEq: data.totalHpEq });
               setRewardsStillLoading(false);
             } else {
+              if (curationRewards.length > 0) {
+                setLoadingContent(false);
+                break;
+              }
               setRewardsStillLoading(true);
               const data = await userService.getPendingCurationRewards(
                 targetUsername,
@@ -1185,6 +1398,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           }
           case "wallet": {
             if (walletSubTab === "votingPower") {
+              if (votingPowerData !== null) {
+                setLoadingContent(false);
+                break;
+              }
               const [accounts, , feedHistory] = await Promise.all([
                 userService.getAccounts([targetUsername], signal),
                 userService.getDynamicGlobalProperties(signal),
@@ -1281,6 +1498,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "badges": {
+            if (badges.length > 0 || hivebuzzBadges.length > 0) {
+              setLoadingContent(false);
+              break;
+            }
             // Badges are followers whose username starts with "badge-"
             let allFollowers: Follower[] = [];
             let startFollower: string | null = null;
@@ -1320,6 +1541,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             break;
           }
           case "witnessVotes": {
+            if (witnessVotes.length > 0) {
+              setLoadingContent(false);
+              break;
+            }
             const accounts = await userService.getAccounts([targetUsername], signal);
             const account = accounts?.[0];
             if (account?.witness_votes) {
@@ -1481,6 +1706,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const THRESHOLD = 600;
     let ticking = false;
     const onScroll = () => {
+      if (targetUsername) {
+        if (!profileStateCache[targetUsername]) {
+          profileStateCache[targetUsername] = {
+            tab: activeTabRef.current,
+            scrollTop: el.scrollTop,
+            tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
+          };
+        } else {
+          profileStateCache[targetUsername].scrollTop = el.scrollTop;
+        }
+      }
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(() => {
@@ -1493,7 +1729,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [loadMore]);
+  }, [loadMore, targetUsername]);
 
   // After a load-more completes, if the new page didn't make the content
   // any taller than the viewport (short rows / fast network), the user
