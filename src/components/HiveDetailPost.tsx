@@ -244,6 +244,12 @@ export interface HiveDetailPostProps {
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
+  /** Forwarded to every DecentMemes picker in the comment composers so the
+   *  widget assigns the 1% frontend beneficiary slot. Pass your Hive account
+   *  (e.g. `'hivesuite.app'`) to opt in; omit to skip the slot. */
+  decentMemesAppAccount?: string;
+  /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
+  decentMemesTheme?: 'light' | 'dark';
 
   // Content moderation
   /** Array of usernames whose comments should be hidden from the current user's view. */
@@ -434,6 +440,8 @@ export function HiveDetailPost({
   allowLandscapeVideos = false,
   renderOptions,
   awaitingWalletApproval = false,
+  decentMemesAppAccount,
+  decentMemesTheme,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -2822,6 +2830,8 @@ export function HiveDetailPost({
                 allowLandscapeVideos={allowLandscapeVideos}
                 awaitingWalletApproval={awaitingWalletApproval}
                 renderOptions={renderOptions}
+                decentMemesAppAccount={decentMemesAppAccount}
+                decentMemesTheme={decentMemesTheme}
               />
               </SelectionTranslator>
             </div>

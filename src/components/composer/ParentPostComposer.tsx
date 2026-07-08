@@ -746,11 +746,46 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     }
     reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
-      for (const entry of meme.beneficiaries[decentMemesKind] ?? []) {
-        const acc = entry.account;
-        if (!acc) continue;
-        const label = meme.template.name ? `template "${meme.template.name}"` : 'a DecentMemes meme';
-        reasons[acc] = `Auto-attached by ${label} (${entry.role ?? 'beneficiary'}) — required by the DecentMemes integration`;
+      let targetAccount = 'decentmemeshold';
+      if (meme.template.submittedBy?.trim()) {
+        targetAccount = meme.template.submittedBy.trim();
+      } else if (meme.template.hiveAccount?.trim()) {
+        targetAccount = meme.template.hiveAccount.trim();
+      } else {
+        const commentList = meme.beneficiaries?.comment || [];
+        const submitterEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('submitter')
+        );
+        const creatorEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('creator')
+        );
+        const holdingEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('holding')
+        );
+
+        if (submitterEntry?.account?.trim()) {
+          targetAccount = submitterEntry.account.trim();
+        } else if (creatorEntry?.account?.trim()) {
+          targetAccount = creatorEntry.account.trim();
+        } else if (holdingEntry?.account?.trim()) {
+          targetAccount = holdingEntry.account.trim();
+        } else {
+          const list = decentMemesKind === 'post' ? meme.beneficiaries.post : meme.beneficiaries.comment;
+          const nonFrontend = list.find((entry) => entry && entry.role !== 'frontend' && entry.account);
+          if (nonFrontend) {
+            targetAccount = nonFrontend.account.trim();
+          }
+        }
+      }
+
+      const label = meme.template.name ? `template "${meme.template.name}"` : 'a DecentMemes meme';
+      reasons[targetAccount] = `Auto-attached by ${label} (creator/submitter share) — required by the DecentMemes integration`;
+
+      const list = decentMemesKind === 'post' ? meme.beneficiaries.post : meme.beneficiaries.comment;
+      for (const entry of list) {
+        if (entry && entry.role === 'frontend' && entry.account) {
+          reasons[entry.account] = `Auto-attached by ${label} (frontend share) — required by the DecentMemes integration`;
+        }
       }
     }
     if (propLockedBeneficiaries && propLockedBeneficiaries.length > 0) {

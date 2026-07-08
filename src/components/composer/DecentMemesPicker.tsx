@@ -123,7 +123,15 @@ function DecentMemesPicker({
       if (meta) {
         const memeMeta: DecentMemesMeme = {
           imageUrl: url,
-          template: { id: meta.id, name: meta.name, isOriginalCreator: meta.isOriginalCreator },
+          template: {
+            id: meta.id,
+            name: meta.name,
+            isOriginalCreator: meta.isOriginalCreator,
+            hiveAccount: meta.hiveAccount,
+            submittedBy: meta.submittedBy,
+            postWeight: meta.postWeight,
+            commentWeight: meta.commentWeight,
+          },
           beneficiaries: meta.beneficiaries,
         };
         console.log('[DecentMemesPicker] emitting onSelectMeme with meta:', memeMeta);
@@ -187,10 +195,43 @@ function DecentMemesPicker({
           size: file.size,
           type: file.type,
         });
+
+        // Extract submittedBy and hiveAccount from the comment beneficiaries if missing on the template
+        const commentList = payload.beneficiaries?.comment || [];
+        const submitterEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('submitter')
+        );
+        const creatorEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('creator')
+        );
+        const holdingEntry = commentList.find((entry) => 
+          entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('holding')
+        );
+
+        const extractedSubmittedBy = payload.template.submittedBy || submitterEntry?.account || undefined;
+        const extractedHiveAccount = payload.template.hiveAccount || creatorEntry?.account || holdingEntry?.account || undefined;
+
+        // Extract postWeight/commentWeight if missing
+        const postList = payload.beneficiaries?.post || [];
+        const postCreatorEntry = postList.find((entry) => entry && entry.role !== 'frontend');
+        const commentNonFrontendList = commentList.filter((entry) => entry && entry.role !== 'frontend');
+
+        const extractedPostWeight = typeof payload.template.postWeight === 'number'
+          ? payload.template.postWeight
+          : (postCreatorEntry?.weight || undefined);
+
+        const extractedCommentWeight = typeof payload.template.commentWeight === 'number'
+          ? payload.template.commentWeight
+          : (commentNonFrontendList.reduce((sum, entry) => sum + (entry.weight || 0), 0) || undefined);
+
         await uploadAndEmit(file, {
           id: payload.template.id,
           name: payload.template.name,
           isOriginalCreator: payload.template.isOriginalCreator,
+          hiveAccount: extractedHiveAccount,
+          submittedBy: extractedSubmittedBy,
+          postWeight: extractedPostWeight,
+          commentWeight: extractedCommentWeight,
           beneficiaries: payload.beneficiaries,
         });
       } catch (err) {

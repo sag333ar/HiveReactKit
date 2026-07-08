@@ -64,6 +64,10 @@ export interface DecentMemesTemplate {
   id: string;
   name?: string;
   isOriginalCreator?: boolean;
+  hiveAccount?: string;
+  submittedBy?: string;
+  postWeight?: number;
+  commentWeight?: number;
 }
 
 /** Normalised record we keep per inserted meme for later aggregation. */
@@ -136,21 +140,57 @@ export function aggregateDecentMemesBeneficiaries(
 
   for (const meme of memes) {
     const list = kind === 'post' ? meme.beneficiaries.post : meme.beneficiaries.comment;
+
+    // Process frontend slots
     for (const entry of list) {
       if (!entry?.account || typeof entry.weight !== 'number') continue;
-      // Frontend slots are deduplicated across memes (one slot per embedding
-      // frontend, regardless of meme count). Only exact-role matches qualify;
-      // collapsed roles like 'submitter+creator+frontend' should be impossible
-      // (frontend never collapses with submitter/creator in the spec) but if
-      // they appear we sum them like normal accounts to be safe.
       if (entry.role === 'frontend') {
         if (!frontendSeen.has(entry.account)) {
           frontendSeen.set(entry.account, entry.weight);
         }
-        continue;
       }
-      sums.set(entry.account, (sums.get(entry.account) ?? 0) + entry.weight);
     }
+
+    // Determine the single target account for this template's creator/holding payout.
+    // Give beneficiary to submittedBy if present, otherwise fallback to hiveAccount, or decentmemeshold.
+    let targetAccount = 'decentmemeshold';
+    if (meme.template.submittedBy?.trim()) {
+      targetAccount = meme.template.submittedBy.trim();
+    } else if (meme.template.hiveAccount?.trim()) {
+      targetAccount = meme.template.hiveAccount.trim();
+    } else {
+      // Fallback: look at meme.beneficiaries.comment for any submitter account (uploader)
+      const commentList = meme.beneficiaries?.comment || [];
+      const submitterEntry = commentList.find((entry) => 
+        entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('submitter')
+      );
+      const creatorEntry = commentList.find((entry) => 
+        entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('creator')
+      );
+      const holdingEntry = commentList.find((entry) => 
+        entry && typeof entry.role === 'string' && entry.role.toLowerCase().includes('holding')
+      );
+
+      if (submitterEntry?.account?.trim()) {
+        targetAccount = submitterEntry.account.trim();
+      } else if (creatorEntry?.account?.trim()) {
+        targetAccount = creatorEntry.account.trim();
+      } else if (holdingEntry?.account?.trim()) {
+        targetAccount = holdingEntry.account.trim();
+      } else {
+        const nonFrontend = list.find((entry) => entry && entry.role !== 'frontend' && entry.account);
+        if (nonFrontend) {
+          targetAccount = nonFrontend.account.trim();
+        }
+      }
+    }
+
+    // Enforce the template weights: 300 for post (3%), 600 for comment (6%)
+    const targetWeight = kind === 'post'
+      ? (typeof meme.template.postWeight === 'number' ? meme.template.postWeight : 300)
+      : (typeof meme.template.commentWeight === 'number' ? meme.template.commentWeight : 600);
+
+    sums.set(targetAccount, (sums.get(targetAccount) ?? 0) + targetWeight);
   }
 
   for (const [account, weight] of frontendSeen) {

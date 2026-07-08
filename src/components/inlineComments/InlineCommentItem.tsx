@@ -98,6 +98,11 @@ interface InlineCommentItemProps {
     ipfsGateway?: string;
   };
   parentTags?: string[];
+  /** Forwarded to every DecentMemes picker in this item's reply composers
+   *  so the widget assigns the 1% frontend beneficiary slot. */
+  decentMemesAppAccount?: string;
+  /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
+  decentMemesTheme?: 'light' | 'dark';
 }
 
 const MAX_DEPTH = 4;
@@ -139,6 +144,8 @@ export default function InlineCommentItem({
   awaitingWalletApproval = false,
   renderOptions,
   parentTags = [],
+  decentMemesAppAccount,
+  decentMemesTheme,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -807,6 +814,8 @@ export default function InlineCommentItem({
                         allowLandscapeVideos={allowLandscapeVideos}
                         awaitingWalletApproval={awaitingWalletApproval}
                         mentionSeedAccounts={mentionSeedAccounts}
+                        decentMemesAppAccount={decentMemesAppAccount}
+                        decentMemesTheme={decentMemesTheme}
                       />
                     </div>
                   </div>,
@@ -880,6 +889,8 @@ export default function InlineCommentItem({
                     allowLandscapeVideos={allowLandscapeVideos}
                     awaitingWalletApproval={awaitingWalletApproval}
                     mentionSeedAccounts={mentionSeedAccounts}
+                    decentMemesAppAccount={decentMemesAppAccount}
+                    decentMemesTheme={decentMemesTheme}
                   />
                 </div>
               </>

@@ -84,8 +84,14 @@ interface InlineCommentSectionProps {
   onDeleteComment?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive post links in comment bodies. */
   onNavigateToPost?: (author: string, permlink: string) => void;
-  /** Intercept intra-body Hive profile links in comment bodies. */
+  /** Called when an intra-body Hive profile links in comment bodies. */
   onUserClick?: (username: string) => void;
+  /** Forwarded to every DecentMemes picker in this section so the widget
+   *  assigns the 1% frontend beneficiary slot. Pass your Hive account name
+   *  (e.g. `'hivesuite.app'`) to opt in. Omit to skip the slot. */
+  decentMemesAppAccount?: string;
+  /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
+  decentMemesTheme?: 'light' | 'dark';
 }
 
 export default function InlineCommentSection({
@@ -124,6 +130,8 @@ export default function InlineCommentSection({
   allowLandscapeVideos = false,
   awaitingWalletApproval = false,
   renderOptions,
+  decentMemesAppAccount,
+  decentMemesTheme,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -350,6 +358,8 @@ export default function InlineCommentSection({
             awaitingWalletApproval={awaitingWalletApproval}
             onVoteChange={(enabled, percent) => { topVoteRef.current = { enabled, percent }; }}
             mentionSeedAccounts={mentionSeedAccounts}
+            decentMemesAppAccount={decentMemesAppAccount}
+            decentMemesTheme={decentMemesTheme}
           />
         </div>
       )}
@@ -428,6 +438,8 @@ export default function InlineCommentSection({
               allowLandscapeVideos={allowLandscapeVideos}
               awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
+              decentMemesAppAccount={decentMemesAppAccount}
+              decentMemesTheme={decentMemesTheme}
             />
           ))}
         </div>
