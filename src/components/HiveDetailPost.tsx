@@ -2087,6 +2087,16 @@ export function HiveDetailPost({
               </button>
             )}
 
+            {/* Standalone translation globe icon on desktop */}
+            {onSelectLanguage && language !== undefined && (
+              <div className="hidden lg:block flex-shrink-0">
+                <LanguagePickerButton
+                  language={language}
+                  onSelectLanguage={onSelectLanguage}
+                />
+              </div>
+            )}
+
             {/* Header kebab — Bookmark · Share · Report. Each item is
                 conditional on its handler; the trigger itself only
                 appears when at least one handler is registered.
@@ -3196,19 +3206,7 @@ function HeaderMoreMenu({
               </button>
             )}
 
-            {/* Translate — desktop only (mobile uses the ⚡ FAB bottom-sheet) */}
-            {onSelectLanguage && language !== undefined && (
-              <div className="hidden lg:block">
-                <LanguagePickerButton
-                  language={language}
-                  onSelectLanguage={(langCode) => {
-                    setOpen(false);
-                    onSelectLanguage(langCode);
-                  }}
-                  isMenuItem={true}
-                />
-              </div>
-            )}
+
             {typeof window !== 'undefined' && !!window.speechSynthesis && onSpeechToggle && (
               <button
                 type="button"
