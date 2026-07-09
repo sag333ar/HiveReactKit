@@ -4,6 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { CurationButton } from '../CurationButton';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -103,6 +104,11 @@ interface InlineCommentItemProps {
   decentMemesAppAccount?: string;
   /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
   decentMemesTheme?: 'light' | 'dark';
+  /** When true, a heart button is shown on this comment so the curator
+   *  can request an on-chain upvote (1–3%). */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request. Weight is 1–3. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
 }
 
 const MAX_DEPTH = 4;
@@ -146,6 +152,8 @@ export default function InlineCommentItem({
   parentTags = [],
   decentMemesAppAccount,
   decentMemesTheme,
+  isCurator,
+  onCurationRequest,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -636,6 +644,15 @@ export default function InlineCommentItem({
                   >
                     <Gift className="w-3.5 h-3.5" />
                   </button>
+                )}
+
+                {isCurator && onCurationRequest && (
+                  <CurationButton
+                    author={comment.author}
+                    permlink={comment.permlink}
+                    type="comment"
+                    onCurationRequest={onCurationRequest}
+                  />
                 )}
 
                 {(onToggleCommentBookmark ||

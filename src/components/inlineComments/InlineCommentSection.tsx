@@ -92,6 +92,11 @@ interface InlineCommentSectionProps {
   decentMemesAppAccount?: string;
   /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
   decentMemesTheme?: 'light' | 'dark';
+  /** When true, a heart button is shown on each comment so the curator
+   *  can request an on-chain upvote (1–3%). */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request on a comment. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
 }
 
 export default function InlineCommentSection({
@@ -132,6 +137,8 @@ export default function InlineCommentSection({
   renderOptions,
   decentMemesAppAccount,
   decentMemesTheme,
+  isCurator,
+  onCurationRequest,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -440,6 +447,8 @@ export default function InlineCommentSection({
               renderOptions={renderOptions}
               decentMemesAppAccount={decentMemesAppAccount}
               decentMemesTheme={decentMemesTheme}
+              isCurator={isCurator}
+              onCurationRequest={onCurationRequest}
             />
           ))}
         </div>

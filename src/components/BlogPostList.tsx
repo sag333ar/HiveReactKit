@@ -19,6 +19,7 @@ import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/cont
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
+import { CurationButton } from './CurationButton';
 import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
@@ -114,6 +115,11 @@ export interface BlogPostListProps {
    *  flag) into a single 3-dot kebab menu. Forwarded to
    *  `<PostActionButton/>`. */
   actionsAsMenu?: boolean;
+  /** When true, a heart button is shown on each post card so the curator
+   *  can request an on-chain upvote with a chosen vote weight. */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request. Weight is 1–15. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
 }
 
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
@@ -390,6 +396,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   awaitingWalletApproval,
   defaultReward,
   actionsAsMenu,
+  isCurator,
+  onCurationRequest,
 }) => {
   const tierMap = useSupporterTierMap();
   if (loading && posts.length === 0) {
@@ -606,6 +614,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
             </div>
 
             <div className="border-t border-[var(--hrk-border-subtle)] px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1">
+              <div className="flex-1 min-w-0">
               <PostActionButton
                 author={item.author}
                 permlink={item.permlink}
@@ -659,6 +669,16 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 awaitingWalletApproval={awaitingWalletApproval}
                 actionsAsMenu={actionsAsMenu}
               />
+              </div>
+              {isCurator && onCurationRequest && (
+                <CurationButton
+                  author={item.author}
+                  permlink={item.permlink}
+                  type="post"
+                  onCurationRequest={onCurationRequest}
+                />
+              )}
+              </div>
             </div>
           </div>
         );

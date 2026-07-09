@@ -9,6 +9,9 @@ export {
   type SupporterTierMap,
 } from './context/SupporterTierContext';
 
+// Curation button — heart button with vote-weight slider for curator users
+export { CurationButton } from './components/CurationButton';
+
 // Main components exports
 export { default as VideoCard } from './components/VideoCard';
 export { default as VideoDetail } from './components/VideoDetail';

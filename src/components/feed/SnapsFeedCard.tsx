@@ -21,6 +21,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from '../actionButtons/PostActionButton';
+import { CurationButton } from '../CurationButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
 import type { RewardOption } from '../../utils/commentOptions';
@@ -138,6 +139,11 @@ export interface SnapsFeedCardProps {
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab menu inside the action bar. */
   actionsAsMenu?: boolean;
+  /** When true, a heart button is shown so the curator can request an
+   *  on-chain upvote with a chosen weight (1–6%). */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request. Weight is 1–6. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
 }
 
 import {
@@ -279,6 +285,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   defaultReward,
   renderHeaderActions,
   actionsAsMenu,
+  isCurator,
+  onCurationRequest,
 }) => {
   const reSnapTarget = useMemo(
     () => detectHivePostReference(stripViaAppsCredit(post.body ?? '')),
@@ -691,6 +699,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
 
       {/* Action bar */}
       <div className="border-t border-[var(--hrk-border-default)]/60 px-2 py-1.5">
+        <div className="flex items-center gap-1">
+        <div className="flex-1 min-w-0">
         <PostActionButton
           author={post.author}
           permlink={post.permlink}
@@ -756,6 +766,16 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           getUserUrl={getUserUrl}
           size="lg"
         />
+        </div>
+        {isCurator && onCurationRequest && (
+          <CurationButton
+            author={post.author}
+            permlink={post.permlink}
+            type="snap"
+            onCurationRequest={onCurationRequest}
+          />
+        )}
+        </div>
       </div>
     </article>
   );

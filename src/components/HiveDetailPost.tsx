@@ -44,6 +44,7 @@ import { SelectionTranslator } from './SelectionTranslator';
 import { LanguagePickerButton } from './LanguagePickerButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
+import { CurationButton } from './CurationButton';
 import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { TranslatedText } from './TranslatedText';
@@ -329,6 +330,12 @@ export interface HiveDetailPostProps {
    *  `<TranslatedText>` / inline-comment translators inside the
    *  page will then re-render with the new language. */
   onSelectLanguage?: (code: string) => void;
+  /** When true, a heart button is shown on the post and on each comment
+   *  so the curator can request on-chain upvotes. */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request. `type` is
+   *  `'post'` for the main post or `'comment'` for a comment. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'comment') => void | Promise<void>;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -442,6 +449,8 @@ export function HiveDetailPost({
   awaitingWalletApproval = false,
   decentMemesAppAccount,
   decentMemesTheme,
+  isCurator,
+  onCurationRequest,
 }: HiveDetailPostProps) {
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -2761,6 +2770,8 @@ export function HiveDetailPost({
 
             {/* Bottom action bar (repeat for long posts) */}
             <div className="py-2.5 border-t border-[var(--hrk-border-subtle)]/50">
+              <div className="flex items-center gap-1">
+              <div className="flex-1 min-w-0">
               <PostActionButton
                 author={post.author}
                 permlink={post.permlink}
@@ -2816,6 +2827,16 @@ export function HiveDetailPost({
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
               />
+              </div>
+              {isCurator && onCurationRequest && (
+                <CurationButton
+                  author={post.author}
+                  permlink={post.permlink}
+                  type="post"
+                  onCurationRequest={(a, p, w) => onCurationRequest(a, p, w, 'post')}
+                />
+              )}
+              </div>
             </div>
 
             {/* Inline comments section — wrapped so highlighting any
@@ -2860,6 +2881,10 @@ export function HiveDetailPost({
                 renderOptions={renderOptions}
                 decentMemesAppAccount={decentMemesAppAccount}
                 decentMemesTheme={decentMemesTheme}
+                isCurator={isCurator}
+                onCurationRequest={onCurationRequest
+                  ? (a, p, w) => onCurationRequest(a, p, w, 'comment')
+                  : undefined}
               />
               </SelectionTranslator>
             </div>

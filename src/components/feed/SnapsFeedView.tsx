@@ -163,6 +163,11 @@ export interface SnapsFeedViewProps {
    *  flag) into a single 3-dot kebab menu. Forwarded to every
    *  <SnapsFeedCard/>. */
   actionsAsMenu?: boolean;
+  /** When true, a heart button is shown on each snap card so the curator
+   *  can request an on-chain upvote (1–6%). Forwarded to every <SnapsFeedCard/>. */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request on a snap. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
 
   /** When `true`, the desktop 4-column layout grows naturally with its
    *  content instead of pinning each column to a fixed-height per-column
@@ -279,6 +284,8 @@ export function SnapsFeedView({
   footer,
   renderHeaderActions,
   actionsAsMenu,
+  isCurator,
+  onCurationRequest,
   pageScroll,
   onActiveFeedChange,
 }: SnapsFeedViewProps) {
@@ -449,6 +456,8 @@ export function SnapsFeedView({
     defaultReward,
     renderHeaderActions,
     actionsAsMenu,
+    isCurator,
+    onCurationRequest,
   };
 
   const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];
