@@ -56,7 +56,7 @@ export const THREE_SPEAK_AUDIO_REGEX = /https?:\/\/audio\.3speak\.tv\/play\?[^\s
 export const IMG_MD_REGEX = /!\[[^\]]*\]\(([^\s)]+)\)/g;
 export const IMG_HTML_REGEX = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
 export const IMG_URL_REGEX =
-  /https?:\/\/[^\s"'<>)]+?\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:\?[^\s"'<>)]*)?/gi;
+  /https?:\/\/[^\s"'<>)]+?\.(?:jpe?g|png|gif|webp|avif|bmp|svg|heic|heif)(?:\?[^\s"'<>)]*)?/gi;
 export const URL_REGEX = /https?:\/\/[^\s)<>\]]+/g;
 export const MENTION_REGEX = /@([a-z][a-z0-9.-]{1,15}[a-z0-9])/g;
 export const HASHTAG_REGEX = /(?:^|\s)#([a-zA-Z][\w-]{0,31})/g;
@@ -85,6 +85,18 @@ function uniqImageUrls(arr: string[]): string[] {
     out.push(cleaned);
   }
   return out;
+}
+
+export function proxyHeicUrl(url: string): string {
+  if (!url) return url;
+  const trimmed = url.trim();
+  const isHeic = /\.(heic|heif)(?:\?[^\s"'<>)]*)?$/i.test(trimmed);
+  const hasEcencySizePrefix = /^https:\/\/images\.ecency\.com\/(?:\d+x\d+|p|0x0)\//i.test(trimmed);
+  if (isHeic) {
+    if (hasEcencySizePrefix) return trimmed;
+    return `https://images.ecency.com/0x0/${trimmed}`;
+  }
+  return trimmed;
 }
 
 export function parseJsonMetadata(jm: unknown): Record<string, unknown> {
@@ -346,6 +358,7 @@ const ZOOM_STEP = 0.25;
 const ZOOM_WHEEL_STEP = 0.15;
 
 export const ZoomableImage: FC<{ src: string }> = ({ src }) => {
+  const proxiedSrc = proxyHeicUrl(src);
   const [zoom, setZoom] = useState(1);
   const [zoomMax, setZoomMax] = useState(3);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -525,7 +538,7 @@ export const ZoomableImage: FC<{ src: string }> = ({ src }) => {
       >
         <img
           ref={imgRef}
-          src={src}
+          src={proxiedSrc}
           alt=""
           draggable={false}
           referrerPolicy="no-referrer"
@@ -932,7 +945,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             ref={(node) => {
               if (node && node.complete) stopTileLoading();
             }}
-            src={current.url}
+            src={proxyHeicUrl(current.url)}
             alt=""
             loading="lazy"
             className="max-h-full max-w-full object-contain"

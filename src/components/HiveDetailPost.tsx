@@ -1217,6 +1217,16 @@ export function HiveDetailPost({
           return `<span class="hive-image-gallery">${cleaned}</span>`;
         }
       );
+      // Proxy HEIC/HEIF images inside the HTML so they load correctly in the browser
+      html = html.replace(/<img\s+([^>]*\b)src=["']([^"']+)["']/gi, (match, before, src) => {
+        const isHeic = /\.(heic|heif)(?:\?[^\s"'<>)]*)?$/i.test(src);
+        const hasEcencySizeProxy = /^https:\/\/images\.ecency\.com\/(?:\d+x\d+|p|0x0)\//i.test(src);
+        if (isHeic && !hasEcencySizeProxy) {
+          return `<img ${before}src="https://images.ecency.com/0x0/${src}"`;
+        }
+        return match;
+      });
+
       return html;
     } catch {
       return '';
@@ -1391,7 +1401,13 @@ export function HiveDetailPost({
       const isAlreadyProxied =
         /^https?:\/\/(?:images\.hive\.blog|images\.ecency\.com)/.test(src);
       const isDataOrBlob = /^(?:data|blob):/.test(src);
-      if (!isAlreadyProxied && !isDataOrBlob) {
+      const isHeic = /\.(heic|heif)(?:\?[^\s"'<>)]*)?$/i.test(src);
+      const hasEcencySizeProxy = /^https:\/\/images\.ecency\.com\/(?:\d+x\d+|p|0x0)\//i.test(src);
+      if (isHeic) {
+        if (!hasEcencySizeProxy) {
+          push(`https://images.ecency.com/0x0/${src}`);
+        }
+      } else if (!isAlreadyProxied && !isDataOrBlob) {
         push(`https://images.hive.blog/0x0/${src}`);
       }
 

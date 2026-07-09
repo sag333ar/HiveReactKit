@@ -23,7 +23,7 @@ const IMG_HTML = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
 // just sequences of plain URLs inside <center> tags. Accepts the
 // usual web image extensions with an optional query string.
 const IMG_BARE_URL =
-  /https?:\/\/[^\s"'<>)]+\.(?:jpe?g|png|gif|webp|avif)(?:\?[^\s"'<>)]*)?/gi;
+  /https?:\/\/[^\s"'<>)]+\.(?:jpe?g|png|gif|webp|avif|heic|heif)(?:\?[^\s"'<>)]*)?/gi;
 const YOUTUBE =
   /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([^&\s]+)|https?:\/\/youtu\.be\/([^?\s]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([^?\s]+)/gi;
 const THREE_SPEAK = /https?:\/\/(?:play\.)?3speak\.tv\/[^\s"'<>)]+/gi;
