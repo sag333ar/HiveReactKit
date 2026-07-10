@@ -97,6 +97,10 @@ interface InlineCommentSectionProps {
   isCurator?: boolean;
   /** Called when the curator submits a curation request on a comment. */
   onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to every <InlineCommentItem/>. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 export default function InlineCommentSection({
@@ -139,6 +143,7 @@ export default function InlineCommentSection({
   decentMemesTheme,
   isCurator,
   onCurationRequest,
+  onFetchCurationStatus,
 }: InlineCommentSectionProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -449,6 +454,7 @@ export default function InlineCommentSection({
               decentMemesTheme={decentMemesTheme}
               isCurator={isCurator}
               onCurationRequest={onCurationRequest}
+              onFetchCurationStatus={onFetchCurationStatus}
             />
           ))}
         </div>

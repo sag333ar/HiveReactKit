@@ -168,6 +168,10 @@ export interface SnapsFeedViewProps {
   isCurator?: boolean;
   /** Called when the curator submits a curation request on a snap. */
   onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to every <SnapsFeedCard/>. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 
   /** When `true`, the desktop 4-column layout grows naturally with its
    *  content instead of pinning each column to a fixed-height per-column
@@ -286,6 +290,7 @@ export function SnapsFeedView({
   actionsAsMenu,
   isCurator,
   onCurationRequest,
+  onFetchCurationStatus,
   pageScroll,
   onActiveFeedChange,
 }: SnapsFeedViewProps) {
@@ -458,6 +463,7 @@ export function SnapsFeedView({
     actionsAsMenu,
     isCurator,
     onCurationRequest,
+    onFetchCurationStatus,
   };
 
   const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];

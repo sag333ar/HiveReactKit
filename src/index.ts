@@ -9,7 +9,8 @@ export {
   type SupporterTierMap,
 } from './context/SupporterTierContext';
 
-// Curation button — heart button with vote-weight slider for curator users
+// Curation button — fallback trigger for curators who already voted on
+// this content (see CurationButton.tsx doc comment for the full flow)
 export { CurationButton } from './components/CurationButton';
 
 // Main components exports

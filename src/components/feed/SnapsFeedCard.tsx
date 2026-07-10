@@ -20,8 +20,9 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { PostActionButton } from '../actionButtons/PostActionButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import { CurationButton } from '../CurationButton';
+import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
 import type { RewardOption } from '../../utils/commentOptions';
@@ -144,6 +145,11 @@ export interface SnapsFeedCardProps {
   isCurator?: boolean;
   /** Called when the curator submits a curation request. Weight is 1–6. */
   onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether this content was already submitted for curation
+   *  by any curator. Forwarded to the card's vote slider and to the
+   *  already-voted fallback <CurationButton/>. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 import {
@@ -287,6 +293,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   actionsAsMenu,
   isCurator,
   onCurationRequest,
+  onFetchCurationStatus,
 }) => {
   const reSnapTarget = useMemo(
     () => detectHivePostReference(stripViaAppsCredit(post.body ?? '')),
@@ -498,6 +505,26 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     onPostClick?.(post.author, post.permlink, post.title);
   };
+
+  // Curation eligibility, shared by the vote slider's toggle and the
+  // already-voted fallback button below. The fallback only applies when
+  // the current curator already spent their own vote — the vote slider
+  // never reopens in that case, so it can't offer the toggle.
+  const curationEligible =
+    !!isCurator
+    && !!onCurationRequest
+    // The curation account voting on its own request is a no-op — it'd
+    // just be asking itself to vote again.
+    && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
+    // Curators recommend OTHER people's content — recommending your own
+    // is not curation, it's self-promotion. Hive lets you vote for
+    // yourself in this same dialog; that's untouched, only the curation
+    // request is gated.
+    && post.author.toLowerCase() !== currentUser?.toLowerCase()
+    && !hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined)
+    && isHiveSuiteContent(post.json_metadata);
+  const showCurationFallbackButton =
+    curationEligible && hasUserVoted(post.active_votes as ActiveVote[] | undefined, currentUser);
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
@@ -718,6 +745,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           initialCommentsCount={post.children || 0}
           postCreatedAt={post.created}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
+          curationEligible={curationEligible}
+          curationType="snap"
+          onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(post.author, post.permlink, weight) : undefined}
+          onFetchCurationStatus={onFetchCurationStatus}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
           onReblog={onReblog ? () => onReblog(post.author, post.permlink) : undefined}
@@ -767,12 +798,13 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           size="lg"
         />
         </div>
-        {isCurator && onCurationRequest && (
+        {showCurationFallbackButton && onCurationRequest && (
           <CurationButton
             author={post.author}
             permlink={post.permlink}
             type="snap"
             onCurationRequest={onCurationRequest}
+            onFetchCurationStatus={onFetchCurationStatus}
           />
         )}
         </div>

@@ -117,6 +117,16 @@ export interface ProfileSnapsTabProps {
 
   /** Per-card right-side header action menu slot (e.g. Edit / Flag). */
   renderHeaderActions?: (post: Post) => ReactNode;
+
+  /** When true, a heart button is shown on each snap card so the curator
+   *  can request an on-chain upvote. Forwarded to <SnapsFeedView/>. */
+  isCurator?: boolean;
+  /** Called when the curator submits a curation request on a snap. */
+  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to <SnapsFeedView/>. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({

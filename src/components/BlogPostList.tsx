@@ -18,8 +18,9 @@ import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-
 import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { PostActionButton } from './actionButtons/PostActionButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import { CurationButton } from './CurationButton';
+import { PostActionButton } from './actionButtons/PostActionButton';
 import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
@@ -120,6 +121,11 @@ export interface BlogPostListProps {
   isCurator?: boolean;
   /** Called when the curator submits a curation request. Weight is 1–15. */
   onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to each card's vote slider and to the already-voted
+   *  fallback <CurationButton/>. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
@@ -398,6 +404,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   actionsAsMenu,
   isCurator,
   onCurationRequest,
+  onFetchCurationStatus,
 }) => {
   const tierMap = useSupporterTierMap();
   if (loading && posts.length === 0) {
@@ -514,6 +521,26 @@ export const BlogPostList: FC<BlogPostListProps> = ({
               onPostClick(item.author, item.permlink, item.title);
             }
           : undefined;
+
+        // Curation eligibility, shared by the vote slider's toggle and
+        // the already-voted fallback button below. The fallback only
+        // applies when the current curator already spent their own
+        // vote — the vote slider never reopens in that case.
+        const curationEligible =
+          !!isCurator
+          && !!onCurationRequest
+          // The curation account voting on its own request is a no-op —
+          // it'd just be asking itself to vote again.
+          && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
+          // Curators recommend OTHER people's content — recommending
+          // your own isn't curation, it's self-promotion. Hive lets you
+          // vote for yourself in this same dialog; only the curation
+          // request is gated.
+          && item.author.toLowerCase() !== currentUser?.toLowerCase()
+          && !hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined)
+          && isHiveSuiteContent(item.json_metadata);
+        const showCurationFallbackButton =
+          curationEligible && hasUserVoted(item.active_votes as ActiveVote[] | undefined, currentUser);
 
         return (
           <div
@@ -638,6 +665,10 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 initialCommentsCount={item.children || 0}
                 postCreatedAt={item.created}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
+                curationEligible={curationEligible}
+                curationType="post"
+                onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(item.author, item.permlink, weight) : undefined}
+                onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}
                 onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
@@ -670,12 +701,13 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 actionsAsMenu={actionsAsMenu}
               />
               </div>
-              {isCurator && onCurationRequest && (
+              {showCurationFallbackButton && onCurationRequest && (
                 <CurationButton
                   author={item.author}
                   permlink={item.permlink}
                   type="post"
                   onCurationRequest={onCurationRequest}
+                  onFetchCurationStatus={onFetchCurationStatus}
                 />
               )}
               </div>

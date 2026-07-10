@@ -56,6 +56,20 @@ export interface PostActionButtonProps {
   initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
+  /** Shows the curator-only "Request curation" toggle inside the vote
+   *  slider. Caller resolves this from `isCurator && !!onCurationRequest
+   *  && <not already curated> && <content published via HiveSuite>`. */
+  curationEligible?: boolean;
+  /** Required alongside `curationEligible` — sizes the curation-weight
+   *  slider's default range before the server limit resolves. */
+  curationType?: 'post' | 'snap' | 'comment';
+  /** Fired with the chosen curation weight right after a successful
+   *  vote, only when the curator switched the toggle on. */
+  onCurationRequest?: (weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for
+   *  `curationType`, plus whether this content was already submitted
+   *  for curation by any curator. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** Called when user submits a comment. Frontend handles signing/broadcast.
    *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
    *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
@@ -201,6 +215,10 @@ export function PostActionButton({
   initialFlagWeight,
   initialCommentsCount,
   onUpvote,
+  curationEligible = false,
+  curationType,
+  onCurationRequest,
+  onFetchCurationStatus,
   onSubmitComment,
   onComments,
   onEdit,
@@ -961,6 +979,10 @@ export function PostActionButton({
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
           awaitingWalletApproval={awaitingWalletApproval}
+          curationEligible={curationEligible}
+          curationType={curationType}
+          onCurationRequest={onCurationRequest}
+          onFetchCurationStatus={onFetchCurationStatus}
         />
       )}
 

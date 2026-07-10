@@ -4,6 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import { CurationButton } from '../CurationButton';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
@@ -109,6 +110,11 @@ interface InlineCommentItemProps {
   isCurator?: boolean;
   /** Called when the curator submits a curation request. Weight is 1–3. */
   onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to this comment's vote slider, its already-voted
+   *  fallback button, and to every nested reply. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 const MAX_DEPTH = 4;
@@ -154,6 +160,7 @@ export default function InlineCommentItem({
   decentMemesTheme,
   isCurator,
   onCurationRequest,
+  onFetchCurationStatus,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -246,7 +253,7 @@ export default function InlineCommentItem({
   const hasAllowedTag =
     (Array.isArray(metadata?.tags) && metadata.tags.some((t: any) => allowedTags.includes(String(t).toLowerCase()))) ||
     (Array.isArray(parentTags) && parentTags.some((t: any) => allowedTags.includes(String(t).toLowerCase())));
-  const allowedDevs = ['sagarkothari88', 'hivesuite.app', 'hreplier', 'hsnaps'];
+  const allowedDevs = ['sagarkothari88', 'hivesuite.app'];
   const isDev = allowedDevs.includes(comment.author) || metadata?.developer === 'sagarkothari88';
   const developerTag = isDev && hasAllowedTag
     ? (Array.isArray(metadata?.tags) && metadata.tags.length > 0 ? (metadata.tags[0] as string) : 'hivesuite')
@@ -462,6 +469,25 @@ export default function InlineCommentItem({
 
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
+  // Curation eligibility, shared by the vote slider's toggle and the
+  // already-voted fallback button below. The fallback only applies when
+  // the current curator already spent their own vote — the vote slider
+  // never reopens in that case, so it can't offer the toggle.
+  const curationEligible =
+    !!isCurator
+    && !!onCurationRequest
+    // The curation account voting on its own request is a no-op — it'd
+    // just be asking itself to vote again.
+    && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
+    // Curators recommend OTHER people's content — recommending your own
+    // isn't curation, it's self-promotion. Hive lets you vote for
+    // yourself in this same dialog; only the curation request is gated.
+    && comment.author.toLowerCase() !== currentUser?.toLowerCase()
+    && !hasCurationVoterVoted(comment.active_votes)
+    && isHiveSuiteContent(comment.json_metadata);
+  const showCurationFallbackButton =
+    curationEligible && hasUserVoted(comment.active_votes, currentUser);
+
   return (
     <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
       <div className="py-2 px-1.5 md:py-3 md:px-3">
@@ -646,12 +672,13 @@ export default function InlineCommentItem({
                   </button>
                 )}
 
-                {isCurator && onCurationRequest && (
+                {showCurationFallbackButton && onCurationRequest && (
                   <CurationButton
                     author={comment.author}
                     permlink={comment.permlink}
                     type="comment"
                     onCurationRequest={onCurationRequest}
+                    onFetchCurationStatus={onFetchCurationStatus}
                   />
                 )}
 
@@ -755,6 +782,10 @@ export default function InlineCommentItem({
                   step={voteWeightStep}
                   onUpvote={handlePerformUpvote}
                   onCancel={() => setShowVoteSlider(false)}
+                  curationEligible={curationEligible}
+                  curationType="comment"
+                  onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(comment.author, comment.permlink, weight) : undefined}
+                  onFetchCurationStatus={onFetchCurationStatus}
                 />
               </div>
             )}
@@ -968,6 +999,9 @@ export default function InlineCommentItem({
               allowLandscapeVideos={allowLandscapeVideos}
               awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
+              isCurator={isCurator}
+              onCurationRequest={onCurationRequest}
+              onFetchCurationStatus={onFetchCurationStatus}
             />
           ))}
         </div>
