@@ -28,11 +28,17 @@ export function hasUserVoted(votes: ActiveVote[] | null | undefined, username: s
   return votes.some((v) => v.voter?.toLowerCase() === target);
 }
 
-/** True when the content was published via the HiveSuite app — either
- *  `json_metadata.app` names it (e.g. `"hivesuite/1.2.3"`) or
- *  `json_metadata.developer` is the HiveSuite dev account. The curate
- *  button (and the curation backend) only ever considers this content —
- *  curation isn't offered for posts/snaps/comments from other apps. */
+/** True when the content was published via the HiveSuite app. Checks,
+ *  in order:
+ *   - `json_metadata.app` names it (e.g. `"hivesuite/1.2.3"`)
+ *   - `json_metadata.developer` is the HiveSuite dev account
+ *   - `json_metadata.tags` includes `"hivesuite"` — video posts made via
+ *     the 3Speak encoder carry `app: "3speak/x.y.z"` (that's the actual
+ *     uploader), so the `hivesuite` tag is the only signal that the post
+ *     itself was authored through HiveSuite.
+ *  The curate button (and the curation backend) only ever considers this
+ *  content — curation isn't offered for posts/snaps/comments from other
+ *  apps. */
 export function isHiveSuiteContent(jsonMetadata: unknown): boolean {
   let meta: Record<string, unknown> = {};
   if (typeof jsonMetadata === 'string') {
@@ -46,7 +52,9 @@ export function isHiveSuiteContent(jsonMetadata: unknown): boolean {
   }
   const app = typeof meta.app === 'string' ? meta.app.toLowerCase() : '';
   if (app.includes('hivesuite')) return true;
-  return meta.developer === 'sagarkothari88';
+  if (meta.developer === 'sagarkothari88') return true;
+  const tags = Array.isArray(meta.tags) ? meta.tags : [];
+  return tags.some((t) => typeof t === 'string' && t.toLowerCase() === 'hivesuite');
 }
 
 /** True when the post has received at least one downvote / flag.
