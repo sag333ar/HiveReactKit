@@ -56,8 +56,7 @@ import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from "@/utils/postVotes";
-import { CurationButton } from "../CurationButton";
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from "@/utils/postVotes";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
@@ -199,12 +198,13 @@ export interface UserDetailProfileProps {
    *  the curator can request an on-chain upvote. */
   isCurator?: boolean;
   /** Called when the curator submits a curation request. `type` is
-   *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'snap') => void | Promise<void>;
+   *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab.
+   *  `ownVoteWeight` is the curator's own vote weight on this content
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'snap', ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to every card's vote slider and already-voted fallback
-   *  button. */
+   *  Forwarded to every card's vote slider. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** Wallet tab — RC delegation removal (broadcasts max_rc=0 internally). */
   onDeleteRcDelegation?: (delegatee: string) => void | boolean | Promise<void | boolean>;
@@ -2069,10 +2069,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       })),
     };
 
-    // Curation eligibility, shared by the vote slider's toggle and the
-    // already-voted fallback button below. The fallback only applies
-    // when the current curator already spent their own vote — the vote
-    // slider never reopens in that case, so it can't offer the toggle.
+    // Curation eligibility, shared by the vote slider's toggle. When the
+    // curator already voted, the vote slider itself switches into
+    // curation-only mode instead of offering a toggle.
     const curationEligible =
       !!isCurator
       && !!onCurationRequest
@@ -2085,8 +2084,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       && item.author.toLowerCase() !== currentUsername?.toLowerCase()
       && !hasCurationVoterVoted(item.active_votes)
       && isHiveSuiteContent(item.json_metadata);
-    const showCurationFallbackButton =
-      curationEligible && hasUserVoted(item.active_votes, currentUsername);
 
     return (
       <div
@@ -2161,8 +2158,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
         {/* Action bar — always visible */}
         <div className="border-t border-[var(--hrk-border-subtle)]/50 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1">
-        <div className="flex-1 min-w-0">
           <PostActionButton
             author={item.author}
             permlink={item.permlink}
@@ -2185,7 +2180,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             curationEligible={curationEligible}
             curationType="post"
-            onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(item.author, item.permlink, weight, 'post') : undefined}
+            onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(item.author, item.permlink, weight, 'post', ownVoteWeight) : undefined}
             onFetchCurationStatus={onFetchCurationStatus}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
@@ -2226,17 +2221,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             awaitingWalletApproval={awaitingWalletApproval}
           />
         </div>
-        {showCurationFallbackButton && onCurationRequest && (
-          <CurationButton
-            author={item.author}
-            permlink={item.permlink}
-            type="post"
-            onCurationRequest={(a, p, w) => onCurationRequest(a, p, w, 'post')}
-            onFetchCurationStatus={onFetchCurationStatus}
-          />
-        )}
-        </div>
-      </div>
       </div>
     );
   };
@@ -3287,7 +3271,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onReportPost={onReportPost ? (author, permlink) => setReportPostTarget({ author, permlink }) : undefined}
             onDeletePost={onDeletePost}
             isCurator={isCurator}
-            onCurationRequest={onCurationRequest ? (a, p, w) => onCurationRequest(a, p, w, 'snap') : undefined}
+            onCurationRequest={onCurationRequest ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'snap', ownVoteWeight) : undefined}
             onFetchCurationStatus={onFetchCurationStatus}
             onVotePoll={onVotePoll}
             onEditSnap={onEditSnap}

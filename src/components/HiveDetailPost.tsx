@@ -6,8 +6,7 @@ import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
 import { Poll } from '@/types/poll';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
-import { CurationButton } from './CurationButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import {
   AlertCircle,
   ArrowLeft,
@@ -335,12 +334,14 @@ export interface HiveDetailPostProps {
    *  so the curator can request on-chain upvotes. */
   isCurator?: boolean;
   /** Called when the curator submits a curation request. `type` is
-   *  `'post'` for the main post or `'comment'` for a comment. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'comment') => void | Promise<void>;
+   *  `'post'` for the main post or `'comment'` for a comment.
+   *  `ownVoteWeight` is the curator's own vote weight on this content
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'comment', ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to the post's vote slider, its already-voted fallback
-   *  button, and to every comment via <InlineCommentSection/>. */
+   *  Forwarded to the post's vote slider and to every comment via
+   *  <InlineCommentSection/>. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
@@ -1970,10 +1971,9 @@ export function HiveDetailPost({
     );
   }
 
-  // Curation eligibility, shared by the vote slider's toggle and the
-  // already-voted fallback button below. The fallback only applies when
-  // the current curator already spent their own vote — the vote slider
-  // never reopens in that case, so it can't offer the toggle.
+  // Curation eligibility, shared by the vote slider's toggle. When the
+  // curator already voted, the vote slider itself switches into
+  // curation-only mode instead of offering a toggle.
   const curationEligible =
     !!isCurator
     && !!onCurationRequest
@@ -1986,8 +1986,6 @@ export function HiveDetailPost({
     && post.author.toLowerCase() !== currentUser?.toLowerCase()
     && !hasCurationVoterVoted(post.active_votes)
     && isHiveSuiteContent(post.json_metadata);
-  const showCurationFallbackButton =
-    curationEligible && hasUserVoted(post.active_votes, currentUser);
 
   return (
     <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
@@ -2796,8 +2794,6 @@ export function HiveDetailPost({
 
             {/* Bottom action bar (repeat for long posts) */}
             <div className="py-2.5 border-t border-[var(--hrk-border-subtle)]/50">
-              <div className="flex items-center gap-1">
-              <div className="flex-1 min-w-0">
               <PostActionButton
                 author={post.author}
                 permlink={post.permlink}
@@ -2815,7 +2811,7 @@ export function HiveDetailPost({
                 onUpvote={onUpvote}
                 curationEligible={curationEligible}
                 curationType="post"
-                onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(post.author, post.permlink, weight, 'post') : undefined}
+                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, 'post', ownVoteWeight) : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
@@ -2857,17 +2853,6 @@ export function HiveDetailPost({
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
               />
-              </div>
-              {showCurationFallbackButton && onCurationRequest && (
-                <CurationButton
-                  author={post.author}
-                  permlink={post.permlink}
-                  type="post"
-                  onCurationRequest={(a, p, w) => onCurationRequest(a, p, w, 'post')}
-                  onFetchCurationStatus={onFetchCurationStatus}
-                />
-              )}
-              </div>
             </div>
 
             {/* Inline comments section — wrapped so highlighting any
@@ -2914,7 +2899,7 @@ export function HiveDetailPost({
                 decentMemesTheme={decentMemesTheme}
                 isCurator={isCurator}
                 onCurationRequest={onCurationRequest
-                  ? (a, p, w) => onCurationRequest(a, p, w, 'comment')
+                  ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'comment', ownVoteWeight)
                   : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}
               />

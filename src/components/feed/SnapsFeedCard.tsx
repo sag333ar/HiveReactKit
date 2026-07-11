@@ -20,8 +20,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
-import { CurationButton } from '../CurationButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
@@ -143,12 +142,13 @@ export interface SnapsFeedCardProps {
   /** When true, a heart button is shown so the curator can request an
    *  on-chain upvote with a chosen weight (1–6%). */
   isCurator?: boolean;
-  /** Called when the curator submits a curation request. Weight is 1–6. */
-  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Called when the curator submits a curation request. Weight is 1–6.
+   *  `ownVoteWeight` is the curator's own vote weight on this content
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether this content was already submitted for curation
-   *  by any curator. Forwarded to the card's vote slider and to the
-   *  already-voted fallback <CurationButton/>. */
+   *  by any curator. Forwarded to the card's vote slider. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
@@ -506,10 +506,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     onPostClick?.(post.author, post.permlink, post.title);
   };
 
-  // Curation eligibility, shared by the vote slider's toggle and the
-  // already-voted fallback button below. The fallback only applies when
-  // the current curator already spent their own vote — the vote slider
-  // never reopens in that case, so it can't offer the toggle.
+  // Curation eligibility for the vote slider's curation option — either
+  // folded into the vote (not yet voted) or the only action available
+  // (already voted — see PostActionButton's `alreadyVoted` handling).
   const curationEligible =
     !!isCurator
     && !!onCurationRequest
@@ -523,8 +522,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     && post.author.toLowerCase() !== currentUser?.toLowerCase()
     && !hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined)
     && isHiveSuiteContent(post.json_metadata);
-  const showCurationFallbackButton =
-    curationEligible && hasUserVoted(post.active_votes as ActiveVote[] | undefined, currentUser);
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
@@ -726,8 +723,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
 
       {/* Action bar */}
       <div className="border-t border-[var(--hrk-border-default)]/60 px-2 py-1.5">
-        <div className="flex items-center gap-1">
-        <div className="flex-1 min-w-0">
         <PostActionButton
           author={post.author}
           permlink={post.permlink}
@@ -747,7 +742,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
           curationEligible={curationEligible}
           curationType="snap"
-          onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(post.author, post.permlink, weight) : undefined}
+          onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, ownVoteWeight) : undefined}
           onFetchCurationStatus={onFetchCurationStatus}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
@@ -797,17 +792,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           getUserUrl={getUserUrl}
           size="lg"
         />
-        </div>
-        {showCurationFallbackButton && onCurationRequest && (
-          <CurationButton
-            author={post.author}
-            permlink={post.permlink}
-            type="snap"
-            onCurationRequest={onCurationRequest}
-            onFetchCurationStatus={onFetchCurationStatus}
-          />
-        )}
-        </div>
       </div>
     </article>
   );

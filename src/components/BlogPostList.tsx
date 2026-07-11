@@ -18,8 +18,7 @@ import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-
 import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
-import { CurationButton } from './CurationButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from '@/utils/postVotes';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
@@ -119,12 +118,13 @@ export interface BlogPostListProps {
   /** When true, a heart button is shown on each post card so the curator
    *  can request an on-chain upvote with a chosen vote weight. */
   isCurator?: boolean;
-  /** Called when the curator submits a curation request. Weight is 1–15. */
-  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Called when the curator submits a curation request. Weight is 1–15.
+   *  `ownVoteWeight` is the curator's own vote weight on this content
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to each card's vote slider and to the already-voted
-   *  fallback <CurationButton/>. */
+   *  Forwarded to each card's vote slider. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
@@ -522,10 +522,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
             }
           : undefined;
 
-        // Curation eligibility, shared by the vote slider's toggle and
-        // the already-voted fallback button below. The fallback only
-        // applies when the current curator already spent their own
-        // vote — the vote slider never reopens in that case.
+        // Curation eligibility, shared by the vote slider's toggle. When
+        // the curator already voted, the vote slider itself switches
+        // into curation-only mode instead of offering a toggle.
         const curationEligible =
           !!isCurator
           && !!onCurationRequest
@@ -539,8 +538,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
           && item.author.toLowerCase() !== currentUser?.toLowerCase()
           && !hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined)
           && isHiveSuiteContent(item.json_metadata);
-        const showCurationFallbackButton =
-          curationEligible && hasUserVoted(item.active_votes as ActiveVote[] | undefined, currentUser);
 
         return (
           <div
@@ -641,8 +638,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
             </div>
 
             <div className="border-t border-[var(--hrk-border-subtle)] px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-1">
-              <div className="flex-1 min-w-0">
               <PostActionButton
                 author={item.author}
                 permlink={item.permlink}
@@ -667,7 +662,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
                 curationEligible={curationEligible}
                 curationType="post"
-                onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(item.author, item.permlink, weight) : undefined}
+                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(item.author, item.permlink, weight, ownVoteWeight) : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}
@@ -700,17 +695,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 awaitingWalletApproval={awaitingWalletApproval}
                 actionsAsMenu={actionsAsMenu}
               />
-              </div>
-              {showCurationFallbackButton && onCurationRequest && (
-                <CurationButton
-                  author={item.author}
-                  permlink={item.permlink}
-                  type="post"
-                  onCurationRequest={onCurationRequest}
-                  onFetchCurationStatus={onFetchCurationStatus}
-                />
-              )}
-              </div>
             </div>
           </div>
         );

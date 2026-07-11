@@ -18,7 +18,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
-import { postHasDownvotes, isDownvote } from "@/utils/postVotes";
+import { postHasDownvotes, isDownvote, getUserVoteWeight } from "@/utils/postVotes";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -63,9 +63,10 @@ export interface PostActionButtonProps {
   /** Required alongside `curationEligible` — sizes the curation-weight
    *  slider's default range before the server limit resolves. */
   curationType?: 'post' | 'snap' | 'comment';
-  /** Fired with the chosen curation weight right after a successful
-   *  vote, only when the curator switched the toggle on. */
-  onCurationRequest?: (weight: number) => void | Promise<void>;
+  /** Fired with the chosen curation weight and the curator's own vote
+   *  weight right after a successful vote, only when the curator
+   *  switched the toggle on. */
+  onCurationRequest?: (weight: number, ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for
    *  `curationType`, plus whether this content was already submitted
    *  for curation by any curator. */
@@ -391,6 +392,7 @@ export function PostActionButton({
     isLoggedIn &&
     !!currentUser &&
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
+  const ownVoteWeight = getUserVoteWeight(votes, currentUser);
 
   const hasDownvotes = useMemo(
     () => postHasDownvotes(votes, initialFlagWeight),
@@ -493,6 +495,14 @@ export function PostActionButton({
   const handleUpvoteClick = () => {
     requireLogin("Upvote", () => {
       if (hasVoted) {
+        // Nothing left to vote on — but a curator can still request
+        // curation on content they already voted for. Opens the same
+        // slider in "already voted" mode (see VoteSlider's alreadyVoted
+        // prop) instead of a dead-end toast when that's available.
+        if (curationEligible) {
+          setShowVoteSlider(true);
+          return;
+        }
         showToast("You have already upvoted this post");
         return;
       }
@@ -560,7 +570,11 @@ export function PostActionButton({
   const handleUpvoteFromModal = () => {
     setShowUpvoteListModal(false);
     if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
-    if (hasVoted) { showToast("You have already upvoted this post"); return; }
+    if (hasVoted) {
+      if (curationEligible) { setShowVoteSlider(true); return; }
+      showToast("You have already upvoted this post");
+      return;
+    }
     if (isPastVoteWindow) { showToast(VOTE_WINDOW_MESSAGE); return; }
     setShowVoteSlider(true);
   };
@@ -979,6 +993,8 @@ export function PostActionButton({
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
           awaitingWalletApproval={awaitingWalletApproval}
+          alreadyVoted={hasVoted}
+          curatorOwnVoteWeight={ownVoteWeight}
           curationEligible={curationEligible}
           curationType={curationType}
           onCurationRequest={onCurationRequest}

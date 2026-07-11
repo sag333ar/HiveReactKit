@@ -95,8 +95,10 @@ interface InlineCommentSectionProps {
   /** When true, a heart button is shown on each comment so the curator
    *  can request an on-chain upvote (1–3%). */
   isCurator?: boolean;
-  /** Called when the curator submits a curation request on a comment. */
-  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Called when the curator submits a curation request on a comment.
+   *  `ownVoteWeight` is the curator's own vote weight on this comment
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to every <InlineCommentItem/>. */

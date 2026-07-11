@@ -9,10 +9,6 @@ export {
   type SupporterTierMap,
 } from './context/SupporterTierContext';
 
-// Curation button — fallback trigger for curators who already voted on
-// this content (see CurationButton.tsx doc comment for the full flow)
-export { CurationButton } from './components/CurationButton';
-
 // Main components exports
 export { default as VideoCard } from './components/VideoCard';
 export { default as VideoDetail } from './components/VideoDetail';

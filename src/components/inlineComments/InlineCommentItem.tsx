@@ -4,8 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, hasUserVoted, isHiveSuiteContent } from '@/utils/postVotes';
-import { CurationButton } from '../CurationButton';
+import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, getUserVoteWeight, isHiveSuiteContent } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -108,12 +107,13 @@ interface InlineCommentItemProps {
   /** When true, a heart button is shown on this comment so the curator
    *  can request an on-chain upvote (1–3%). */
   isCurator?: boolean;
-  /** Called when the curator submits a curation request. Weight is 1–3. */
-  onCurationRequest?: (author: string, permlink: string, weight: number) => void | Promise<void>;
+  /** Called when the curator submits a curation request. Weight is 1–3.
+   *  `ownVoteWeight` is the curator's own vote weight on this comment
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to this comment's vote slider, its already-voted
-   *  fallback button, and to every nested reply. */
+   *  Forwarded to this comment's vote slider and to every nested reply. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
@@ -457,7 +457,17 @@ export default function InlineCommentItem({
 
   const handleUpvoteClick = () => {
     if (!currentUser) { showToast('Please login to upvote'); return; }
-    if (hasAlreadyVoted || isUpvoted) { showToast('You have already upvoted this comment'); return; }
+    if (hasAlreadyVoted || isUpvoted) {
+      // Nothing left to vote on — but a curator can still request
+      // curation on a comment they already voted for. Opens the same
+      // slider in "already voted" mode instead of a dead-end toast.
+      if (curationEligible) {
+        setShowVoteSlider(true);
+        return;
+      }
+      showToast('You have already upvoted this comment');
+      return;
+    }
     if (isPostTooOldToVote(comment.created)) { showToast(VOTE_WINDOW_MESSAGE); return; }
     setShowVoteSlider(true);
   };
@@ -469,10 +479,9 @@ export default function InlineCommentItem({
 
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
-  // Curation eligibility, shared by the vote slider's toggle and the
-  // already-voted fallback button below. The fallback only applies when
-  // the current curator already spent their own vote — the vote slider
-  // never reopens in that case, so it can't offer the toggle.
+  // Curation eligibility, shared by the vote slider's toggle. When the
+  // curator already voted, the vote slider itself switches into
+  // curation-only mode instead of offering a toggle.
   const curationEligible =
     !!isCurator
     && !!onCurationRequest
@@ -485,8 +494,6 @@ export default function InlineCommentItem({
     && comment.author.toLowerCase() !== currentUser?.toLowerCase()
     && !hasCurationVoterVoted(comment.active_votes)
     && isHiveSuiteContent(comment.json_metadata);
-  const showCurationFallbackButton =
-    curationEligible && hasUserVoted(comment.active_votes, currentUser);
 
   return (
     <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
@@ -672,16 +679,6 @@ export default function InlineCommentItem({
                   </button>
                 )}
 
-                {showCurationFallbackButton && onCurationRequest && (
-                  <CurationButton
-                    author={comment.author}
-                    permlink={comment.permlink}
-                    type="comment"
-                    onCurationRequest={onCurationRequest}
-                    onFetchCurationStatus={onFetchCurationStatus}
-                  />
-                )}
-
                 {(onToggleCommentBookmark ||
                   (onDeleteComment && currentUser && comment.author === currentUser && canDeleteThisComment)) && (
                   // Small kebab carrying the Bookmark + Delete items —
@@ -773,7 +770,7 @@ export default function InlineCommentItem({
             )}
 
             {/* Vote slider */}
-            {showVoteSlider && !hasAlreadyVoted && (
+            {showVoteSlider && (!(hasAlreadyVoted || isUpvoted) || curationEligible) && (
               <div className="mt-2 ml-7 md:ml-9">
                 <VoteSlider
                   author={comment.author}
@@ -782,9 +779,11 @@ export default function InlineCommentItem({
                   step={voteWeightStep}
                   onUpvote={handlePerformUpvote}
                   onCancel={() => setShowVoteSlider(false)}
+                  alreadyVoted={hasAlreadyVoted || isUpvoted}
+                  curatorOwnVoteWeight={getUserVoteWeight(comment.active_votes, currentUser)}
                   curationEligible={curationEligible}
                   curationType="comment"
-                  onCurationRequest={onCurationRequest ? (weight) => onCurationRequest(comment.author, comment.permlink, weight) : undefined}
+                  onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(comment.author, comment.permlink, weight, ownVoteWeight) : undefined}
                   onFetchCurationStatus={onFetchCurationStatus}
                 />
               </div>

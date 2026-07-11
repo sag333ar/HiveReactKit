@@ -28,6 +28,22 @@ export function hasUserVoted(votes: ActiveVote[] | null | undefined, username: s
   return votes.some((v) => v.voter?.toLowerCase() === target);
 }
 
+/** The vote weight (0–100) `username` already cast on this content, or 0
+ *  if they haven't voted. Companion to `hasUserVoted` — the curation
+ *  request needs the curator's own vote weight reported alongside it,
+ *  and in the already-voted flow (see `VoteSlider`'s `alreadyVoted` mode)
+ *  that vote already happened, so it has to be read back from
+ *  `active_votes` rather than captured live from a slider. Hive's raw
+ *  `percent` field is basis points (10000 = 100%), hence the /100. */
+export function getUserVoteWeight(votes: ActiveVote[] | null | undefined, username: string | null | undefined): number {
+  if (!votes?.length || !username) return 0;
+  const target = username.toLowerCase();
+  const vote = votes.find((v) => v.voter?.toLowerCase() === target);
+  if (!vote) return 0;
+  const percent = Number(vote.percent ?? 0);
+  return Number.isFinite(percent) ? percent / 100 : 0;
+}
+
 /** True when the content was published via the HiveSuite app. Checks,
  *  in order:
  *   - `json_metadata.app` names it (e.g. `"hivesuite/1.2.3"`)
