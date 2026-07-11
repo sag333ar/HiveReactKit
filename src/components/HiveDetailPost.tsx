@@ -521,15 +521,6 @@ export function HiveDetailPost({
     recsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
-  const scrollMobileRecommendations = (direction: 'left' | 'right') => {
-    if (recsScrollRef.current) {
-      const distance = recsScrollRef.current.clientWidth * 0.75;
-      recsScrollRef.current.scrollBy({
-        left: direction === 'left' ? -distance : distance,
-        behavior: 'smooth',
-      });
-    }
-  };
 
   // Title translation follows the language set on <HiveLanguageProvider>.
   // Returns the original synchronously, swaps to translated when the API
@@ -2929,25 +2920,6 @@ export function HiveDetailPost({
                     <Sparkles className="w-4 h-4 text-yellow-500" />
                     Recommended from @{post.author}
                   </h4>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => scrollMobileRecommendations('left')}
-                      className="relative z-10 p-1 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white transition-all cursor-pointer flex items-center justify-center border border-white/10 shadow"
-                      aria-label="Scroll left"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => scrollMobileRecommendations('right')}
-                      className="relative z-10 p-1 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white transition-all cursor-pointer flex items-center justify-center border border-white/10 shadow"
-                      aria-label="Scroll right"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[10px] text-[var(--hrk-text-tertiary)] bg-[var(--hrk-bg-surface-raised)] px-2 py-0.5 rounded-full">Scroll →</span>
-                  </div>
                 </div>
                 
                 <div
