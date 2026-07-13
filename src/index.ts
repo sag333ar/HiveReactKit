@@ -117,7 +117,7 @@ export * from './hooks/use-toast';
 export * from './hooks/useHiveImageSign';
 
 // Utils
-export { parseHiveFrontendUrl, type HiveLinkTarget } from './utils/hiveLinks';
+export { parseHiveFrontendUrl, type HiveLinkTarget, preLinkMentions, preLinkUrls, preLinkHashtags } from './utils/hiveLinks';
 export {
   isPostTooOldToVote,
   parseHiveCreated,

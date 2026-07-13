@@ -181,3 +181,22 @@ export function preLinkUrls(body: string): string {
     }
   );
 }
+
+export function preLinkHashtags(
+  body: string,
+  tagLinkUrlFn?: (tag: string) => string,
+): string {
+  if (!body) return body;
+  const buildUrl = tagLinkUrlFn ?? ((t: string) => `https://peakd.com/created/${t}`);
+  return body.replace(
+    /(^|[^A-Za-z0-9_!#$%&*@/＠])#([a-zA-Z0-9_]+)(?![a-zA-Z0-9_])/g,
+    (match, pre, tag) => {
+      // Avoid matching hex colors like #fff or #000000
+      if (/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(tag)) {
+        return match;
+      }
+      return `${pre}[#${tag}](${buildUrl(tag)})`;
+    }
+  );
+}
+

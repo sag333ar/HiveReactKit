@@ -18,7 +18,7 @@ import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
-import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
 import { buildOdyseeEmbedUrl } from '../feed/AttachmentStrip';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
@@ -300,6 +300,7 @@ export default function InlineCommentItem({
       // doesn't reorder lines (see preLinkMentions for the bug).
       let safeBody = preLinkMentions(sanitizedBody, renderOptions?.userLinkUrlFn);
       safeBody = preLinkUrls(safeBody);
+      safeBody = preLinkHashtags(safeBody, renderOptions?.tagLinkUrlFn);
       // Strip Odysee URLs — they are rendered as inline iframes by the
       // useLayoutEffect below, so remove them here to avoid duplication.
       safeBody = safeBody.replace(

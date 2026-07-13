@@ -45,7 +45,7 @@ import { SelectionTranslator } from './SelectionTranslator';
 import { LanguagePickerButton } from './LanguagePickerButton';
 import { createHiveRenderer } from '@snapie/renderer';
 import InlineCommentSection from './inlineComments/InlineCommentSection';
-import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
 import { TranslatedBody } from './TranslatedBody';
 import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
@@ -898,7 +898,7 @@ export function HiveDetailPost({
       return current === reSnapTargetKey ? null : current;
     });
   }, [reSnapTargetKey]);
-  const shouldStripReSnapUrl = !!reSnapTargetKey && visibleReSnapKey === reSnapTargetKey;
+  const shouldStripReSnapUrl = false;
 
   const bodyForContent = useMemo(
     () => shouldStripReSnapUrl ? stripHivePostReference(processedBody, reSnapTarget) : processedBody,
@@ -1055,6 +1055,7 @@ export function HiveDetailPost({
       // the bug. We also pre-link bare URLs for the same reason.
       let safeBody = preLinkMentions(bodyForContent, renderOptions?.userLinkUrlFn);
       safeBody = preLinkUrls(safeBody);
+      safeBody = preLinkHashtags(safeBody, renderOptions?.tagLinkUrlFn);
       // Strip WorldMappin markers so they are not rendered inline in the body
       safeBody = stripWorldMappinMarkers(safeBody);
       // Strip IPFS URLs (and any iframe/video shell wrapping one) before
