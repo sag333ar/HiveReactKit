@@ -46,7 +46,7 @@ export const SPOTIFY_REGEX = /https?:\/\/(?:open|play)\.spotify\.com\/(?:track|p
 export const ODYSEE_REGEX = /https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^\s"'<>)]+/gi;
 export const TWITTER_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/gi;
 export const YOUTUBE_REGEX =
-  /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([^&\s]+)|https?:\/\/youtu\.be\/([^?\s]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([^?\s]+)/gi;
+  /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)(?:[&?][^\s"')\]]*)?|https?:\/\/youtu\.be\/([a-zA-Z0-9_-]+)(?:\?[^\s"')\]]*)?|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)(?:\?[^\s"')\]]*)?|https?:\/\/(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)(?:\?[^\s"')\]]*)?/gi;
 export const THREE_SPEAK_REGEX = /https?:\/\/(?:play\.)?3speak\.tv\/[^\s"'<>)]+/gi;
 // Direct audio file URLs
 export const AUDIO_FILE_REGEX =
@@ -158,7 +158,7 @@ export function parseBody(post: Post): ParsedBody {
   while ((m = ipfsReParse.exec(raw))) ipfsUrls.push(m[0]);
 
   const youtubeIds: string[] = [];
-  while ((m = YOUTUBE_REGEX.exec(raw))) youtubeIds.push((m[1] || m[2] || m[3])!);
+  while ((m = YOUTUBE_REGEX.exec(raw))) youtubeIds.push((m[1] || m[2] || m[3] || m[4])!);
 
   const threeSpeakUrls: string[] = [];
   while ((m = THREE_SPEAK_REGEX.exec(raw))) threeSpeakUrls.push(m[0]);
