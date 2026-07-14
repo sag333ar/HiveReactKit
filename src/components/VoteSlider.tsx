@@ -112,8 +112,13 @@ export function VoteSlider({
   const [requestCuration, setRequestCuration] = useState(false);
   const [curationWeight, setCurationWeight] = useState(range.default);
   const [curationMax, setCurationMax] = useState(range.max);
-  // Checked once up front (not on toggle-flip) so an already-submitted
-  // piece of content never shows the toggle in the first place.
+  // Check 8 (see `isCurationEligible` in postVotes.ts for checks 1-6):
+  // has this content already been submitted for curation by another
+  // curator? Checked once up front (not on toggle-flip) so an
+  // already-submitted piece of content never shows the toggle in the
+  // first place. Runs independently/in parallel with check 7 below —
+  // order between the two doesn't matter, only that both resolve before
+  // the toggle can show.
   const [statusChecked, setStatusChecked] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
@@ -139,9 +144,11 @@ export function VoteSlider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRequestCuration]);
 
-  // Author KE ratio (lifetime rewards ÷ own staked HP) — checked once up
-  // front, same as the status check above. A transient RPC failure fails
-  // open (assume eligible) rather than blocking a legitimate request.
+  // Check 7: author's KE ratio (lifetime rewards ÷ own staked HP) — checked
+  // once up front, same as check 8 above. A transient RPC failure fails
+  // open (assume eligible) rather than blocking a legitimate request. To
+  // disable this check entirely, replace the body of this effect with
+  // just `setKeChecked(true);`.
   const [keChecked, setKeChecked] = useState(false);
   const [authorKEOk, setAuthorKEOk] = useState(true);
 

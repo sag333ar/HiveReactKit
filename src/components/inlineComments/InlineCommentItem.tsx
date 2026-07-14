@@ -4,7 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, getUserVoteWeight, isHiveSuiteContent } from '@/utils/postVotes';
+import { isCurationEligible, getUserVoteWeight } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -480,21 +480,18 @@ export default function InlineCommentItem({
 
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
-  // Curation eligibility, shared by the vote slider's toggle. When the
-  // curator already voted, the vote slider itself switches into
-  // curation-only mode instead of offering a toggle.
-  const curationEligible =
-    !!isCurator
-    && !!onCurationRequest
-    // The curation account voting on its own request is a no-op — it'd
-    // just be asking itself to vote again.
-    && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
-    // Curators recommend OTHER people's content — recommending your own
-    // isn't curation, it's self-promotion. Hive lets you vote for
-    // yourself in this same dialog; only the curation request is gated.
-    && comment.author.toLowerCase() !== currentUser?.toLowerCase()
-    && !hasCurationVoterVoted(comment.active_votes)
-    && isHiveSuiteContent(comment.json_metadata);
+  // Curation eligibility, shared by the vote slider's toggle. See
+  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+  // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
+  // dialog opens.
+  const curationEligible = isCurationEligible({
+    isCurator,
+    hasCurationHandler: !!onCurationRequest,
+    currentUser,
+    author: comment.author,
+    votes: comment.active_votes,
+    jsonMetadata: comment.json_metadata,
+  });
 
   return (
     <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>

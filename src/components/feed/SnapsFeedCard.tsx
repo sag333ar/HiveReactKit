@@ -20,7 +20,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from '@/utils/postVotes';
+import { isCurationEligible } from '@/utils/postVotes';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
@@ -509,20 +509,18 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
 
   // Curation eligibility for the vote slider's curation option — either
   // folded into the vote (not yet voted) or the only action available
-  // (already voted — see PostActionButton's `alreadyVoted` handling).
-  const curationEligible =
-    !!isCurator
-    && !!onCurationRequest
-    // The curation account voting on its own request is a no-op — it'd
-    // just be asking itself to vote again.
-    && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
-    // Curators recommend OTHER people's content — recommending your own
-    // is not curation, it's self-promotion. Hive lets you vote for
-    // yourself in this same dialog; that's untouched, only the curation
-    // request is gated.
-    && post.author.toLowerCase() !== currentUser?.toLowerCase()
-    && !hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined)
-    && isHiveSuiteContent(post.json_metadata);
+  // (already voted — see PostActionButton's `alreadyVoted` handling). See
+  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+  // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
+  // dialog opens.
+  const curationEligible = isCurationEligible({
+    isCurator,
+    hasCurationHandler: !!onCurationRequest,
+    currentUser,
+    author: post.author,
+    votes: post.active_votes as ActiveVote[] | undefined,
+    jsonMetadata: post.json_metadata,
+  });
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">

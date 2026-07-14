@@ -73,6 +73,72 @@ export function isHiveSuiteContent(jsonMetadata: unknown): boolean {
   return tags.some((t) => typeof t === 'string' && t.toLowerCase() === 'hivesuite');
 }
 
+export interface CurationEligibilityInput {
+  /** Is the logged-in user a curator at all? */
+  isCurator?: boolean | null;
+  /** Did the consumer actually wire up an `onCurationRequest` handler? */
+  hasCurationHandler: boolean;
+  currentUser?: string | null;
+  author: string;
+  votes?: ActiveVote[] | null;
+  jsonMetadata: unknown;
+}
+
+/**
+ * Whether the curation-request toggle/button should be offered at all, for
+ * this piece of content, to this logged-in user. This is the ONE place
+ * these checks live — every render site (blog list, post detail, profile
+ * tabs, snaps feed, inline comments) calls this instead of repeating the
+ * chain inline, so disabling a check means editing one function, not
+ * hunting through five call sites.
+ *
+ * Checked in order, numbered so an individual gate can be commented out:
+ *   1. Caller is a curator
+ *   2. A curation-request handler was actually wired up by the consumer
+ *   3. Caller isn't the curation bot itself (voting on its own request is a no-op)
+ *   4. Caller isn't the content's author (curators recommend OTHERS' content —
+ *      recommending your own isn't curation, it's self-promotion; Hive still
+ *      lets you vote for yourself in the same dialog, only the *request* is gated)
+ *   5. The curation bot hasn't already voted on this content
+ *   6. The content was actually published via the HiveSuite app
+ *
+ * Two more checks happen later, inside `<VoteSlider/>` itself, once the
+ * dialog is actually open — they need an async fetch so can't be computed
+ * synchronously here:
+ *   7. Author's KE ratio isn't over the configured max (MAX_AUTHOR_KE)
+ *   8. Content hasn't already been submitted for curation by another curator
+ *      (`onFetchCurationStatus`)
+ * See VoteSlider.tsx.
+ */
+export function isCurationEligible({
+  isCurator,
+  hasCurationHandler,
+  currentUser,
+  author,
+  votes,
+  jsonMetadata,
+}: CurationEligibilityInput): boolean {
+  // 1. Caller must be a curator.
+  if (!isCurator) return false;
+
+  // 2. A curation-request handler must be wired up by the consumer.
+  if (!hasCurationHandler) return false;
+
+  // 3. The curation bot voting on its own request would be a no-op.
+  if (currentUser?.toLowerCase() === CURATION_VOTER_ACCOUNT) return false;
+
+  // 4. Curators recommend OTHER people's content, not their own.
+  if (author.toLowerCase() === currentUser?.toLowerCase()) return false;
+
+  // 5. Once the curation bot has already voted, there's nothing left to request.
+  if (hasCurationVoterVoted(votes)) return false;
+
+  // 6. Curation is only offered for content actually published via HiveSuite.
+  if (!isHiveSuiteContent(jsonMetadata)) return false;
+
+  return true;
+}
+
 /** True when the post has received at least one downvote / flag.
  *  Prefer `stats.flag_weight` when available — Hive's canonical
  *  signal — and fall back to scanning `active_votes` for negative

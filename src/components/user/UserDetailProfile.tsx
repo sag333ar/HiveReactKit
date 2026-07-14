@@ -56,7 +56,7 @@ import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from "@/utils/postVotes";
+import { isCurationEligible } from "@/utils/postVotes";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
@@ -2095,21 +2095,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       })),
     };
 
-    // Curation eligibility, shared by the vote slider's toggle. When the
-    // curator already voted, the vote slider itself switches into
-    // curation-only mode instead of offering a toggle.
-    const curationEligible =
-      !!isCurator
-      && !!onCurationRequest
-      // The curation account voting on its own request is a no-op —
-      // it'd just be asking itself to vote again.
-      && currentUsername?.toLowerCase() !== CURATION_VOTER_ACCOUNT
-      // Curators recommend OTHER people's content — recommending your
-      // own isn't curation, it's self-promotion. Hive lets you vote for
-      // yourself in this same dialog; only the curation request is gated.
-      && item.author.toLowerCase() !== currentUsername?.toLowerCase()
-      && !hasCurationVoterVoted(item.active_votes)
-      && isHiveSuiteContent(item.json_metadata);
+    // Curation eligibility, shared by the vote slider's toggle. See
+    // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+    // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
+    // dialog opens.
+    const curationEligible = isCurationEligible({
+      isCurator,
+      hasCurationHandler: !!onCurationRequest,
+      currentUser: currentUsername,
+      author: item.author,
+      votes: item.active_votes,
+      jsonMetadata: item.json_metadata,
+    });
 
     return (
       <div

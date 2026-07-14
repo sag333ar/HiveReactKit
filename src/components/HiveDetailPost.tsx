@@ -6,7 +6,7 @@ import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
 import { Poll } from '@/types/poll';
-import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } from '@/utils/postVotes';
+import { isCurationEligible } from '@/utils/postVotes';
 import {
   AlertCircle,
   ArrowLeft,
@@ -1979,19 +1979,17 @@ export function HiveDetailPost({
 
   // Curation eligibility, shared by the vote slider's toggle. When the
   // curator already voted, the vote slider itself switches into
-  // curation-only mode instead of offering a toggle.
-  const curationEligible =
-    !!isCurator
-    && !!onCurationRequest
-    // The curation account voting on its own request is a no-op — it'd
-    // just be asking itself to vote again.
-    && currentUser?.toLowerCase() !== CURATION_VOTER_ACCOUNT
-    // Curators recommend OTHER people's content — recommending your own
-    // isn't curation, it's self-promotion. Hive lets you vote for
-    // yourself in this same dialog; only the curation request is gated.
-    && post.author.toLowerCase() !== currentUser?.toLowerCase()
-    && !hasCurationVoterVoted(post.active_votes)
-    && isHiveSuiteContent(post.json_metadata);
+  // curation-only mode instead of offering a toggle. See numbered checks
+  // 1-6 in `isCurationEligible` (postVotes.ts) — checks 7-8 (KE ratio,
+  // already-submitted) run inside <VoteSlider/> once the dialog opens.
+  const curationEligible = isCurationEligible({
+    isCurator,
+    hasCurationHandler: !!onCurationRequest,
+    currentUser,
+    author: post.author,
+    votes: post.active_votes,
+    jsonMetadata: post.json_metadata,
+  });
 
   return (
     <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
