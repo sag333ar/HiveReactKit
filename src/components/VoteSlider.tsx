@@ -20,7 +20,7 @@ const CURATION_RANGE: Record<CurationType, { min: number; max: number; default: 
 // their own staked HP gets silently rejected server-side anyway, so the
 // toggle is hidden up front rather than letting a curator spend a vote on
 // a request that can never go through.
-const MAX_AUTHOR_KE = 3;
+const MAX_AUTHOR_KE = 1.75;
 
 const CURATION_SLIDER_CLASS =
   "w-full h-2 rounded-lg appearance-none cursor-pointer " +

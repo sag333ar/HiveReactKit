@@ -133,8 +133,8 @@ export function isCurationEligible({
   // 5. Once the curation bot has already voted, there's nothing left to request.
   if (hasCurationVoterVoted(votes)) return false;
 
-  // 6. Curation is only offered for content actually published via HiveSuite.
-  if (!isHiveSuiteContent(jsonMetadata)) return false;
+  // // 6. Curation is only offered for content actually published via HiveSuite.
+  // if (!isHiveSuiteContent(jsonMetadata)) return false;
 
   return true;
 }
