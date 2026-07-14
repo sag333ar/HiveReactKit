@@ -284,7 +284,7 @@ export function VoteSlider({
             there's no toggle here rather than leaving them wondering. */}
         {!alreadyVoted && canRequestCuration && eligibilityChecked && !alreadySubmitted && !authorKEOk && (
           <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 text-sm text-[var(--hrk-text-tertiary)]">
-            @{author}'s KE ratio is over 3.00, so curation requests aren't available right now. We may reconsider this author for curation in the future.
+            @{author}'s KE ratio is over {MAX_AUTHOR_KE.toFixed(2)}, so curation requests aren't available right now. We may reconsider this author for curation in the future.
           </div>
         )}
 
@@ -360,7 +360,7 @@ export function VoteSlider({
             </div>
           ) : !authorKEOk ? (
             <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-4 text-center text-sm text-[var(--hrk-text-tertiary)]">
-              @{author}'s KE ratio is over 3.00, so curation requests aren't available right now. We may reconsider this author for curation in the future.
+              @{author}'s KE ratio is over {MAX_AUTHOR_KE.toFixed(2)}, so curation requests aren't available right now. We may reconsider this author for curation in the future.
             </div>
           ) : (
             <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
