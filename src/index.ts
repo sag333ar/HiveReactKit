@@ -223,6 +223,9 @@ export {
   setHiveApiEndpoint,
   subscribeHiveApiEndpoint,
   getHiveClient,
+  getGlobalPostFilter,
+  setGlobalPostFilter,
+  subscribeGlobalPostFilter,
 } from './config/hiveEndpoint';
 
 // Services

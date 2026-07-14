@@ -361,6 +361,8 @@ const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
 
 // ─── Component ───────────────────────────────────────────────────────────
 
+import { getGlobalPostFilter } from '@/config/hiveEndpoint';
+
 export const BlogPostList: FC<BlogPostListProps> = ({
   posts,
   currentUser,
@@ -407,6 +409,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onFetchCurationStatus,
 }) => {
   const tierMap = useSupporterTierMap();
+  const filterFn = getGlobalPostFilter();
+  const filteredPosts = posts.filter(filterFn);
+
   if (loading && posts.length === 0) {
     return (
       <div className="space-y-3">
@@ -440,7 +445,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
     );
   }
 
-  if (!loading && posts.length === 0) {
+  if (!loading && filteredPosts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-tertiary)]">
@@ -453,7 +458,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
 
   return (
     <div className="space-y-3">
-      {posts.map((item) => {
+      {filteredPosts.map((item) => {
         const postMedia = extractPostMedia(item);
         const previewText =
           item.json_metadata?.description || (item.body ? extractPlainText(item.body) : '');

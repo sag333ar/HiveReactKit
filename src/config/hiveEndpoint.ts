@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Runtime-configurable Hive RPC endpoint.
  *
@@ -49,4 +50,25 @@ export function getHiveClient(options?: ClientOptions): Client {
     sharedClient = new Client(currentEndpoint, options);
   }
   return sharedClient;
+}
+
+let globalPostFilter: (post: any) => boolean = () => true;
+const filterListeners = new Set<() => void>();
+
+export function getGlobalPostFilter(): (post: any) => boolean {
+  return globalPostFilter;
+}
+
+export function setGlobalPostFilter(fn: (post: any) => boolean): void {
+  if (typeof fn === 'function') {
+    globalPostFilter = fn;
+    filterListeners.forEach((cb) => {
+      try { cb(); } catch { /* ignore */ }
+    });
+  }
+}
+
+export function subscribeGlobalPostFilter(cb: () => void): () => void {
+  filterListeners.add(cb);
+  return () => { filterListeners.delete(cb); };
 }

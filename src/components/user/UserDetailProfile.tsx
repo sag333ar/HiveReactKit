@@ -60,7 +60,7 @@ import { CURATION_VOTER_ACCOUNT, hasCurationVoterVoted, isHiveSuiteContent } fro
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
-import { getHiveApiEndpoint } from "../../config/hiveEndpoint";
+import { getHiveApiEndpoint, getGlobalPostFilter, subscribeGlobalPostFilter } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { Post } from "@/types/post";
 import type { Follower, Following, Account } from "@/types/user";
@@ -70,6 +70,14 @@ import { activityListService } from "@/services/activityListService";
 import type { ActivityListItem } from "@/types/activityList";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+function useGlobalPostFilterTrigger() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    return subscribeGlobalPostFilter(() => setTick((t) => t + 1));
+  }, []);
+  return tick;
+}
 
 export interface UserDetailProfileProps {
   username: string;
@@ -602,6 +610,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 }) => {
   const t = useKitT();
   const tierMap = useSupporterTierMap();
+  const filterTrigger = useGlobalPostFilterTrigger();
   const targetUsername = username.replace(/^@/, "").trim();
   const cached = profileStateCache[targetUsername];
 
@@ -937,13 +946,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     [reportedAuthors]
   );
   const filterPost = useCallback(
-    <T extends { author: string; permlink: string }>(items: T[]): T[] =>
-      items.filter(
+    <T extends { author: string; permlink: string }>(items: T[]): T[] => {
+      const globalFilter = getGlobalPostFilter();
+      return items.filter(
         (item) =>
           !reportedAuthorSet.has(item.author) &&
-          !reportedPostKeys.has(`${item.author}/${item.permlink}`)
-      ),
-    [reportedPostKeys, reportedAuthorSet]
+          !reportedPostKeys.has(`${item.author}/${item.permlink}`) &&
+          globalFilter(item)
+      );
+    },
+    [reportedPostKeys, reportedAuthorSet, filterTrigger]
   );
 
   // ─── Close dropdown on outside click ─────────────────────────────────────
