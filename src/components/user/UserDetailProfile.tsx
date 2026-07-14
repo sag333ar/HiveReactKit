@@ -2573,19 +2573,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.posts")}</p>
-              <p className="text-lg font-bold text-white">{postCount}</p>
+              <p className="text-lg font-bold text-white notranslate" translate="no">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.comments")}</p>
-              <p className="text-lg font-bold text-white">{commentCount}</p>
+              <p className="text-lg font-bold text-white notranslate" translate="no">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHbd")}</p>
-              <p className="text-lg font-bold text-amber-400">${formatNum(authorRewardsTotals.totalHbd)}</p>
+              <p className="text-lg font-bold text-amber-400 notranslate" translate="no">${formatNum(authorRewardsTotals.totalHbd)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHp")}</p>
-              <p className="text-lg font-bold text-orange-400">{formatNum(authorRewardsTotals.totalHpEq)}</p>
+              <p className="text-lg font-bold text-orange-400 notranslate" translate="no">{formatNum(authorRewardsTotals.totalHpEq)}</p>
             </div>
           </div>
         </div>
@@ -2615,10 +2615,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <Clock className="w-3 h-3" />
                     Payout in {formatDuration(row.payoutMs)}
                   </span>
-                  <span className="text-amber-400 font-medium">${formatNum(row.hbd)} HBD</span>
-                  {row.hpEq !== null && <span className="text-orange-400 font-medium">{formatNum(row.hpEq)} HP</span>}
+                  <span className="text-amber-400 font-medium notranslate" translate="no">${formatNum(row.hbd)} HBD</span>
+                  {row.hpEq !== null && <span className="text-orange-400 font-medium notranslate" translate="no">{formatNum(row.hpEq)} HP</span>}
                   {row.beneficiaryCut > 0 && (
-                    <span className="text-[var(--hrk-text-tertiary)]">
+                    <span className="text-[var(--hrk-text-tertiary)] notranslate" translate="no">
                       Beneficiary: {(row.beneficiaryCut * 100).toFixed(0)}%
                     </span>
                   )}
@@ -2684,24 +2684,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.posts")}</p>
-              <p className="text-lg font-bold text-white">{postCount}</p>
+              <p className="text-lg font-bold text-white notranslate" translate="no">{postCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.comments")}</p>
-              <p className="text-lg font-bold text-white">{commentCount}</p>
+              <p className="text-lg font-bold text-white notranslate" translate="no">{commentCount}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHp")}</p>
-              <p className="text-lg font-bold text-blue-400">{formatNum(curationRewardsTotals.totalHp)}</p>
+              <p className="text-lg font-bold text-blue-400 notranslate" translate="no">{formatNum(curationRewardsTotals.totalHp)}</p>
             </div>
             <div className="bg-black/30 rounded-lg p-2.5">
               <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.totalHbd")}</p>
-              <p className="text-lg font-bold text-purple-400">${formatNum(curationRewardsTotals.totalHbd)}</p>
+              <p className="text-lg font-bold text-purple-400 notranslate" translate="no">${formatNum(curationRewardsTotals.totalHbd)}</p>
             </div>
             {avgEfficiency !== null && (
               <div className="bg-black/30 rounded-lg p-2.5">
                 <p className="text-[10px] text-[var(--hrk-text-tertiary)] uppercase tracking-wider">{t("reward.avgEfficiency")}</p>
-                <p className={`text-lg font-bold ${avgEfficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                <p className={`text-lg font-bold notranslate ${avgEfficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`} translate="no">
                   {avgEfficiency.toFixed(1)}%
                 </p>
               </div>
@@ -2737,13 +2737,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <Clock className="w-3 h-3" />
                     Payout in {formatDuration(row.payoutMs)}
                   </span>
-                  <span className="text-blue-400 font-medium">{formatNum(row.hp)} HP</span>
-                  <span className="text-purple-400 font-medium">${formatNum(row.hbd)} HBD</span>
-                  <span className="text-[var(--hrk-text-tertiary)]">
+                  <span className="text-blue-400 font-medium notranslate" translate="no">{formatNum(row.hp)} HP</span>
+                  <span className="text-purple-400 font-medium notranslate" translate="no">${formatNum(row.hbd)} HBD</span>
+                  <span className="text-[var(--hrk-text-tertiary)] notranslate" translate="no">
                     Vote: {row.weightPct.toFixed(2)}%
                   </span>
                   {row.efficiency !== null && (
-                    <span className={`font-medium ${row.efficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                    <span className={`font-medium notranslate ${row.efficiency >= 100 ? "text-emerald-400" : "text-amber-400"}`} translate="no">
                       Eff: {row.efficiency.toFixed(1)}%
                     </span>
                   )}
