@@ -713,6 +713,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     () => Boolean(videoEmbedUrl) || Boolean(videoUploadDetails) || bodyHasVideo(body),
     [videoEmbedUrl, videoUploadDetails, body],
   );
+  // Video storage has a real cost that threespeakfund's beneficiary cut
+  // funds — declining payout entirely would zero that cut out, so video
+  // content can never decline. If the user picked Decline and then
+  // attached a video, silently fall back to Burn (still funds
+  // threespeakfund/hivesuite.app, just routes the rest to `null`).
+  useEffect(() => {
+    if (hasVideo && reward === 'decline') setReward('burn');
+  }, [hasVideo, reward]);
   // ParentPostComposer is always a top-level post, so DecentMemes kind is
   // fixed to 'post' (10% cap). PickDecentMemesKind would return the same
   // for an undefined parent, but spelling it out keeps intent obvious.
@@ -3046,7 +3054,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             }}
             className="z-[9999] rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] py-1 shadow-xl"
           >
-            {REWARD_OPTIONS.map((opt) => (
+            {REWARD_OPTIONS.filter((opt) => !hasVideo || opt !== 'decline').map((opt) => (
               <button
                 key={opt}
                 type="button"
