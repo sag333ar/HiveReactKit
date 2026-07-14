@@ -28,6 +28,27 @@ interface CommentTileProps {
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
 }
 
+const getReputationDetails = (rep: any): { score: string; formatted: string } => {
+  if (rep === undefined || rep === null || rep === "") return { score: "25", formatted: "25.00" };
+  const repNum = Number(rep);
+  if (isNaN(repNum) || repNum === 0) return { score: "25", formatted: "25.00" };
+  const neg = repNum < 0;
+  const val = Math.abs(repNum);
+  if (val < 1000) {
+    return {
+      score: Math.round(repNum).toString(),
+      formatted: repNum.toFixed(2),
+    };
+  }
+  let out = Math.log10(val);
+  out = Math.max(out - 9, 0);
+  const scoreNum = (neg ? -1 : 1) * out * 9 + 25;
+  return {
+    score: Math.round(scoreNum).toString(),
+    formatted: scoreNum.toFixed(2),
+  };
+};
+
 const CommentTile = ({
   comment,
   allComments,
@@ -219,6 +240,18 @@ const CommentTile = ({
                   <span className={`inline-block rounded px-1 py-0.5 text-xs md:text-sm font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
                 ) : <>@{comment.author}</>}
               </button>
+              {(comment as any).author_reputation !== undefined && (
+                <div className="relative group inline-flex shrink-0">
+                  <span 
+                    className="text-xs text-gray-400 cursor-pointer font-normal"
+                  >
+                    ({getReputationDetails((comment as any).author_reputation).score})
+                  </span>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                    Reputation: {getReputationDetails((comment as any).author_reputation).formatted}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center text-xs md:text-sm text-gray-400 space-x-1">
                 <Clock className="w-3 h-3 md:w-4 md:h-4" />
                 <span>

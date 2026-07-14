@@ -106,14 +106,29 @@ export function formatTimeAgo(date: string | Date): string {
 /** Convert raw Hive reputation (huge int) to the familiar 25-100 score.
  *  Returns the input rounded if it's already in that range so the
  *  function is safe to call against either form. */
-function formatReputation(rep: number | undefined): string {
-  if (!rep || rep === 0) return "25";
-  const neg = rep < 0;
-  const val = Math.abs(rep);
-  if (val < 1000) return Math.floor(val).toString();
+function getReputationDetails(rep: any): { score: string; formatted: string } {
+  if (rep === undefined || rep === null || rep === "") return { score: "25", formatted: "25.00" };
+  const repNum = Number(rep);
+  if (isNaN(repNum) || repNum === 0) return { score: "25", formatted: "25.00" };
+  const neg = repNum < 0;
+  const val = Math.abs(repNum);
+  if (val < 1000) {
+    return {
+      score: Math.round(repNum).toString(),
+      formatted: repNum.toFixed(2),
+    };
+  }
   let out = Math.log10(val);
   out = Math.max(out - 9, 0);
-  return ((neg ? -1 : 1) * out * 9 + 25).toFixed(0);
+  const scoreNum = (neg ? -1 : 1) * out * 9 + 25;
+  return {
+    score: Math.round(scoreNum).toString(),
+    formatted: scoreNum.toFixed(2),
+  };
+}
+
+function formatReputation(rep: any): string {
+  return getReputationDetails(rep).score;
 }
 
 /** Parse "1.234 HBD" / "0.000 HBD" into a number. */
@@ -775,9 +790,16 @@ const UpvoteListModal = ({
                         <span className="min-w-0 flex-1 truncate text-white">
                           {vote.voter}
                         </span>
-                        <span className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
-                          {formatReputation(vote.reputation)}
-                        </span>
+                        <div className="relative group inline-flex shrink-0">
+                          <span 
+                            className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)] cursor-pointer"
+                          >
+                            {getReputationDetails(vote.reputation).score}
+                          </span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                            Reputation: {getReputationDetails(vote.reputation).formatted}
+                          </div>
+                        </div>
                         <span className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold ${
                           isDownvoteMode ? 'text-red-400' : 'text-[var(--hrk-success)]'
                         }`}>

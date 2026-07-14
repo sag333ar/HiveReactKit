@@ -22,4 +22,5 @@ export interface Discussion {
   author_payout_value?: string;
   curator_payout_value?: string;
   is_paidout?: boolean;
+  author_reputation?: number;
 }

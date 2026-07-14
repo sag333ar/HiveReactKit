@@ -245,7 +245,22 @@ export default function PostFeedList({
                     <span className={`inline-block rounded px-1 py-0.5 text-sm ${getSupporterBadge(tierMap[post.author])}`}>{post.author}</span>
                   ) : post.author}
                 </span>
-                <span className={theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}>({post.author_reputation.toFixed(2)})</span>
+                {(() => {
+                  const repNum = Number(post.author_reputation);
+                  if (isNaN(repNum)) return null;
+                  return (
+                    <div className="relative group inline-flex shrink-0">
+                      <span 
+                        className={`cursor-pointer text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}
+                      >
+                        ({Math.round(repNum)})
+                      </span>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                        Reputation: {repNum.toFixed(2)}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <span
                   className={`cursor-pointer hover:text-primary ${theme === 'dark' ? 'text-gray-400' : 'text-muted-foreground'}`}
                   onClick={() => onCommunityClick?.(post.community_title)}

@@ -417,15 +417,29 @@ const formatTimeAgo = (dateString: string): string => {
   return date.toLocaleDateString();
 };
 
-const formatReputation = (rep: number): string => {
-  if (rep === 0) return "25";
-  const neg = rep < 0;
-  let val = neg ? -rep : rep;
+const getReputationDetails = (rep: any): { score: string; formatted: string } => {
+  if (rep === undefined || rep === null || rep === "") return { score: "25", formatted: "25.00" };
+  const repNum = Number(rep);
+  if (isNaN(repNum) || repNum === 0) return { score: "25", formatted: "25.00" };
+  const neg = repNum < 0;
+  const val = Math.abs(repNum);
+  if (val < 1000) {
+    return {
+      score: Math.round(repNum).toString(),
+      formatted: repNum.toFixed(2),
+    };
+  }
   let out = Math.log10(val);
   out = Math.max(out - 9, 0);
-  out = (neg ? -1 : 1) * out;
-  out = out * 9 + 25;
-  return Math.round(out).toString();
+  const scoreNum = (neg ? -1 : 1) * out * 9 + 25;
+  return {
+    score: Math.round(scoreNum).toString(),
+    formatted: scoreNum.toFixed(2),
+  };
+};
+
+const formatReputation = (rep: any): string => {
+  return getReputationDetails(rep).score;
 };
 
 const formatDate = (dateString: string): string => {
@@ -2088,7 +2102,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return (
       <div
         key={`${item.author}/${item.permlink}`}
-        className={`overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] ${onItemClick ? "cursor-pointer" : ""}`}
+        className={`rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] ${onItemClick ? "cursor-pointer" : ""}`}
         onClick={onItemClick}
       >
         {/* Body row: text on the left, image strip on the right. The
@@ -2117,6 +2131,18 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>@{item.author}</span>
                   ) : <>@{item.author}</>}
                 </HiveLink>
+                {item.author_reputation !== undefined && (
+                  <div className="relative group inline-flex shrink-0">
+                    <span 
+                      className="text-[10px] sm:text-xs text-[var(--hrk-text-tertiary)] cursor-pointer font-normal"
+                    >
+                      ({getReputationDetails(item.author_reputation).score})
+                    </span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                      Reputation: {getReputationDetails(item.author_reputation).formatted}
+                    </div>
+                  </div>
+                )}
                 <HiveLink
                   href={getPostUrl?.(item.author, item.permlink)}
                   onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
@@ -2157,7 +2183,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* Action bar — always visible */}
-        <div className="border-t border-[var(--hrk-border-subtle)]/50 px-2.5 py-2 sm:px-4" onClick={(e) => e.stopPropagation()}>
+        <div className="border-t border-[var(--hrk-border-subtle)]/50 px-2.5 py-2 sm:px-4 rounded-b-lg" onClick={(e) => e.stopPropagation()}>
           <PostActionButton
             author={item.author}
             permlink={item.permlink}
@@ -3633,10 +3659,23 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               )}
               {/* Name + details */}
               <div className="flex-1 min-w-0 pb-0.5">
-                <div className="flex items-center gap-2">
-                  <h2 className="min-w-0 truncate text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md">
-                    {profile.name || targetUsername}
-                    <span className="text-xs sm:text-sm text-[var(--hrk-text-secondary)] drop-shadow-md"> (@{targetUsername})</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="min-w-0 text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
+                    <span className="truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px] inline-block">{profile.name || targetUsername}</span>
+                    {profile.reputation !== undefined && (
+                      <div className="relative group inline-flex shrink-0">
+                        <span
+                          className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
+                          style={{ minWidth: '24px' }}
+                        >
+                          {getReputationDetails(profile.reputation).score}
+                        </span>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                          Reputation: {getReputationDetails(profile.reputation).formatted}
+                        </div>
+                      </div>
+                    )}
+                    <span className="text-xs sm:text-sm font-normal text-[var(--hrk-text-secondary)]"> (@{targetUsername})</span>
                   </h2>
                   {/* HivePosh-linked socials — tap opens hiveposh.com. */}
                   {(hiveposh.twitter || hiveposh.reddit) && (

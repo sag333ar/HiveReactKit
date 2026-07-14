@@ -347,15 +347,29 @@ export interface HiveDetailPostProps {
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
-const formatReputation = (rep: number): string => {
-  if (rep === 0) return '25';
-  const neg = rep < 0;
-  const val = neg ? -rep : rep;
+const getReputationDetails = (rep: any): { score: string; formatted: string } => {
+  if (rep === undefined || rep === null || rep === "") return { score: "25", formatted: "25.00" };
+  const repNum = Number(rep);
+  if (isNaN(repNum) || repNum === 0) return { score: "25", formatted: "25.00" };
+  const neg = repNum < 0;
+  const val = Math.abs(repNum);
+  if (val < 1000) {
+    return {
+      score: Math.round(repNum).toString(),
+      formatted: repNum.toFixed(2),
+    };
+  }
   let out = Math.log10(val);
   out = Math.max(out - 9, 0);
-  out = (neg ? -1 : 1) * out;
-  out = out * 9 + 25;
-  return Math.round(out).toString();
+  const scoreNum = (neg ? -1 : 1) * out * 9 + 25;
+  return {
+    score: Math.round(scoreNum).toString(),
+    formatted: scoreNum.toFixed(2),
+  };
+};
+
+const formatReputation = (rep: any): string => {
+  return getReputationDetails(rep).score;
 };
 
 /**
@@ -2032,13 +2046,28 @@ export function HiveDetailPost({
                 `onCommunityClick` (HiveSuite routes to the community
                 detail page; other shells can route wherever). */}
             <div className="flex-1 min-w-0">
-              <HiveLink
-                href={getUserUrl?.(post.author)}
-                onActivate={() => onUserClick?.(post.author)}
-                className="block text-sm font-semibold text-white truncate hover:text-blue-400 transition-colors"
-              >
-                @{post.author}
-              </HiveLink>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <HiveLink
+                  href={getUserUrl?.(post.author)}
+                  onActivate={() => onUserClick?.(post.author)}
+                  className="text-sm font-semibold text-white hover:text-blue-400 transition-colors"
+                >
+                  @{post.author}
+                </HiveLink>
+                {post.author_reputation !== undefined && (
+                  <div className="relative group inline-flex shrink-0">
+                    <span
+                      className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 text-[10px] font-semibold cursor-pointer shrink-0 shadow-sm"
+                      style={{ minWidth: '18px' }}
+                    >
+                      {getReputationDetails(post.author_reputation).score}
+                    </span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
+                      Reputation: {getReputationDetails(post.author_reputation).formatted}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--hrk-text-tertiary)]">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
