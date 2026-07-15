@@ -45,6 +45,8 @@ import {
   ArrowUp,
   ArrowDown,
   RefreshCw,
+  Cpu,
+  Database,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -400,7 +402,7 @@ interface ProfileData {
   votingPower?: number;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -839,7 +841,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>(cached?.hasMore || {
     blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false,
-    votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false,
+    votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false,
   });
   const PAGE_SIZE = 20;
   const FOLLOWER_PAGE_SIZE = 100;
@@ -851,6 +853,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [showIgnoreConfirm, setShowIgnoreConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPostTarget, setReportPostTarget] = useState<{ author: string; permlink: string } | null>(null);
+  const [blockchainData, setBlockchainData] = useState<any>(null);
+  const [loadingBlockchainData, setLoadingBlockchainData] = useState(false);
+  const [blockchainError, setBlockchainError] = useState<string | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1145,7 +1150,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setHiveposh(cached.hiveposh || {});
       setWitnessVotes(cached.witnessVotes || []);
       setVotingPowerData(cached.votingPowerData || null);
-      setHasMore(cached.hasMore || { blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
+      setHasMore(cached.hasMore || { blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
       if (cached.postsSubTab !== undefined) setPostsSubTab(cached.postsSubTab);
       if (cached.repliesSubTab !== undefined) setRepliesSubTab(cached.repliesSubTab);
       if (cached.rewardsSubTab !== undefined) setRewardsSubTab(cached.rewardsSubTab);
@@ -1174,7 +1179,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setBadgeAccounts([]);
       setHivebuzzBadges([]);
       setHiveposh({});
-      setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false });
+      setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
       
       const initialTab: TabType = controlledActiveTab
         ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
@@ -1252,6 +1257,45 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       }
     };
   }, []);
+
+  // Fetch blockchain data when activeTab is "blockchainData"
+  useEffect(() => {
+    if (activeTab !== "blockchainData") return;
+    setLoadingBlockchainData(true);
+    setBlockchainError(null);
+    const endpoint = getHiveApiEndpoint();
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: 0,
+        jsonrpc: "2.0",
+        method: "condenser_api.get_witness_by_account",
+        params: [targetUsername],
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.error) {
+          throw new Error(data.error.message || "RPC Error");
+        }
+        setBlockchainData(data.result);
+      })
+      .catch((err) => {
+        setBlockchainError(err.message || "Failed to load blockchain data");
+      })
+      .finally(() => {
+        setLoadingBlockchainData(false);
+      });
+  }, [activeTab, targetUsername]);
+
+  useEffect(() => {
+    setBlockchainData(null);
+    setBlockchainError(null);
+  }, [targetUsername]);
 
   // ─── Fetch content based on active tab (initial page) ───────────────────
 
@@ -2970,7 +3014,180 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     </div>
   );
 
+  const renderBlockchainDataContent = () => {
+    if (loadingBlockchainData) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-[var(--hrk-text-secondary)]">
+          <Loader2Icon className="h-8 w-8 animate-spin text-[var(--hrk-brand)]" />
+          <span className="mt-2 text-sm">Loading blockchain data...</span>
+        </div>
+      );
+    }
+
+    if (blockchainError) {
+      return (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {blockchainError}
+        </div>
+      );
+    }
+
+    if (!blockchainData) {
+      return (
+        <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-4 py-8 text-center text-sm text-[var(--hrk-text-secondary)]">
+          This account is not registered as a witness on the Hive blockchain.
+        </div>
+      );
+    }
+
+    const {
+      owner,
+      created,
+      url,
+      votes,
+      total_missed,
+      signing_key,
+      props,
+      hbd_exchange_rate,
+      last_hbd_exchange_update,
+      running_version,
+      hardfork_version_vote,
+    } = blockchainData;
+
+    const formatNumber = (val: string | number) => {
+      if (typeof val === 'number') return val.toLocaleString();
+      const num = Number(val);
+      return isNaN(num) ? val : num.toLocaleString();
+    };
+
+    return (
+      <div className="w-full space-y-4 text-[var(--hrk-text-primary)]">
+        {/* Witness Info Card */}
+        <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
+          <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
+            <Shield className="h-5 w-5 text-[var(--hrk-brand)]" />
+            <h3 className="text-base font-semibold">Witness Information</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Owner:</span>
+              <span className="font-medium">@{owner}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Created:</span>
+              <span className="font-medium">{new Date(created).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Votes:</span>
+              <span className="font-medium">{formatNumber(votes)}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Total Missed:</span>
+              <span className="font-medium text-red-400">{total_missed}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Running Version:</span>
+              <span className="font-medium">{running_version}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+              <span className="text-[var(--hrk-text-secondary)]">Hardfork Vote:</span>
+              <span className="font-medium">{hardfork_version_vote}</span>
+            </div>
+          </div>
+
+          {url && (
+            <div className="text-sm pt-2">
+              <span className="text-[var(--hrk-text-secondary)] block mb-1">Witness URL:</span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:underline break-all"
+              >
+                {url}
+              </a>
+            </div>
+          )}
+
+          {signing_key && (
+            <div className="text-sm">
+              <span className="text-[var(--hrk-text-secondary)] block mb-1">Signing Key:</span>
+              <code className="text-xs bg-[var(--hrk-bg-surface)] px-2 py-1 rounded block break-all border border-[var(--hrk-border-subtle)] font-mono text-[var(--hrk-text-secondary)]">
+                {signing_key}
+              </code>
+            </div>
+          )}
+        </div>
+
+        {/* Witness Properties Card */}
+        {props && (
+          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
+            <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
+              <Cpu className="h-5 w-5 text-[var(--hrk-brand)]" />
+              <h3 className="text-base font-semibold">Witness Properties</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Account Creation Fee:</span>
+                <span className="font-medium">{props.account_creation_fee}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Max Block Size:</span>
+                <span className="font-medium">{formatNumber(props.maximum_block_size)} bytes</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">HBD Interest Rate:</span>
+                <span className="font-medium">{(props.hbd_interest_rate / 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Account Subsidy Budget:</span>
+                <span className="font-medium">{formatNumber(props.account_subsidy_budget)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Account Subsidy Decay:</span>
+                <span className="font-medium">{formatNumber(props.account_subsidy_decay)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HBD Exchange Rate Card */}
+        {hbd_exchange_rate && (
+          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
+            <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
+              <TrendingUp className="h-5 w-5 text-[var(--hrk-brand)]" />
+              <h3 className="text-base font-semibold">HBD Exchange Rate</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Base:</span>
+                <span className="font-medium text-green-400">{hbd_exchange_rate.base}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
+                <span className="text-[var(--hrk-text-secondary)]">Quote:</span>
+                <span className="font-medium">{hbd_exchange_rate.quote}</span>
+              </div>
+              {last_hbd_exchange_update && (
+                <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none col-span-1 md:col-span-2">
+                  <span className="text-[var(--hrk-text-secondary)]">Last Rate Update:</span>
+                  <span className="font-medium">{new Date(last_hbd_exchange_update).toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
+    if (activeTab === "blockchainData") {
+      return renderBlockchainDataContent();
+    }
+
     if (activeTab === "growth") {
       return <UserGrowth username={targetUsername} />;
     }
@@ -3346,6 +3563,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "wallet", label: t("tab.wallet"), icon: WalletIcon },
     { id: "badges", label: t("tab.badges"), icon: Award },
     { id: "witnessVotes", label: t("tab.witnessVotes"), icon: Shield },
+    { id: "blockchainData", label: t("tab.blockchainData" as any) || "Blockchain Data", icon: Database },
   ];
 
   // If tabShown is provided, map all sub-tabs to their parent and deduplicate.
