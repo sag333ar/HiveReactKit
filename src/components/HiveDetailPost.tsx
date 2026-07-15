@@ -2314,7 +2314,7 @@ export function HiveDetailPost({
               {recommendedPosts.length > 0 && (
                 <div className="flex items-center gap-3">
                   <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap max-w-[160px] truncate">
-                    {prevPost ? prevPost.title : 'No previous'}
+                    {prevPost ? 'Previous Post' : 'No previous'}
                   </span>
                   <button
                     type="button"
@@ -2333,7 +2333,7 @@ export function HiveDetailPost({
               {recommendedPosts.length > 0 && (
                 <div className="flex items-center gap-3">
                   <span className="text-[11px] font-semibold text-white bg-gray-900 border border-gray-600 px-3 py-1 rounded-full shadow-lg whitespace-nowrap max-w-[160px] truncate">
-                    {nextPost ? nextPost.title : 'No next'}
+                    {nextPost ? 'Next Post' : 'No next'}
                   </span>
                   <button
                     type="button"
