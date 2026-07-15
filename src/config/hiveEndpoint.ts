@@ -10,7 +10,7 @@
  */
 import { Client, ClientOptions } from '@hiveio/dhive';
 
-const DEFAULT_ENDPOINT = 'https://api.hive.blog';
+const DEFAULT_ENDPOINT = 'https://api.deathwing.me';
 
 let currentEndpoint = DEFAULT_ENDPOINT;
 const listeners = new Set<(url: string) => void>();

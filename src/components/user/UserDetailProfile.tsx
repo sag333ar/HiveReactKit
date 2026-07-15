@@ -2153,7 +2153,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   </div>
                 )}
                 <HiveLink
-                  href={getPostUrl?.(item.author, item.permlink)}
+                  href={onItemClick ? getPostUrl?.(item.author, item.permlink) : undefined}
                   onActivate={onItemClick}
                   className="text-[10px] text-[var(--hrk-text-tertiary)] hover:text-blue-400 hover:underline sm:text-xs"
                 >
@@ -2173,7 +2173,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
             {item.title && (
               <HiveLink
-                href={getPostUrl?.(item.author, item.permlink)}
+                href={onItemClick ? getPostUrl?.(item.author, item.permlink) : undefined}
                 onActivate={onItemClick}
                 className="mb-0.5 line-clamp-2 block text-left text-[13px] font-semibold leading-snug text-white hover:text-blue-400 sm:mb-1 sm:text-base"
               >
@@ -3168,7 +3168,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {data.map((item) => renderPostItem(item, type, undefined))}
+              {data.map((item) => renderPostItem(item, type, onPostClick ? () => onPostClick(item.author, item.permlink, item.title || '', data) : undefined))}
             </div>
           )}
         </div>
