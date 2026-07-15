@@ -764,7 +764,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
                 body: post.body ?? '',
                 title: post.title ?? '',
                 parent_author: post.parent_author ?? '',
-                parent_permlink: post.parent_permlink ?? '',
+                parent_permlink: post.parent_permlink || post.category || '',
                 json_metadata: typeof post.json_metadata === 'string'
                   ? post.json_metadata
                   : (post.json_metadata ? JSON.stringify(post.json_metadata) : ''),

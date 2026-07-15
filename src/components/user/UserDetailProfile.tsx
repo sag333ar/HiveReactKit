@@ -2238,7 +2238,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               body: item.body ?? '',
               title: item.title ?? '',
               parent_author: item.parent_author ?? '',
-              parent_permlink: item.parent_permlink ?? '',
+              parent_permlink: item.parent_permlink || item.category || '',
               json_metadata: typeof item.json_metadata === 'string'
                 ? item.json_metadata
                 : (item.json_metadata ? JSON.stringify(item.json_metadata) : ''),
