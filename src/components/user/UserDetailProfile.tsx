@@ -296,7 +296,7 @@ export interface UserDetailProfileProps {
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
-  onPostClick?: (author: string, permlink: string, title: string) => void;
+  onPostClick?: (author: string, permlink: string, title: string, contextPosts?: Post[]) => void;
   onSnapClick?: (author: string, permlink: string) => void;
   onPollClick?: (author: string, permlink: string, question: string) => void;
   onActivityPermlink?: (author: string, permlink: string) => void;
@@ -2154,7 +2154,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 )}
                 <HiveLink
                   href={getPostUrl?.(item.author, item.permlink)}
-                  onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                  onActivate={onItemClick}
                   className="text-[10px] text-[var(--hrk-text-tertiary)] hover:text-blue-400 hover:underline sm:text-xs"
                 >
                   {formatTimeAgo(item.created)}
@@ -2174,7 +2174,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             {item.title && (
               <HiveLink
                 href={getPostUrl?.(item.author, item.permlink)}
-                onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                onActivate={onItemClick}
                 className="mb-0.5 line-clamp-2 block text-left text-[13px] font-semibold leading-snug text-white hover:text-blue-400 sm:mb-1 sm:text-base"
               >
                 {item.title}
@@ -3139,7 +3139,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {data.map((item) => renderPostItem(item, type, onPostClick ? () => onPostClick(item.author, item.permlink, item.title) : undefined))}
+              {data.map((item) => renderPostItem(item, type, onPostClick ? () => onPostClick(item.author, item.permlink, item.title, data) : undefined))}
             </div>
           )}
         </div>

@@ -78,6 +78,7 @@ export interface HiveDetailPostProps {
   author: string;
   permlink: string;
   currentUser?: string;
+  contextPosts?: Post[];
 
   // PostActionButton callbacks
   onUpvote?: (percent: number) => void | Promise<void>;
@@ -451,6 +452,7 @@ export function HiveDetailPost({
   getUserUrl,
   getCommunityUrl,
   onNavigateToPost,
+  contextPosts,
   isBookmarked,
   onToggleBookmark,
   onHeaderShare,
@@ -504,9 +506,14 @@ export function HiveDetailPost({
   const recsScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!author) return;
-    let active = true;
+    if (contextPosts && contextPosts.length > 0) {
+      setRecommendedPosts(contextPosts);
+      setLoadingRecommendations(false);
+      return;
+    }
+
     setLoadingRecommendations(true);
+    let active = true;
     userService.getUserBlogs(author, 12)
       .then((blogs) => {
         if (!active) return;
@@ -521,7 +528,7 @@ export function HiveDetailPost({
     return () => {
       active = false;
     };
-  }, [author]);
+  }, [author, contextPosts]);
 
   const currentIndex = useMemo(() => {
     return recommendedPosts.findIndex(
@@ -2255,7 +2262,7 @@ export function HiveDetailPost({
           )}
 
           {/* FAB speed-dial container */}
-          <div className="fixed bottom-6 right-4 z-50 flex flex-col items-end gap-2">
+          <div className="fixed bottom-6 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
 
             {/* Speed-dial action items — visible when fabOpen */}
             <div
@@ -2357,7 +2364,7 @@ export function HiveDetailPost({
               onClick={() => setFabOpen((v) => !v)}
               aria-label={fabOpen ? 'Close quick actions' : 'Quick actions'}
               aria-expanded={fabOpen}
-              className={`flex items-center justify-center rounded-full shadow-2xl transition-all duration-200 cursor-pointer ${
+              className={`flex items-center justify-center rounded-full shadow-2xl transition-all duration-200 cursor-pointer pointer-events-auto ${
                 fabOpen
                   ? 'bg-orange-500 rotate-[135deg] scale-110'
                   : 'bg-gradient-to-br from-yellow-400 to-orange-500 hover:scale-110 active:scale-95 hover:shadow-orange-500/40'

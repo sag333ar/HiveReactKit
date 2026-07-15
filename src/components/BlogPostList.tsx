@@ -85,7 +85,7 @@ export interface BlogPostListProps {
 
   // Click-throughs.
   onUserClick?: (username: string) => void;
-  onPostClick?: (author: string, permlink: string, title?: string) => void;
+  onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void;
   // URL builders — when provided, the post title + author render as
   // real <a href> links so the browser offers "open in new tab" /
   // Cmd-click. Plain clicks still route through the callbacks above.
@@ -523,7 +523,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
               // browser so any underlying link (title / author) can
               // open in a new tab.
               if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-              onPostClick(item.author, item.permlink, item.title);
+              onPostClick(item.author, item.permlink, item.title, posts);
             }
           : undefined;
 
@@ -578,7 +578,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                         the title is absent. */}
                     <HiveLink
                       href={getPostUrl?.(item.author, item.permlink)}
-                      onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                      onActivate={() => onPostClick?.(item.author, item.permlink, item.title, posts)}
                       className="text-[10px] text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-brand)] hover:underline sm:text-xs"
                     >
                       {formatTimeAgo(item.created)}
@@ -608,7 +608,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 {item.title && (
                   <HiveLink
                     href={getPostUrl?.(item.author, item.permlink)}
-                    onActivate={() => onPostClick?.(item.author, item.permlink, item.title)}
+                    onActivate={() => onPostClick?.(item.author, item.permlink, item.title, posts)}
                     className="mb-0.5 line-clamp-2 block text-left text-[13px] font-semibold leading-snug text-white hover:text-[var(--hrk-brand)] sm:mb-1 sm:text-base"
                   >
                     <TranslatedText text={item.title} />

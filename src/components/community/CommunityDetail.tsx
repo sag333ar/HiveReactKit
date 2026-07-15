@@ -56,7 +56,7 @@ export interface CommunityDetailProps {
 
   // Navigation
   onUserClick?: (username: string) => void
-  onPostClick?: (author: string, permlink: string, title?: string) => void
+  onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void
   onCommentClick?: (author: string, permlink: string) => void
   // URL builders — forwarded into the embedded BlogPostList /
   // SnapsFeedView so post & author surfaces render as real <a href>
@@ -1016,7 +1016,7 @@ interface ActivitiesListProps {
   error: string | null
   onRetry: () => void
   onUserClick?: (username: string) => void
-  onPostClick?: (author: string, permlink: string) => void
+  onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void
 }
 
 const ActivitiesList = ({
