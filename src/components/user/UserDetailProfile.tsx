@@ -47,6 +47,7 @@ import {
   RefreshCw,
   Cpu,
   Database,
+  MoreHorizontal,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -856,6 +857,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [blockchainData, setBlockchainData] = useState<any>(null);
   const [loadingBlockchainData, setLoadingBlockchainData] = useState(false);
   const [blockchainError, setBlockchainError] = useState<string | null>(null);
+  const [vestsToHpFactorValue, setVestsToHpFactorValue] = useState<number | null>(null);
+  const [tabsDropdownOpen, setTabsDropdownOpen] = useState(false);
+  const tabsDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
@@ -969,6 +973,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowActionDropdown(false);
+      }
+      if (tabsDropdownRef.current && !tabsDropdownRef.current.contains(event.target as Node)) {
+        setTabsDropdownOpen(false);
       }
     };
     document.addEventListener("click", handleClickOutside);
@@ -1264,25 +1271,46 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setLoadingBlockchainData(true);
     setBlockchainError(null);
     const endpoint = getHiveApiEndpoint();
-    fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        id: 0,
-        jsonrpc: "2.0",
-        method: "condenser_api.get_witness_by_account",
-        params: [targetUsername],
+    Promise.all([
+      fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: 0,
+          jsonrpc: "2.0",
+          method: "condenser_api.get_accounts",
+          params: [[targetUsername]],
+        }),
+      }).then((res) => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        return res.json();
       }),
-    })
-      .then((res) => {
+      fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: "2.0",
+          method: "condenser_api.get_dynamic_global_properties",
+          params: [],
+        }),
+      }).then((res) => {
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         return res.json();
       })
-      .then((data) => {
-        if (data.error) {
-          throw new Error(data.error.message || "RPC Error");
+    ])
+      .then(([accountsData, dgpData]) => {
+        if (accountsData.error) {
+          throw new Error(accountsData.error.message || "RPC Error");
         }
-        setBlockchainData(data.result);
+        const acc = accountsData.result && accountsData.result[0] ? accountsData.result[0] : null;
+        setBlockchainData(acc);
+
+        if (dgpData && dgpData.result) {
+          const tvfh = parseFloat(dgpData.result.total_vesting_fund_hive ?? '0');
+          const tvs = parseFloat(dgpData.result.total_vesting_shares ?? '0');
+          if (tvs > 0) setVestsToHpFactorValue(tvfh / tvs);
+        }
       })
       .catch((err) => {
         setBlockchainError(err.message || "Failed to load blockchain data");
@@ -3035,150 +3063,337 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (!blockchainData) {
       return (
         <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] px-4 py-8 text-center text-sm text-[var(--hrk-text-secondary)]">
-          This account is not registered as a witness on the Hive blockchain.
+          Failed to load blockchain details for this account.
         </div>
       );
     }
 
     const {
-      owner,
-      created,
-      url,
-      votes,
-      total_missed,
-      signing_key,
-      props,
-      hbd_exchange_rate,
-      last_hbd_exchange_update,
-      running_version,
-      hardfork_version_vote,
+      name, id, created, mined, json_metadata, posting_json_metadata,
+      last_owner_update, last_account_update, recovery_account, last_account_recovery, reset_account, pending_claimed_accounts, previous_owner_update,
+      balance, savings_balance, reward_hive_balance, pending_transfers, open_recurrent_transfers,
+      hbd_balance, hbd_seconds, hbd_seconds_last_update, hbd_last_interest_payment, savings_hbd_balance, savings_hbd_seconds, savings_hbd_seconds_last_update, savings_hbd_last_interest_payment, savings_withdraw_requests, reward_hbd_balance,
+      vesting_shares, delegated_vesting_shares, received_vesting_shares, vesting_withdraw_rate, post_voting_power, next_vesting_withdrawal, withdrawn, to_withdraw, withdraw_routes, vesting_balance,
+      reward_vesting_balance, reward_vesting_hive, posting_rewards, curation_rewards,
+      voting_power, voting_manabar, downvote_manabar,
+      owner, active, posting, memo_key,
+      witnesses_voted_for, witness_votes, governance_vote_expiration_ts, can_vote, proxy, proxied_vsf_votes,
+      comment_count, post_count, last_post, last_root_post, last_vote_time, reputation, post_history, guest_bloggers,
+      lifetime_vote_count, post_bandwidth, delayed_votes, transfer_history, market_history, vote_history, other_history, tags_usage
     } = blockchainData;
 
-    const formatNumber = (val: string | number) => {
-      if (typeof val === 'number') return val.toLocaleString();
-      const num = Number(val);
-      return isNaN(num) ? val : num.toLocaleString();
+    const formatVests = (vestsVal: any) => {
+      if (vestsVal === null || vestsVal === undefined) return "0.000 HP (0.000 VESTS)";
+      let rawVests = 0;
+      if (typeof vestsVal === "number") {
+        rawVests = vestsVal;
+      } else {
+        rawVests = parseFloat(String(vestsVal).replace(" VESTS", ""));
+      }
+      if (isNaN(rawVests)) return String(vestsVal);
+      
+      const formattedVestsString = rawVests.toLocaleString(undefined, {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      }) + " VESTS";
+
+      if (vestsToHpFactorValue == null) {
+        return formattedVestsString;
+      }
+      const hpVal = rawVests * vestsToHpFactorValue;
+      const formattedHpString = hpVal.toLocaleString(undefined, {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3,
+      }) + " HP";
+      
+      return `${formattedHpString} (${formattedVestsString})`;
     };
 
-    return (
-      <div className="w-full space-y-4 text-[var(--hrk-text-primary)]">
-        {/* Witness Info Card */}
-        <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
-          <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
-            <Shield className="h-5 w-5 text-[var(--hrk-brand)]" />
-            <h3 className="text-base font-semibold">Witness Information</h3>
-          </div>
+    const formatHiveAsset = (val: any) => {
+      if (val === null || val === undefined) return "0.000";
+      return String(val).replace(" HIVE", "");
+    };
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Owner:</span>
-              <span className="font-medium">@{owner}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Created:</span>
-              <span className="font-medium">{new Date(created).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Votes:</span>
-              <span className="font-medium">{formatNumber(votes)}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Total Missed:</span>
-              <span className="font-medium text-red-400">{total_missed}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Running Version:</span>
-              <span className="font-medium">{running_version}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-              <span className="text-[var(--hrk-text-secondary)]">Hardfork Vote:</span>
-              <span className="font-medium">{hardfork_version_vote}</span>
-            </div>
-          </div>
+    const formatHbdAsset = (val: any) => {
+      if (val === null || val === undefined) return "0.000 HBD";
+      const s = String(val);
+      if (s.endsWith(" HBD")) return s;
+      return `${s} HBD`;
+    };
 
-          {url && (
-            <div className="text-sm pt-2">
-              <span className="text-[var(--hrk-text-secondary)] block mb-1">Witness URL:</span>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:underline break-all"
-              >
-                {url}
-              </a>
-            </div>
-          )}
-
-          {signing_key && (
-            <div className="text-sm">
-              <span className="text-[var(--hrk-text-secondary)] block mb-1">Signing Key:</span>
-              <code className="text-xs bg-[var(--hrk-bg-surface)] px-2 py-1 rounded block break-all border border-[var(--hrk-border-subtle)] font-mono text-[var(--hrk-text-secondary)]">
-                {signing_key}
+    const renderRow = (label: string, value: any, code = false) => {
+      let displayValue = value;
+      if (value === null || value === undefined) {
+        displayValue = "null";
+      } else if (typeof value === "object") {
+        displayValue = JSON.stringify(value, null, 2);
+        code = true;
+      } else if (typeof value === "boolean") {
+        displayValue = value ? "true" : "false";
+      }
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-1 sm:gap-4 py-2 border-b border-[var(--hrk-border-subtle)]/40 last:border-0 items-start w-full text-left">
+          <span className="text-[var(--hrk-text-secondary)] font-medium text-xs uppercase tracking-wider">{label}</span>
+          {code ? (
+            <pre className="text-xs bg-[var(--hrk-bg-surface)] p-2.5 rounded overflow-x-auto font-mono border border-[var(--hrk-border-subtle)] max-w-full break-all whitespace-pre-wrap text-left w-full">
+              <code className="text-[var(--hrk-text-primary)] font-mono block text-left">
+                {displayValue}
               </code>
-            </div>
+            </pre>
+          ) : (
+            <span className="font-mono text-sm break-all text-[var(--hrk-text-primary)] text-left w-full">{displayValue}</span>
           )}
         </div>
+      );
+    };
 
-        {/* Witness Properties Card */}
-        {props && (
-          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
-            <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
-              <Cpu className="h-5 w-5 text-[var(--hrk-brand)]" />
-              <h3 className="text-base font-semibold">Witness Properties</h3>
-            </div>
+    const renderJsonString = (label: string, rawVal: string) => {
+      let parsed = rawVal;
+      try {
+        parsed = JSON.parse(rawVal);
+      } catch {
+        // use raw value
+      }
+      return renderRow(label, parsed, true);
+    };
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Account Creation Fee:</span>
-                <span className="font-medium">{props.account_creation_fee}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Max Block Size:</span>
-                <span className="font-medium">{formatNumber(props.maximum_block_size)} bytes</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">HBD Interest Rate:</span>
-                <span className="font-medium">{(props.hbd_interest_rate / 100).toFixed(2)}%</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Account Subsidy Budget:</span>
-                <span className="font-medium">{formatNumber(props.account_subsidy_budget)}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Account Subsidy Decay:</span>
-                <span className="font-medium">{formatNumber(props.account_subsidy_decay)}</span>
-              </div>
+    const accordionClass = "group rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] overflow-hidden transition-all duration-300";
+    const summaryClass = "flex items-center justify-between p-4 cursor-pointer font-semibold select-none list-none text-base border-b border-transparent group-open:border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] hover:bg-[var(--hrk-bg-surface-raised)] transition-all [&::-webkit-details-marker]:hidden";
+
+    return (
+      <div className="w-full space-y-3 text-[var(--hrk-text-primary)]">
+        
+        {/* 1. Account Creation */}
+        <details className={accordionClass} open>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[var(--hrk-brand)]" />
+              <span>Account Creation</span>
             </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Name", name)}
+            {renderRow("ID", id)}
+            {renderRow("Created", created)}
+            {renderRow("Mined", mined)}
           </div>
-        )}
+        </details>
 
-        {/* HBD Exchange Rate Card */}
-        {hbd_exchange_rate && (
-          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] p-4 space-y-4">
-            <div className="flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] pb-2 mb-2">
-              <TrendingUp className="h-5 w-5 text-[var(--hrk-brand)]" />
-              <h3 className="text-base font-semibold">HBD Exchange Rate</h3>
+        {/* 2. General */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-blue-400" />
+              <span>General</span>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Base:</span>
-                <span className="font-medium text-green-400">{hbd_exchange_rate.base}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none">
-                <span className="text-[var(--hrk-text-secondary)]">Quote:</span>
-                <span className="font-medium">{hbd_exchange_rate.quote}</span>
-              </div>
-              {last_hbd_exchange_update && (
-                <div className="flex justify-between py-1 border-b border-[var(--hrk-border-subtle)] md:border-none col-span-1 md:col-span-2">
-                  <span className="text-[var(--hrk-text-secondary)]">Last Rate Update:</span>
-                  <span className="font-medium">{new Date(last_hbd_exchange_update).toLocaleString()}</span>
-                </div>
-              )}
-            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderJsonString("Json Metadata", json_metadata)}
+            {renderJsonString("Posting Json Metadata", posting_json_metadata)}
+            {renderRow("Last Owner Update", last_owner_update)}
+            {renderRow("Last Account Update", last_account_update)}
+            {renderRow("Recovery Account", recovery_account)}
+            {renderRow("Last Account Recovery", last_account_recovery)}
+            {renderRow("Reset Account", reset_account)}
+            {renderRow("Pending Claimed Accounts", pending_claimed_accounts)}
           </div>
-        )}
+        </details>
+
+        {/* 3. HIVE Token */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <WalletIcon className="h-5 w-5 text-red-400" />
+              <span>HIVE Token</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Balance", formatHiveAsset(balance))}
+            {renderRow("Savings Balance", formatHiveAsset(savings_balance))}
+            {renderRow("Reward Hive Balance", formatHiveAsset(reward_hive_balance))}
+            {renderRow("Pending Transfers", pending_transfers)}
+            {renderRow("Open Recurrent Transfers", open_recurrent_transfers)}
+          </div>
+        </details>
+
+        {/* 4. HBD Token */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <CoinsIcon className="h-5 w-5 text-emerald-500" />
+              <span>HBD Token</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Hbd Balance", formatHbdAsset(hbd_balance))}
+            {renderRow("Hbd Seconds", hbd_seconds)}
+            {renderRow("Hbd Seconds Last Update", hbd_seconds_last_update)}
+            {renderRow("Hbd Last Interest Payment", hbd_last_interest_payment)}
+            {renderRow("Savings Hbd Balance", formatHbdAsset(savings_hbd_balance))}
+            {renderRow("Savings Hbd Seconds", savings_hbd_seconds)}
+            {renderRow("Savings Hbd Seconds Last Update", savings_hbd_seconds_last_update)}
+            {renderRow("Savings Hbd Last Interest Payment", savings_hbd_last_interest_payment)}
+            {renderRow("Savings Withdraw Requests", savings_withdraw_requests)}
+            {renderRow("Reward Hbd Balance", formatHbdAsset(reward_hbd_balance))}
+          </div>
+        </details>
+
+        {/* 5. Staked HIVE (HP) */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-indigo-400" />
+              <span>Staked HIVE (HP)</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Vesting Shares", formatVests(vesting_shares))}
+            {renderRow("Delegated Vesting Shares", formatVests(delegated_vesting_shares))}
+            {renderRow("Received Vesting Shares", formatVests(received_vesting_shares))}
+            {renderRow("Vesting Withdraw Rate", formatVests(vesting_withdraw_rate))}
+            {renderRow("Post Voting Power", formatVests(post_voting_power))}
+            {renderRow("Next Vesting Withdrawal", next_vesting_withdrawal)}
+            {renderRow("Withdrawn", formatVests(withdrawn))}
+            {renderRow("To Withdraw", formatVests(to_withdraw))}
+            {renderRow("Withdraw Routes", formatVests(withdraw_routes))}
+          </div>
+        </details>
+
+        {/* 6. Hive Reward Pool */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-amber-500" />
+              <span>Hive Reward Pool</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Reward Vesting Balance", formatVests(reward_vesting_balance))}
+            {renderRow("Reward Vesting Hive", reward_vesting_hive)}
+            {renderRow("Posting Rewards", posting_rewards)}
+            {renderRow("Curation Rewards", curation_rewards)}
+          </div>
+        </details>
+
+        {/* 7. Voting Power */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Gauge className="h-5 w-5 text-cyan-400" />
+              <span>Voting Power</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Voting Power", voting_power)}
+            {renderRow("Voting Manabar", voting_manabar)}
+            {renderRow("Downvote Manabar", downvote_manabar)}
+          </div>
+        </details>
+
+        {/* 8. Keys and Authorities */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-pink-400" />
+              <span>Keys and Authorities</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Owner", owner)}
+            {renderRow("Active", active)}
+            {renderRow("Posting", posting)}
+            {renderRow("Memo Key", memo_key)}
+          </div>
+        </details>
+
+        {/* 9. Governance */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-purple-400" />
+              <span>Governance</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Witnesses Voted For", witnesses_voted_for)}
+            {renderRow("Witness Votes", witness_votes)}
+            {renderRow("Governance Vote Expiration Ts", governance_vote_expiration_ts)}
+            {renderRow("Can Vote", can_vote)}
+            {renderRow("Proxy", proxy)}
+            {renderRow("Proxied Vsf Votes", proxied_vsf_votes)}
+          </div>
+        </details>
+
+        {/* 10. Social */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-sky-400" />
+              <span>Social</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Comment Count", comment_count)}
+            {renderRow("Post Count", post_count)}
+            {renderRow("Last Post", last_post)}
+            {renderRow("Last Root Post", last_root_post)}
+            {renderRow("Last Vote Time", last_vote_time)}
+            {renderRow("Reputation", reputation)}
+            {renderRow("Post History", post_history)}
+            {renderRow("Guest Bloggers", guest_bloggers)}
+          </div>
+        </details>
+
+        {/* 11. Others */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-teal-400" />
+              <span>Others</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4 space-y-1">
+            {renderRow("Previous Owner Update", previous_owner_update)}
+            {renderRow("Lifetime Vote Count", lifetime_vote_count)}
+            {renderRow("Post Bandwidth", post_bandwidth)}
+            {renderRow("Delayed Votes", delayed_votes)}
+            {renderRow("Vesting Balance", vesting_balance)}
+            {renderRow("Transfer History", transfer_history)}
+            {renderRow("Market History", market_history)}
+            {renderRow("Vote History", vote_history)}
+            {renderRow("Other History", other_history)}
+            {renderRow("Tags Usage", tags_usage)}
+          </div>
+        </details>
+
+        {/* 12. Raw JSON */}
+        <details className={accordionClass}>
+          <summary className={summaryClass}>
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-amber-600" />
+              <span>Raw JSON Data</span>
+            </div>
+            <span className="transition-transform duration-300 group-open:rotate-180">▼</span>
+          </summary>
+          <div className="p-4">
+            <pre className="text-xs bg-[var(--hrk-bg-surface)] p-4 rounded overflow-x-auto font-mono text-[var(--hrk-text-secondary)] border border-[var(--hrk-border-subtle)] max-h-96 overflow-y-auto whitespace-pre-wrap">
+              {JSON.stringify(blockchainData, null, 2)}
+            </pre>
+          </div>
+        </details>
+
       </div>
     );
   };
@@ -3563,7 +3778,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     { id: "wallet", label: t("tab.wallet"), icon: WalletIcon },
     { id: "badges", label: t("tab.badges"), icon: Award },
     { id: "witnessVotes", label: t("tab.witnessVotes"), icon: Shield },
-    { id: "blockchainData", label: t("tab.blockchainData" as any) || "Blockchain Data", icon: Database },
+    { id: "blockchainData", label: t("BlockchainData" as any) || "Blockchain Data", icon: Database },
   ];
 
   // If tabShown is provided, map all sub-tabs to their parent and deduplicate.
@@ -3650,7 +3865,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               )}
               <div className="relative" ref={dropdownRef}>
                 <button
-                  onClick={() => setShowActionDropdown((prev) => !prev)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowActionDropdown((prev) => !prev);
+                  }}
                   className="p-2 bg-black/40 hover:bg-black/60 rounded-full transition-colors"
                   title="More actions"
                 >
@@ -4000,39 +4218,92 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
 
         {/* ── Tab bar — sticks below header on scroll ── */}
-        <div className="sticky top-[calc(56px+env(safe-area-inset-top))] z-20 bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] relative flex items-center">
-          <button
-            onClick={() => scrollTabs("left")}
-            className={`absolute left-0 z-10 h-full px-2 bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] flex items-center shadow-md transition-all ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-          >
-            <ChevronLeft className="h-4 w-4 text-white" />
-          </button>
-          <div ref={tabScrollRef} className="flex overflow-x-auto scrollbar-hide px-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
-                    activeTab === tab.id
-                      ? "text-blue-400 border-blue-400"
-                      : "text-[var(--hrk-text-tertiary)] border-transparent hover:text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-border-default)]"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => scrollTabs("right")}
-            className={`absolute right-0 z-10 h-full px-2 bg-[var(--hrk-bg-surface-raised)] hover:bg-[var(--hrk-bg-hover)] flex items-center shadow-md transition-all ${canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-          >
-            <ChevronRight className="h-4 w-4 text-white" />
-          </button>
-        </div>
+        {(() => {
+          const visibleCount = isMobile ? 3 : 5;
+          const activeIndex = tabs.findIndex((t) => t.id === activeTab);
+          
+          let visibleTabs = tabs.slice(0, visibleCount);
+          let dropdownTabs = tabs.slice(visibleCount);
+          
+          if (activeIndex >= visibleCount) {
+            const activeTabObj = tabs[activeIndex];
+            visibleTabs = [...tabs.slice(0, visibleCount - 1), activeTabObj];
+            dropdownTabs = [
+              tabs[visibleCount - 1],
+              ...tabs.filter((t, idx) => idx >= visibleCount && t.id !== activeTab)
+            ];
+          }
+
+          const hasActiveInDropdown = dropdownTabs.some((t) => t.id === activeTab);
+
+          return (
+            <div className="sticky top-[calc(56px+env(safe-area-inset-top))] z-20 bg-[var(--hrk-bg-surface)] border-b border-[var(--hrk-border-subtle)] flex items-center justify-between">
+              <div ref={tabScrollRef} className="flex overflow-x-auto scrollbar-hide px-1 items-center flex-1">
+                {visibleTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-1 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                        activeTab === tab.id
+                          ? "text-blue-400 border-blue-400"
+                          : "text-[var(--hrk-text-tertiary)] border-transparent hover:text-[var(--hrk-text-secondary)] hover:border-[var(--hrk-border-default)]"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {dropdownTabs.length > 0 && (
+                <div className="relative flex-shrink-0 pr-2 ml-1 border-l border-[var(--hrk-border-subtle)]" ref={tabsDropdownRef}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTabsDropdownOpen((prev) => !prev);
+                    }}
+                    className={`flex items-center gap-1 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-colors border-b-2 border-transparent ${
+                      hasActiveInDropdown
+                        ? "text-blue-400"
+                        : "text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-secondary)]"
+                    }`}
+                    title="More tabs"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="hidden sm:inline">More</span>
+                  </button>
+                  {tabsDropdownOpen && (
+                    <div className="absolute right-2 mt-1 w-48 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-xl z-[100] max-h-60 overflow-y-auto">
+                      {dropdownTabs.map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              setActiveTab(tab.id);
+                              setTabsDropdownOpen(false);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm whitespace-nowrap transition-colors flex items-center gap-2 hover:bg-[var(--hrk-bg-surface-raised)] ${
+                              activeTab === tab.id
+                                ? "text-blue-400 font-semibold"
+                                : "text-[var(--hrk-text-primary)]"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 text-[var(--hrk-text-tertiary)] flex-shrink-0" />
+                            <span>{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Tab content ── */}
         {/* `key={activeTab}` force-remounts the entire content subtree on
