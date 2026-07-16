@@ -20,7 +20,7 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { isCurationEligible } from '@/utils/postVotes';
+import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
@@ -510,17 +510,17 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   // Curation eligibility for the vote slider's curation option — either
   // folded into the vote (not yet voted) or the only action available
   // (already voted — see PostActionButton's `alreadyVoted` handling). See
-  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
-  // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
-  // dialog opens.
+  // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
+  // 6-8 (bot-already-voted, KE ratio, already-submitted) run inside
+  // <VoteSlider/> once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
     hasCurationHandler: !!onCurationRequest,
     currentUser,
     author: post.author,
-    votes: post.active_votes as ActiveVote[] | undefined,
     jsonMetadata: post.json_metadata,
   });
+  const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined);
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
@@ -740,6 +740,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           postCreatedAt={post.created}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
           curationEligible={curationEligible}
+          curationBotAlreadyVoted={curationBotAlreadyVoted}
           curationType="snap"
           onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, ownVoteWeight) : undefined}
           onFetchCurationStatus={onFetchCurationStatus}

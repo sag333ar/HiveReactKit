@@ -39,6 +39,7 @@ export function VoteSlider({
   alreadyVoted = false,
   curatorOwnVoteWeight = 0,
   curationEligible = false,
+  curationBotAlreadyVoted = false,
   curationType,
   onCurationRequest,
   onFetchCurationStatus,
@@ -75,6 +76,14 @@ export function VoteSlider({
    *  see `onFetchCurationStatus` — and the author's KE ratio, checked
    *  internally against `MAX_AUTHOR_KE`). */
   curationEligible?: boolean;
+  /** True when the curation bot (`sagarkothari88`) has already voted on
+   *  this content. Unlike the other eligibility gates (checks 1-5 in
+   *  `isCurationEligible`, postVotes.ts), this one is shown to the
+   *  curator rather than silently hiding the option — the toggle/button
+   *  is replaced with an explanatory message so it's clear why there's
+   *  nothing to request. Caller computes this synchronously from
+   *  `hasCurationVoterVoted(votes)` — no RPC needed. */
+  curationBotAlreadyVoted?: boolean;
   /** Required when `curationEligible` — sizes the curation-weight
    *  slider's built-in default range before the server limit resolves. */
   curationType?: CurationType;
@@ -165,7 +174,7 @@ export function VoteSlider({
 
   const eligibilityChecked = statusChecked && keChecked;
   // Normal flow: curation is an optional toggle alongside the vote.
-  const showCurationToggle = !alreadyVoted && canRequestCuration && eligibilityChecked && !alreadySubmitted && authorKEOk;
+  const showCurationToggle = !alreadyVoted && canRequestCuration && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && authorKEOk;
   // Already-voted flow: curation (if eligible) is the ONLY action, so it's
   // always shown once resolved — no toggle needed.
   const showCurationOnly = alreadyVoted && canRequestCuration;
@@ -280,9 +289,19 @@ export function VoteSlider({
           </>
         )}
 
+        {/* Curation bot already voted — nothing left to request. Shown
+            synchronously (no RPC needed), so it takes priority over the
+            KE-ratio/already-submitted checks below, which need a moment
+            to resolve. */}
+        {!alreadyVoted && canRequestCuration && curationBotAlreadyVoted && (
+          <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 text-sm text-[var(--hrk-text-tertiary)]">
+            Content already upvoted by curators.
+          </div>
+        )}
+
         {/* Author's KE ratio is too high — tell the curator plainly why
             there's no toggle here rather than leaving them wondering. */}
-        {!alreadyVoted && canRequestCuration && eligibilityChecked && !alreadySubmitted && !authorKEOk && (
+        {!alreadyVoted && canRequestCuration && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && !authorKEOk && (
           <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 text-sm text-[var(--hrk-text-tertiary)]">
             @{author}'s KE ratio is over {MAX_AUTHOR_KE.toFixed(2)}, so curation requests aren't available right now. We may reconsider this author for curation in the future.
           </div>
@@ -350,7 +369,11 @@ export function VoteSlider({
 
         {/* Already-voted flow — curation is the only action available. */}
         {showCurationOnly && (
-          !eligibilityChecked ? (
+          curationBotAlreadyVoted ? (
+            <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-4 text-center text-sm text-[var(--hrk-text-tertiary)]">
+              Content already upvoted by curators.
+            </div>
+          ) : !eligibilityChecked ? (
             <div className="flex justify-center items-center py-6 mb-4">
               <Loader2 className="w-5 h-5 animate-spin text-[var(--hrk-brand)]" />
             </div>
@@ -399,7 +422,7 @@ export function VoteSlider({
         {/* Buttons */}
         <div className="flex gap-3">
           {alreadyVoted ? (
-            showCurationOnly && eligibilityChecked && !alreadySubmitted && authorKEOk && (
+            showCurationOnly && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && authorKEOk && (
               <button
                 onClick={handleCurationOnlySubmit}
                 disabled={loading}

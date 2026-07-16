@@ -80,7 +80,6 @@ export interface CurationEligibilityInput {
   hasCurationHandler: boolean;
   currentUser?: string | null;
   author: string;
-  votes?: ActiveVote[] | null;
   jsonMetadata: unknown;
 }
 
@@ -92,19 +91,24 @@ export interface CurationEligibilityInput {
  * chain inline, so disabling a check means editing one function, not
  * hunting through five call sites.
  *
- * Checked in order, numbered so an individual gate can be commented out:
+ * These are the "hard" gates — about who's asking / whether the feature
+ * applies at all, not about this content's current curation status — so
+ * they fail silently (the toggle just never appears). Checked in order,
+ * numbered so an individual gate can be commented out:
  *   1. Caller is a curator
  *   2. A curation-request handler was actually wired up by the consumer
  *   3. Caller isn't the curation bot itself (voting on its own request is a no-op)
  *   4. Caller isn't the content's author (curators recommend OTHERS' content —
  *      recommending your own isn't curation, it's self-promotion; Hive still
  *      lets you vote for yourself in the same dialog, only the *request* is gated)
- *   5. The curation bot hasn't already voted on this content
- *   6. The content was actually published via the HiveSuite app
+ *   5. The content was actually published via the HiveSuite app
  *
- * Two more checks happen later, inside `<VoteSlider/>` itself, once the
- * dialog is actually open — they need an async fetch so can't be computed
- * synchronously here:
+ * Three more checks happen later, inside `<VoteSlider/>` itself, once the
+ * dialog is actually open. Unlike the gates above, these are about THIS
+ * content's status, so instead of silently hiding they show the curator an
+ * explanatory message in place of the toggle:
+ *   6. The curation bot hasn't already voted on this content (synchronous —
+ *      caller passes `hasCurationVoterVoted(votes)` as `curationBotAlreadyVoted`)
  *   7. Author's KE ratio isn't over the configured max (MAX_AUTHOR_KE)
  *   8. Content hasn't already been submitted for curation by another curator
  *      (`onFetchCurationStatus`)
@@ -115,7 +119,6 @@ export function isCurationEligible({
   hasCurationHandler,
   currentUser,
   author,
-  votes,
   jsonMetadata,
 }: CurationEligibilityInput): boolean {
   // 1. Caller must be a curator.
@@ -130,10 +133,7 @@ export function isCurationEligible({
   // 4. Curators recommend OTHER people's content, not their own.
   if (author.toLowerCase() === currentUser?.toLowerCase()) return false;
 
-  // 5. Once the curation bot has already voted, there's nothing left to request.
-  if (hasCurationVoterVoted(votes)) return false;
-
-  // // 6. Curation is only offered for content actually published via HiveSuite.
+  // // 5. Curation is only offered for content actually published via HiveSuite.
   // if (!isHiveSuiteContent(jsonMetadata)) return false;
 
   return true;

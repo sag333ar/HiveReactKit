@@ -59,7 +59,7 @@ import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
-import { isCurationEligible } from "@/utils/postVotes";
+import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
@@ -2168,17 +2168,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     };
 
     // Curation eligibility, shared by the vote slider's toggle. See
-    // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
-    // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
-    // dialog opens.
+    // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
+    // 6-8 (bot-already-voted, KE ratio, already-submitted) run inside
+    // <VoteSlider/> once the dialog opens.
     const curationEligible = isCurationEligible({
       isCurator,
       hasCurationHandler: !!onCurationRequest,
       currentUser: currentUsername,
       author: item.author,
-      votes: item.active_votes,
       jsonMetadata: item.json_metadata,
     });
+    const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes);
 
     return (
       <div
@@ -2286,6 +2286,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             postCreatedAt={item.created}
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
             curationEligible={curationEligible}
+            curationBotAlreadyVoted={curationBotAlreadyVoted}
             curationType="post"
             onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(item.author, item.permlink, weight, 'post', ownVoteWeight) : undefined}
             onFetchCurationStatus={onFetchCurationStatus}

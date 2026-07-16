@@ -6,7 +6,7 @@ import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
 import { Poll } from '@/types/poll';
-import { isCurationEligible } from '@/utils/postVotes';
+import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
 import {
   AlertCircle,
   ArrowLeft,
@@ -1992,16 +1992,17 @@ export function HiveDetailPost({
   // Curation eligibility, shared by the vote slider's toggle. When the
   // curator already voted, the vote slider itself switches into
   // curation-only mode instead of offering a toggle. See numbered checks
-  // 1-6 in `isCurationEligible` (postVotes.ts) — checks 7-8 (KE ratio,
-  // already-submitted) run inside <VoteSlider/> once the dialog opens.
+  // 1-5 in `isCurationEligible` (postVotes.ts) — checks 6-8 (bot-already-
+  // voted, KE ratio, already-submitted) run inside <VoteSlider/> once the
+  // dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
     hasCurationHandler: !!onCurationRequest,
     currentUser,
     author: post.author,
-    votes: post.active_votes,
     jsonMetadata: post.json_metadata,
   });
+  const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes);
 
   return (
     <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
@@ -2841,6 +2842,7 @@ export function HiveDetailPost({
                 postCreatedAt={post.created}
                 onUpvote={onUpvote}
                 curationEligible={curationEligible}
+                curationBotAlreadyVoted={curationBotAlreadyVoted}
                 curationType="post"
                 onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, 'post', ownVoteWeight) : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}

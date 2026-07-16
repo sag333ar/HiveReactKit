@@ -60,6 +60,11 @@ export interface PostActionButtonProps {
    *  slider. Caller resolves this from `isCurator && !!onCurationRequest
    *  && <not already curated> && <content published via HiveSuite>`. */
   curationEligible?: boolean;
+  /** True when the curation bot already voted on this content. Shows an
+   *  explanatory message in the vote slider instead of the toggle/button
+   *  — see `curationBotAlreadyVoted` on `<VoteSlider/>`. Caller computes
+   *  this via `hasCurationVoterVoted(votes)` (postVotes.ts). */
+  curationBotAlreadyVoted?: boolean;
   /** Required alongside `curationEligible` — sizes the curation-weight
    *  slider's default range before the server limit resolves. */
   curationType?: 'post' | 'snap' | 'comment';
@@ -217,6 +222,7 @@ export function PostActionButton({
   initialCommentsCount,
   onUpvote,
   curationEligible = false,
+  curationBotAlreadyVoted = false,
   curationType,
   onCurationRequest,
   onFetchCurationStatus,
@@ -996,6 +1002,7 @@ export function PostActionButton({
           alreadyVoted={hasVoted}
           curatorOwnVoteWeight={ownVoteWeight}
           curationEligible={curationEligible}
+          curationBotAlreadyVoted={curationBotAlreadyVoted}
           curationType={curationType}
           onCurationRequest={onCurationRequest}
           onFetchCurationStatus={onFetchCurationStatus}

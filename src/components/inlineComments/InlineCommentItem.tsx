@@ -4,7 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
-import { isCurationEligible, getUserVoteWeight } from '@/utils/postVotes';
+import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -481,17 +481,17 @@ export default function InlineCommentItem({
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
   // Curation eligibility, shared by the vote slider's toggle. See
-  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
-  // 7-8 (KE ratio, already-submitted) run inside <VoteSlider/> once the
-  // dialog opens.
+  // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
+  // 6-8 (bot-already-voted, KE ratio, already-submitted) run inside
+  // <VoteSlider/> once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
     hasCurationHandler: !!onCurationRequest,
     currentUser,
     author: comment.author,
-    votes: comment.active_votes,
     jsonMetadata: comment.json_metadata,
   });
+  const curationBotAlreadyVoted = hasCurationVoterVoted(comment.active_votes);
 
   return (
     <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
@@ -780,6 +780,7 @@ export default function InlineCommentItem({
                   alreadyVoted={hasAlreadyVoted || isUpvoted}
                   curatorOwnVoteWeight={getUserVoteWeight(comment.active_votes, currentUser)}
                   curationEligible={curationEligible}
+                  curationBotAlreadyVoted={curationBotAlreadyVoted}
                   curationType="comment"
                   onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(comment.author, comment.permlink, weight, ownVoteWeight) : undefined}
                   onFetchCurationStatus={onFetchCurationStatus}
