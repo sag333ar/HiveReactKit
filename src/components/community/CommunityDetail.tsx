@@ -192,6 +192,19 @@ export interface CommunityDetailProps {
    *  user to land back on the same card. When `false` (or omitted),
    *  the view starts at the top, matching forward navigation. */
   shouldRestoreScroll?: boolean
+
+  /** When true, a heart button is shown on each post card (forwarded
+   *  into the embedded <BlogPostList/>) so the curator can request an
+   *  on-chain upvote. */
+  isCurator?: boolean
+  /** Called when the curator submits a curation request. Weight is 1–15.
+   *  `ownVoteWeight` is the curator's own vote weight on this content
+   *  (0–100), recorded alongside the request for review. */
+  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>
+  /** Looks up the server-configured max curation weight for a content
+   *  type, plus whether it's already been submitted for curation.
+   *  Forwarded to each card's vote slider. */
+  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>
 }
 
 interface ActivityItem {
@@ -306,6 +319,9 @@ const CommunityDetail = ({
   postSort: controlledPostSort,
   onPostSortChange,
   shouldRestoreScroll = false,
+  isCurator,
+  onCurationRequest,
+  onFetchCurationStatus,
 }: CommunityDetailProps) => {
   // Controlled-or-uncontrolled tab + sort. When the consumer passes
   // `activeTab` / `postSort`, those drive the UI (and we still fire
@@ -576,6 +592,9 @@ const CommunityDetail = ({
       awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
+      isCurator,
+      onCurationRequest,
+      onFetchCurationStatus,
     }),
     [
       currentUser,
@@ -612,6 +631,9 @@ const CommunityDetail = ({
       awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
+      isCurator,
+      onCurationRequest,
+      onFetchCurationStatus,
     ],
   )
 
