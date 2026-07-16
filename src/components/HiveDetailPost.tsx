@@ -539,6 +539,11 @@ export function HiveDetailPost({
   const prevPost = currentIndex > 0 ? recommendedPosts[currentIndex - 1] : null;
   const nextPost = currentIndex >= 0 && currentIndex < recommendedPosts.length - 1 ? recommendedPosts[currentIndex + 1] : null;
 
+  const isAllSameAuthor = useMemo(() => {
+    if (recommendedPosts.length === 0) return true;
+    return recommendedPosts.every(p => p.author.toLowerCase() === author.toLowerCase());
+  }, [recommendedPosts, author]);
+
   const scrollToRecommendations = () => {
     recsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
@@ -2938,7 +2943,7 @@ export function HiveDetailPost({
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-sm font-semibold text-white flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-yellow-500" />
-                    Recommended from @{post.author}
+                    {isAllSameAuthor ? `Recommended from @${post?.author || author}` : 'More trending posts'}
                   </h4>
                 </div>
                 
@@ -2991,7 +2996,7 @@ export function HiveDetailPost({
                 <div className="bg-[var(--hrk-bg-surface)]/60 border border-[var(--hrk-border-subtle)] backdrop-blur-md rounded-2xl p-5 shadow-lg max-h-[85vh] overflow-y-auto">
                   <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-yellow-500" />
-                    More from @{post.author}
+                    {isAllSameAuthor ? `More from @${post?.author || author}` : 'More trending posts'}
                   </h4>
 
                   <div className="space-y-4">
