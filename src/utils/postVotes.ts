@@ -139,6 +139,39 @@ export function isCurationEligible({
   return true;
 }
 
+/** The reply containers snap-like apps post into — a "snap" is really
+ *  just a comment whose direct parent is one of these accounts. Anything
+ *  else with a parent is a genuine comment/reply. Mirrors the containers
+ *  hive-inbox itself recognizes for curation weight limits. */
+const SNAP_CONTAINER_ACCOUNTS = new Set([
+  'peak.snaps',
+  'ecency.waves',
+  'leothreads',
+  'liketu.moments',
+]);
+
+/**
+ * The REAL curation content type for a piece of content, independent of
+ * which page/component happens to be displaying it. Needed because a
+ * single "post details" view can render a genuine top-level post, a snap,
+ * or a comment — all three are just `comment` ops on Hive, distinguished
+ * only by `depth`/`parent_author` — and hardcoding `curationType="post"`
+ * there let curators bypass the snap (6%) / comment (3%) weight caps
+ * entirely by opening the same content's own permalink page instead of
+ * viewing it in its feed:
+ *   - `depth === 0` → top-level post (max 15%)
+ *   - parent is a known snap container → snap (max 6%)
+ *   - otherwise → comment/reply (max 3%)
+ */
+export function getCurationTypeForContent(
+  depth: number | null | undefined,
+  parentAuthor?: string | null,
+): 'post' | 'snap' | 'comment' {
+  if (!depth || depth <= 0) return 'post';
+  if (parentAuthor && SNAP_CONTAINER_ACCOUNTS.has(parentAuthor.toLowerCase())) return 'snap';
+  return 'comment';
+}
+
 /** True when the post has received at least one downvote / flag.
  *  Prefer `stats.flag_weight` when available — Hive's canonical
  *  signal — and fall back to scanning `active_votes` for negative

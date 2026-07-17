@@ -6,7 +6,7 @@ import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
 import { Poll } from '@/types/poll';
-import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
+import { isCurationEligible, hasCurationVoterVoted, getCurationTypeForContent } from '@/utils/postVotes';
 import {
   AlertCircle,
   ArrowLeft,
@@ -334,11 +334,14 @@ export interface HiveDetailPostProps {
   /** When true, a heart button is shown on the post and on each comment
    *  so the curator can request on-chain upvotes. */
   isCurator?: boolean;
-  /** Called when the curator submits a curation request. `type` is
-   *  `'post'` for the main post or `'comment'` for a comment.
+  /** Called when the curator submits a curation request. `type` reflects
+   *  the ACTUAL content type (see `getCurationTypeForContent`), not just
+   *  whether it's the main item vs. a nested comment — the main item
+   *  itself can be a genuine post, a snap, or a comment/reply, all of
+   *  which are just `comment` ops distinguished by depth/parent_author.
    *  `ownVoteWeight` is the curator's own vote weight on this content
    *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'comment', ownVoteWeight: number) => void | Promise<void>;
+  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'snap' | 'comment', ownVoteWeight: number) => void | Promise<void>;
   /** Looks up the server-configured max curation weight for a content
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to the post's vote slider and to every comment via
@@ -2003,6 +2006,12 @@ export function HiveDetailPost({
     jsonMetadata: post.json_metadata,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes);
+  // The main item can be a genuine top-level post, or a snap/comment
+  // opened via its own permalink page — all three are `comment` ops on
+  // Hive, so the weight cap must follow the REAL type, not just assume
+  // "post" (which would let a curator bypass the snap/comment caps by
+  // opening the same content's permalink instead of its feed card).
+  const curationType = getCurationTypeForContent(post.depth, post.parent_author);
 
   return (
     <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
@@ -2843,8 +2852,8 @@ export function HiveDetailPost({
                 onUpvote={onUpvote}
                 curationEligible={curationEligible}
                 curationBotAlreadyVoted={curationBotAlreadyVoted}
-                curationType="post"
-                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, 'post', ownVoteWeight) : undefined}
+                curationType={curationType}
+                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, curationType, ownVoteWeight) : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
