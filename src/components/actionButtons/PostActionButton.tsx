@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ThumbsUp,
   MessageCircle,
+  Repeat,
   Repeat2,
   Share2,
   Flag,
@@ -894,6 +895,21 @@ export function PostActionButton({
               <Share2 className={iconSizeClass} />
             </button>
           </div>
+
+          {/* Re-snap — shown for comments/replies where onReSnap is provided */}
+          {onReSnap && (
+            <div className="relative group">
+              <span className={tooltipClass}>Re-snap</span>
+              <button
+                type="button"
+                onClick={handleReSnapClick}
+                className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass}`}
+                aria-label="Re-snap"
+              >
+                <Repeat className={iconSizeClass} />
+              </button>
+            </div>
+          )}
 
           {/* Report — hidden on the user's own content. */}
           {reportHandler && (

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
-import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil } from 'lucide-react';
+import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat } from 'lucide-react';
 import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
@@ -46,6 +46,7 @@ interface InlineCommentItemProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  onReSnapComment?: (author: string, permlink: string) => void;
   /** Toggle bookmark on this inline comment. Surfaces inside a small
    *  3-dot kebab at the end of the action row. Consumer decides add
    *  vs remove based on `isCommentBookmarked`. */
@@ -140,6 +141,7 @@ export default function InlineCommentItem({
   onShareComment,
   onTipComment,
   onReportComment,
+  onReSnapComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
   mentionSeedAccounts,
@@ -654,6 +656,16 @@ export default function InlineCommentItem({
                     title="Share"
                   >
                     <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {onReSnapComment && currentUser && (
+                  <button
+                    onClick={() => onReSnapComment(comment.author, comment.permlink)}
+                    className="text-gray-400 hover:text-blue-400 transition-colors p-0.5"
+                    title="Re-snap"
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
                   </button>
                 )}
 

@@ -59,6 +59,7 @@ interface InlineCommentSectionProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  onReSnapComment?: (author: string, permlink: string) => void;
   /** Forwarded to every <InlineCommentItem/> — surfaces a small 3-dot
    *  kebab with a Bookmark item on each comment row. */
   onToggleCommentBookmark?: (author: string, permlink: string) => void;
@@ -123,6 +124,7 @@ export default function InlineCommentSection({
   onShareComment,
   onTipComment,
   onReportComment,
+  onReSnapComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
   mentionSeedAccounts,
@@ -437,6 +439,7 @@ export default function InlineCommentSection({
               onShareComment={onShareComment}
               onTipComment={onTipComment}
               onReportComment={onReportComment}
+              onReSnapComment={onReSnapComment}
               onToggleCommentBookmark={onToggleCommentBookmark}
               isCommentBookmarked={isCommentBookmarked}
               mentionSeedAccounts={mentionSeedAccounts}

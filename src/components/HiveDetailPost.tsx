@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Repeat,
   Repeat2,
   Globe,
   Zap,
@@ -177,6 +178,7 @@ export interface HiveDetailPostProps {
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: () => void;
   isReblogged?: boolean;
+  onReSnap?: () => void;
   onShare?: () => void;
   onTip?: () => void;
   onReport?: () => void;
@@ -204,6 +206,7 @@ export interface HiveDetailPostProps {
   onShareComment?: (author: string, permlink: string) => void;
   onTipComment?: (author: string, permlink: string) => void;
   onReportComment?: (author: string, permlink: string) => void;
+  onReSnapComment?: (author: string, permlink: string) => void;
   /** Bookmark toggle on each inline comment — surfaces a small 3-dot
    *  kebab with a Bookmark item at the end of every comment's action
    *  row. Consumer decides add vs remove based on
@@ -426,6 +429,7 @@ export function HiveDetailPost({
   onClickCommentUpvote,
   onReblog,
   isReblogged = false,
+  onReSnap,
   onShare,
   onTip,
   onReport,
@@ -434,6 +438,7 @@ export function HiveDetailPost({
   onShareComment,
   onTipComment,
   onReportComment,
+  onReSnapComment,
   onToggleCommentBookmark,
   isCommentBookmarked,
   onEditComment,
@@ -2201,7 +2206,8 @@ export function HiveDetailPost({
               }
               onShare={onHeaderShare ?? onShare}
               onReport={onHeaderReport ?? onReport}
-              onReblog={onReblog}
+              onReblog={curationType === 'post' ? onReblog : undefined}
+              onReSnap={curationType !== 'post' ? onReSnap : undefined}
               isReblogged={isReblogged}
               onVersionHistory={() => setVersionHistoryOpen(true)}
               onViewRaw={() => setRawViewOpen(true)}
@@ -2857,7 +2863,8 @@ export function HiveDetailPost({
                 onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
-                onReblog={onReblog}
+                onReblog={post.depth === 0 ? onReblog : undefined}
+                onReSnap={post.depth > 0 ? onReSnap : undefined}
                 onShare={onShare}
                 onTip={onTip}
                 onReport={onReport}
@@ -2919,6 +2926,7 @@ export function HiveDetailPost({
                 onShareComment={onShareComment}
                 onTipComment={onTipComment}
                 onReportComment={onReportComment}
+                onReSnapComment={onReSnapComment}
                 onToggleCommentBookmark={onToggleCommentBookmark}
                 isCommentBookmarked={isCommentBookmarked}
                 mentionSeedAccounts={mentionSeedAccounts}
@@ -3093,6 +3101,7 @@ interface HeaderMoreMenuProps {
   onEdit?: () => void;
   onReblog?: () => void;
   isReblogged?: boolean;
+  onReSnap?: () => void;
   language?: string;
   onSelectLanguage?: (code: string) => void;
   isSpeaking?: boolean;
@@ -3112,6 +3121,7 @@ function HeaderMoreMenu({
   onEdit,
   onReblog,
   isReblogged = false,
+  onReSnap,
   language,
   onSelectLanguage,
   isSpeaking = false,
@@ -3169,7 +3179,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog && !onSelectLanguage && !onSpeechToggle) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog && !onReSnap && !onSelectLanguage && !onSpeechToggle) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -3217,6 +3227,17 @@ function HeaderMoreMenu({
                   }`}
                 />
                 <span>{isReblogged ? 'Reblogged' : 'Reblog'}</span>
+              </button>
+            )}
+            {onReSnap && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onReSnap)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Repeat className="h-3.5 w-3.5 text-gray-300" />
+                <span>Re-snap</span>
               </button>
             )}
             {onToggleBookmark && (
