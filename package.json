@@ -1,7 +1,7 @@
 {
   "name": "hive-react-kit",
   "private": false,
-  "version": "1.12.26",
+  "version": "1.12.27",
   "type": "module",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
