@@ -484,8 +484,8 @@ export default function InlineCommentItem({
 
   // Curation eligibility, shared by the vote slider's toggle. See
   // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
-  // 6-8 (bot-already-voted, KE ratio, already-submitted) run inside
-  // <VoteSlider/> once the dialog opens.
+  // 6-7 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+  // once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
     hasCurationHandler: !!onCurationRequest,

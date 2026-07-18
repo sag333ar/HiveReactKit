@@ -103,15 +103,17 @@ export interface CurationEligibilityInput {
  *      lets you vote for yourself in the same dialog, only the *request* is gated)
  *   5. The content was actually published via the HiveSuite app
  *
- * Three more checks happen later, inside `<VoteSlider/>` itself, once the
+ * Two more checks happen later, inside `<VoteSlider/>` itself, once the
  * dialog is actually open. Unlike the gates above, these are about THIS
  * content's status, so instead of silently hiding they show the curator an
  * explanatory message in place of the toggle:
  *   6. The curation bot hasn't already voted on this content (synchronous —
  *      caller passes `hasCurationVoterVoted(votes)` as `curationBotAlreadyVoted`)
- *   7. Author's KE ratio isn't over the configured max (MAX_AUTHOR_KE)
- *   8. Content hasn't already been submitted for curation by another curator
+ *   7. Content hasn't already been submitted for curation by another curator
  *      (`onFetchCurationStatus`)
+ * Author KE ratio used to be a gate here too — removed. It no longer blocks
+ * a curation request at all; the backend scales the actual vote weight down
+ * instead of rejecting (see resolveVoteWeight in hive-inbox's routes/curation.js).
  * See VoteSlider.tsx.
  */
 export function isCurationEligible({

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ThumbsUp, X, Loader2, Heart } from "lucide-react";
-import { calculateKERatio } from "@/services/userService";
 
 type CurationType = 'post' | 'snap' | 'comment';
 
@@ -14,13 +13,6 @@ const CURATION_RANGE: Record<CurationType, { min: number; max: number; default: 
   snap:    { min: 1, max: 6,  default: 3 },
   comment: { min: 1, max: 3,  default: 2 },
 };
-
-// Mirrors hive-inbox's `config.curationChecks.maxKE` (default 3, env
-// `CURATION_MAX_KE`) — an author whose lifetime rewards run this many times
-// their own staked HP gets silently rejected server-side anyway, so the
-// toggle is hidden up front rather than letting a curator spend a vote on
-// a request that can never go through.
-const MAX_AUTHOR_KE = 1.75;
 
 const CURATION_SLIDER_CLASS =
   "w-full h-2 rounded-lg appearance-none cursor-pointer " +
@@ -72,9 +64,10 @@ export function VoteSlider({
    *  from `isCurator && !!onCurationRequest && <not already curated> &&
    *  <content published via HiveSuite>` before rendering — this
    *  component has no opinion on eligibility, it just renders the
-   *  option when told to (pending a fresh already-submitted check —
-   *  see `onFetchCurationStatus` — and the author's KE ratio, checked
-   *  internally against `MAX_AUTHOR_KE`). */
+   *  option when told to (pending a fresh already-submitted check — see
+   *  `onFetchCurationStatus`). Author KE ratio no longer gates this at
+   *  all — the backend scales the actual vote weight down instead of
+   *  rejecting. */
   curationEligible?: boolean;
   /** True when the curation bot (`sagarkothari88`) has already voted on
    *  this content. Unlike the other eligibility gates (checks 1-5 in
@@ -121,13 +114,18 @@ export function VoteSlider({
   const [requestCuration, setRequestCuration] = useState(false);
   const [curationWeight, setCurationWeight] = useState(range.default);
   const [curationMax, setCurationMax] = useState(range.max);
-  // Check 8 (see `isCurationEligible` in postVotes.ts for checks 1-6):
-  // has this content already been submitted for curation by another
-  // curator? Checked once up front (not on toggle-flip) so an
-  // already-submitted piece of content never shows the toggle in the
-  // first place. Runs independently/in parallel with check 7 below —
-  // order between the two doesn't matter, only that both resolve before
-  // the toggle can show.
+  // Check 7 (see `isCurationEligible` in postVotes.ts for checks 1-5, and
+  // check 6 — curationBotAlreadyVoted — above): has this content already
+  // been submitted for curation by another curator? Checked once up front
+  // (not on toggle-flip) so an already-submitted piece of content never
+  // shows the toggle in the first place.
+  //
+  // Author KE ratio used to be check 8 here (fetched client-side, hid the
+  // toggle above a threshold) — removed. KE ratio no longer blocks a
+  // curation request at all; the backend scales the actual vote weight
+  // down instead of rejecting (see resolveVoteWeight in hive-inbox's
+  // routes/curation.js), so there's nothing left for the frontend to check
+  // or fetch here.
   const [statusChecked, setStatusChecked] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
@@ -153,28 +151,8 @@ export function VoteSlider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canRequestCuration]);
 
-  // Check 7: author's KE ratio (lifetime rewards ÷ own staked HP) — checked
-  // once up front, same as check 8 above. A transient RPC failure fails
-  // open (assume eligible) rather than blocking a legitimate request. To
-  // disable this check entirely, replace the body of this effect with
-  // just `setKeChecked(true);`.
-  const [keChecked, setKeChecked] = useState(false);
-  const [authorKEOk, setAuthorKEOk] = useState(true);
-
-  useEffect(() => {
-    if (!canRequestCuration) return;
-    let cancelled = false;
-    calculateKERatio(author)
-      .then((result) => { if (!cancelled) setAuthorKEOk(result.ke <= MAX_AUTHOR_KE); })
-      .catch(() => { /* RPC failure — fail open, assume eligible */ })
-      .finally(() => { if (!cancelled) setKeChecked(true); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canRequestCuration]);
-
-  const eligibilityChecked = statusChecked && keChecked;
   // Normal flow: curation is an optional toggle alongside the vote.
-  const showCurationToggle = !alreadyVoted && canRequestCuration && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && authorKEOk;
+  const showCurationToggle = !alreadyVoted && canRequestCuration && !curationBotAlreadyVoted && statusChecked && !alreadySubmitted;
   // Already-voted flow: curation (if eligible) is the ONLY action, so it's
   // always shown once resolved — no toggle needed.
   const showCurationOnly = alreadyVoted && canRequestCuration;
@@ -299,14 +277,6 @@ export function VoteSlider({
           </div>
         )}
 
-        {/* Author's KE ratio is too high — tell the curator plainly why
-            there's no toggle here rather than leaving them wondering. */}
-        {!alreadyVoted && canRequestCuration && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && !authorKEOk && (
-          <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3 text-sm text-[var(--hrk-text-tertiary)]">
-            @{author}'s KE ratio is over {MAX_AUTHOR_KE.toFixed(2)}, so curation requests aren't available right now. We may reconsider this author for curation in the future.
-          </div>
-        )}
-
         {/* Curation toggle — curators only, and only once a fresh check
             confirms this content hasn't already been submitted by any
             curator. Requesting curation is folded into the same "Vote"
@@ -373,17 +343,13 @@ export function VoteSlider({
             <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-4 text-center text-sm text-[var(--hrk-text-tertiary)]">
               Content already upvoted by curators.
             </div>
-          ) : !eligibilityChecked ? (
+          ) : !statusChecked ? (
             <div className="flex justify-center items-center py-6 mb-4">
               <Loader2 className="w-5 h-5 animate-spin text-[var(--hrk-brand)]" />
             </div>
           ) : alreadySubmitted ? (
             <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-4 text-center text-sm text-[var(--hrk-text-tertiary)]">
               This {curationType} has already been submitted for curation.
-            </div>
-          ) : !authorKEOk ? (
-            <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-4 text-center text-sm text-[var(--hrk-text-tertiary)]">
-              @{author}'s KE ratio is over {MAX_AUTHOR_KE.toFixed(2)}, so curation requests aren't available right now. We may reconsider this author for curation in the future.
             </div>
           ) : (
             <div className="mb-4 rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
@@ -422,7 +388,7 @@ export function VoteSlider({
         {/* Buttons */}
         <div className="flex gap-3">
           {alreadyVoted ? (
-            showCurationOnly && !curationBotAlreadyVoted && eligibilityChecked && !alreadySubmitted && authorKEOk && (
+            showCurationOnly && !curationBotAlreadyVoted && statusChecked && !alreadySubmitted && (
               <button
                 onClick={handleCurationOnlySubmit}
                 disabled={loading}
