@@ -17,26 +17,34 @@ const headers = (token: string) => ({
 export const templateService = {
   async getTemplates(token: string, apiBaseUrl?: string): Promise<TemplateModel[]> {
     const url = apiBaseUrl || DEFAULT_API_BASE_URL;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: headers(token),
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers(token),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (errorData.error === "TokenExpiredError: jwt expired") {
-        throw new Error("JWT_EXPIRED");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData?.error === "TokenExpiredError: jwt expired") {
+          throw new Error("JWT_EXPIRED");
+        }
+        console.warn(`Failed to fetch templates: ${response.status} ${response.statusText}`);
+        return [];
       }
-      throw new Error(`Failed to fetch templates: ${response.status} ${response.statusText}`);
-    }
 
-    const templates = await response.json();
-    return templates.map((t: any) => ({
-      _id: t._id,
-      name: t.name,
-      templateName: t.templateName,
-      template: t.template,
-    }));
+      const templates = await response.json();
+      if (!Array.isArray(templates)) return [];
+      return templates.map((t: any) => ({
+        _id: t._id,
+        name: t.name,
+        templateName: t.templateName,
+        template: t.template,
+      }));
+    } catch (err: any) {
+      if (err?.message === "JWT_EXPIRED") throw err;
+      console.warn("Failed to fetch templates:", err);
+      return [];
+    }
   },
 
   async createTemplate(token: string, templateName: string, template: string, apiBaseUrl?: string): Promise<TemplateModel> {

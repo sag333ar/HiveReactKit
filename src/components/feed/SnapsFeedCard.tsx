@@ -21,6 +21,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
+import { getReputationDetails } from '@/utils/reputation';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
@@ -551,6 +552,19 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
               <span className={`inline-block rounded px-1 py-0.5 text-xs font-semibold sm:text-sm ${getSupporterBadge(tier)}`}>@{post.author}</span>
             ) : <>@{post.author}</>}
           </HiveLink>
+          {post.author_reputation !== undefined && (
+            <div className="relative group inline-flex shrink-0">
+              <span
+                className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
+                style={{ minWidth: '22px', height: '18px' }}
+              >
+                {getReputationDetails(post.author_reputation).score}
+              </span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:bottom-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-b-black">
+                Reputation: {getReputationDetails(post.author_reputation).formatted}
+              </div>
+            </div>
+          )}
           <span className="shrink-0 text-xs text-[var(--hrk-text-tertiary)]">·</span>
           {/* Timestamp doubles as the post permalink (X/Twitter
               pattern) so the snap — which has no title — still has a

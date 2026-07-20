@@ -125,6 +125,7 @@ export {
   VOTE_WINDOW_MS,
   VOTE_WINDOW_MESSAGE,
 } from './utils/voteAge';
+export { getReputationDetails, formatReputation, isNegativeReputation } from './utils/reputation';
 
 // Re-exports from @snapie/renderer — Hive markdown renderer used internally
 // by HiveDetailPost / AddCommentInput / InlineCommentItem. Surfaced so
