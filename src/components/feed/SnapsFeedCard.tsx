@@ -55,6 +55,7 @@ export interface SnapsFeedCardProps {
     parentTags?: string[],
   ) => void;
   onTip?: (author: string, permlink: string) => void;
+  onCrossPost?: (author: string, permlink: string, post?: Post) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
   /** Click on just the message-circle icon — typical use: open an
@@ -262,6 +263,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   isPostReblogged,
   onCheckReblogged,
   onReSnap,
+  onCrossPost,
   onTip,
   onSharePost,
   onCommentClick,
@@ -773,6 +775,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           isReblogged={isPostReblogged ? isPostReblogged(post.author, post.permlink) : false}
           onCheckReblogged={onCheckReblogged}
           onReSnap={onReSnap ? () => onReSnap(post.author, post.permlink, parentMetaTags) : undefined}
+          onCrossPost={onCrossPost ? () => onCrossPost(post.author, post.permlink, post) : undefined}
           onShare={onSharePost ? () => onSharePost(post.author, post.permlink) : undefined}
           onTip={post.author !== currentUser && onTip ? () => onTip(post.author, post.permlink) : undefined}
           onReport={post.author !== currentUser && onReportPost ? () => onReportPost(post.author, post.permlink) : undefined}

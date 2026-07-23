@@ -179,6 +179,7 @@ export interface HiveDetailPostProps {
   onReblog?: () => void;
   isReblogged?: boolean;
   onReSnap?: () => void;
+  onCrossPost?: () => void;
   onShare?: () => void;
   onTip?: () => void;
   onReport?: () => void;
@@ -432,6 +433,7 @@ export function HiveDetailPost({
   onReblog,
   isReblogged = false,
   onReSnap,
+  onCrossPost,
   onShare,
   onTip,
   onReport,
@@ -2525,6 +2527,35 @@ export function HiveDetailPost({
               {/* Left Column (Col 8): Main post content & Comments */}
               <div className="lg:col-span-8 min-w-0">
 
+            {/* Cross Post Banner — shown when this post is a cross-post */}
+            {parsedMetadata?.original_author && parsedMetadata?.original_permlink && (
+              <div className="mb-4 rounded-xl border border-blue-500/40 bg-gradient-to-r from-blue-950/70 via-indigo-950/50 to-gray-900 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 mt-0.5 shrink-0">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Cross Post</span>
+                      <span className="text-xs text-gray-400">by</span>
+                      <span className="text-xs font-semibold text-white">@{post.author}</span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-0.5 font-medium">
+                      Currently interacting with the Cross Post of <span className="text-blue-400 font-semibold">@{parsedMetadata.original_author}/{parsedMetadata.original_permlink}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigateToPost?.(parsedMetadata.original_author, parsedMetadata.original_permlink)}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shrink-0 self-start sm:self-auto flex items-center gap-1.5"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <span>SWITCH TO ORIGINAL POST</span>
+                </button>
+              </div>
+            )}
+
             {/* View Parent — shown when this post is a reply (depth > 0) */}
             {post.depth > 0 && post.parent_author && post.parent_permlink && (
               <button
@@ -2890,6 +2921,7 @@ export function HiveDetailPost({
                 onClickCommentUpvote={onClickCommentUpvote}
                 onReblog={post.depth === 0 ? onReblog : undefined}
                 onReSnap={post.depth > 0 ? onReSnap : undefined}
+                onCrossPost={onCrossPost}
                 onShare={onShare}
                 onTip={onTip}
                 onReport={onReport}

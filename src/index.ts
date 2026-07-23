@@ -63,9 +63,9 @@ export {
 export { PostComposer, default as AddCommentInput } from './components/comments/AddCommentInput';
 export type { PostComposerProps, AddCommentInputProps } from './components/comments/AddCommentInput';
 
-// Composer components (Image, Audio, Video uploaders, GIF picker, Meme picker, Emoji picker, Template picker, Post Templates panel)
-export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, DecentMemesPicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer, ToolbarHelpModal } from './components/composer';
-export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, DecentMemesPickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload, ToolbarHelpModalProps, ToolbarHelpEntry } from './components/composer';
+// Composer components (Image, Audio, Video uploaders, GIF picker, Meme picker, Emoji picker, Template picker, Post Templates panel, CrossPost modal)
+export { ImageUploader, AudioUploader, VideoUploader, GiphyPicker, YoutubePicker, MemePicker, DecentMemesPicker, EmojiPicker, TemplatePicker, PostTemplatesPanel, PollCreator, BeneficiariesEditor, ParentPostComposer, ToolbarHelpModal, CrossPostModal } from './components/composer';
+export type { ImageUploaderProps, AudioUploaderProps, VideoUploaderProps, VideoUploadDetails, GiphyPickerProps, YoutubePickerProps, MemePickerProps, DecentMemesPickerProps, EmojiPickerProps, TemplatePickerProps, PostTemplatesPanelProps, PostTemplate, PostTemplatePayload, PollCreatorProps, PollData, BeneficiariesEditorProps, ParentPostComposerProps, ParentPostSubmitPayload, ToolbarHelpModalProps, ToolbarHelpEntry, CrossPostModalProps } from './components/composer';
 
 // Common components
 export { default as FavouriteWidget } from './components/common/FavouriteWidget';

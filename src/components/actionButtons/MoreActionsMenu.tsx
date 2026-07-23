@@ -41,6 +41,8 @@ export interface MoreActionsMenuProps {
    *  a URL pointing back at this snap — receivers render the original
    *  inline with a "RE-SNAP" badge. */
   onReSnap?: () => void;
+  /** Show the Cross post item. Opens a modal to publish a cross-post to another community. */
+  onCrossPost?: () => void;
   /** Show the Share item. */
   onShare?: () => void;
   /** Show the Tip item. */
@@ -75,6 +77,7 @@ export function MoreActionsMenu({
   onReblog,
   isReblogged = false,
   onReSnap,
+  onCrossPost,
   onShare,
   onTip,
   onReport,
@@ -216,6 +219,17 @@ export function MoreActionsMenu({
               >
                 <Repeat className="h-3.5 w-3.5 text-emerald-400" />
                 <span>Re-snap</span>
+              </button>
+            )}
+            {onCrossPost && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onCrossPost)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <Share2 className="h-3.5 w-3.5 text-blue-400" />
+                <span>Cross post in ...</span>
               </button>
             )}
             {onShare && (

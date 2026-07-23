@@ -43,3 +43,6 @@ export type { BeneficiariesEditorProps } from './BeneficiariesEditor'
 
 export { default as ParentPostComposer } from './ParentPostComposer'
 export type { ParentPostComposerProps, ParentPostSubmitPayload } from './ParentPostComposer'
+
+export { default as CrossPostModal } from './CrossPostModal'
+export type { CrossPostModalProps } from './CrossPostModal'

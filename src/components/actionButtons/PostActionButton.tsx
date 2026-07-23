@@ -127,6 +127,8 @@ export interface PostActionButtonProps {
    *  a new snap to the latest peak.snaps container whose body is a URL
    *  to the original snap — receivers render the original inline. */
   onReSnap?: () => void;
+  /** Called when Cross post is clicked. Opens a modal to publish a cross-post to another community. */
+  onCrossPost?: () => void;
   /** Called when share is clicked. */
   onShare?: () => void;
   /** Called when tip is clicked (when logged in). */
@@ -234,6 +236,7 @@ export function PostActionButton({
   isReblogged = false,
   onCheckReblogged,
   onReSnap,
+  onCrossPost,
   onShare,
   onTip,
   onReport,
@@ -854,6 +857,7 @@ export function PostActionButton({
             onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
             isReblogged={isReblogged}
             onReSnap={onReSnap ? handleReSnapClick : undefined}
+            onCrossPost={onCrossPost}
             onShare={handleShareClick}
             onTip={onTip ? handleTipClick : undefined}
             onReport={reportHandler ? handleReportClick : undefined}
@@ -948,11 +952,12 @@ export function PostActionButton({
               alongside the inline icons when `actionsAsMenu` is off
               (snap cards already collapse everything into their
               combined kebab via the props on MoreActionsMenu above). */}
-          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin || (onReblog && !isReblogged)) && (
+          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin || onCrossPost || (onReblog && !isReblogged)) && (
             <MoreActionsMenu
               onEdit={onEdit}
               onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
               isReblogged={isReblogged}
+              onCrossPost={onCrossPost}
               onToggleBookmark={onToggleBookmark}
               isBookmarked={isBookmarked}
               onPin={onPin}

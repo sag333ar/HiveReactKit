@@ -167,6 +167,7 @@ export interface UserDetailProfileProps {
   isPostReblogged?: (author: string, permlink: string) => boolean;
   onCheckReblogged?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
+  onCrossPost?: (author: string, permlink: string, post?: Post) => void;
   onReportPost?: (author: string, permlink: string, reason: string) => void | Promise<void>;
   /** Per-row bookmark toggle on every Blogs / Posts / Comments / Replies
    *  card. Consumer decides add vs remove based on `isPostBookmarked`. */
@@ -553,6 +554,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   isPostReblogged,
   onCheckReblogged,
   onTip,
+  onCrossPost,
   onReportPost,
   onToggleBookmark,
   isPostBookmarked,
@@ -2296,6 +2298,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             isReblogged={isPostReblogged ? isPostReblogged(item.author, item.permlink) : false}
             onCheckReblogged={onCheckReblogged}
             onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
+            onCrossPost={onCrossPost ? () => onCrossPost(item.author, item.permlink, item) : undefined}
             onTip={item.author !== currentUsername && onTip ? () => onTip(item.author, item.permlink) : undefined}
             onReport={item.author !== currentUsername && onReportPost ? () => setReportPostTarget({ author: item.author, permlink: item.permlink }) : undefined}
             onToggleBookmark={

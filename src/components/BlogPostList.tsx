@@ -53,6 +53,7 @@ export interface BlogPostListProps {
   onCheckReblogged?: (author: string, permlink: string) => void;
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
+  onCrossPost?: (author: string, permlink: string, post?: Post) => void;
   onCommentClick?: (author: string, permlink: string) => void;
   onReportPost?: (author: string, permlink: string) => void;
   /** Per-row bookmark toggle. Forwarded to each PostActionButton's
@@ -379,6 +380,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onCheckReblogged,
   onTip,
   onSharePost,
+  onCrossPost,
   onCommentClick,
   onReportPost,
   onToggleBookmark,
@@ -672,6 +674,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 isReblogged={isPostReblogged ? isPostReblogged(item.author, item.permlink) : false}
                 onCheckReblogged={onCheckReblogged}
                 onShare={onSharePost ? () => onSharePost(item.author, item.permlink) : undefined}
+                onCrossPost={onCrossPost ? () => onCrossPost(item.author, item.permlink, item) : undefined}
                 onTip={item.author !== currentUser && onTip ? () => onTip(item.author, item.permlink) : undefined}
                 onToggleBookmark={
                   onToggleBookmark ? () => onToggleBookmark(item.author, item.permlink) : undefined
