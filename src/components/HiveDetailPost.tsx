@@ -512,6 +512,8 @@ export function HiveDetailPost({
   }, [backgroundColor]);
 
   const [post, setPost] = useState<Post | null>(null);
+  const [originalPost, setOriginalPost] = useState<Post | null>(null);
+  const [loadingOriginalPost, setLoadingOriginalPost] = useState(false);
 
   // Recommendations state & pagination calculations
   const [recommendedPosts, setRecommendedPosts] = useState<Post[]>([]);
@@ -874,11 +876,79 @@ export function HiveDetailPost({
     return raw as Record<string, any>;
   }, [post?.json_metadata]);
 
+  const isCrossPost = Boolean(parsedMetadata?.original_author && parsedMetadata?.original_permlink);
+
+  // Fetch parent original post when this post is a cross-post
+  useEffect(() => {
+    const origAuthor = parsedMetadata?.original_author;
+    const origPermlink = parsedMetadata?.original_permlink;
+
+    if (!origAuthor || !origPermlink) {
+      setOriginalPost(null);
+      setLoadingOriginalPost(false);
+      return;
+    }
+
+    let active = true;
+    setLoadingOriginalPost(true);
+
+    apiService.getPostContent(origAuthor, origPermlink, currentUser ?? '')
+      .then((content) => {
+        if (!active) return;
+        if (content) {
+          setOriginalPost(content);
+        } else {
+          setOriginalPost(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch original post for cross-post:', err);
+        if (active) setOriginalPost(null);
+      })
+      .finally(() => {
+        if (active) setLoadingOriginalPost(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [parsedMetadata?.original_author, parsedMetadata?.original_permlink, currentUser]);
+
+  const displayPost = originalPost || post;
+
+  const displayParsedMetadata = useMemo(() => {
+    const raw = displayPost?.json_metadata as unknown;
+    if (!raw) return {} as Record<string, any>;
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw) as Record<string, any>; } catch { return {} as Record<string, any>; }
+    }
+    return raw as Record<string, any>;
+  }, [displayPost?.json_metadata]);
+
+  const crossPostUserNote = useMemo(() => {
+    if (!isCrossPost || !post?.body) return '';
+    const bodyStr = post.body;
+    const splitIndex = bodyStr.search(/<br\s*\/?>\s*<br\s*\/?>/i);
+    if (splitIndex !== -1) {
+      const afterBr = bodyStr.substring(splitIndex).replace(/^(?:<br\s*\/?>\s*)+/i, '');
+      return afterBr.replace(/<[^>]*>/g, '').trim();
+    }
+    const singleBrIndex = bodyStr.search(/<br\s*\/?>/i);
+    if (singleBrIndex !== -1 && !bodyStr.toLowerCase().startsWith('this is a cross post of')) {
+      const afterBr = bodyStr.substring(singleBrIndex).replace(/^<br\s*\/?>/i, '');
+      return afterBr.replace(/<[^>]*>/g, '').trim();
+    }
+    if (!bodyStr.toLowerCase().startsWith('this is a cross post of')) {
+      return bodyStr.replace(/<[^>]*>/g, '').trim();
+    }
+    return '';
+  }, [isCrossPost, post?.body]);
+
   // Tags to seed the comment composer's locked defaults. Inherited from the parent post.
   const parentTags = useMemo<string[]>(() => {
-    const t = parsedMetadata?.tags;
+    const t = displayParsedMetadata?.tags;
     return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
-  }, [parsedMetadata]);
+  }, [displayParsedMetadata]);
 
   /**
    * 3Speak video reference. Sources, in order of preference:
@@ -897,23 +967,18 @@ export function HiveDetailPost({
   const threeSpeakRef = useMemo<{ author: string; permlink: string } | null>(() => {
     const extract = (url: unknown): { author: string; permlink: string } | null => {
       if (typeof url !== 'string') return null;
-      // Match `v=author/permlink` whether it's the first query param
-      // (`?v=…`) or one of several (`?foo=bar&v=…`). The previous form
-      // `\?[^"\s'<>]*[?&]v=` required a preceding `?` or `&`, which
-      // missed the very common single-param shape Ecency/peakd posts
-      // use (`/embed?v=author/permlink`).
       const m = url.match(/3speak\.tv\/(?:embed|watch)\?(?:[^"\s'<>]*[?&])?v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
       if (!m) return null;
       return { author: m[1], permlink: m[2] };
     };
     // Path 1: declared `video` block.
-    const video = parsedMetadata?.video as { platform?: unknown; url?: unknown } | undefined;
+    const video = displayParsedMetadata?.video as { platform?: unknown; url?: unknown } | undefined;
     if (video && video.platform === '3speak') {
       const fromVideo = extract(video.url);
       if (fromVideo) return fromVideo;
     }
     // Path 2: scan `links[]` for a 3Speak embed URL.
-    const links = parsedMetadata?.links;
+    const links = displayParsedMetadata?.links;
     if (Array.isArray(links)) {
       for (const link of links) {
         const fromLink = extract(link);
@@ -921,19 +986,19 @@ export function HiveDetailPost({
       }
     }
     return null;
-  }, [parsedMetadata]);
+  }, [displayParsedMetadata]);
 
   // Let the consumer transform the body (e.g. strip app footers) before the
   // markdown renderer runs. Depends on parentTags so transforms can inspect them.
   const processedBody = useMemo(() => {
-    if (!post?.body) return '';
-    if (!processBody) return post.body;
+    if (!displayPost?.body) return '';
+    if (!processBody) return displayPost.body;
     try {
-      return processBody(post.body, parentTags);
+      return processBody(displayPost.body, parentTags);
     } catch {
-      return post.body;
+      return displayPost.body;
     }
-  }, [post?.body, processBody, parentTags]);
+  }, [displayPost?.body, processBody, parentTags]);
 
   const reSnapTarget = useMemo(
     () => detectHivePostReference(processedBody),
@@ -2527,32 +2592,40 @@ export function HiveDetailPost({
               {/* Left Column (Col 8): Main post content & Comments */}
               <div className="lg:col-span-8 min-w-0">
 
-            {/* Cross Post Banner — shown when this post is a cross-post */}
-            {parsedMetadata?.original_author && parsedMetadata?.original_permlink && (
-              <div className="mb-4 rounded-xl border border-blue-500/40 bg-gradient-to-r from-blue-950/70 via-indigo-950/50 to-gray-900 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 mt-0.5 shrink-0">
-                    <Share2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Cross Post</span>
-                      <span className="text-xs text-gray-400">by</span>
-                      <span className="text-xs font-semibold text-white">@{post.author}</span>
-                    </div>
-                    <p className="text-xs text-gray-300 mt-0.5 font-medium">
-                      Currently interacting with the Cross Post of <span className="text-blue-400 font-semibold">@{parsedMetadata.original_author}/{parsedMetadata.original_permlink}</span>
-                    </p>
-                  </div>
+            {/* PeakD-style Cross Post Header Box — shown when this post is a cross-post */}
+            {parsedMetadata?.original_author && parsedMetadata?.original_permlink && post && (
+              <div className="mb-6 rounded-2xl border border-red-500/40 bg-[#161a1e] p-4 sm:p-5 text-center shadow-xl space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-sm font-semibold text-red-400">
+                    Cross post by
+                  </span>
+                  <HiveLink
+                    href={getUserUrl?.(post.author)}
+                    onActivate={() => onUserClick?.(post.author)}
+                    className="text-sm font-bold text-white hover:text-red-400 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <img
+                      src={`https://images.hive.blog/u/${post.author}/avatar`}
+                      alt={post.author}
+                      className="w-5 h-5 rounded-full inline-block object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
+                      }}
+                    />
+                    <span>{post.author}</span>
+                  </HiveLink>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onNavigateToPost?.(parsedMetadata.original_author, parsedMetadata.original_permlink)}
-                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shrink-0 self-start sm:self-auto flex items-center gap-1.5"
-                >
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                  <span>SWITCH TO ORIGINAL POST</span>
-                </button>
+                <div className="text-xs text-gray-300 font-medium tracking-wide">
+                  C / {post.parent_permlink || post.category || 'community'}
+                </div>
+                {crossPostUserNote && (
+                  <div className="text-sm font-bold text-white py-1">
+                    {crossPostUserNote}
+                  </div>
+                )}
+                <div className="text-xs text-gray-400 pt-0.5">
+                  {formatDate(post.created)} · {post.children || 0} {post.children === 1 ? 'Comment' : 'Comments'}
+                </div>
               </div>
             )}
 
@@ -2960,6 +3033,35 @@ export function HiveDetailPost({
                 allowLandscapeVideos={allowLandscapeVideos}
               />
             </div>
+
+            {/* Footer Cross Post Banner — switched to footer when viewing a cross-post */}
+            {parsedMetadata?.original_author && parsedMetadata?.original_permlink && (
+              <div className="mt-4 mb-6 rounded-xl border border-blue-500/40 bg-gradient-to-r from-blue-950/70 via-indigo-950/50 to-gray-900 p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 mt-0.5 shrink-0">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">Cross Post</span>
+                      <span className="text-xs text-gray-400">by</span>
+                      <span className="text-xs font-semibold text-white">@{post.author}</span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-0.5 font-medium">
+                      Currently interacting with the Cross Post of <span className="text-blue-400 font-semibold">@{parsedMetadata.original_author}/{parsedMetadata.original_permlink}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigateToPost?.(parsedMetadata.original_author, parsedMetadata.original_permlink)}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shrink-0 self-start sm:self-auto flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <span>SWITCH TO ORIGINAL POST</span>
+                </button>
+              </div>
+            )}
 
             {/* Inline comments section — wrapped so highlighting any
                 comment body triggers the same translate popover the
