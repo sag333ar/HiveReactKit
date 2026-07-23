@@ -102,16 +102,71 @@ export async function uploadToEcencyImages(
   return data.url
 }
 
+/**
+ * POST a file to ThreeSpeak's image upload endpoint (encoder.hivesuite.app).
+ * Requires user JWT authorization.
+ */
+export async function uploadToThreeSpeakImages(
+  token: string,
+  file: Blob,
+  filename?: string,
+  options?: { signal?: AbortSignal; encoderUrl?: string },
+): Promise<string> {
+  if (!token) throw new Error('JWT token is required for ThreeSpeak image upload')
+  const baseUrl = (options?.encoderUrl || 'https://encoder.hivesuite.app').replace(/\/$/, '')
+  const formData = new FormData()
+  if (filename) formData.append('file', file, filename)
+  else formData.append('file', file)
+
+  const response = await fetch(`${baseUrl}/upload/image`, {
+    method: 'POST',
+    headers: {
+      Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+    },
+    body: formData,
+    signal: options?.signal,
+  })
+
+  if (!response.ok) {
+    let errMsg = `ThreeSpeak image upload failed: ${response.statusText}`
+    try {
+      const errData = (await response.json()) as { error?: string; message?: string }
+      if (errData?.error) errMsg = errData.error
+      else if (errData?.message) errMsg = errData.message
+    } catch {
+      /* ignore JSON parse error */
+    }
+    throw new Error(errMsg)
+  }
+
+  const data = (await response.json()) as { url?: string; link?: string; image?: string }
+  let url = data.url || data.link || data.image
+  if (!url) throw new Error('No URL returned from ThreeSpeak image upload')
+
+  if (url.startsWith('ipfs://')) {
+    const cid = url.replace(/^ipfs:\/\//, '')
+    url = `https://ipfs.3speak.tv/ipfs/${cid}`
+  } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://ipfs.3speak.tv/ipfs/${url}`
+  }
+
+  return url
+}
+
 export interface UploadImageWithFallbackOptions {
-  /** Ecency token — when present, the fast no-signing path is tried first. */
+  /** ThreeSpeak user JWT token — tried first (default). */
+  threeSpeakToken?: string
+  /** Encoder base URL (defaults to https://encoder.hivesuite.app). */
+  encoderUrl?: string
+  /** Ecency token — tried as final fallback. */
   ecencyToken?: string
-  /** Signer for the signed `images.hive.blog` fallback. */
+  /** Signer for the signed `images.hive.blog` fallback (tried second). */
   onSignMessage?: PostingSignMessageFn
   /** Hive username used for the signed `images.hive.blog` fallback. */
   signingUsername?: string
-  /** Filename to send with the multipart body on the hive.blog fallback. */
+  /** Filename to send with the multipart body. */
   filename?: string
-  /** Abort signal applied to both upload requests. */
+  /** Abort signal applied to upload requests. */
   signal?: AbortSignal
   /** Mirrors `UploadToHiveImagesOptions` — fires while the wallet sign
    *  step is in flight on the fallback path so the caller can flash the
@@ -121,14 +176,11 @@ export interface UploadImageWithFallbackOptions {
 }
 
 /**
- * Shared "try Ecency first, then images.hive.blog as a signed fallback"
- * helper. Used by `ImageUploader` and `MemePicker` so the same code path
- * handles every meme + image upload across the composer.
- *
- *   • If `ecencyToken` is set → POST to images.ecency.com (no signing).
- *   • If that fails (or no token), and a signer + username are
- *     available → sign + POST to images.hive.blog.
- *   • If neither path works → throw.
+ * Shared image upload helper with fallback support:
+ *   1. Try ThreeSpeak (encoder.hivesuite.app) first (default).
+ *   2. If that fails (or no token), try Hive image proxy (images.hive.blog).
+ *   3. If that fails (or no signer), try Ecency uploader (images.ecency.com).
+ *   4. If all fail -> throw.
  *
  * Returns the public URL of the uploaded image.
  */
@@ -136,23 +188,45 @@ export async function uploadImageWithFallback(
   file: Blob,
   options: UploadImageWithFallbackOptions,
 ): Promise<string> {
-  const { ecencyToken, onSignMessage, signingUsername, filename, signal } = options
+  const { threeSpeakToken, encoderUrl, ecencyToken, onSignMessage, signingUsername, filename, signal } = options
+  const canThreeSpeak = Boolean(threeSpeakToken)
   const canHiveFallback = Boolean(onSignMessage && signingUsername)
-  if (!ecencyToken && !canHiveFallback) {
+  const canEcencyFallback = Boolean(ecencyToken)
+
+  if (!canThreeSpeak && !canHiveFallback && !canEcencyFallback) {
     throw new Error('No upload method configured')
   }
-  if (ecencyToken) {
+
+  // 1. ThreeSpeak (default)
+  if (canThreeSpeak) {
     try {
-      return await uploadToEcencyImages(ecencyToken, file, signal)
-    } catch (ecencyErr) {
-      if (signal?.aborted) throw ecencyErr
-      if (!canHiveFallback) throw ecencyErr
-      // Fall through to the signed fallback below.
+      return await uploadToThreeSpeakImages(threeSpeakToken!, file, filename, { signal, encoderUrl })
+    } catch (threeSpeakErr) {
+      if (signal?.aborted) throw threeSpeakErr
+      if (!canHiveFallback && !canEcencyFallback) throw threeSpeakErr
+      console.warn('[uploadImageWithFallback] ThreeSpeak upload failed, falling back to Hive image proxy:', threeSpeakErr)
     }
   }
-  return uploadToHiveImages(onSignMessage!, signingUsername!, file, filename, {
-    onSignStart: options.onSignStart,
-    onSignEnd: options.onSignEnd,
-    signal,
-  })
+
+  // 2. Hive's image proxy (fallback 1)
+  if (canHiveFallback) {
+    try {
+      return await uploadToHiveImages(onSignMessage!, signingUsername!, file, filename, {
+        onSignStart: options.onSignStart,
+        onSignEnd: options.onSignEnd,
+        signal,
+      })
+    } catch (hiveErr) {
+      if (signal?.aborted) throw hiveErr
+      if (!canEcencyFallback) throw hiveErr
+      console.warn('[uploadImageWithFallback] Hive image proxy upload failed, falling back to Ecency uploader:', hiveErr)
+    }
+  }
+
+  // 3. Ecency uploader (fallback 2)
+  if (canEcencyFallback) {
+    return await uploadToEcencyImages(ecencyToken!, file, signal)
+  }
+
+  throw new Error('All image upload methods failed')
 }

@@ -11,6 +11,8 @@ interface CommentsListProps {
   permlink: string;
   currentUser?: string;
   token?: string;
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
@@ -21,6 +23,8 @@ export function CommentsList({
   permlink,
   currentUser,
   token,
+  threeSpeakToken,
+  encoderUrl,
   onClickUpvoteButton,
   onClickCommentUpvote,
   onClickCommentReply,
@@ -162,6 +166,8 @@ export function CommentsList({
             onSubmit={(body) => handleCommentSubmitted(author, permlink, body)}
             onCancel={() => setShowAddComment(false)}
             currentUser={currentUser}
+            threeSpeakToken={threeSpeakToken}
+            encoderUrl={encoderUrl}
             placeholder="Add a comment..."
           />
         </div>
@@ -174,6 +180,8 @@ export function CommentsList({
             onSubmit={(body) => handleCommentSubmitted(replyingTo.author, replyingTo.permlink, body)}
             onCancel={() => setReplyingTo(null)}
             currentUser={currentUser}
+            threeSpeakToken={threeSpeakToken}
+            encoderUrl={encoderUrl}
             placeholder={`Reply to @${replyingTo.author}...`}
           />
         </div>

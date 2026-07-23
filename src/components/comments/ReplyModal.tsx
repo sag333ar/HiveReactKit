@@ -8,6 +8,8 @@ interface ReplyModalProps {
   onClose: () => void;
   onCommentSubmitted: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
   currentUser?: string;
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -21,6 +23,8 @@ const ReplyModal = ({
   onClose,
   onCommentSubmitted,
   currentUser,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -89,6 +93,8 @@ const ReplyModal = ({
             parentAuthor={parentAuthor}
             parentPermlink={parentPermlink}
             placeholder={`Reply to @${parentAuthor}...`}
+            threeSpeakToken={threeSpeakToken}
+            encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}

@@ -353,6 +353,15 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
         hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
         convertHiveUrls: true,
+        imageProxyFn: (url: string) => {
+          if (!url) return url;
+          const trimmed = url.trim();
+          if (trimmed.includes('/ipfs/') || trimmed.startsWith('ipfs://')) {
+            const cid = trimmed.split('/ipfs/').pop()?.replace(/^ipfs:\/\//, '');
+            if (cid) return `https://ipfs.3speak.tv/ipfs/${cid}`;
+          }
+          return url;
+        },
       });
     } catch {
       return null;

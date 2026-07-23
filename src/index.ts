@@ -174,6 +174,8 @@ export {
   THREESPEAK_FUND_ACCOUNT,
   THREESPEAK_FUND_PERCENT,
   bodyHasVideo,
+  get3SpeakIpfsImageCount,
+  getThreeSpeakFundPercent,
   normalizeBeneficiaryAccount,
   sanitizeBeneficiaries,
   totalBeneficiaryWeight,

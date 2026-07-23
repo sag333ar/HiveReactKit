@@ -7,6 +7,8 @@ import {
   THREESPEAK_FUND_ACCOUNT,
   THREESPEAK_FUND_PERCENT,
   bodyHasVideo,
+  get3SpeakIpfsImageCount,
+  getThreeSpeakFundPercent,
   enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
@@ -30,7 +32,7 @@ import PollCreator from '../composer/PollCreator';
 import BeneficiariesEditor from '../composer/BeneficiariesEditor';
 import type { PollData } from '../composer/PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
-import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
+import { uploadImageWithFallback, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 import { createHiveRenderer } from '@snapie/renderer';
 import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from './MentionSuggest';
 
@@ -43,6 +45,10 @@ export interface PostComposerProps {
   parentPermlink?: string;
   isInlineComment?: boolean;
 
+  /** ThreeSpeak user JWT token for primary image upload API */
+  threeSpeakToken?: string;
+  /** Encoder base URL (defaults to https://encoder.hivesuite.app) */
+  encoderUrl?: string;
   /** Ecency image hosting token — enables image/video thumbnail upload and paste/drag upload */
   ecencyToken?: string;
   /** Optional signer used when Ecency image uploads fail. Signs a posting-key message for images.hive.blog. */
@@ -233,6 +239,8 @@ const PostComposer = ({
   parentAuthor,
   parentPermlink,
   isInlineComment = false,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -445,16 +453,24 @@ const PostComposer = ({
     () => Boolean(videoEmbedUrl) || bodyHasVideo(body),
     [videoEmbedUrl, body],
   );
+  const threeSpeakIpfsImageCount = useMemo(
+    () => get3SpeakIpfsImageCount(body),
+    [body],
+  );
+  const threeSpeakFundPercent = useMemo(
+    () => getThreeSpeakFundPercent(hasVideo, threeSpeakIpfsImageCount),
+    [hasVideo, threeSpeakIpfsImageCount],
+  );
   const decentMemesKind: 'post' | 'comment' = 'comment';
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
     const list: Beneficiary[] = [];
-    if (hasVideo) {
-      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
+    if (threeSpeakFundPercent > 0) {
+      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
     list.push({ account: 'hivesuite.app', weight: 1 });
     return list;
-  }, [hasVideo, decentMemes, decentMemesKind]);
+  }, [threeSpeakFundPercent, decentMemes, decentMemesKind]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
@@ -463,6 +479,8 @@ const PostComposer = ({
     const reasons: Record<string, string> = {};
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
+    } else if (threeSpeakIpfsImageCount > 0) {
+      reasons[THREESPEAK_FUND_ACCOUNT] = `${threeSpeakFundPercent}% to threespeakfund is required for 3Speak IPFS images (${threeSpeakIpfsImageCount} image${threeSpeakIpfsImageCount > 1 ? 's' : ''})`;
     }
     reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
@@ -605,6 +623,15 @@ const PostComposer = ({
         usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
         hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
         convertHiveUrls: true,
+        imageProxyFn: (url: string) => {
+          if (!url) return url;
+          const trimmed = url.trim();
+          if (trimmed.includes('/ipfs/') || trimmed.startsWith('ipfs://')) {
+            const cid = trimmed.split('/ipfs/').pop()?.replace(/^ipfs:\/\//, '');
+            if (cid) return `https://ipfs.3speak.tv/ipfs/${cid}`;
+          }
+          return url;
+        },
       });
     } catch (_e) {
       return null;
@@ -696,9 +723,9 @@ const PostComposer = ({
   }, []);
 
   const canHiveFallback = Boolean(onSignMessage && signingUsername);
-  const canUploadImages = Boolean(ecencyToken) || canHiveFallback;
+  const canUploadImages = Boolean(threeSpeakToken) || Boolean(ecencyToken) || canHiveFallback;
 
-  // Try Ecency first, then signed images.hive.blog fallback if configured.
+  // Try ThreeSpeak first, then signed images.hive.blog fallback, then Ecency if configured.
   const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     if (!file.type.startsWith('image/')) return null;
     if (file.size > 10 * 1024 * 1024) {
@@ -710,46 +737,25 @@ const PostComposer = ({
     pasteAbortRef.current = controller;
     const signal = controller.signal;
 
-    const tryEcency = async (): Promise<string> => {
-      if (!ecencyToken) throw new Error('Ecency token not provided');
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await fetch(`https://images.ecency.com/hs/${ecencyToken}`, {
-        method: 'POST',
-        body: formData,
-        signal,
-      });
-      if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
-      const data = await response.json();
-      if (!data.url) throw new Error('No URL from ecency');
-      return data.url as string;
-    };
-
     try {
-      try {
-        return await tryEcency();
-      } catch (ecencyErr) {
-        if (signal.aborted) return null;
-        if (!canHiveFallback) {
-          console.error('Image upload failed:', ecencyErr);
-          return null;
-        }
-        try {
-          return await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
-            onSignStart: () => { if (!signal.aborted) setIsAwaitingApproval(true); },
-            onSignEnd: () => setIsAwaitingApproval(false),
-            signal,
-          });
-        } catch (hiveErr) {
-          if (signal.aborted) return null;
-          console.error('Image upload failed (hive fallback):', hiveErr);
-          return null;
-        }
-      }
+      return await uploadImageWithFallback(file, {
+        threeSpeakToken,
+        encoderUrl,
+        ecencyToken,
+        onSignMessage,
+        signingUsername,
+        signal,
+        onSignStart: () => { if (!signal.aborted) setIsAwaitingApproval(true); },
+        onSignEnd: () => setIsAwaitingApproval(false),
+      });
+    } catch (err) {
+      if (signal.aborted) return null;
+      console.error('Image upload failed:', err);
+      return null;
     } finally {
       if (pasteAbortRef.current === controller) pasteAbortRef.current = null;
     }
-  }, [ecencyToken, canHiveFallback, onSignMessage, signingUsername]);
+  }, [threeSpeakToken, encoderUrl, ecencyToken, canHiveFallback, onSignMessage, signingUsername]);
 
   const cancelPasteUpload = useCallback(() => {
     if (pasteAbortRef.current) {
@@ -1122,6 +1128,8 @@ const PostComposer = ({
         {!hideImage && canUploadImages && (
           <ImageUploader
             onImageUploaded={(url) => insertText(`![Image](${url})`)}
+            threeSpeakToken={threeSpeakToken}
+            encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}
             onSignMessage={onSignMessage}
             signingUsername={signingUsername}
@@ -1176,9 +1184,9 @@ const PostComposer = ({
           </button>
         )}
         {/* Meme maker — visible when the composer has any image-upload
-            path configured (ecency token or hive-signer). Sits beside
+            path configured (threeSpeakToken, ecency token or hive-signer). Sits beside
             the GIF button so users discover both. */}
-        {!hideMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+        {!hideMeme && (threeSpeakToken || ecencyToken || (onSignMessage && signingUsername)) && (
           <button
             type="button"
             onClick={() => setIsMemeOpen(true)}
@@ -1195,7 +1203,7 @@ const PostComposer = ({
             disabled (not hidden) once the user hits the per-broadcast
             attachment limit — 3 for posts, 2 for comments — so the cap
             is discoverable rather than mysterious. */}
-        {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (() => {
+        {!hideDecentMeme && (threeSpeakToken || ecencyToken || (onSignMessage && signingUsername)) && (() => {
           const decentMemesLimit = getDecentMemesLimit(decentMemesKind);
           const limitReached = decentMemes.length >= decentMemesLimit;
           return (
@@ -1637,6 +1645,8 @@ const PostComposer = ({
         isOpen={isMemeOpen}
         onClose={() => setIsMemeOpen(false)}
         onSelectMeme={(url) => { insertText(`![Meme](${url})`); setIsMemeOpen(false); }}
+        threeSpeakToken={threeSpeakToken}
+        encoderUrl={encoderUrl}
         ecencyToken={ecencyToken}
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}
@@ -1650,6 +1660,8 @@ const PostComposer = ({
           if (meta) setDecentMemes((prev) => [...prev, meta]);
           setIsDecentMemeOpen(false);
         }}
+        threeSpeakToken={threeSpeakToken}
+        encoderUrl={encoderUrl}
         ecencyToken={ecencyToken}
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}

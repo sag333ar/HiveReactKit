@@ -41,13 +41,17 @@ import {
 export interface DecentMemesPickerProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Called with the public URL of the uploaded meme. When the upload was
-   *  triggered by a `memeCreated` postMessage, `meta` carries the template
+  /** Called with the public URL of the uploaded meme. When the user picked a
+   *  template from the catalogue (the primary flow), `meta` carries the template
    *  id + per-meme beneficiaries from the widget — pass this back up to the
    *  composer so the host can build `comment_options` and stamp
    *  `json_metadata.decentmemes`. `meta` is `undefined` for the
    *  file-picker fallback path. */
   onSelectMeme: (url: string, meta?: DecentMemesMeme) => void;
+  /** ThreeSpeak user JWT token for primary image upload API */
+  threeSpeakToken?: string;
+  /** Encoder base URL */
+  encoderUrl?: string;
   /** Ecency token for the no-signing upload path. */
   ecencyToken?: string;
   /** Signer for the `images.hive.blog` fallback. */
@@ -70,6 +74,8 @@ function DecentMemesPicker({
   isOpen,
   onClose,
   onSelectMeme,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -106,6 +112,8 @@ function DecentMemesPicker({
     setError(null);
     try {
       const url = await uploadImageWithFallback(file, {
+        threeSpeakToken,
+        encoderUrl,
         ecencyToken,
         onSignMessage,
         signingUsername,

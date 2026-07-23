@@ -30,6 +30,21 @@ export function bodyHasVideo(body: string): boolean {
   return /https?:\/\/play\.3speak\.tv\/(?:watch|embed)\?v=/.test(body || '');
 }
 
+/** Detect 3Speak IPFS image URLs in body text. Returns count of unique 3Speak IPFS images. */
+export function get3SpeakIpfsImageCount(body: string): number {
+  const matches = (body || '').match(/https?:\/\/(?:ipfs\.)?3speak\.tv\/ipfs\/[a-zA-Z0-9]+/gi) || [];
+  return new Set(matches.map((m) => m.toLowerCase())).size;
+}
+
+/** Calculate required threespeakfund percentage based on video and 3Speak IPFS image count. */
+export function getThreeSpeakFundPercent(hasVideo: boolean, ipfsImageCount: number): number {
+  if (hasVideo) return 10;
+  if (ipfsImageCount > 20) return 3;
+  if (ipfsImageCount > 10) return 2;
+  if (ipfsImageCount >= 1) return 1;
+  return 0;
+}
+
 /** Normalize an account name — lowercase, strip leading `@`, trim whitespace. */
 export function normalizeBeneficiaryAccount(account: string): string {
   return String(account || '').trim().toLowerCase().replace(/^@+/, '');

@@ -22,28 +22,55 @@ export type IpfsKind = "image" | "video" | "unknown";
 const kindCache = new Map<string, IpfsKind>();
 const inFlight = new Map<string, Promise<IpfsKind>>();
 
+function probeAsImage(url: string): Promise<IpfsKind> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      kindCache.set(url, 'unknown');
+      return resolve('unknown');
+    }
+    const img = new Image();
+    img.onload = () => {
+      kindCache.set(url, 'image');
+      resolve('image');
+    };
+    img.onerror = () => {
+      const kind: IpfsKind = 'unknown';
+      kindCache.set(url, kind);
+      resolve(kind);
+    };
+    img.src = url;
+  });
+}
+
 export function getIpfsKind(url: string): Promise<IpfsKind> {
   const cached = kindCache.get(url);
   if (cached) return Promise.resolve(cached);
   const pending = inFlight.get(url);
   if (pending) return pending;
 
+  if (/\.(jpe?g|png|gif|webp|svg|heic|heif|avif)(?:\?.*)?$/i.test(url)) {
+    kindCache.set(url, 'image');
+    return Promise.resolve('image');
+  }
+  if (/\.(mp4|webm|ogv|mov|m4v)(?:\?.*)?$/i.test(url)) {
+    kindCache.set(url, 'video');
+    return Promise.resolve('video');
+  }
+
   const probe = fetch(url, { method: "HEAD" })
     .then((res) => {
       const ct = (res.headers.get("content-type") ?? "").toLowerCase();
-      const kind: IpfsKind = ct.startsWith("image/")
-        ? "image"
-        : ct.startsWith("video/")
-          ? "video"
-          : "unknown";
-      kindCache.set(url, kind);
-      return kind;
+      if (ct.startsWith("image/")) {
+        kindCache.set(url, "image");
+        return "image" as IpfsKind;
+      }
+      if (ct.startsWith("video/")) {
+        kindCache.set(url, "video");
+        return "video" as IpfsKind;
+      }
+      return probeAsImage(url);
     })
-    .catch(() => {
-      const kind: IpfsKind = "unknown";
-      kindCache.set(url, kind);
-      return kind;
-    })
+    .catch(() => probeAsImage(url))
     .finally(() => {
       inFlight.delete(url);
     });

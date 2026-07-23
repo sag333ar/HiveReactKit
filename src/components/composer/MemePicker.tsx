@@ -21,7 +21,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Search, ImageIcon, Upload, Loader2, ArrowLeft, Wand2 } from 'lucide-react';
-import { uploadToHiveImages, type PostingSignMessageFn } from '../../services/hiveImageUpload';
+import { uploadImageWithFallback, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 
 // Memegen returns dozens of fields per template; we only use a handful.
 interface MemegenTemplate {
@@ -42,6 +42,10 @@ export interface MemePickerProps {
   onClose: () => void;
   /** Called with the public URL of the generated, uploaded meme. */
   onSelectMeme: (url: string) => void;
+  /** ThreeSpeak user JWT token for primary image upload API */
+  threeSpeakToken?: string;
+  /** Encoder base URL */
+  encoderUrl?: string;
   /** Ecency token for the no-signing upload path. */
   ecencyToken?: string;
   /** Signer for the `images.hive.blog` fallback. */
@@ -65,6 +69,8 @@ function MemePicker({
   isOpen,
   onClose,
   onSelectMeme,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -253,29 +259,21 @@ function MemePicker({
       if (!blob) throw new Error('Failed to render the meme image.');
       const file = new File([blob], `meme-${Date.now()}.png`, { type: 'image/png' });
 
-      const canHive = Boolean(onSignMessage && signingUsername);
-      if (!ecencyToken && !canHive) {
-        throw new Error(
-          'No image-upload path configured. Add `ecencyToken` or `onSignMessage` + `signingUsername`.',
-        );
-      }
-
-      let url: string;
-      try {
-        url = await uploadToEcency(file);
-      } catch (ecencyErr) {
-        if (!canHive) throw ecencyErr;
-        url = await uploadToHiveImages(onSignMessage!, signingUsername!, file, undefined, {
-          onSignStart: () => {
-            setIsAwaitingApproval(true);
-            onSigningStateChange?.(true);
-          },
-          onSignEnd: () => {
-            setIsAwaitingApproval(false);
-            onSigningStateChange?.(false);
-          },
-        });
-      }
+      const url = await uploadImageWithFallback(file, {
+        threeSpeakToken,
+        encoderUrl,
+        ecencyToken,
+        onSignMessage,
+        signingUsername,
+        onSignStart: () => {
+          setIsAwaitingApproval(true);
+          onSigningStateChange?.(true);
+        },
+        onSignEnd: () => {
+          setIsAwaitingApproval(false);
+          onSigningStateChange?.(false);
+        },
+      });
       onSelectMeme(url);
       onClose();
     } catch (err) {

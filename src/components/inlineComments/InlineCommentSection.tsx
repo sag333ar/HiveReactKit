@@ -46,6 +46,8 @@ interface InlineCommentSectionProps {
     postBaseUrl?: string;
     ipfsGateway?: string;
   };
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -113,6 +115,8 @@ export default function InlineCommentSection({
   token,
   onSubmitComment,
   onClickCommentUpvote,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -355,6 +359,8 @@ export default function InlineCommentSection({
             parentAuthor={author}
             parentPermlink={permlink}
             placeholder={`Write a comment to @${author}...`}
+            threeSpeakToken={threeSpeakToken}
+            encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
             giphyApiKey={giphyApiKey}
@@ -430,6 +436,8 @@ export default function InlineCommentSection({
               depth={0}
               onVotedRefresh={() => fetchComments(true)}
               onClickCommentUpvote={onClickCommentUpvote}
+              threeSpeakToken={threeSpeakToken}
+              encoderUrl={encoderUrl}
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
               giphyApiKey={giphyApiKey}

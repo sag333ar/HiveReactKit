@@ -60,6 +60,8 @@ import {
   THREESPEAK_FUND_ACCOUNT,
   THREESPEAK_FUND_PERCENT,
   bodyHasVideo,
+  get3SpeakIpfsImageCount,
+  getThreeSpeakFundPercent,
   enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
@@ -87,7 +89,7 @@ import BeneficiariesEditor from './BeneficiariesEditor';
 import type { PollData } from './PollCreator';
 import { TemplateModel, templateService } from '../../services/templateService';
 import {
-  uploadToHiveImages,
+  uploadImageWithFallback,
   type PostingSignMessageFn,
 } from '../../services/hiveImageUpload';
 
@@ -168,6 +170,8 @@ export interface ParentPostComposerProps {
   beneficiaryFavorites?: Beneficiary[];
 
   /** Upload tokens — same plumbing the kit's PostComposer uses. */
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   ecencyToken?: string;
   onSignMessage?: PostingSignMessageFn;
   signingUsername?: string;
@@ -463,6 +467,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   defaultBeneficiaries,
   lockedBeneficiaries: propLockedBeneficiaries,
   beneficiaryFavorites,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -713,14 +719,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     () => Boolean(videoEmbedUrl) || Boolean(videoUploadDetails) || bodyHasVideo(body),
     [videoEmbedUrl, videoUploadDetails, body],
   );
-  // Video storage has a real cost that threespeakfund's beneficiary cut
-  // funds — declining payout entirely would zero that cut out, so video
-  // content can never decline. If the user picked Decline and then
-  // attached a video, silently fall back to Burn (still funds
-  // threespeakfund/hivesuite.app, just routes the rest to `null`).
+  const threeSpeakIpfsImageCount = useMemo(
+    () => get3SpeakIpfsImageCount(body),
+    [body],
+  );
+  const threeSpeakFundPercent = useMemo(
+    () => getThreeSpeakFundPercent(hasVideo, threeSpeakIpfsImageCount),
+    [hasVideo, threeSpeakIpfsImageCount],
+  );
   useEffect(() => {
-    if (hasVideo && reward === 'decline') setReward('burn');
-  }, [hasVideo, reward]);
+    if ((hasVideo || threeSpeakIpfsImageCount > 0) && reward === 'decline') setReward('burn');
+  }, [hasVideo, threeSpeakIpfsImageCount, reward]);
   // ParentPostComposer is always a top-level post, so DecentMemes kind is
   // fixed to 'post' (10% cap). PickDecentMemesKind would return the same
   // for an undefined parent, but spelling it out keeps intent obvious.
@@ -728,8 +737,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
     console.log('ParentPostComposer: recalculating lockedBeneficiaries. propLockedBeneficiaries:', propLockedBeneficiaries);
     const list: Beneficiary[] = [];
-    if (hasVideo) {
-      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: THREESPEAK_FUND_PERCENT });
+    if (threeSpeakFundPercent > 0) {
+      list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
     list.push({ account: 'hivesuite.app', weight: 1 });
@@ -742,7 +751,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     }
     console.log('ParentPostComposer: calculated lockedBeneficiaries:', list);
     return list;
-  }, [hasVideo, decentMemes, propLockedBeneficiaries]);
+  }, [threeSpeakFundPercent, decentMemes, propLockedBeneficiaries]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
@@ -751,6 +760,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     const reasons: Record<string, string> = {};
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
+    } else if (threeSpeakIpfsImageCount > 0) {
+      reasons[THREESPEAK_FUND_ACCOUNT] = `${threeSpeakFundPercent}% to threespeakfund is required for 3Speak IPFS images (${threeSpeakIpfsImageCount} image${threeSpeakIpfsImageCount > 1 ? 's' : ''})`;
     }
     reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
@@ -833,7 +844,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
   // ── Image upload (same Ecency-then-Hive-fallback pattern as PostComposer) ─
   const canHiveFallback = Boolean(onSignMessage && signingUsername);
-  const canUploadImages = Boolean(ecencyToken) || canHiveFallback;
+  const canUploadImages = Boolean(threeSpeakToken) || Boolean(ecencyToken) || canHiveFallback;
   const pasteAbortRef = useRef<AbortController | null>(null);
   const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
   const [uploadingPaste, setUploadingPaste] = useState(false);
@@ -851,55 +862,28 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       pasteAbortRef.current = controller;
       const signal = controller.signal;
 
-      const tryEcency = async (): Promise<string> => {
-        if (!ecencyToken) throw new Error('Ecency token not provided');
-        const formData = new FormData();
-        formData.append('file', file);
-        const response = await fetch(`https://images.ecency.com/hs/${ecencyToken}`, {
-          method: 'POST',
-          body: formData,
-          signal,
-        });
-        if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
-        const data = await response.json();
-        if (!data.url) throw new Error('No URL from ecency');
-        return data.url as string;
-      };
-
       try {
-        try {
-          return await tryEcency();
-        } catch (ecencyErr) {
-          if (signal.aborted) return null;
-          if (!canHiveFallback) {
-            console.error('Image upload failed:', ecencyErr);
-            return null;
-          }
-          try {
-            return await uploadToHiveImages(
-              onSignMessage!,
-              signingUsername!,
-              file,
-              undefined,
-              {
-                onSignStart: () => {
-                  if (!signal.aborted) setIsAwaitingApproval(true);
-                },
-                onSignEnd: () => setIsAwaitingApproval(false),
-                signal,
-              },
-            );
-          } catch (hiveErr) {
-            if (signal.aborted) return null;
-            console.error('Image upload failed (hive fallback):', hiveErr);
-            return null;
-          }
-        }
+        return await uploadImageWithFallback(file, {
+          threeSpeakToken,
+          encoderUrl,
+          ecencyToken,
+          onSignMessage,
+          signingUsername,
+          signal,
+          onSignStart: () => {
+            if (!signal.aborted) setIsAwaitingApproval(true);
+          },
+          onSignEnd: () => setIsAwaitingApproval(false),
+        });
+      } catch (err) {
+        if (signal.aborted) return null;
+        console.error('Image upload failed:', err);
+        return null;
       } finally {
         if (pasteAbortRef.current === controller) pasteAbortRef.current = null;
       }
     },
-    [ecencyToken, canHiveFallback, onSignMessage, signingUsername],
+    [threeSpeakToken, encoderUrl, ecencyToken, canHiveFallback, onSignMessage, signingUsername],
   );
 
   /**
@@ -1103,6 +1087,15 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         hashtagUrlFn:
           renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
+        imageProxyFn: (url: string) => {
+          if (!url) return url;
+          const trimmed = url.trim();
+          if (trimmed.includes('/ipfs/') || trimmed.startsWith('ipfs://')) {
+            const cid = trimmed.split('/ipfs/').pop()?.replace(/^ipfs:\/\//, '');
+            if (cid) return `https://ipfs.3speak.tv/ipfs/${cid}`;
+          }
+          return url;
+        },
       });
     } catch {
       return null;
@@ -2106,6 +2099,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 {canUploadImages && (
                   <ImageUploader
                     onImageUploaded={(url) => insertText(`![Image](${url})\n`)}
+                    threeSpeakToken={threeSpeakToken}
+                    encoderUrl={encoderUrl}
                     ecencyToken={ecencyToken}
                     onSignMessage={onSignMessage}
                     signingUsername={signingUsername}
@@ -2193,7 +2188,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                 {/* Meme picker — visible when the composer has any image
                     upload path configured (ecency token or hive signer).
                     Sits beside the GIF button so users discover both. */}
-                {!hideMeme && (ecencyToken || (onSignMessage && signingUsername)) && (
+                {!hideMeme && (threeSpeakToken || ecencyToken || (onSignMessage && signingUsername)) && (
                   <button
                     type="button"
                     onClick={() => setIsMemeOpen(true)}
@@ -2204,7 +2199,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     MEME
                   </button>
                 )}
-                {!hideDecentMeme && (ecencyToken || (onSignMessage && signingUsername)) && (() => {
+                {!hideDecentMeme && (threeSpeakToken || ecencyToken || (onSignMessage && signingUsername)) && (() => {
                   // ParentPostComposer is always a top-level post → 3-meme cap.
                   const decentMemesLimit = getDecentMemesLimit(decentMemesKind);
                   const limitReached = decentMemes.length >= decentMemesLimit;
@@ -2916,6 +2911,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           insertText(`![Meme](${url})`);
           setIsMemeOpen(false);
         }}
+        threeSpeakToken={threeSpeakToken}
+        encoderUrl={encoderUrl}
         ecencyToken={ecencyToken}
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}
@@ -2928,6 +2925,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           if (meta) setDecentMemes((prev) => [...prev, meta]);
           setIsDecentMemeOpen(false);
         }}
+        threeSpeakToken={threeSpeakToken}
+        encoderUrl={encoderUrl}
         ecencyToken={ecencyToken}
         onSignMessage={onSignMessage}
         signingUsername={signingUsername}

@@ -42,6 +42,9 @@ interface CommentsModalProps {
   defaultBeneficiaries?: Beneficiary[];
   /** Suggested beneficiary chips in the composer's editor (typically previously-used presets). */
   beneficiaryFavorites?: Beneficiary[];
+  /** ThreeSpeak user JWT token — enables image/video upload via ThreeSpeak backend */
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   /** Ecency image hosting token — enables image upload in comment composer */
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
@@ -64,7 +67,7 @@ interface CommentsModalProps {
   awaitingWalletApproval?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, threeSpeakToken, encoderUrl, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval }: CommentsModalProps) => {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,6 +292,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   onCancel={() => setShowAddComment(false)}
                   currentUser={currentUser}
                   placeholder="Add a comment..."
+                  threeSpeakToken={threeSpeakToken}
+                  encoderUrl={encoderUrl}
                   ecencyToken={ecencyToken}
                   threeSpeakApiKey={threeSpeakApiKey}
                   giphyApiKey={giphyApiKey}

@@ -37,6 +37,8 @@ interface InlineCommentItemProps {
   onVotedRefresh?: () => void;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   /** Composer props passed through */
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -132,6 +134,8 @@ export default function InlineCommentItem({
   depth = 0,
   onVotedRefresh,
   onClickCommentUpvote,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -284,6 +288,15 @@ export default function InlineCommentItem({
         usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
         hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
+        imageProxyFn: (url: string) => {
+          if (!url) return url;
+          const trimmed = url.trim();
+          if (trimmed.includes('/ipfs/') || trimmed.startsWith('ipfs://')) {
+            const cid = trimmed.split('/ipfs/').pop()?.replace(/^ipfs:\/\//, '');
+            if (cid) return `https://ipfs.3speak.tv/ipfs/${cid}`;
+          }
+          return url;
+        },
       });
     } catch {
       return null;
@@ -858,6 +871,8 @@ export default function InlineCommentItem({
                         placeholder={`Reply to @${comment.author}...`}
                         value={replyBody}
                         onChange={setReplyBody}
+                        threeSpeakToken={threeSpeakToken}
+                        encoderUrl={encoderUrl}
                         ecencyToken={ecencyToken}
                         threeSpeakApiKey={threeSpeakApiKey}
                         giphyApiKey={giphyApiKey}
@@ -933,6 +948,8 @@ export default function InlineCommentItem({
                     placeholder={`Reply to @${comment.author}...`}
                     value={replyBody}
                     onChange={setReplyBody}
+                    threeSpeakToken={threeSpeakToken}
+                    encoderUrl={encoderUrl}
                     ecencyToken={ecencyToken}
                     threeSpeakApiKey={threeSpeakApiKey}
                     giphyApiKey={giphyApiKey}
@@ -985,6 +1002,8 @@ export default function InlineCommentItem({
               depth={depth + 1}
               onVotedRefresh={onVotedRefresh}
               onClickCommentUpvote={onClickCommentUpvote}
+              threeSpeakToken={threeSpeakToken}
+              encoderUrl={encoderUrl}
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
               giphyApiKey={giphyApiKey}

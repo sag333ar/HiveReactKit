@@ -244,6 +244,8 @@ export interface HiveDetailPostProps {
   onVotePoll?: (author: string, permlink: string, choiceNums: number[]) => void | boolean | Promise<void | boolean>;
 
   // Composer tokens
+  threeSpeakToken?: string;
+  encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
@@ -443,6 +445,8 @@ export function HiveDetailPost({
   isCommentBookmarked,
   onEditComment,
   onDeleteComment,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -837,6 +841,15 @@ export function HiveDetailPost({
         usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
         hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
         convertHiveUrls: true,
+        imageProxyFn: (url: string) => {
+          if (!url) return url;
+          const trimmed = url.trim();
+          if (trimmed.includes('/ipfs/') || trimmed.startsWith('ipfs://')) {
+            const cid = trimmed.split('/ipfs/').pop()?.replace(/^ipfs:\/\//, '');
+            if (cid) return `https://ipfs.3speak.tv/ipfs/${cid}`;
+          }
+          return url;
+        },
       });
     } catch {
       return null;
@@ -969,6 +982,17 @@ export function HiveDetailPost({
     return out;
   }, [post?.author, bodyForContent]);
 
+  const embeddedImageUrls = useMemo<Set<string>>(() => {
+    if (!bodyForContent) return new Set();
+    const set = new Set<string>();
+    let m: RegExpExecArray | null;
+    const mdImgRe = /!\[[^\]]*\]\(([^\s)]+)\)/g;
+    while ((m = mdImgRe.exec(bodyForContent))) set.add(m[1].trim());
+    const htmlImgRe = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    while ((m = htmlImgRe.exec(bodyForContent))) set.add(m[1].trim());
+    return set;
+  }, [bodyForContent]);
+
   // IPFS gateway URLs (no file extension) — extract them up front and
   // render via <IpfsMedia> in their own gallery. They can be image OR
   // video, which the renderer can't tell from the URL alone, so it
@@ -982,14 +1006,15 @@ export function HiveDetailPost({
     const out: string[] = [];
     let m: RegExpExecArray | null;
     while ((m = re.exec(bodyForContent)) !== null) {
-      const url = m[0];
+      const url = m[0].trim();
+      if (embeddedImageUrls.has(url)) continue;
       if (!seen.has(url)) {
         seen.add(url);
         out.push(url);
       }
     }
     return out;
-  }, [bodyForContent]);
+  }, [bodyForContent, embeddedImageUrls]);
 
   /** Odysee / LBRY videos embedded as <iframe src="https://odysee.com/$/embed/...">.
    *  The @snapie/renderer strips these iframes (Odysee is not on its allowlist),
@@ -1100,10 +1125,10 @@ export function HiveDetailPost({
         /<(iframe|video)\b[^>]*\bsrc=["'][^"']*\/ipfs\/[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
         '',
       );
-      safeBody = safeBody.replace(
-        new RegExp(IPFS_URL_REGEX.source, IPFS_URL_REGEX.flags),
-        '',
-      );
+      for (const ipfsUrl of ipfsMediaUrls) {
+        const escaped = ipfsUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        safeBody = safeBody.replace(new RegExp(escaped, 'g'), '');
+      }
       // Strip 3Speak URLs (embed / watch / v/author/permlink) — they're
       // rendered as a dedicated <ThreeSpeakPlayer> gallery via
       // `threeSpeakBodyRefs`, same body-only approach as IPFS above.
@@ -2915,6 +2940,8 @@ export function HiveDetailPost({
                 currentUser={currentUser}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
+                threeSpeakToken={threeSpeakToken}
+                encoderUrl={encoderUrl}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}

@@ -41,6 +41,10 @@ function formatBytes(bytes: number): string {
 export interface ImageUploaderProps {
   /** Called with the uploaded image URL */
   onImageUploaded: (imageUrl: string) => void;
+  /** ThreeSpeak user JWT token for primary image upload API */
+  threeSpeakToken?: string;
+  /** Encoder base URL (defaults to https://encoder.hivesuite.app) */
+  encoderUrl?: string;
   /** Ecency image hosting token for upload authentication */
   ecencyToken?: string;
   /** Optional signer used when the Ecency upload fails. Signs a posting-key message. */
@@ -61,6 +65,8 @@ export interface ImageUploaderProps {
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImageUploaded,
+  threeSpeakToken,
+  encoderUrl,
   ecencyToken,
   onSignMessage,
   signingUsername,
@@ -167,6 +173,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     setError(null);
     try {
       const url = await uploadImageWithFallback(stagedFile, {
+        threeSpeakToken,
+        encoderUrl,
         ecencyToken,
         onSignMessage,
         signingUsername,

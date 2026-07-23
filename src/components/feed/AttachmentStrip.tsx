@@ -191,9 +191,16 @@ export function parseBody(post: Post): ParsedBody {
     if (!odyseeSeen.has(url)) { odyseeSeen.add(url); odyseeUrls.push(url); }
   }
 
+  const uniqueImageUrls = uniqImageUrls(imageUrls);
+  const ipfsUrlsFiltered = uniq(ipfsUrls).filter((ipfsUrl) => {
+    return !uniqueImageUrls.some(
+      (imgUrl) => imgUrl === ipfsUrl || imgUrl.includes(ipfsUrl) || ipfsUrl.includes(imgUrl)
+    );
+  });
+
   const attachments: Attachment[] = [
-    ...uniqImageUrls(imageUrls).map((url) => ({ kind: 'image' as const, url })),
-    ...uniq(ipfsUrls).map((url) => ({ kind: 'ipfs' as const, url })),
+    ...uniqueImageUrls.map((url) => ({ kind: 'image' as const, url })),
+    ...ipfsUrlsFiltered.map((url) => ({ kind: 'ipfs' as const, url })),
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
     ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
