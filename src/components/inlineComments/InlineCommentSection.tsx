@@ -87,6 +87,7 @@ interface InlineCommentSectionProps {
   onDeleteComment?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive post links in comment bodies. */
   onNavigateToPost?: (author: string, permlink: string) => void;
+  onNavigateToMap?: () => void;
   /** Called when an intra-body Hive profile links in comment bodies. */
   onUserClick?: (username: string) => void;
   /** Forwarded to every DecentMemes picker in this section so the widget
@@ -135,6 +136,7 @@ export default function InlineCommentSection({
   onEditComment,
   onDeleteComment,
   onNavigateToPost,
+  onNavigateToMap,
   onUserClick,
   showVoteButton,
   alreadyVoted,
@@ -454,6 +456,7 @@ export default function InlineCommentSection({
               onEditComment={onEditComment}
               onDeleteComment={onDeleteComment}
               onNavigateToPost={onNavigateToPost}
+              onNavigateToMap={onNavigateToMap}
               onUserClick={onUserClick}
               defaultReward={defaultReward}
               defaultBeneficiaries={defaultBeneficiaries}

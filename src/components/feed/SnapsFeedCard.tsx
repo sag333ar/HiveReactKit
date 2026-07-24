@@ -673,12 +673,32 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
                 // feed surface is not lost.
                 const hiveTarget = parseHiveFrontendUrl(href);
                 if (hiveTarget) {
-                  if (hiveTarget.kind === 'post' && onPostClick) {
+                  if (hiveTarget.kind === 'post' && hiveTarget.author && onPostClick) {
                     e.preventDefault();
                     onPostClick(hiveTarget.author, hiveTarget.permlink);
-                  } else if (hiveTarget.kind === 'user' && onUserClick) {
+                    return;
+                  }
+                  if (hiveTarget.kind === 'user' && onUserClick) {
                     e.preventDefault();
                     onUserClick(hiveTarget.author);
+                    return;
+                  }
+                  if (hiveTarget.kind === 'map' || (hiveTarget.kind === 'post' && !hiveTarget.author)) {
+                    e.preventDefault();
+                    if (onPostClick) {
+                      onPostClick('dashboard', 'map');
+                    } else {
+                      window.location.hash = '#/dashboard/map';
+                    }
+                    return;
+                  }
+                }
+                if (href.includes('worldmappin.com')) {
+                  e.preventDefault();
+                  if (onPostClick) {
+                    onPostClick('dashboard', 'map');
+                  } else {
+                    window.location.hash = '#/dashboard/map';
                   }
                   return;
                 }

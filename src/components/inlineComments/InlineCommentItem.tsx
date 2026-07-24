@@ -75,6 +75,7 @@ interface InlineCommentItemProps {
   onDeleteComment?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive post (peakd/hive.blog/ecency/inleo). */
   onNavigateToPost?: (author: string, permlink: string) => void;
+  onNavigateToMap?: () => void;
   /** Called when an intra-body link points at a Hive user profile. */
   onUserClick?: (username: string) => void;
   /** Default reward routing seeded into every reply composer. */
@@ -152,6 +153,7 @@ export default function InlineCommentItem({
   onEditComment,
   onDeleteComment,
   onNavigateToPost,
+  onNavigateToMap,
   onUserClick,
   defaultReward,
   defaultBeneficiaries,
@@ -236,18 +238,45 @@ export default function InlineCommentItem({
       const href = anchor.getAttribute('href');
       if (!href) return;
       const target = parseHiveFrontendUrl(href);
-      if (!target) return;
-      if (target.kind === 'post' && onNavigateToPost) {
+      if (target) {
+        if (target.kind === 'post' && target.author && onNavigateToPost) {
+          e.preventDefault();
+          onNavigateToPost(target.author, target.permlink);
+          return;
+        }
+        if (target.kind === 'user' && onUserClick) {
+          e.preventDefault();
+          onUserClick(target.author);
+          return;
+        }
+        if (target.kind === 'map' || (target.kind === 'post' && !target.author)) {
+          e.preventDefault();
+          if (onNavigateToMap) {
+            onNavigateToMap();
+          } else if (onNavigateToPost) {
+            onNavigateToPost('dashboard', 'map');
+          } else {
+            window.location.hash = '#/dashboard/map';
+          }
+          return;
+        }
+      }
+
+      if (href.includes('worldmappin.com')) {
         e.preventDefault();
-        onNavigateToPost(target.author, target.permlink);
-      } else if (target.kind === 'user' && onUserClick) {
-        e.preventDefault();
-        onUserClick(target.author);
+        if (onNavigateToMap) {
+          onNavigateToMap();
+        } else if (onNavigateToPost) {
+          onNavigateToPost('dashboard', 'map');
+        } else {
+          window.location.hash = '#/dashboard/map';
+        }
+        return;
       }
     };
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [onNavigateToPost, onUserClick]);
+  }, [onNavigateToPost, onNavigateToMap, onUserClick]);
 
 
   // Parse metadata

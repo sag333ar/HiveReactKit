@@ -281,6 +281,8 @@ export interface HiveDetailPostProps {
   onUserClick?: (username: string) => void;
   /** Called when user clicks "View parent post" — navigate to the parent post. */
   onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Called when user clicks a WorldMapPin map link. */
+  onNavigateToMap?: () => void;
   /** Called when the user taps the community pill in the header.
    *  Receives the community ID (`hive-xxxxxx`) so the consumer can route
    *  to its community-detail page. */
@@ -466,6 +468,7 @@ export function HiveDetailPost({
   getUserUrl,
   getCommunityUrl,
   onNavigateToPost,
+  onNavigateToMap,
   contextPosts,
   isBookmarked,
   onToggleBookmark,
@@ -1748,12 +1751,37 @@ export function HiveDetailPost({
 
       const target = parseHiveFrontendUrl(href);
       if (target) {
-        if (target.kind === 'post' && onNavigateToPost) {
+        if (target.kind === 'post' && target.author && onNavigateToPost) {
           e.preventDefault();
           onNavigateToPost(target.author, target.permlink);
-        } else if (target.kind === 'user' && onUserClick) {
+          return;
+        }
+        if (target.kind === 'user' && onUserClick) {
           e.preventDefault();
           onUserClick(target.author);
+          return;
+        }
+        if (target.kind === 'map' || (target.kind === 'post' && !target.author)) {
+          e.preventDefault();
+          if (onNavigateToMap) {
+            onNavigateToMap();
+          } else if (onNavigateToPost) {
+            onNavigateToPost('dashboard', 'map');
+          } else {
+            window.location.hash = '#/dashboard/map';
+          }
+          return;
+        }
+      }
+
+      if (href.includes('worldmappin.com')) {
+        e.preventDefault();
+        if (onNavigateToMap) {
+          onNavigateToMap();
+        } else if (onNavigateToPost) {
+          onNavigateToPost('dashboard', 'map');
+        } else {
+          window.location.hash = '#/dashboard/map';
         }
         return;
       }
@@ -1766,7 +1794,7 @@ export function HiveDetailPost({
     };
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [renderedBody, onNavigateToPost, onUserClick]);
+  }, [renderedBody, onNavigateToPost, onNavigateToMap, onUserClick]);
 
   // Has the current user already upvoted this post? Drives visibility of the
   // composer's "upvote on publish" toggle (hidden once voted).
@@ -3094,6 +3122,7 @@ export function HiveDetailPost({
                 onEditComment={onEditComment}
                 onDeleteComment={onDeleteComment}
                 onNavigateToPost={onNavigateToPost}
+                onNavigateToMap={onNavigateToMap}
                 onUserClick={onUserClick}
                 showVoteButton={showVoteButton}
                 alreadyVoted={alreadyVoted}

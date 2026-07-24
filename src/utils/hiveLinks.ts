@@ -12,6 +12,8 @@ const HIVE_FRONTEND_HOSTS = new Set([
   'www.ecency.com',
   'inleo.io',
   'www.inleo.io',
+  'worldmappin.com',
+  'www.worldmappin.com',
   // Snap-specific frontends — needed so re-snap bodies (a single URL
   // to a snap on snapie.io / hivesuite.app) get recognised as a Hive
   // post target and trigger the embedded re-snap card.
@@ -23,7 +25,8 @@ const HIVE_FRONTEND_HOSTS = new Set([
 
 export type HiveLinkTarget =
   | { kind: 'post'; author: string; permlink: string }
-  | { kind: 'user'; author: string };
+  | { kind: 'user'; author: string }
+  | { kind: 'map' };
 
 function targetFromParts(author: string | undefined, permlink: string | undefined): HiveLinkTarget | null {
   const a = author?.toLowerCase();
@@ -44,6 +47,7 @@ function targetFromParts(author: string | undefined, permlink: string | undefine
  *   https://hive.blog/@alice/permlink                    → post
  *   https://ecency.com/@alice/permlink                   → post
  *   https://inleo.io/threads/view/alice/permlink         → post
+ *   https://worldmappin.com                              → map
  *
  * Also resolves relative/hash hrefs emitted by @snapie/renderer (`convertHiveUrls`)
  * and in-app hash router links:
@@ -81,6 +85,20 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   // inleo.io thread permalinks: /threads/view/{author}/{permlink} — no @ prefix.
   if ((host === 'inleo.io' || host === 'www.inleo.io') && parts[0] === 'threads' && parts[1] === 'view') {
     return targetFromParts(parts[2], parts[3]);
+  }
+
+  if (host === 'worldmappin.com' || host === 'www.worldmappin.com') {
+    const atIdx = parts.findIndex((p) => p.startsWith('@'));
+    if (atIdx !== -1) {
+      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
+    }
+    if ((parts[0] === 'p' || parts[0] === 'post') && parts.length >= 3) {
+      return targetFromParts(parts[1].replace(/^@/, ''), parts[2]);
+    }
+    if ((parts[0] === 'p' || parts[0] === 'post') && parts.length === 2) {
+      return { kind: 'post', author: '', permlink: parts[1] };
+    }
+    return { kind: 'map' };
   }
 
   const atIdx = parts.findIndex((p) => p.startsWith('@'));

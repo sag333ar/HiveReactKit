@@ -1,11 +1,12 @@
 {
   "name": "hive-react-kit",
   "private": false,
-  "version": "1.13.3",
+  "version": "1.13.4",
   "type": "module",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
   "types": "./dist/index.d.ts",
+  "style": "./dist/build.css",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -27,7 +28,12 @@
       "import": "./dist/types/index.js",
       "require": "./dist/types/index.js"
     },
-    "./build.css": "./dist/build.css"
+    "./build.css": "./dist/build.css",
+    "./dist/build.css": "./dist/build.css",
+    "./hive-react-kit.css": "./dist/hive-react-kit.css",
+    "./dist/hive-react-kit.css": "./dist/hive-react-kit.css",
+    "./dist/*": "./dist/*",
+    "./*": "./dist/*"
   },
   "files": [
     "dist",
