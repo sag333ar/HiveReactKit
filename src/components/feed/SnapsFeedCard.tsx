@@ -773,6 +773,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onClickCommentUpvote={onClickCommentUpvote}
           onReblog={onReblog ? () => onReblog(post.author, post.permlink) : undefined}
           isReblogged={isPostReblogged ? isPostReblogged(post.author, post.permlink) : false}
+          reblogLabel="Re-snap"
           onCheckReblogged={onCheckReblogged}
           onReSnap={onReSnap ? () => onReSnap(post.author, post.permlink, parentMetaTags) : undefined}
           onCrossPost={onCrossPost ? () => onCrossPost(post.author, post.permlink, post) : undefined}

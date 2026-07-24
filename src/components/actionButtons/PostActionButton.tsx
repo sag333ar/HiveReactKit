@@ -122,6 +122,7 @@ export interface PostActionButtonProps {
   /** Called when reblog is clicked (when logged in). */
   onReblog?: () => void;
   isReblogged?: boolean;
+  reblogLabel?: string;
   onCheckReblogged?: (author: string, permlink: string) => void;
   /** Called when re-snap is clicked (when logged in). Re-snap appends
    *  a new snap to the latest peak.snaps container whose body is a URL
@@ -234,6 +235,7 @@ export function PostActionButton({
   onEdit,
   onReblog,
   isReblogged = false,
+  reblogLabel,
   onCheckReblogged,
   onReSnap,
   onCrossPost,
@@ -856,6 +858,7 @@ export function PostActionButton({
             onEdit={onEdit}
             onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
             isReblogged={isReblogged}
+            reblogLabel={reblogLabel}
             onReSnap={onReSnap ? handleReSnapClick : undefined}
             onCrossPost={onCrossPost}
             onShare={handleShareClick}

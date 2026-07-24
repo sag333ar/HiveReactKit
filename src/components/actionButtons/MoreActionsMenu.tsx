@@ -37,6 +37,8 @@ export interface MoreActionsMenuProps {
   /** Show the Reblog item. */
   onReblog?: () => void;
   isReblogged?: boolean;
+  /** Optional custom label for the reblog action (e.g. "Re-snap"). */
+  reblogLabel?: string;
   /** Show the Re-snap item. Re-snap broadcasts a new snap whose body is
    *  a URL pointing back at this snap — receivers render the original
    *  inline with a "RE-SNAP" badge. */
@@ -76,6 +78,7 @@ export function MoreActionsMenu({
   onEdit,
   onReblog,
   isReblogged = false,
+  reblogLabel,
   onReSnap,
   onCrossPost,
   onShare,
@@ -202,12 +205,24 @@ export function MoreActionsMenu({
                 aria-pressed={isReblogged}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
               >
-                <Repeat2
-                  className={`h-3.5 w-3.5 ${
-                    isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
-                  }`}
-                />
-                <span>{isReblogged ? 'Reblogged' : 'Reblog'}</span>
+                {reblogLabel === 'Re-snap' ? (
+                  <Repeat
+                    className={`h-3.5 w-3.5 ${
+                      isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
+                    }`}
+                  />
+                ) : (
+                  <Repeat2
+                    className={`h-3.5 w-3.5 ${
+                      isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
+                    }`}
+                  />
+                )}
+                <span>
+                  {isReblogged
+                    ? (reblogLabel === 'Re-snap' ? 'Re-snapped' : 'Reblogged')
+                    : (reblogLabel || 'Reblog')}
+                </span>
               </button>
             )}
             {onReSnap && (
