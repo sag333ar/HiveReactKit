@@ -54,6 +54,14 @@ export interface CommunitySubscriber {
   subscribedAt: string;
 }
 
+export interface SubscribedCommunity {
+  name: string;
+  title: string;
+  role?: string;
+  userTitle?: string;
+  avatarUrl: string;
+}
+
 export interface CommunitiesRequestParams {
   limit?: number;
   query?: string;

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { CommunityItem, CommunityDetailsResponse, CommunitySubscriber, CommunityActivity } from '../types/community';
+import { CommunityItem, CommunityDetailsResponse, CommunitySubscriber, CommunityActivity, SubscribedCommunity } from '../types/community';
 import { Post } from '../types/post';
 import { getHiveApiEndpoint } from '../config/hiveEndpoint';
 
@@ -269,11 +269,47 @@ class CommunityService {
       if (!response.ok) return false;
       const data = await response.json();
       const list: any[] = data?.result || [];
-      // Each entry is a tuple [community, title, role, label]
       return list.some(row => Array.isArray(row) && row[0] === communityId);
     } catch (error) {
       console.error('Error checking subscription:', error);
       return false;
+    }
+  }
+
+  /** Fetch all communities subscribed by `username` using bridge.list_all_subscriptions */
+  async getUserSubscriptions(username: string): Promise<SubscribedCommunity[]> {
+    if (!username) return [];
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'bridge.list_all_subscriptions',
+      params: { account: username },
+      id: 10,
+    };
+    try {
+      const response = await fetch(this.HIVE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      if (!response.ok) return [];
+      const data = await response.json();
+      const list: any[] = data?.result || [];
+      return list.map((row) => {
+        const name = Array.isArray(row) ? row[0] : (row.name || row[0]);
+        const title = Array.isArray(row) ? (row[1] || name) : (row.title || name);
+        const role = Array.isArray(row) ? row[2] : row.role;
+        const userTitle = Array.isArray(row) ? row[3] : row.user_title;
+        return {
+          name,
+          title: title || name,
+          role,
+          userTitle,
+          avatarUrl: `https://images.hive.blog/u/${name}/avatar`,
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching user subscriptions:', error);
+      return [];
     }
   }
 

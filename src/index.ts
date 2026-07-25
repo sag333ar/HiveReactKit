@@ -237,6 +237,8 @@ export * from './services/userService';
 export * from './services/witnessService';
 export * from './services/proposalService';
 export * from './services/templateService';
+export * from './services/communityService';
+export * from './types/community';
 export { uploadToHiveImages, type PostingSignMessageFn } from './services/hiveImageUpload';
 
 // Store
