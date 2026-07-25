@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users, Play, HelpCircle, Image as ImageIcon, Mic, Video } from 'lucide-react';
+import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users, Play, HelpCircle, Image as ImageIcon, Mic, Video, Languages, RotateCcw } from 'lucide-react';
+import {
+  translateSelection,
+  DEFAULT_TRANSLATE_LANGUAGES,
+  getPreferredTranslateLanguage,
+  setPreferredTranslateLanguage,
+} from '../../i18n/selectionTranslate';
 import { REWARD_OPTIONS, REWARD_OPTION_LABELS, type RewardOption } from '../../utils/commentOptions';
 import {
   THREESPEAK_FUND_ACCOUNT,
@@ -75,6 +81,7 @@ export interface PostComposerProps {
   hideVideo?: boolean;
   hideEmoji?: boolean;
   hideGif?: boolean;
+  hideTranslate?: boolean;
   /** Hide the YouTube search/embed button. */
   hideYoutube?: boolean;
   hideCode?: boolean;
@@ -257,6 +264,7 @@ const PostComposer = ({
   hideVideo,
   hideEmoji,
   hideGif,
+  hideTranslate = false,
   hideYoutube,
   hideCode,
   hideMention,
@@ -340,6 +348,31 @@ const PostComposer = ({
   const pasteAbortRef = useRef<AbortController | null>(null);
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [isPollOpen, setIsPollOpen] = useState(false);
+  const [isTranslateOpen, setIsTranslateOpen] = useState(false);
+  const [translateLang, setTranslateLang] = useState(getPreferredTranslateLanguage);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [preTranslateBody, setPreTranslateBody] = useState<string | null>(null);
+
+  const handleTranslateBody = async () => {
+    if (!body.trim()) return;
+    setIsTranslating(true);
+    try {
+      const res = await translateSelection(body, translateLang);
+      if (res && res !== body) {
+        setPreTranslateBody(body);
+        setBody(res);
+      }
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleUndoTranslateBody = () => {
+    if (preTranslateBody !== null) {
+      setBody(preTranslateBody);
+      setPreTranslateBody(null);
+    }
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -1165,6 +1198,17 @@ const PostComposer = ({
             <Smile className="h-4 w-4" />
           </button>
         )}
+        {!hideTranslate && (
+          <button
+            type="button"
+            onClick={() => setIsTranslateOpen(!isTranslateOpen)}
+            className={`${toolbarBtnClass} ${isTranslateOpen || preTranslateBody ? 'text-[#e31337] font-bold' : ''}`}
+            title="Translate reply before sending"
+            disabled={isDisabled}
+          >
+            <Languages className="h-4 w-4" />
+          </button>
+        )}
         {!hideGif && giphyApiKey && (
           <button type="button" onClick={() => setIsGiphyOpen(true)} className={`${toolbarBtnClass} text-xs font-bold px-2`} title="GIF" disabled={isDisabled}>
             GIF
@@ -1308,6 +1352,60 @@ const PostComposer = ({
           <HelpCircle className="h-4 w-4" />
         </button>
       </div>
+
+      {/* Inline translate options bar */}
+      {isTranslateOpen && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg text-xs my-2">
+          <div className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-[#e31337]" />
+            <span className="text-[var(--hrk-text-secondary)] font-medium">Translate reply to:</span>
+            <select
+              value={translateLang}
+              onChange={(e) => {
+                setTranslateLang(e.target.value);
+                setPreferredTranslateLanguage(e.target.value);
+              }}
+              disabled={isTranslating || isDisabled}
+              className="bg-[#24282d] text-white border border-[#3a424a] rounded px-2 py-1 text-xs focus:outline-none focus:border-[#e31337]"
+            >
+              {DEFAULT_TRANSLATE_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTranslateBody}
+              disabled={isTranslating || isDisabled || !body.trim()}
+              className="px-3 py-1 bg-[#e31337] hover:bg-[#c00f2d] text-white rounded font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5"
+            >
+              {isTranslating && <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
+            </button>
+            {preTranslateBody !== null && preTranslateBody !== body && (
+              <button
+                type="button"
+                onClick={handleUndoTranslateBody}
+                className="text-amber-400 hover:text-amber-300 underline font-medium px-1 flex items-center gap-1"
+                title="Restore original text before translation"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Undo</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsTranslateOpen(false)}
+              className="text-[#9ca3b0] hover:text-white p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Inline upvote slider — visible only when the toggle is on. */}
       {showVoteButton && voteEnabled && (
