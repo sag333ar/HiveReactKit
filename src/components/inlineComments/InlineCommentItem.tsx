@@ -111,6 +111,10 @@ interface InlineCommentItemProps {
   /** When true, a heart button is shown on this comment so the curator
    *  can request an on-chain upvote (1–3%). */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to `isCurationEligible` and to nested replies. See
+   *  postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request. Weight is 1–3.
    *  `ownVoteWeight` is the curator's own vote weight on this comment
    *  (0–100), recorded alongside the request for review. */
@@ -167,6 +171,7 @@ export default function InlineCommentItem({
   decentMemesAppAccount,
   decentMemesTheme,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }: InlineCommentItemProps) {
@@ -525,8 +530,8 @@ export default function InlineCommentItem({
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
   // Curation eligibility, shared by the vote slider's toggle. See
-  // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
-  // 6-7 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+  // 7-8 (bot-already-voted, already-submitted) run inside <VoteSlider/>
   // once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
@@ -534,6 +539,7 @@ export default function InlineCommentItem({
     currentUser,
     author: comment.author,
     jsonMetadata: comment.json_metadata,
+    optedOutAuthors,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(comment.active_votes);
 
@@ -1058,6 +1064,7 @@ export default function InlineCommentItem({
               awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
               isCurator={isCurator}
+              optedOutAuthors={optedOutAuthors}
               onCurationRequest={onCurationRequest}
               onFetchCurationStatus={onFetchCurationStatus}
             />

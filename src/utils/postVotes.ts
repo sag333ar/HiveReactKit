@@ -81,6 +81,15 @@ export interface CurationEligibilityInput {
   currentUser?: string | null;
   author: string;
   jsonMetadata: unknown;
+  /** Usernames who've opted out of ever receiving a curation vote — admin-
+   *  managed (see hive-inbox's `/admin/curation-optout`), fetched by the
+   *  consumer and passed through. Lowercase, matching every other
+   *  account-set convention in the consuming app (blacklist, abusive
+   *  users). Optional so callers that haven't wired this up yet degrade to
+   *  "not checked" rather than a type error — the backend rejects an
+   *  opted-out author's request regardless, this is purely so the toggle
+   *  doesn't appear in the first place. */
+  optedOutAuthors?: Set<string> | null;
 }
 
 /**
@@ -101,15 +110,20 @@ export interface CurationEligibilityInput {
  *   4. Caller isn't the content's author (curators recommend OTHERS' content —
  *      recommending your own isn't curation, it's self-promotion; Hive still
  *      lets you vote for yourself in the same dialog, only the *request* is gated)
- *   5. The content was actually published via the HiveSuite app
+ *   5. Author hasn't opted out of curation (`optedOutAuthors`) — some authors
+ *      don't want the memo/transfer that can come with a curation vote, let
+ *      alone the vote itself; the backend rejects these regardless (see
+ *      hive-inbox's routes/curation.js), this just keeps the toggle from
+ *      appearing for them in the first place
+ *   6. The content was actually published via the HiveSuite app
  *
  * Two more checks happen later, inside `<VoteSlider/>` itself, once the
  * dialog is actually open. Unlike the gates above, these are about THIS
  * content's status, so instead of silently hiding they show the curator an
  * explanatory message in place of the toggle:
- *   6. The curation bot hasn't already voted on this content (synchronous —
+ *   7. The curation bot hasn't already voted on this content (synchronous —
  *      caller passes `hasCurationVoterVoted(votes)` as `curationBotAlreadyVoted`)
- *   7. Content hasn't already been submitted for curation by another curator
+ *   8. Content hasn't already been submitted for curation by another curator
  *      (`onFetchCurationStatus`)
  * Author KE ratio used to be a gate here too — removed. It no longer blocks
  * a curation request at all; the backend scales the actual vote weight down
@@ -122,6 +136,7 @@ export function isCurationEligible({
   currentUser,
   author,
   jsonMetadata,
+  optedOutAuthors,
 }: CurationEligibilityInput): boolean {
   // 1. Caller must be a curator.
   if (!isCurator) return false;
@@ -135,7 +150,10 @@ export function isCurationEligible({
   // 4. Curators recommend OTHER people's content, not their own.
   if (author.toLowerCase() === currentUser?.toLowerCase()) return false;
 
-  // // 5. Curation is only offered for content actually published via HiveSuite.
+  // 5. Author hasn't opted out of curation entirely.
+  if (optedOutAuthors?.has(author.toLowerCase())) return false;
+
+  // // 6. Curation is only offered for content actually published via HiveSuite.
   // if (!isHiveSuiteContent(jsonMetadata)) return false;
 
   return true;

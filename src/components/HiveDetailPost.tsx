@@ -342,6 +342,10 @@ export interface HiveDetailPostProps {
   /** When true, a heart button is shown on the post and on each comment
    *  so the curator can request on-chain upvotes. */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to `isCurationEligible` so the toggle never appears for
+   *  them. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request. `type` reflects
    *  the ACTUAL content type (see `getCurationTypeForContent`), not just
    *  whether it's the main item vs. a nested comment — the main item
@@ -490,6 +494,7 @@ export function HiveDetailPost({
   decentMemesAppAccount,
   decentMemesTheme,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }: HiveDetailPostProps) {
@@ -2120,7 +2125,7 @@ export function HiveDetailPost({
   // Curation eligibility, shared by the vote slider's toggle. When the
   // curator already voted, the vote slider itself switches into
   // curation-only mode instead of offering a toggle. See numbered checks
-  // 1-5 in `isCurationEligible` (postVotes.ts) — checks 6-7 (bot-already-
+  // 1-6 in `isCurationEligible` (postVotes.ts) — checks 7-8 (bot-already-
   // voted, already-submitted) run inside <VoteSlider/> once the dialog
   // opens.
   const curationEligible = isCurationEligible({
@@ -2129,6 +2134,7 @@ export function HiveDetailPost({
     currentUser,
     author: post.author,
     jsonMetadata: post.json_metadata,
+    optedOutAuthors,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes);
   // The main item can be a genuine top-level post, or a snap/comment
@@ -3138,6 +3144,7 @@ export function HiveDetailPost({
                 decentMemesAppAccount={decentMemesAppAccount}
                 decentMemesTheme={decentMemesTheme}
                 isCurator={isCurator}
+                optedOutAuthors={optedOutAuthors}
                 onCurationRequest={onCurationRequest
                   ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'comment', ownVoteWeight)
                   : undefined}

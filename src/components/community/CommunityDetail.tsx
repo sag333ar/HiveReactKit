@@ -197,6 +197,9 @@ export interface CommunityDetailProps {
    *  into the embedded <BlogPostList/>) so the curator can request an
    *  on-chain upvote. */
   isCurator?: boolean
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded into the embedded <BlogPostList/>/snaps tab. See postVotes.ts. */
+  optedOutAuthors?: Set<string>
   /** Called when the curator submits a curation request. Weight is 1–15.
    *  `ownVoteWeight` is the curator's own vote weight on this content
    *  (0–100), recorded alongside the request for review. */
@@ -320,6 +323,7 @@ const CommunityDetail = ({
   onPostSortChange,
   shouldRestoreScroll = false,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }: CommunityDetailProps) => {
@@ -593,6 +597,7 @@ const CommunityDetail = ({
       defaultReward,
       actionsAsMenu,
       isCurator,
+      optedOutAuthors,
       onCurationRequest,
       onFetchCurationStatus,
     }),
@@ -632,6 +637,7 @@ const CommunityDetail = ({
       defaultReward,
       actionsAsMenu,
       isCurator,
+      optedOutAuthors,
       onCurationRequest,
       onFetchCurationStatus,
     ],

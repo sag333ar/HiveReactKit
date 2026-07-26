@@ -209,6 +209,10 @@ export interface UserDetailProfileProps {
   /** When true, a heart button is shown on each post/blog/snap card so
    *  the curator can request an on-chain upvote. */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to `isCurationEligible` so the toggle never appears for
+   *  them. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request. `type` is
    *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab.
    *  `ownVoteWeight` is the curator's own vote weight on this content
@@ -563,6 +567,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onDeletePost,
   onEditPost,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
   onUpdateRcDelegation,
@@ -2170,8 +2175,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     };
 
     // Curation eligibility, shared by the vote slider's toggle. See
-    // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
-    // 6-7 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+    // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+    // 7-8 (bot-already-voted, already-submitted) run inside <VoteSlider/>
     // once the dialog opens.
     const curationEligible = isCurationEligible({
       isCurator,
@@ -2179,6 +2184,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       currentUser: currentUsername,
       author: item.author,
       jsonMetadata: item.json_metadata,
+      optedOutAuthors,
     });
     const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes);
 
@@ -3742,6 +3748,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onReportPost={onReportPost ? (author, permlink) => setReportPostTarget({ author, permlink }) : undefined}
             onDeletePost={onDeletePost}
             isCurator={isCurator}
+            optedOutAuthors={optedOutAuthors}
             onCurationRequest={onCurationRequest ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'snap', ownVoteWeight) : undefined}
             onFetchCurationStatus={onFetchCurationStatus}
             onVotePoll={onVotePoll}

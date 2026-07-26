@@ -144,6 +144,9 @@ export interface SnapsFeedCardProps {
   /** When true, a heart button is shown so the curator can request an
    *  on-chain upvote with a chosen weight (1–6%). */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to `isCurationEligible`. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request. Weight is 1–6.
    *  `ownVoteWeight` is the curator's own vote weight on this content
    *  (0–100), recorded alongside the request for review. */
@@ -295,6 +298,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   renderHeaderActions,
   actionsAsMenu,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }) => {
@@ -522,8 +526,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   // Curation eligibility for the vote slider's curation option — either
   // folded into the vote (not yet voted) or the only action available
   // (already voted — see PostActionButton's `alreadyVoted` handling). See
-  // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) — checks
-  // 6-7 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
+  // 7-8 (bot-already-voted, already-submitted) run inside <VoteSlider/>
   // once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,
@@ -531,6 +535,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     currentUser,
     author: post.author,
     jsonMetadata: post.json_metadata,
+    optedOutAuthors,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined);
 

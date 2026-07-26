@@ -119,6 +119,10 @@ export interface BlogPostListProps {
   /** When true, a heart button is shown on each post card so the curator
    *  can request an on-chain upvote with a chosen vote weight. */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to `isCurationEligible` so the toggle never appears for
+   *  them. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request. Weight is 1–15.
    *  `ownVoteWeight` is the curator's own vote weight on this content
    *  (0–100), recorded alongside the request for review. */
@@ -407,6 +411,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   defaultReward,
   actionsAsMenu,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }) => {
@@ -530,8 +535,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
           : undefined;
 
         // Curation eligibility, shared by the vote slider's toggle. See
-        // numbered checks 1-5 in `isCurationEligible` (postVotes.ts) —
-        // checks 6-7 (bot-already-voted, already-submitted) run inside
+        // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) —
+        // checks 7-8 (bot-already-voted, already-submitted) run inside
         // <VoteSlider/> once the dialog opens.
         const curationEligible = isCurationEligible({
           isCurator,
@@ -539,6 +544,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
           currentUser,
           author: item.author,
           jsonMetadata: item.json_metadata,
+          optedOutAuthors,
         });
         const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined);
 

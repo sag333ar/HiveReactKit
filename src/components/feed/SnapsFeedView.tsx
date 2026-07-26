@@ -166,6 +166,9 @@ export interface SnapsFeedViewProps {
   /** When true, a heart button is shown on each snap card so the curator
    *  can request an on-chain upvote (1–6%). Forwarded to every <SnapsFeedCard/>. */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to every <SnapsFeedCard/>. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request on a snap.
    *  `ownVoteWeight` is the curator's own vote weight on this snap
    *  (0–100), recorded alongside the request for review. */
@@ -291,6 +294,7 @@ export function SnapsFeedView({
   renderHeaderActions,
   actionsAsMenu,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
   pageScroll,
@@ -464,6 +468,7 @@ export function SnapsFeedView({
     renderHeaderActions,
     actionsAsMenu,
     isCurator,
+    optedOutAuthors,
     onCurationRequest,
     onFetchCurationStatus,
   };

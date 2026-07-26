@@ -99,6 +99,9 @@ interface InlineCommentSectionProps {
   /** When true, a heart button is shown on each comment so the curator
    *  can request an on-chain upvote (1–3%). */
   isCurator?: boolean;
+  /** Usernames who've opted out of ever receiving a curation vote —
+   *  forwarded to each `<InlineCommentItem/>`. See postVotes.ts. */
+  optedOutAuthors?: Set<string>;
   /** Called when the curator submits a curation request on a comment.
    *  `ownVoteWeight` is the curator's own vote weight on this comment
    *  (0–100), recorded alongside the request for review. */
@@ -152,6 +155,7 @@ export default function InlineCommentSection({
   decentMemesAppAccount,
   decentMemesTheme,
   isCurator,
+  optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
 }: InlineCommentSectionProps) {
@@ -469,6 +473,7 @@ export default function InlineCommentSection({
               decentMemesAppAccount={decentMemesAppAccount}
               decentMemesTheme={decentMemesTheme}
               isCurator={isCurator}
+              optedOutAuthors={optedOutAuthors}
               onCurationRequest={onCurationRequest}
               onFetchCurationStatus={onFetchCurationStatus}
             />
