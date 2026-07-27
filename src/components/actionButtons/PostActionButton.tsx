@@ -19,7 +19,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
-import { postHasDownvotes, isDownvote, getUserVoteWeight } from "@/utils/postVotes";
+import { postHasDownvotes, isDownvote, getUserVoteWeight, isRestrictedDirectVoter } from "@/utils/postVotes";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -406,6 +406,14 @@ export function PostActionButton({
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
   const ownVoteWeight = getUserVoteWeight(votes, currentUser);
 
+  // sagarkothari88 / letusbuyhive must never broadcast a direct vote from
+  // the app — see RESTRICTED_DIRECT_VOTE_ACCOUNTS. Treated exactly like
+  // "already voted" from VoteSlider's perspective (no slider/percent UI,
+  // curation-request is the only action), even though no vote was
+  // actually cast — that's what forces every one of these accounts'
+  // upvotes through the curation pipeline instead of a raw broadcast.
+  const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
+
   const hasDownvotes = useMemo(
     () => postHasDownvotes(votes, initialFlagWeight),
     [votes, initialFlagWeight],
@@ -506,6 +514,19 @@ export function PostActionButton({
 
   const handleUpvoteClick = () => {
     requireLogin("Upvote", () => {
+      if (isRestrictedVoter) {
+        // This account only ever requests curation — see
+        // RESTRICTED_DIRECT_VOTE_ACCOUNTS. Skip the raw-vote path
+        // entirely, including the vote-window check (that gate is about
+        // the direct `vote` op; curation eligibility/age is the
+        // backend's own concern once a request comes in).
+        if (curationEligible) {
+          setShowVoteSlider(true);
+          return;
+        }
+        showToast("This account only requests curation, not direct votes");
+        return;
+      }
       if (hasVoted) {
         // Nothing left to vote on — but a curator can still request
         // curation on content they already voted for. Opens the same
@@ -582,6 +603,11 @@ export function PostActionButton({
   const handleUpvoteFromModal = () => {
     setShowUpvoteListModal(false);
     if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
+    if (isRestrictedVoter) {
+      if (curationEligible) { setShowVoteSlider(true); return; }
+      showToast("This account only requests curation, not direct votes");
+      return;
+    }
     if (hasVoted) {
       if (curationEligible) { setShowVoteSlider(true); return; }
       showToast("You have already upvoted this post");
@@ -1023,7 +1049,7 @@ export function PostActionButton({
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
           awaitingWalletApproval={awaitingWalletApproval}
-          alreadyVoted={hasVoted}
+          alreadyVoted={hasVoted || isRestrictedVoter}
           curatorOwnVoteWeight={ownVoteWeight}
           curationEligible={curationEligible}
           curationBotAlreadyVoted={curationBotAlreadyVoted}
@@ -1091,7 +1117,7 @@ export function PostActionButton({
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
-          showVoteButton={!!showVoteButton && !hasVoted}
+          showVoteButton={!!showVoteButton && !hasVoted && !isRestrictedVoter}
           parentTags={parentTags}
           defaultReward={defaultReward}
           defaultBeneficiaries={defaultBeneficiaries}

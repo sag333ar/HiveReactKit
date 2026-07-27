@@ -18,6 +18,24 @@ export function hasCurationVoterVoted(votes?: ActiveVote[] | null): boolean {
   return votes.some((v) => v.voter?.toLowerCase() === CURATION_VOTER_ACCOUNT);
 }
 
+/**
+ * Accounts that must never broadcast a direct/raw vote from the app —
+ * every vote from these accounts has to go through the curation-request
+ * pipeline instead, so it's subject to the same backend weight-scaling
+ * and eligibility rules as everyone else's curation requests, with no
+ * client-side path that bypasses it. `sagarkothari88` and `letusbuyhive`
+ * are the accounts whose keys the curation backend itself votes with (see
+ * hive-inbox's config.curationVoters) — a direct vote from the app using
+ * one of these accounts would sidestep that pipeline entirely.
+ */
+export const RESTRICTED_DIRECT_VOTE_ACCOUNTS = new Set(['sagarkothari88', 'letusbuyhive']);
+
+/** True when `username` may never cast a direct vote — see
+ *  `RESTRICTED_DIRECT_VOTE_ACCOUNTS`. */
+export function isRestrictedDirectVoter(username?: string | null): boolean {
+  return !!username && RESTRICTED_DIRECT_VOTE_ACCOUNTS.has(username.toLowerCase());
+}
+
 /** True when `username` already voted on this content. Used to detect
  *  the "curator already spent their own vote" case — since the vote
  *  slider won't reopen for content the user already voted on, curation
