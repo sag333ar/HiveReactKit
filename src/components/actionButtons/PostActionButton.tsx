@@ -516,15 +516,15 @@ export function PostActionButton({
     requireLogin("Upvote", () => {
       if (isRestrictedVoter) {
         // This account only ever requests curation — see
-        // RESTRICTED_DIRECT_VOTE_ACCOUNTS. Skip the raw-vote path
-        // entirely, including the vote-window check (that gate is about
-        // the direct `vote` op; curation eligibility/age is the
-        // backend's own concern once a request comes in).
-        if (curationEligible) {
-          setShowVoteSlider(true);
-          return;
-        }
-        showToast("This account only requests curation, not direct votes");
+        // RESTRICTED_DIRECT_VOTE_ACCOUNTS. Always open the dialog (never
+        // gate it behind a toast) — VoteSlider itself, in alreadyVoted
+        // mode, shows the curation-request UI when eligible or the
+        // appropriate status message otherwise (bot already voted,
+        // already submitted, etc.), same as it already does for a
+        // regular curator revisiting content they've voted on. Skips the
+        // vote-window check entirely too — that gate is about the direct
+        // `vote` op, not a curation request.
+        setShowVoteSlider(true);
         return;
       }
       if (hasVoted) {

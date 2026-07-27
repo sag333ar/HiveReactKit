@@ -4,7 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat } from 'lucide-react';
-import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted } from '@/utils/postVotes';
+import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted, isRestrictedDirectVoter } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -204,6 +204,11 @@ export default function InlineCommentItem({
       (v: { voter?: string }) => (v.voter || '').toLowerCase() === user
     );
   }, [comment.active_votes, currentUser]);
+
+  // sagarkothari88 / letusbuyhive must never broadcast a direct vote —
+  // see RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts). Treated like
+  // "already voted" for VoteSlider's purposes on this comment too.
+  const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
 
   // Find direct replies
   const parentDepth = comment.depth || 0;
@@ -507,6 +512,14 @@ export default function InlineCommentItem({
 
   const handleUpvoteClick = () => {
     if (!currentUser) { showToast('Please login to upvote'); return; }
+    if (isRestrictedVoter) {
+      // Always open the dialog — never gate it behind a toast. VoteSlider
+      // itself, in alreadyVoted mode, shows the curation-request UI when
+      // eligible or the appropriate status message otherwise. Skips the
+      // vote-window check too — that's specific to the direct `vote` op.
+      setShowVoteSlider(true);
+      return;
+    }
     if (hasAlreadyVoted || isUpvoted) {
       // Nothing left to vote on — but a curator can still request
       // curation on a comment they already voted for. Opens the same
@@ -828,7 +841,7 @@ export default function InlineCommentItem({
             )}
 
             {/* Vote slider */}
-            {showVoteSlider && (!(hasAlreadyVoted || isUpvoted) || curationEligible) && (
+            {showVoteSlider && (!(hasAlreadyVoted || isUpvoted) || curationEligible || isRestrictedVoter) && (
               <div className="mt-2 ml-7 md:ml-9">
                 <VoteSlider
                   author={comment.author}
@@ -837,7 +850,7 @@ export default function InlineCommentItem({
                   step={voteWeightStep}
                   onUpvote={handlePerformUpvote}
                   onCancel={() => setShowVoteSlider(false)}
-                  alreadyVoted={hasAlreadyVoted || isUpvoted}
+                  alreadyVoted={hasAlreadyVoted || isUpvoted || isRestrictedVoter}
                   curatorOwnVoteWeight={getUserVoteWeight(comment.active_votes, currentUser)}
                   curationEligible={curationEligible}
                   curationBotAlreadyVoted={curationBotAlreadyVoted}

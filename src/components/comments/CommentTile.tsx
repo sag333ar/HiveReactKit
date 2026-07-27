@@ -10,6 +10,7 @@ import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import { toast } from '@/index';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
+import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { TranslatedBody } from '../TranslatedBody';
 
 interface CommentTileProps {
@@ -71,6 +72,14 @@ const CommentTile = ({
     const user = currentUser.toLowerCase();
     return activeVotes.some((v: { voter?: string }) => (v.voter || '').toLowerCase() === user);
   }, [comment.active_votes, currentUser]);
+  // sagarkothari88 / letusbuyhive must never broadcast a direct vote (see
+  // RESTRICTED_DIRECT_VOTE_ACCOUNTS, postVotes.ts). Unlike PostActionButton
+  // and InlineCommentItem, this tile has no curation-request wiring at all
+  // (no onCurationRequest/curationEligible props exist here — it's the
+  // simpler comments-popup view, not the full inline comment thread), so
+  // there's no curation UI to fall back to. Blocking the vote outright is
+  // the only correct option in this specific surface.
+  const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -293,6 +302,13 @@ const CommentTile = ({
             <div className="flex items-center space-x-4 md:space-x-6">
               <button
                 onClick={() => {
+                  if (isRestrictedVoter) {
+                    // No curation UI exists in this comments-popup view
+                    // (see isRestrictedVoter's comment above) — block
+                    // outright rather than open a dead-end vote dialog.
+                    showToast("This account only requests curation, not direct votes");
+                    return;
+                  }
                   if (onClickCommentUpvote) {
                     if (!currentUser) {
                       showToast("Please login to upvote");
