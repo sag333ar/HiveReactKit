@@ -110,20 +110,24 @@ export interface CurationEligibilityInput {
  *   4. Caller isn't the content's author (curators recommend OTHERS' content —
  *      recommending your own isn't curation, it's self-promotion; Hive still
  *      lets you vote for yourself in the same dialog, only the *request* is gated)
- *   5. Author hasn't opted out of curation (`optedOutAuthors`) — some authors
+ *   5. Content wasn't authored by the curation bot account itself — voting on
+ *      its own content is self-voting no matter who requests it, and the
+ *      Hive community treats that unfavourably (backend rejects it too, see
+ *      CURATION_PRIMARY_VOTER in hive-inbox's routes/curation.js)
+ *   6. Author hasn't opted out of curation (`optedOutAuthors`) — some authors
  *      don't want the memo/transfer that can come with a curation vote, let
  *      alone the vote itself; the backend rejects these regardless (see
  *      hive-inbox's routes/curation.js), this just keeps the toggle from
  *      appearing for them in the first place
- *   6. The content was actually published via the HiveSuite app
+ *   7. The content was actually published via the HiveSuite app
  *
  * Two more checks happen later, inside `<VoteSlider/>` itself, once the
  * dialog is actually open. Unlike the gates above, these are about THIS
  * content's status, so instead of silently hiding they show the curator an
  * explanatory message in place of the toggle:
- *   7. The curation bot hasn't already voted on this content (synchronous —
+ *   8. The curation bot hasn't already voted on this content (synchronous —
  *      caller passes `hasCurationVoterVoted(votes)` as `curationBotAlreadyVoted`)
- *   8. Content hasn't already been submitted for curation by another curator
+ *   9. Content hasn't already been submitted for curation by another curator
  *      (`onFetchCurationStatus`)
  * Author KE ratio used to be a gate here too — removed. It no longer blocks
  * a curation request at all; the backend scales the actual vote weight down
@@ -150,10 +154,14 @@ export function isCurationEligible({
   // 4. Curators recommend OTHER people's content, not their own.
   if (author.toLowerCase() === currentUser?.toLowerCase()) return false;
 
-  // 5. Author hasn't opted out of curation entirely.
+  // 5. Content authored by the curation bot itself is never eligible —
+  // that's self-voting regardless of who requests it.
+  if (author.toLowerCase() === CURATION_VOTER_ACCOUNT) return false;
+
+  // 6. Author hasn't opted out of curation entirely.
   if (optedOutAuthors?.has(author.toLowerCase())) return false;
 
-  // // 6. Curation is only offered for content actually published via HiveSuite.
+  // // 7. Curation is only offered for content actually published via HiveSuite.
   // if (!isHiveSuiteContent(jsonMetadata)) return false;
 
   return true;

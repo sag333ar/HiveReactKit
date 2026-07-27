@@ -2125,7 +2125,7 @@ export function HiveDetailPost({
   // Curation eligibility, shared by the vote slider's toggle. When the
   // curator already voted, the vote slider itself switches into
   // curation-only mode instead of offering a toggle. See numbered checks
-  // 1-6 in `isCurationEligible` (postVotes.ts) — checks 7-8 (bot-already-
+  // 1-7 in `isCurationEligible` (postVotes.ts) — checks 8-9 (bot-already-
   // voted, already-submitted) run inside <VoteSlider/> once the dialog
   // opens.
   const curationEligible = isCurationEligible({

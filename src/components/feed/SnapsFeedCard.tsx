@@ -526,8 +526,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   // Curation eligibility for the vote slider's curation option — either
   // folded into the vote (not yet voted) or the only action available
   // (already voted — see PostActionButton's `alreadyVoted` handling). See
-  // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
-  // 7-8 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+  // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) — checks
+  // 8-9 (bot-already-voted, already-submitted) run inside <VoteSlider/>
   // once the dialog opens.
   const curationEligible = isCurationEligible({
     isCurator,

@@ -2175,8 +2175,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     };
 
     // Curation eligibility, shared by the vote slider's toggle. See
-    // numbered checks 1-6 in `isCurationEligible` (postVotes.ts) — checks
-    // 7-8 (bot-already-voted, already-submitted) run inside <VoteSlider/>
+    // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) — checks
+    // 8-9 (bot-already-voted, already-submitted) run inside <VoteSlider/>
     // once the dialog opens.
     const curationEligible = isCurationEligible({
       isCurator,

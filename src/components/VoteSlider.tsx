@@ -70,7 +70,7 @@ export function VoteSlider({
    *  rejecting. */
   curationEligible?: boolean;
   /** True when the curation bot (`sagarkothari88`) has already voted on
-   *  this content. Unlike the other eligibility gates (checks 1-5 in
+   *  this content. Unlike the other eligibility gates (checks 1-7 in
    *  `isCurationEligible`, postVotes.ts), this one is shown to the
    *  curator rather than silently hiding the option — the toggle/button
    *  is replaced with an explanatory message so it's clear why there's
@@ -114,8 +114,8 @@ export function VoteSlider({
   const [requestCuration, setRequestCuration] = useState(false);
   const [curationWeight, setCurationWeight] = useState(range.default);
   const [curationMax, setCurationMax] = useState(range.max);
-  // Check 7 (see `isCurationEligible` in postVotes.ts for checks 1-5, and
-  // check 6 — curationBotAlreadyVoted — above): has this content already
+  // Check 9 (see `isCurationEligible` in postVotes.ts for checks 1-7, and
+  // check 8 — curationBotAlreadyVoted — above): has this content already
   // been submitted for curation by another curator? Checked once up front
   // (not on toggle-flip) so an already-submitted piece of content never
   // shows the toggle in the first place.
