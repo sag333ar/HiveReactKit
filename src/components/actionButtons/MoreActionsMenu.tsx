@@ -197,7 +197,7 @@ export function MoreActionsMenu({
                 <span>Edit</span>
               </button>
             )}
-            {onReblog && (
+            {onReblog && (!onReSnap || reblogLabel !== 'Re-snap') && (
               <button
                 type="button"
                 role="menuitem"
