@@ -134,6 +134,7 @@ const SnapsFeedList = ({
         <SnapsFeedCard
           key={`${post.author}/${post.permlink}`}
           post={post}
+          contextPosts={cardProps.contextPosts || posts}
           {...cardProps}
         />
       ))}

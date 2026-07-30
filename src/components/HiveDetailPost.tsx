@@ -279,8 +279,9 @@ export interface HiveDetailPostProps {
   onOpenMenu?: () => void;
   onOpenProfileMenu?: () => void;
   onUserClick?: (username: string) => void;
-  /** Called when user clicks "View parent post" — navigate to the parent post. */
-  onNavigateToPost?: (author: string, permlink: string) => void;
+  /** Called when user clicks "View parent post" or Next/Prev post.
+   *  Optionally accepts contextPosts so the next post detail inherits the list. */
+  onNavigateToPost?: (author: string, permlink: string, contextPosts?: Post[]) => void;
   /** Called when user clicks a WorldMapPin map link. */
   onNavigateToMap?: () => void;
   /** Called when the user taps the community pill in the header.
@@ -555,13 +556,41 @@ export function HiveDetailPost({
   }, [author, contextPosts]);
 
   const currentIndex = useMemo(() => {
-    return recommendedPosts.findIndex(
-      (p) => p.permlink.toLowerCase() === permlink.toLowerCase()
-    );
-  }, [recommendedPosts, permlink]);
+    if (!permlink || recommendedPosts.length === 0) return -1;
+    const cleanPermlink = permlink.toLowerCase().split('#')[0];
+    const cleanAuthor = author.toLowerCase().replace(/^@/, '');
 
-  const prevPost = currentIndex > 0 ? recommendedPosts[currentIndex - 1] : null;
-  const nextPost = currentIndex >= 0 && currentIndex < recommendedPosts.length - 1 ? recommendedPosts[currentIndex + 1] : null;
+    let idx = recommendedPosts.findIndex((p) => {
+      const pPermlink = (p.permlink || '').toLowerCase().split('#')[0];
+      const pAuthor = (p.author || '').toLowerCase().replace(/^@/, '');
+      return pPermlink === cleanPermlink && pAuthor === cleanAuthor;
+    });
+
+    if (idx === -1) {
+      idx = recommendedPosts.findIndex((p) => {
+        const pPermlink = (p.permlink || '').toLowerCase().split('#')[0];
+        return pPermlink === cleanPermlink;
+      });
+    }
+    return idx;
+  }, [recommendedPosts, permlink, author]);
+
+  const prevPost = useMemo(() => {
+    if (currentIndex > 0) {
+      return recommendedPosts[currentIndex - 1];
+    }
+    return null;
+  }, [currentIndex, recommendedPosts]);
+
+  const nextPost = useMemo(() => {
+    if (currentIndex >= 0 && currentIndex < recommendedPosts.length - 1) {
+      return recommendedPosts[currentIndex + 1];
+    }
+    if (currentIndex === -1 && recommendedPosts.length > 0) {
+      return recommendedPosts[0];
+    }
+    return null;
+  }, [currentIndex, recommendedPosts]);
 
   const isAllSameAuthor = useMemo(() => {
     if (recommendedPosts.length === 0) return true;
@@ -2248,25 +2277,25 @@ export function HiveDetailPost({
                 <button
                   type="button"
                   onClick={() => {
-                    if (prevPost) onNavigateToPost?.(prevPost.author, prevPost.permlink);
+                    if (prevPost) onNavigateToPost?.(prevPost.author, prevPost.permlink, recommendedPosts);
                   }}
                   disabled={!prevPost}
                   className="p-1 hover:bg-[var(--hrk-bg-surface)] disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                  title={prevPost ? `Previous: ${prevPost.title}` : 'No previous post'}
+                  title={prevPost ? `Previous: ${prevPost.title || prevPost.permlink}` : 'No previous post'}
                 >
                   <ChevronLeft className="h-4 w-4 text-[var(--hrk-text-secondary)]" />
                 </button>
                 <span className="text-[10px] text-[var(--hrk-text-tertiary)] px-1 select-none font-medium">
-                  {currentIndex >= 0 ? `${currentIndex + 1}/${recommendedPosts.length}` : '—'}
+                  {currentIndex >= 0 ? `${currentIndex + 1}/${recommendedPosts.length}` : `0/${recommendedPosts.length}`}
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    if (nextPost) onNavigateToPost?.(nextPost.author, nextPost.permlink);
+                    if (nextPost) onNavigateToPost?.(nextPost.author, nextPost.permlink, recommendedPosts);
                   }}
                   disabled={!nextPost}
                   className="p-1 hover:bg-[var(--hrk-bg-surface)] disabled:opacity-20 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                  title={nextPost ? `Next: ${nextPost.title}` : 'No next post'}
+                  title={nextPost ? `Next: ${nextPost.title || nextPost.permlink}` : 'No next post'}
                 >
                   <ChevronRight className="h-4 w-4 text-[var(--hrk-text-secondary)]" />
                 </button>
@@ -2465,11 +2494,11 @@ export function HiveDetailPost({
                   </span>
                   <button
                     type="button"
-                    onClick={() => { if (prevPost) { onNavigateToPost?.(prevPost.author, prevPost.permlink); setFabOpen(false); } }}
+                    onClick={() => { if (prevPost) { onNavigateToPost?.(prevPost.author, prevPost.permlink, recommendedPosts); setFabOpen(false); } }}
                     disabled={!prevPost}
                     className="w-11 h-11 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg disabled:opacity-25 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                     aria-label="Previous post"
-                    title={prevPost ? `Previous: ${prevPost.title}` : 'No previous post'}
+                    title={prevPost ? `Previous: ${prevPost.title || prevPost.permlink}` : 'No previous post'}
                   >
                     <ChevronLeft className="h-5 w-5 text-white" />
                   </button>
@@ -2484,11 +2513,11 @@ export function HiveDetailPost({
                   </span>
                   <button
                     type="button"
-                    onClick={() => { if (nextPost) { onNavigateToPost?.(nextPost.author, nextPost.permlink); setFabOpen(false); } }}
+                    onClick={() => { if (nextPost) { onNavigateToPost?.(nextPost.author, nextPost.permlink, recommendedPosts); setFabOpen(false); } }}
                     disabled={!nextPost}
                     className="w-11 h-11 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full shadow-lg disabled:opacity-25 hover:bg-white/30 hover:scale-110 active:scale-95 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                     aria-label="Next post"
-                    title={nextPost ? `Next: ${nextPost.title}` : 'No next post'}
+                    title={nextPost ? `Next: ${nextPost.title || nextPost.permlink}` : 'No next post'}
                   >
                     <ChevronRight className="h-5 w-5 text-white" />
                   </button>
@@ -2496,10 +2525,10 @@ export function HiveDetailPost({
               )}
 
               {/* Post index indicator */}
-              {recommendedPosts.length > 0 && currentIndex >= 0 && (
+              {recommendedPosts.length > 0 && (
                 <div className="self-end pr-1">
                   <span className="text-[10px] font-semibold text-white/80 bg-black/60 backdrop-blur-sm px-2.5 py-0.5 rounded-full shadow border border-white/10">
-                    {currentIndex + 1} / {recommendedPosts.length}
+                    {currentIndex >= 0 ? `${currentIndex + 1} / ${recommendedPosts.length}` : `0 / ${recommendedPosts.length}`}
                   </span>
                 </div>
               )}
@@ -3225,7 +3254,7 @@ export function HiveDetailPost({
                         <div
                           key={p.permlink}
                           onClick={() => {
-                            if (!isCurrent) onNavigateToPost?.(p.author, p.permlink);
+                            if (!isCurrent) onNavigateToPost?.(p.author, p.permlink, recommendedPosts);
                           }}
                           className={`group flex gap-3 p-2 -mx-2 rounded-xl transition-all duration-300 ${
                             isCurrent

@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
           external: [
             "react",
             "react-dom",
+            "react-dom/client",
             "react/jsx-runtime",
             "react/jsx-dev-runtime",
             "react-router-dom",

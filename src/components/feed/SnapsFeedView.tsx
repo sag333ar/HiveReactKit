@@ -91,7 +91,7 @@ export interface SnapsFeedViewProps {
     parentTags?: string[],
   ) => void;
   /** Comment-count click (per card) — typical use: open post detail. */
-  onClickCommentCount?: (author: string, permlink: string) => void;
+  onClickCommentCount?: (author: string, permlink: string, contextPosts?: Post[]) => void;
   onReportPost?: (author: string, permlink: string) => void;
   /** Forwarded to every <SnapsFeedCard/> — Bookmark entry on the
    *  action-bar kebab. Consumer decides add vs remove based on
@@ -123,7 +123,7 @@ export interface SnapsFeedViewProps {
     choiceNums: number[],
   ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
-  onPostClick?: (author: string, permlink: string, title?: string) => void;
+  onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void;
   // URL builders — forwarded to every <SnapsFeedCard/> so its
   // clickable surfaces render as real <a href> links ("open in new
   // tab" etc.). See SnapsFeedCard for details.

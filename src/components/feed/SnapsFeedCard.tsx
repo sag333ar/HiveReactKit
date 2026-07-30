@@ -70,7 +70,7 @@ export interface SnapsFeedCardProps {
   ) => void;
   /** Click on just the count number next to the comment icon — typical
    *  use: navigate to the post detail / comments view. Mirrors hSnaps. */
-  onClickCommentCount?: (author: string, permlink: string) => void;
+  onClickCommentCount?: (author: string, permlink: string, contextPosts?: Post[]) => void;
   onReportPost?: (author: string, permlink: string) => void;
   /** Called when the user toggles the bookmark item inside the snap's
    *  kebab. Consumer decides whether to add or remove based on
@@ -107,7 +107,8 @@ export interface SnapsFeedCardProps {
     choiceNums: number[],
   ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
-  onPostClick?: (author: string, permlink: string, title?: string) => void;
+  onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void;
+  contextPosts?: Post[];
   onTagClick?: (tag: string) => void;
   // URL builders — when provided, the matching clickable surfaces
   // render as real <a href> links (via HiveLink) so the browser
@@ -280,6 +281,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onVotePoll,
   onUserClick,
   onPostClick,
+  contextPosts,
   onTagClick,
   getPostUrl,
   getUserUrl,
@@ -520,7 +522,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     // Let modified / non-primary clicks through untouched so the
     // browser can act on any underlying link (e.g. the body anchors).
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    onPostClick?.(post.author, post.permlink, post.title);
+    onPostClick?.(post.author, post.permlink, post.title, contextPosts);
   };
 
   // Curation eligibility for the vote slider's curation option — either
@@ -825,7 +827,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           disableCommentsModal={!!onCommentClick}
           onComments={onCommentClick ? () => onCommentClick(post.author, post.permlink) : undefined}
           onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(post.author, post.permlink, parentMetaTags) : undefined}
-          onClickCommentCount={onClickCommentCount ? () => onClickCommentCount(post.author, post.permlink) : undefined}
+          onClickCommentCount={onClickCommentCount ? () => onClickCommentCount(post.author, post.permlink, contextPosts) : undefined}
           hasCommented={hasCommented}
           myReplyKey={myReplyKey}
           ecencyToken={ecencyToken}
