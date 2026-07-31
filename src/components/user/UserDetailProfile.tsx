@@ -214,6 +214,13 @@ export interface UserDetailProfileProps {
    *  forwarded to `isCurationEligible` so the toggle never appears for
    *  them. See postVotes.ts. */
   optedOutAuthors?: Set<string>;
+  /** When viewing a Web2 proxy account's profile (every Web2 user's
+   *  content broadcasts under one shared Hive account, so its profile
+   *  alone can't distinguish between them), narrows the Blogs/Posts/
+   *  Replies tabs down to just the posts whose json_metadata.web2id
+   *  matches this value — see getWeb2Identity, AttachmentStrip.tsx.
+   *  Absent for a normal Hive profile visit. */
+  web2IdFilter?: string;
   /** Called when the curator submits a curation request. `type` is
    *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab.
    *  `ownVoteWeight` is the curator's own vote weight on this content
@@ -576,6 +583,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onEditPost,
   isCurator,
   optedOutAuthors,
+  web2IdFilter,
   onCurationRequest,
   onFetchCurationStatus,
   onUpdateRcDelegation,
@@ -972,16 +980,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     [reportedAuthors]
   );
   const filterPost = useCallback(
-    <T extends { author: string; permlink: string }>(items: T[]): T[] => {
+    <T extends { author: string; permlink: string; json_metadata?: unknown }>(items: T[]): T[] => {
       const globalFilter = getGlobalPostFilter();
       return items.filter(
         (item) =>
           !reportedAuthorSet.has(item.author) &&
           !reportedPostKeys.has(`${item.author}/${item.permlink}`) &&
-          globalFilter(item)
+          globalFilter(item) &&
+          // Web2 proxy profile view — only this specific Web2 person's
+          // own posts, not every post the shared proxy account ever
+          // broadcast on behalf of every Web2 user.
+          (!web2IdFilter || getWeb2Identity(item.author, item.json_metadata, '').web2id === web2IdFilter)
       );
     },
-    [reportedPostKeys, reportedAuthorSet, filterTrigger]
+    [reportedPostKeys, reportedAuthorSet, filterTrigger, web2IdFilter]
   );
 
   // ─── Close dropdown on outside click ─────────────────────────────────────
