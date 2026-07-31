@@ -112,6 +112,38 @@ export function parseJsonMetadata(jm: unknown): Record<string, unknown> {
   return {};
 }
 
+export interface Web2Identity {
+  isWeb2: boolean;
+  web2id?: string;
+  displayName: string;
+  avatarUrl: string;
+}
+
+/**
+ * Posts/comments made on behalf of a "web2" user (no real Hive account) carry
+ * usertype/web2id/web2name/web2dpurl in json_metadata. When present, the UI
+ * should show that identity instead of the underlying Hive bridge account.
+ */
+export function getWeb2Identity(
+  author: string,
+  jsonMetadata: unknown,
+  fallbackAvatarUrl: string,
+): Web2Identity {
+  const meta = parseJsonMetadata(jsonMetadata);
+  const web2id = meta.web2id;
+  if (meta.usertype === 'web2' && typeof web2id === 'string' && web2id) {
+    const web2name = meta.web2name;
+    const web2dpurl = meta.web2dpurl;
+    return {
+      isWeb2: true,
+      web2id,
+      displayName: typeof web2name === 'string' && web2name ? web2name : author,
+      avatarUrl: typeof web2dpurl === 'string' && web2dpurl ? web2dpurl : fallbackAvatarUrl,
+    };
+  }
+  return { isWeb2: false, displayName: author, avatarUrl: fallbackAvatarUrl };
+}
+
 const HIVESUITE_FAMILY_TAGS = new Set(['hsnaps', 'hreplier', 'hivesuite']);
 
 export function hasHivesuiteFamilyTag(post: Post): boolean {

@@ -19,7 +19,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
-import { buildOdyseeEmbedUrl } from '../feed/AttachmentStrip';
+import { buildOdyseeEmbedUrl, getWeb2Identity } from '../feed/AttachmentStrip';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
@@ -78,6 +78,9 @@ interface InlineCommentItemProps {
   onNavigateToMap?: () => void;
   /** Called when an intra-body link points at a Hive user profile. */
   onUserClick?: (username: string) => void;
+  /** Called instead of onUserClick when this comment's json_metadata marks
+   *  its author as a "web2" user (usertype/web2id/web2name/web2dpurl). */
+  onWeb2UserClick?: (web2id: string) => void;
   /** Default reward routing seeded into every reply composer. */
   defaultReward?: RewardOption;
   /** Beneficiaries pre-populated into every reply composer. */
@@ -159,6 +162,7 @@ export default function InlineCommentItem({
   onNavigateToPost,
   onNavigateToMap,
   onUserClick,
+  onWeb2UserClick,
   defaultReward,
   defaultBeneficiaries,
   beneficiaryFavorites,
@@ -303,6 +307,12 @@ export default function InlineCommentItem({
   const developerTag = isDev && hasAllowedTag
     ? (Array.isArray(metadata?.tags) && metadata.tags.length > 0 ? (metadata.tags[0] as string) : 'hivesuite')
     : null;
+
+  const web2Identity = getWeb2Identity(
+    comment.author,
+    metadata,
+    `https://images.hive.blog/u/${comment.author}/avatar`,
+  );
 
   // Sanitize body
   const rawBody = comment.body || '';
@@ -566,47 +576,47 @@ export default function InlineCommentItem({
               Without the prop they fall back to plain elements (no
               cursor change, no focus ring) so the surface still reads
               the same in environments that don't expose user pages. */}
-          {onUserClick ? (
+          {(web2Identity.isWeb2 ? onWeb2UserClick : onUserClick) ? (
             <button
               type="button"
-              onClick={() => onUserClick(comment.author)}
+              onClick={() => web2Identity.isWeb2 ? onWeb2UserClick!(web2Identity.web2id!) : onUserClick!(comment.author)}
               className="flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/60"
-              aria-label={`Open @${comment.author}'s profile`}
+              aria-label={`Open ${web2Identity.displayName}'s profile`}
             >
               <img
-                src={`https://images.hive.blog/u/${comment.author}/avatar`}
-                alt={comment.author}
+                src={web2Identity.avatarUrl}
+                alt={web2Identity.displayName}
                 className={`w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-700 ${getSupporterRing(tier)}`}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
                 }}
               />
             </button>
           ) : (
             <img
-              src={`https://images.hive.blog/u/${comment.author}/avatar`}
-              alt={comment.author}
+              src={web2Identity.avatarUrl}
+              alt={web2Identity.displayName}
               className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700 ${getSupporterRing(tier)}`}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
               }}
             />
           )}
-          {onUserClick ? (
+          {(web2Identity.isWeb2 ? onWeb2UserClick : onUserClick) ? (
             <button
               type="button"
-              onClick={() => onUserClick(comment.author)}
+              onClick={() => web2Identity.isWeb2 ? onWeb2UserClick!(web2Identity.web2id!) : onUserClick!(comment.author)}
               className="text-xs md:text-sm font-semibold text-white truncate hover:text-blue-400 hover:underline focus:outline-none focus:text-blue-400 focus:underline"
             >
               {tier ? (
-                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
-              ) : <>@{comment.author}</>}
+                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</span>
+              ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</>}
             </button>
           ) : (
             <span className="text-xs md:text-sm font-semibold text-white truncate">
               {tier ? (
-                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
-              ) : <>@{comment.author}</>}
+                <span className={`inline-block rounded px-1 py-0.5 text-[10px] md:text-xs font-semibold ${getSupporterBadge(tier)}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</span>
+              ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</>}
             </span>
           )}
           {comment.author === currentUser && (
@@ -1068,6 +1078,7 @@ export default function InlineCommentItem({
               onDeleteComment={onDeleteComment}
               onNavigateToPost={onNavigateToPost}
               onUserClick={onUserClick}
+              onWeb2UserClick={onWeb2UserClick}
               defaultReward={defaultReward}
               defaultBeneficiaries={defaultBeneficiaries}
               beneficiaryFavorites={beneficiaryFavorites}

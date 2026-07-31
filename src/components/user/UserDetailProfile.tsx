@@ -60,6 +60,7 @@ import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
 import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
+import { getWeb2Identity } from "../feed/AttachmentStrip";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
@@ -304,6 +305,10 @@ export interface UserDetailProfileProps {
 
   // Navigation callbacks
   onUserClick?: (username: string) => void;
+  /** Called instead of onUserClick when a Blogs-tab post's json_metadata
+   *  marks its author as a "web2" user (usertype/web2id/web2name/
+   *  web2dpurl) — see getWeb2Identity, AttachmentStrip.tsx. */
+  onWeb2UserClick?: (web2id: string) => void;
   onPostClick?: (author: string, permlink: string, title: string, contextPosts?: Post[]) => void;
   onSnapClick?: (author: string, permlink: string) => void;
   onPollClick?: (author: string, permlink: string, question: string) => void;
@@ -314,6 +319,9 @@ export interface UserDetailProfileProps {
   // through the on*Click callbacks above.
   getPostUrl?: (author: string, permlink: string) => string;
   getUserUrl?: (username: string) => string;
+  /** Profile URL builder for a web2 user's identity — used instead of
+   *  getUserUrl for a Blogs-tab post whose author is a web2 proxy. */
+  getWeb2UserUrl?: (web2id: string) => string;
   getTagUrl?: (tag: string) => string;
   getCommunityUrl?: (community: string) => string;
   onActivitySelect?: (activity: any) => void;
@@ -585,11 +593,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onVotePoll,
   onEditSnap,
   onUserClick,
+  onWeb2UserClick,
   onPostClick,
   onSnapClick,
   onPollClick,
   getPostUrl,
   getUserUrl,
+  getWeb2UserUrl,
   getTagUrl,
   getCommunityUrl,
   onActivityPermlink,
@@ -2187,6 +2197,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       optedOutAuthors,
     });
     const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes);
+    const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
     return (
       <div
@@ -2203,26 +2214,30 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             {/* Header: avatar + author/time/community inline */}
             <div className="mb-1 flex items-center gap-2 sm:mb-1.5 sm:gap-3">
               <img
-                src={`https://images.hive.blog/u/${item.author}/avatar`}
-                alt={item.author}
+                src={web2Identity.avatarUrl}
+                alt={web2Identity.displayName}
                 className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author])}`}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
                 }}
               />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                 <HiveLink
-                  href={getUserUrl?.(item.author)}
-                  onActivate={() => onUserClick?.(item.author)}
+                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
+                  onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(item.author)}
                   className="text-[11px] font-medium text-white hover:text-blue-400 sm:text-sm"
                 >
                   {tierMap[item.author] ? (
-                    <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>@{item.author}</span>
-                  ) : <>@{item.author}</>}
+                    <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${item.author}`}</span>
+                  ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${item.author}`}</>}
                 </HiveLink>
-                {item.author_reputation !== undefined && (
+                {/* Reputation belongs to the underlying Hive account (the
+                    shared web2 proxy here, not the web2 person) — showing
+                    it next to a resolved web2 display name would misleadingly
+                    imply it's theirs, so it's hidden for web2 identities. */}
+                {item.author_reputation !== undefined && !web2Identity.isWeb2 && (
                   <div className="relative group inline-flex shrink-0">
-                    <span 
+                    <span
                       className="text-[10px] sm:text-xs text-[var(--hrk-text-tertiary)] cursor-pointer font-normal"
                     >
                       ({getReputationDetails(item.author_reputation).score})

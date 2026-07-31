@@ -26,6 +26,7 @@ import type { RewardOption } from '../utils/commentOptions';
 import { extractPostMedia, type PostMedia } from '../utils/postMedia';
 import { MediaLightbox } from './MediaLightbox';
 import { HiveLink } from './common/HiveLink';
+import { getWeb2Identity } from './feed/AttachmentStrip';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -93,6 +94,12 @@ export interface BlogPostListProps {
   getPostUrl?: (author: string, permlink: string) => string;
   getUserUrl?: (username: string) => string;
   getCommunityUrl?: (community: string) => string;
+  // When a post's json_metadata marks the author as a "web2" user
+  // (usertype/web2id/web2name/web2dpurl), the author header shows that
+  // identity instead of the Hive account and routes clicks through
+  // these instead of onUserClick/getUserUrl.
+  onWeb2UserClick?: (web2id: string) => void;
+  getWeb2UserUrl?: (web2id: string) => string;
 
   // Composer tokens forwarded to <PostActionButton/>'s comments modal.
   ecencyToken?: string;
@@ -399,6 +406,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   getPostUrl,
   getUserUrl,
   getCommunityUrl,
+  onWeb2UserClick,
+  getWeb2UserUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -547,6 +556,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
           optedOutAuthors,
         });
         const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined);
+        const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
         return (
           <div
@@ -562,24 +572,24 @@ export const BlogPostList: FC<BlogPostListProps> = ({
               <div className="min-w-0 flex-1 p-2.5 sm:p-4">
                 <div className="mb-1 flex items-center gap-2 sm:mb-1.5 sm:gap-3">
                   <img
-                    src={`https://images.hive.blog/u/${item.author}/avatar`}
-                    alt={item.author}
+                    src={web2Identity.avatarUrl}
+                    alt={web2Identity.displayName}
                     loading="lazy"
                     decoding="async"
                     className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author], 'ring-1 ring-[var(--hrk-border-subtle)]')}`}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${item.author}&background=random&size=40`;
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
                     }}
                   />
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                     <HiveLink
-                      href={getUserUrl?.(item.author)}
-                      onActivate={() => onUserClick?.(item.author)}
+                      href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
+                      onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(item.author)}
                       className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
                       {tierMap[item.author] ? (
-                        <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>@{item.author}</span>
-                      ) : <>@{item.author}</>}
+                        <span className={`inline-block rounded px-1 py-0.5 text-[10px] font-medium sm:text-xs ${getSupporterBadge(tierMap[item.author])}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${item.author}`}</span>
+                      ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${item.author}`}</>}
                     </HiveLink>
                     {/* Timestamp is the post permalink so the card has a
                         right-clickable "open in new tab" target even if

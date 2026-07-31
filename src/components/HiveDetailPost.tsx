@@ -52,7 +52,7 @@ import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
-import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX } from './feed/AttachmentStrip';
+import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX, getWeb2Identity } from './feed/AttachmentStrip';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -293,6 +293,12 @@ export interface HiveDetailPostProps {
   // tab" / Cmd-click. Plain clicks still route through the callbacks.
   getUserUrl?: (username: string) => string;
   getCommunityUrl?: (communityId: string) => string;
+  // When a post/comment's json_metadata marks the author as a "web2" user
+  // (usertype/web2id/web2name/web2dpurl), author headers show that
+  // identity instead of the Hive account and route clicks through these
+  // instead of onUserClick/getUserUrl.
+  onWeb2UserClick?: (web2id: string) => void;
+  getWeb2UserUrl?: (web2id: string) => string;
 
   // ── Header kebab (in-app-bar more menu) ────────────────────────────
   // Mirror of the per-card action bar's `onShare` / `onReport`, but
@@ -472,6 +478,8 @@ export function HiveDetailPost({
   onCommunityClick,
   getUserUrl,
   getCommunityUrl,
+  onWeb2UserClick,
+  getWeb2UserUrl,
   onNavigateToPost,
   onNavigateToMap,
   contextPosts,
@@ -2166,6 +2174,11 @@ export function HiveDetailPost({
     optedOutAuthors,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes);
+  const web2Identity = getWeb2Identity(
+    post.author,
+    post.json_metadata,
+    profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`,
+  );
   // The main item can be a genuine top-level post, or a snap/comment
   // opened via its own permalink page — all three are `comment` ops on
   // Hive, so the weight cap must follow the REAL type, not just assume
@@ -2203,14 +2216,14 @@ export function HiveDetailPost({
 
             {/* Avatar */}
             <HiveLink
-              href={getUserUrl?.(post.author)}
-              onActivate={() => onUserClick?.(post.author)}
+              href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
+              onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
               className="flex-shrink-0"
-              aria-label={`@${post.author} profile`}
+              aria-label={`${web2Identity.displayName} profile`}
             >
               <img
-                src={profile?.profileImage || `https://images.hive.blog/u/${post.author}/avatar`}
-                alt={post.author}
+                src={web2Identity.avatarUrl}
+                alt={web2Identity.displayName}
                 className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
@@ -2228,11 +2241,11 @@ export function HiveDetailPost({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <HiveLink
-                  href={getUserUrl?.(post.author)}
-                  onActivate={() => onUserClick?.(post.author)}
+                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
+                  onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
                   className="text-sm font-semibold text-white hover:text-blue-400 transition-colors"
                 >
-                  @{post.author}
+                  {web2Identity.isWeb2 ? web2Identity.displayName : `@${post.author}`}
                 </HiveLink>
                 {post.author_reputation !== undefined && (
                   <div className="relative group inline-flex shrink-0">
@@ -2663,19 +2676,19 @@ export function HiveDetailPost({
                     Cross post by
                   </span>
                   <HiveLink
-                    href={getUserUrl?.(post.author)}
-                    onActivate={() => onUserClick?.(post.author)}
+                    href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
+                    onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
                     className="text-sm font-bold text-white hover:text-red-400 transition-colors inline-flex items-center gap-1.5"
                   >
                     <img
-                      src={`https://images.hive.blog/u/${post.author}/avatar`}
-                      alt={post.author}
+                      src={web2Identity.avatarUrl}
+                      alt={web2Identity.displayName}
                       className="w-5 h-5 rounded-full inline-block object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
                       }}
                     />
-                    <span>{post.author}</span>
+                    <span>{web2Identity.isWeb2 ? web2Identity.displayName : post.author}</span>
                   </HiveLink>
                 </div>
                 <div className="text-xs text-gray-300 font-medium tracking-wide">
@@ -3159,6 +3172,7 @@ export function HiveDetailPost({
                 onNavigateToPost={onNavigateToPost}
                 onNavigateToMap={onNavigateToMap}
                 onUserClick={onUserClick}
+                onWeb2UserClick={onWeb2UserClick}
                 showVoteButton={showVoteButton}
                 alreadyVoted={alreadyVoted}
                 parentTags={parentTags}

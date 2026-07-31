@@ -23,7 +23,7 @@ import { Repeat } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import type { Post } from '@/types/post';
 import { getHivePostLevel } from '@/utils/hivePostReferences';
-import { AttachmentStrip, parseBody, type Attachment } from './AttachmentStrip';
+import { AttachmentStrip, parseBody, getWeb2Identity, type Attachment } from './AttachmentStrip';
 
 interface ReSnapEmbedProps {
   /** Snap author whose post is being re-snapped. */
@@ -38,6 +38,9 @@ interface ReSnapEmbedProps {
   onPostClick?: (author: string, permlink: string) => void;
   /** Optional callback for tapping the embedded author. */
   onUserClick?: (username: string) => void;
+  /** Called instead of onUserClick when the embedded post's json_metadata
+   *  marks its author as a "web2" user. */
+  onWeb2UserClick?: (web2id: string) => void;
   /** Emits true when a preview card is shown (post or re-snap). Emits false
    *  when the fetch fails or top-level posts are hidden (`showTopLevelPostPreview`
    *  is false). */
@@ -97,6 +100,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   observer,
   onPostClick,
   onUserClick,
+  onWeb2UserClick,
   onPreviewVisibilityChange,
   showTopLevelPostPreview = false,
 }) => {
@@ -156,6 +160,18 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
     () => post ? plainTextPreview(post.body ?? '').slice(0, 280) : '',
     [post],
   );
+  const web2Identity = useMemo(
+    () => post
+      ? getWeb2Identity(post.author, post.json_metadata, `https://images.hive.blog/u/${post.author}/avatar`)
+      : null,
+    [post],
+  );
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!post) return;
+    if (web2Identity?.isWeb2) onWeb2UserClick?.(web2Identity.web2id!);
+    else onUserClick?.(post.author);
+  };
 
   const handleOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -190,18 +206,18 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
               <div className="flex items-center gap-1.5 text-xs text-[var(--hrk-text-tertiary)]">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+                  onClick={handleAuthorClick}
                   className="flex items-center gap-1 hover:text-[var(--hrk-brand)] font-medium"
                 >
                   <img
-                    src={`https://images.hive.blog/u/${post.author}/avatar`}
+                    src={web2Identity!.avatarUrl}
                     alt=""
                     className="h-4.5 w-4.5 shrink-0 rounded-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=18`;
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity!.displayName}&background=random&size=18`;
                     }}
                   />
-                  <span className="truncate">@{post.author}</span>
+                  <span className="truncate">{web2Identity!.isWeb2 ? web2Identity!.displayName : `@${post.author}`}</span>
                 </button>
                 <span className="shrink-0">·</span>
                 <span className="shrink-0">{formatTimeAgo(post.created)}</span>
@@ -241,25 +257,25 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+                onClick={handleAuthorClick}
                 className="shrink-0"
               >
                 <img
-                  src={`https://images.hive.blog/u/${post.author}/avatar`}
-                  alt={post.author}
+                  src={web2Identity!.avatarUrl}
+                  alt={web2Identity!.displayName}
                   className="h-7 w-7 rounded-full bg-[var(--hrk-bg-hover)] object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=28`;
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity!.displayName}&background=random&size=28`;
                   }}
                 />
               </button>
               <div className="min-w-0">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onUserClick?.(post.author); }}
+                  onClick={handleAuthorClick}
                   className="block truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
                 >
-                  @{post.author}
+                  {web2Identity!.isWeb2 ? web2Identity!.displayName : `@${post.author}`}
                 </button>
                 <span className="text-[11px] text-[var(--hrk-brand)]">
                   {formatTimeAgo(post.created)}

@@ -119,6 +119,12 @@ export interface SnapsFeedCardProps {
   getUserUrl?: (username: string) => string;
   getTagUrl?: (tag: string) => string;
   getCommunityUrl?: (community: string) => string;
+  // When the post's json_metadata marks the author as a "web2" user
+  // (usertype/web2id/web2name/web2dpurl), the author header shows the
+  // web2 identity instead of the Hive account and routes clicks through
+  // these instead of onUserClick/getUserUrl.
+  onWeb2UserClick?: (web2id: string) => void;
+  getWeb2UserUrl?: (web2id: string) => string;
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;
@@ -164,6 +170,7 @@ import {
   hasHivesuiteFamilyTag,
   extractTagsFromMeta,
   parseJsonMetadata,
+  getWeb2Identity,
   stripViaAppsCredit,
   TWITTER_REGEX,
   YOUTUBE_REGEX,
@@ -287,6 +294,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   getUserUrl,
   getTagUrl,
   getCommunityUrl,
+  onWeb2UserClick,
+  getWeb2UserUrl,
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
@@ -328,6 +337,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const isHivesuitePost = useMemo(
     () => hasHivesuiteFamilyTag(post),
     [post.json_metadata],
+  );
+  const web2Identity = useMemo(
+    () => getWeb2Identity(post.author, post.json_metadata, `https://images.hive.blog/u/${post.author}/avatar`),
+    [post.author, post.json_metadata],
   );
   const parentMetaTags = useMemo(
     () => extractTagsFromMeta(post),
@@ -546,29 +559,29 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       {/* Header */}
       <header className="flex items-center gap-3 px-4 pt-4 pb-2">
         <HiveLink
-          href={getUserUrl?.(post.author)}
-          onActivate={() => onUserClick?.(post.author)}
+          href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
+          onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
           className="shrink-0"
-          aria-label={`@${post.author} profile`}
+          aria-label={`${web2Identity.displayName} profile`}
         >
           <img
-            src={`https://images.hive.blog/u/${post.author}/avatar`}
-            alt={post.author}
+            src={web2Identity.avatarUrl}
+            alt={web2Identity.displayName}
             className={`h-9 w-9 rounded-full bg-[var(--hrk-bg-hover)] object-cover ${getSupporterRing(tier)}`}
             onError={(e) => {
-              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.author}&background=random&size=36`;
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=36`;
             }}
           />
         </HiveLink>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
           <HiveLink
-            href={getUserUrl?.(post.author)}
-            onActivate={() => onUserClick?.(post.author)}
+            href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
+            onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
             className="truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
           >
             {tier ? (
-              <span className={`inline-block rounded px-1 py-0.5 text-xs font-semibold sm:text-sm ${getSupporterBadge(tier)}`}>@{post.author}</span>
-            ) : <>@{post.author}</>}
+              <span className={`inline-block rounded px-1 py-0.5 text-xs font-semibold sm:text-sm ${getSupporterBadge(tier)}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${post.author}`}</span>
+            ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${post.author}`}</>}
           </HiveLink>
           {post.author_reputation !== undefined && (
             <div className="relative group inline-flex shrink-0">
@@ -741,6 +754,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             observer={currentUser}
             onPostClick={onPostClick}
             onUserClick={onUserClick}
+            onWeb2UserClick={onWeb2UserClick}
             onPreviewVisibilityChange={handleReSnapPreviewVisibility}
             showTopLevelPostPreview
           />

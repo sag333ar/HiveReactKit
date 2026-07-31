@@ -12,6 +12,7 @@ import { toast } from '@/index';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { TranslatedBody } from '../TranslatedBody';
+import { getWeb2Identity } from '../feed/AttachmentStrip';
 
 interface CommentTileProps {
   comment: Discussion;
@@ -219,6 +220,7 @@ const CommentTile = ({
   // Get vote count from stats or net_votes
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
   const tier = useSupporterTier(comment.author);
+  const web2Identity = getWeb2Identity(comment.author, metadata, `https://images.hive.blog/u/${comment.author}/avatar`);
 
   return (
     <div className={`${depth > 0 ? 'ml-4 md:ml-8 border-l-2 border-gray-700 pl-4 md:pl-6' : ''}`}>
@@ -227,11 +229,11 @@ const CommentTile = ({
           {/* Avatar */}
           <div className="flex-shrink-0">
             <img
-              src={`https://images.hive.blog/u/${comment.author}/avatar`}
-              alt={comment.author}
+              src={web2Identity.avatarUrl}
+              alt={web2Identity.displayName}
               className={`w-8 h-8 md:w-10 md:h-10 rounded-full object-cover ${getSupporterRing(tier, 'ring-2 ring-gray-700')}`}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
               }}
             />
           </div>
@@ -246,8 +248,8 @@ const CommentTile = ({
                 }}
               >
                 {tier ? (
-                  <span className={`inline-block rounded px-1 py-0.5 text-xs md:text-sm font-semibold ${getSupporterBadge(tier)}`}>@{comment.author}</span>
-                ) : <>@{comment.author}</>}
+                  <span className={`inline-block rounded px-1 py-0.5 text-xs md:text-sm font-semibold ${getSupporterBadge(tier)}`}>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</span>
+                ) : <>{web2Identity.isWeb2 ? web2Identity.displayName : `@${comment.author}`}</>}
               </button>
               {(comment as any).author_reputation !== undefined && (
                 <div className="relative group inline-flex shrink-0">
