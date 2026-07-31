@@ -233,6 +233,13 @@ export interface PostComposerProps {
    *  also calls `condenser_api.get_account_reputations` for live
    *  results. Omit to disable autocomplete entirely. */
   mentionSeedAccounts?: string[];
+  /** When true, the current user is a "web2" user (free tier, posting via
+   *  a bridge account, no real Hive account of their own). Hides the
+   *  audio-upload, video-upload, DecentMemes, beneficiaries, reward-payout,
+   *  and poll toolbar options regardless of the individual `hide*` props —
+   *  these are Hive-account-cost features that free web2 users shouldn't
+   *  reach. */
+  isWeb2User?: boolean;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -260,8 +267,8 @@ const PostComposer = ({
   hideItalic,
   hideLink,
   hideImage,
-  hideAudio,
-  hideVideo,
+  hideAudio: hideAudioProp,
+  hideVideo: hideVideoProp,
   hideEmoji,
   hideGif,
   hideTranslate = false,
@@ -270,12 +277,12 @@ const PostComposer = ({
   hideMention,
   hideTemplate,
   hideMeme,
-  hideDecentMeme,
+  hideDecentMeme: hideDecentMemeProp,
   decentMemesAppAccount,
   decentMemesTheme,
   onDecentMemesChange,
   hidePreview,
-  hidePoll,
+  hidePoll: hidePollProp,
   onPollChange,
   defaultTags,
   initialUserTags,
@@ -285,12 +292,12 @@ const PostComposer = ({
   reward,
   defaultReward = 'default',
   onRewardChange,
-  hideReward,
+  hideReward: hideRewardProp,
   beneficiaries,
   defaultBeneficiaries,
   onBeneficiariesChange,
   beneficiaryFavorites,
-  hideBeneficiaries,
+  hideBeneficiaries: hideBeneficiariesProp,
   showVoteButton = false,
   defaultVoteEnabled = false,
   defaultVotePercent = 100,
@@ -314,7 +321,14 @@ const PostComposer = ({
   walletApprovalLabel = 'Open Keychain App & Approve',
   awaitingWalletApproval = false,
   mentionSeedAccounts,
+  isWeb2User = false,
 }: PostComposerProps) => {
+  const hideAudio = hideAudioProp || isWeb2User;
+  const hideVideo = hideVideoProp || isWeb2User;
+  const hideDecentMeme = hideDecentMemeProp || isWeb2User;
+  const hidePoll = hidePollProp || isWeb2User;
+  const hideReward = hideRewardProp || isWeb2User;
+  const hideBeneficiaries = hideBeneficiariesProp || isWeb2User;
   const [internalBody, setInternalBody] = useState('');
   const body = value !== undefined ? value : internalBody;
   const setBody = (v: string) => {

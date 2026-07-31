@@ -373,6 +373,15 @@ export interface ParentPostComposerProps {
    * WorldMapPin location that you haven't committed to the body yet.
    */
   previewExtras?: string;
+
+  /** When true, the current user is a "web2" user (free tier, posting via
+   *  a bridge account, no real Hive account of their own). Hides the
+   *  audio-upload, video-upload, DecentMemes, beneficiaries, reward-payout,
+   *  and poll toolbar options regardless of the individual `hide*` props,
+   *  hides the "Save draft" button regardless of `onSaveDraft`, and
+   *  suppresses `communitySlot` — these all cost real Hive-account
+   *  resources that free web2 users shouldn't reach. */
+  isWeb2User?: boolean;
 }
 
 /**
@@ -480,26 +489,26 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   apps,
   selectedApp,
   onAppChange,
-  onSaveDraft,
+  onSaveDraft: onSaveDraftProp,
   postTemplates,
   onSavePostTemplate,
   onDeletePostTemplate,
   onApplyPostTemplate,
-  hideAudio,
-  hideVideo,
+  hideAudio: hideAudioProp,
+  hideVideo: hideVideoProp,
   hideGif,
   hideYoutube,
   hideEmoji,
   hideTemplate,
-  hidePoll,
+  hidePoll: hidePollProp,
   hideMeme,
-  hideDecentMeme,
+  hideDecentMeme: hideDecentMemeProp,
   decentMemesAppAccount,
   decentMemesTheme,
   onDecentMemesChange,
   hideTags,
-  hideReward,
-  hideBeneficiaries,
+  hideReward: hideRewardProp,
+  hideBeneficiaries: hideBeneficiariesProp,
   requirePoll,
   allowLandscapeVideos = true,
   mentionSeedAccounts,
@@ -515,13 +524,22 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   draftKey,
   beforeVideoUpload,
   useThreeSpeakV2 = false,
-  communitySlot,
+  communitySlot: communitySlotProp,
   videoSlot,
   reblogToggle = false,
   reblogToggleDefault = false,
   reblogToggleLabel = 'Reblog',
   previewExtras = '',
+  isWeb2User = false,
 }) => {
+  const hideAudio = hideAudioProp || isWeb2User;
+  const hideVideo = hideVideoProp || isWeb2User;
+  const hideDecentMeme = hideDecentMemeProp || isWeb2User;
+  const hidePoll = hidePollProp || isWeb2User;
+  const hideReward = hideRewardProp || isWeb2User;
+  const hideBeneficiaries = hideBeneficiariesProp || isWeb2User;
+  const onSaveDraft = isWeb2User ? undefined : onSaveDraftProp;
+  const communitySlot = isWeb2User ? undefined : communitySlotProp;
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
   const [draftHydrated, setDraftHydrated] = useState(false);
