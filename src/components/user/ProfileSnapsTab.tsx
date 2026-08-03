@@ -54,6 +54,14 @@ function isHydrated(state: Record<SnapSubType, SubTypeState>): boolean {
 export interface ProfileSnapsTabProps {
   username: string;
   currentUsername?: string;
+  /**
+   * Hive account to pass as `observer` to `getUserSnaps`. Defaults to
+   * `currentUsername` when omitted — pass this separately when
+   * `currentUsername` isn't a valid Hive account (e.g. a Web2 viewer),
+   * while `currentUsername` stays their real identity for permission
+   * checks (edit/delete on their own snaps).
+   */
+  observer?: string;
 
   reportedPosts?: { author: string; permlink: string }[];
   reportedAuthors?: string[];
@@ -137,10 +145,12 @@ export interface ProfileSnapsTabProps {
 const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
   username,
   currentUsername,
+  observer: observerProp,
   reportedPosts = [],
   reportedAuthors = [],
   ...feedProps
 }) => {
+  const observer = observerProp ?? currentUsername
   // Initialize from the module-level cache so we keep every page the
   // user had already loaded for this profile in this session.
   const [state, setState] = useState<Record<SnapSubType, SubTypeState>>(
@@ -213,7 +223,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         const { snaps: raw, nextStartId } = await userService.getUserSnaps(
           username,
           undefined,
-          currentUsername,
+          observer,
           controller.signal,
           SNAP_SUBTYPE_PARENTS[sub],
         );
@@ -245,7 +255,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       aborted = true;
       controller.abort();
     };
-  }, [username, currentUsername]);
+  }, [username, observer]);
 
   const loadMore = useCallback(
     async (sub: SnapSubType) => {
@@ -256,7 +266,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         const { snaps: raw, nextStartId } = await userService.getUserSnaps(
           username,
           slot.nextStartId,
-          currentUsername,
+          observer,
           undefined,
           SNAP_SUBTYPE_PARENTS[sub],
         );
@@ -279,7 +289,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         }));
       }
     },
-    [state, username, currentUsername],
+    [state, username, observer],
   );
 
   const feeds = useMemo<Record<SnapsFeedKey, SnapsFeedSlot>>(
@@ -327,6 +337,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
     <SnapsFeedView
       feeds={feeds}
       currentUser={currentUsername}
+      observer={observer}
       {...feedProps}
     />
   );

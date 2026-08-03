@@ -54,6 +54,12 @@ const communitySnapsCache = new Map<string, Record<SnapSubType, SubTypeState>>()
 export interface CommunitySnapsTabProps {
   communityId: string;
   currentUser?: string;
+  /**
+   * Hive account to pass as `observer` to `getCommunitySnaps`. Defaults
+   * to `currentUser` when omitted — pass this separately when
+   * `currentUser` isn't a valid Hive account (e.g. a Web2 viewer).
+   */
+  observer?: string;
 
   reportedPosts?: { author: string; permlink: string }[];
   reportedAuthors?: string[];
@@ -108,11 +114,14 @@ export interface CommunitySnapsTabProps {
 const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
   communityId,
   currentUser,
+  observer: observerProp,
   reportedPosts = [],
   reportedAuthors = [],
   pageScroll,
   ...feedProps
 }) => {
+  const observer = observerProp ?? currentUser
+
   const [state, setState] = useState<Record<SnapSubType, SubTypeState>>(
     () => communitySnapsCache.get(communityId) ?? makeInitialState(),
   );
@@ -173,7 +182,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
           communityId,
           SNAP_SUBTYPE_PARENTS[sub],
           undefined,
-          currentUser,
+          observer,
           controller.signal,
         );
         if (aborted) return;
@@ -204,7 +213,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
       aborted = true;
       controller.abort();
     };
-  }, [communityId, currentUser]);
+  }, [communityId, observer]);
 
   const loadMore = useCallback(
     async (sub: SnapSubType) => {
@@ -216,7 +225,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
           communityId,
           SNAP_SUBTYPE_PARENTS[sub],
           slot.nextStartId,
-          currentUser,
+          observer,
           undefined,
         );
         setState((prev) => ({
@@ -238,7 +247,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         }));
       }
     },
-    [state, communityId, currentUser],
+    [state, communityId, observer],
   );
 
   const feeds = useMemo<Record<SnapsFeedKey, SnapsFeedSlot>>(
@@ -286,6 +295,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
     <SnapsFeedView
       feeds={feeds}
       currentUser={currentUser}
+      observer={observer}
       pageScroll={pageScroll}
       {...feedProps}
     />

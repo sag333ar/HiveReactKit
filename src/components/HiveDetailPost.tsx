@@ -52,7 +52,7 @@ import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
-import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX, getWeb2Identity } from './feed/AttachmentStrip';
+import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX, getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -79,6 +79,16 @@ export interface HiveDetailPostProps {
   author: string;
   permlink: string;
   currentUser?: string;
+  /**
+   * Hive account to pass as `observer` to bridge API calls (get_post,
+   * cross-post/re-snap embed fetches). Defaults to `currentUser` when
+   * omitted. Pass this separately when `currentUser` isn't itself a
+   * valid Hive account — e.g. a Web2-authenticated viewer, where the
+   * consumer should pass its shared proxy account here instead while
+   * `currentUser` stays the viewer's real (non-Hive) identity for
+   * permission checks (edit/delete/vote/avatar).
+   */
+  observer?: string;
   contextPosts?: Post[];
 
   // PostActionButton callbacks
@@ -440,6 +450,7 @@ export function HiveDetailPost({
   author,
   permlink,
   currentUser,
+  observer: observerProp,
   onUpvote,
   onSubmitComment,
   onClickCommentUpvote,
@@ -507,6 +518,8 @@ export function HiveDetailPost({
   onCurationRequest,
   onFetchCurationStatus,
 }: HiveDetailPostProps) {
+  const observer = observerProp ?? currentUser;
+
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
     if (!backgroundColor) return {};
@@ -937,7 +950,7 @@ export function HiveDetailPost({
     let active = true;
     setLoadingOriginalPost(true);
 
-    apiService.getPostContent(origAuthor, origPermlink, currentUser ?? '')
+    apiService.getPostContent(origAuthor, origPermlink, observer ?? '')
       .then((content) => {
         if (!active) return;
         if (content) {
@@ -957,7 +970,7 @@ export function HiveDetailPost({
     return () => {
       active = false;
     };
-  }, [parsedMetadata?.original_author, parsedMetadata?.original_permlink, currentUser]);
+  }, [parsedMetadata?.original_author, parsedMetadata?.original_permlink, observer]);
 
   const displayPost = originalPost || post;
 
@@ -1850,11 +1863,11 @@ export function HiveDetailPost({
     setLoading(true);
     setError(null);
     try {
-      // Pass `currentUser` as the observer so `bridge.get_post`
+      // Pass `observer` (defaults to currentUser) so `bridge.get_post`
       // returns observer-aware data (mute/block flags) — keeps the
       // post shape consistent with the comment thread fetched by
       // `bridge.get_discussion` (which already uses observer).
-      const content = await apiService.getPostContent(author, permlink, currentUser ?? '');
+      const content = await apiService.getPostContent(author, permlink, observer ?? '');
       if (content) {
         setPost(content);
       } else {
@@ -1865,7 +1878,7 @@ export function HiveDetailPost({
     } finally {
       setLoading(false);
     }
-  }, [author, permlink, currentUser]);
+  }, [author, permlink, observer]);
 
   // Fetch post content
   useEffect(() => {
@@ -2218,7 +2231,7 @@ export function HiveDetailPost({
             <HiveLink
               href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
               onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
-              className="flex-shrink-0"
+              className="relative flex-shrink-0"
               aria-label={`${web2Identity.displayName} profile`}
             >
               <img
@@ -2229,6 +2242,7 @@ export function HiveDetailPost({
                   (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
                 }}
               />
+              <Web2ProviderBadge provider={web2Identity.provider} size={16} />
             </HiveLink>
 
             {/* Name + meta row. Time-ago and community sit directly
@@ -2817,7 +2831,7 @@ export function HiveDetailPost({
                   <ReSnapEmbed
                     author={reSnapTarget.author}
                     permlink={reSnapTarget.permlink}
-                    observer={currentUser}
+                    observer={observer}
                     onPostClick={onNavigateToPost}
                     onUserClick={onUserClick}
                     onPreviewVisibilityChange={handleReSnapPreviewVisibility}
@@ -3148,6 +3162,7 @@ export function HiveDetailPost({
                 author={post.author}
                 permlink={post.permlink}
                 currentUser={currentUser}
+                observer={observer}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
                 threeSpeakToken={threeSpeakToken}

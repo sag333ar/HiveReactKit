@@ -12,7 +12,7 @@ import { toast } from '@/index';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { TranslatedBody } from '../TranslatedBody';
-import { getWeb2Identity } from '../feed/AttachmentStrip';
+import { getWeb2Identity, Web2ProviderBadge } from '../feed/AttachmentStrip';
 
 interface CommentTileProps {
   comment: Discussion;
@@ -227,7 +227,7 @@ const CommentTile = ({
       <div className="group hover:bg-gray-800/50 transition-colors duration-200 p-4 md:p-6">
         <div className="flex items-start space-x-3 md:space-x-4">
           {/* Avatar */}
-          <div className="flex-shrink-0">
+          <div className="relative flex-shrink-0">
             <img
               src={web2Identity.avatarUrl}
               alt={web2Identity.displayName}
@@ -236,6 +236,7 @@ const CommentTile = ({
                 (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
               }}
             />
+            <Web2ProviderBadge provider={web2Identity.provider} />
           </div>
 
           <div className="flex-1 min-w-0">

@@ -35,6 +35,14 @@ import { HiveLink } from '../common/HiveLink';
 export interface SnapsFeedCardProps {
   post: Post;
   currentUser?: string;
+  /**
+   * Hive account to pass as `observer` when fetching an embedded re-snap
+   * target's post content. Defaults to `currentUser` when omitted — pass
+   * this separately when `currentUser` isn't a valid Hive account (e.g. a
+   * Web2 viewer), while `currentUser` stays their real identity for
+   * permission checks (own-post edit/delete, reply-detection, etc.).
+   */
+  observer?: string;
 
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
@@ -171,6 +179,7 @@ import {
   extractTagsFromMeta,
   parseJsonMetadata,
   getWeb2Identity,
+  Web2ProviderBadge,
   stripViaAppsCredit,
   TWITTER_REGEX,
   YOUTUBE_REGEX,
@@ -267,6 +276,7 @@ const InlineBody: FC<{
 const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   post,
   currentUser,
+  observer: observerProp,
   onUpvote,
   onSubmitComment,
   onClickCommentUpvote,
@@ -313,6 +323,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   onCurationRequest,
   onFetchCurationStatus,
 }) => {
+  const observer = observerProp ?? currentUser;
   const reSnapTarget = useMemo(
     () => detectHivePostReference(stripViaAppsCredit(post.body ?? '')),
     [post.body],
@@ -561,7 +572,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         <HiveLink
           href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
           onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
-          className="shrink-0"
+          className="relative shrink-0"
           aria-label={`${web2Identity.displayName} profile`}
         >
           <img
@@ -572,6 +583,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
               (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=36`;
             }}
           />
+          <Web2ProviderBadge provider={web2Identity.provider} />
         </HiveLink>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
           <HiveLink
@@ -751,7 +763,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           <ReSnapEmbed
             author={reSnapTarget.author}
             permlink={reSnapTarget.permlink}
-            observer={currentUser}
+            observer={observer}
             onPostClick={onPostClick}
             onUserClick={onUserClick}
             onWeb2UserClick={onWeb2UserClick}

@@ -19,7 +19,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
-import { buildOdyseeEmbedUrl, getWeb2Identity } from '../feed/AttachmentStrip';
+import { buildOdyseeEmbedUrl, getWeb2Identity, Web2ProviderBadge } from '../feed/AttachmentStrip';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
@@ -580,7 +580,7 @@ export default function InlineCommentItem({
             <button
               type="button"
               onClick={() => web2Identity.isWeb2 ? onWeb2UserClick!(web2Identity.web2id!) : onUserClick!(comment.author)}
-              className="flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/60"
+              className="relative flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/60"
               aria-label={`Open ${web2Identity.displayName}'s profile`}
             >
               <img
@@ -591,16 +591,20 @@ export default function InlineCommentItem({
                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
                 }}
               />
+              <Web2ProviderBadge provider={web2Identity.provider} />
             </button>
           ) : (
-            <img
-              src={web2Identity.avatarUrl}
-              alt={web2Identity.displayName}
-              className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex-shrink-0 bg-gray-700 ${getSupporterRing(tier)}`}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
-              }}
-            />
+            <div className="relative flex-shrink-0">
+              <img
+                src={web2Identity.avatarUrl}
+                alt={web2Identity.displayName}
+                className={`w-6 h-6 md:w-7 md:h-7 rounded-full bg-gray-700 ${getSupporterRing(tier)}`}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random`;
+                }}
+              />
+              <Web2ProviderBadge provider={web2Identity.provider} />
+            </div>
           )}
           {(web2Identity.isWeb2 ? onWeb2UserClick : onUserClick) ? (
             <button

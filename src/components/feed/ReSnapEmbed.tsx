@@ -23,7 +23,7 @@ import { Repeat } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import type { Post } from '@/types/post';
 import { getHivePostLevel } from '@/utils/hivePostReferences';
-import { AttachmentStrip, parseBody, getWeb2Identity, type Attachment } from './AttachmentStrip';
+import { AttachmentStrip, parseBody, getWeb2Identity, Web2ProviderBadge, type Attachment } from './AttachmentStrip';
 
 interface ReSnapEmbedProps {
   /** Snap author whose post is being re-snapped. */
@@ -209,14 +209,17 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
                   onClick={handleAuthorClick}
                   className="flex items-center gap-1 hover:text-[var(--hrk-brand)] font-medium"
                 >
-                  <img
-                    src={web2Identity!.avatarUrl}
-                    alt=""
-                    className="h-4.5 w-4.5 shrink-0 rounded-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity!.displayName}&background=random&size=18`;
-                    }}
-                  />
+                  <span className="relative shrink-0">
+                    <img
+                      src={web2Identity!.avatarUrl}
+                      alt=""
+                      className="h-4.5 w-4.5 rounded-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity!.displayName}&background=random&size=18`;
+                      }}
+                    />
+                    <Web2ProviderBadge provider={web2Identity!.provider} size={9} />
+                  </span>
                   <span className="truncate">{web2Identity!.isWeb2 ? web2Identity!.displayName : `@${post.author}`}</span>
                 </button>
                 <span className="shrink-0">·</span>
@@ -258,7 +261,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
               <button
                 type="button"
                 onClick={handleAuthorClick}
-                className="shrink-0"
+                className="relative shrink-0"
               >
                 <img
                   src={web2Identity!.avatarUrl}
@@ -268,6 +271,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
                     (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity!.displayName}&background=random&size=28`;
                   }}
                 />
+                <Web2ProviderBadge provider={web2Identity!.provider} size={12} />
               </button>
               <div className="min-w-0">
                 <button

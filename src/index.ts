@@ -44,6 +44,11 @@ export {
   type FeedSegmentControlProps,
   type FeedSegmentOption,
 } from './components/feed/FeedSegmentControl';
+export {
+  getWeb2Identity,
+  Web2ProviderBadge,
+  type Web2Identity,
+} from './components/feed/AttachmentStrip';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';
 export { default as FollowingList } from './components/FollowingList';

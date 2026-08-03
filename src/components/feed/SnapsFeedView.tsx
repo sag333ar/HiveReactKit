@@ -60,6 +60,14 @@ export interface SnapsFeedViewProps {
 
   /** Logged-in observer username (drives auth-gated buttons inside post cards). */
   currentUser?: string;
+  /**
+   * Hive account to use as the bridge API `observer` for embedded re-snap
+   * previews. Defaults to `currentUser` when omitted — pass this
+   * separately when `currentUser` isn't a valid Hive account (e.g. a Web2
+   * viewer), while `currentUser` stays their real identity for the
+   * auth-gated buttons above.
+   */
+  observer?: string;
 
   // ── BlogPostList action callbacks (forwarded per column) ──────────────
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
@@ -255,6 +263,7 @@ export function SnapsFeedView({
   avatars,
   defaultPrimary = 'snaps',
   currentUser,
+  observer,
   onUpvote,
   onSubmitComment,
   onClickCommentUpvote,
@@ -431,6 +440,7 @@ export function SnapsFeedView({
 
   const sharedListProps = {
     currentUser,
+    observer,
     onUpvote,
     onSubmitComment,
     onClickCommentUpvote,

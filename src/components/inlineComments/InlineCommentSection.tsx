@@ -12,6 +12,14 @@ interface InlineCommentSectionProps {
   author: string;
   permlink: string;
   currentUser?: string;
+  /**
+   * Hive account to pass as `observer` when fetching the comment thread
+   * (bridge.get_discussion). Defaults to `currentUser` when omitted —
+   * pass this separately when `currentUser` isn't a valid Hive account
+   * (e.g. a Web2 viewer), while `currentUser` stays their real identity
+   * for reply detection, avatar, and the composer header.
+   */
+  observer?: string;
   token?: string;
   /** `voteWeight` is non-null when the top-level composer's upvote-on-publish toggle is on (only fires for the post-reply composer).
    *  `beneficiaries` is the post-lock beneficiary list selected in the composer that triggered the submit. */
@@ -119,6 +127,7 @@ export default function InlineCommentSection({
   author,
   permlink,
   currentUser,
+  observer: observerProp,
   token,
   onSubmitComment,
   onClickCommentUpvote,
@@ -163,6 +172,7 @@ export default function InlineCommentSection({
   onCurationRequest,
   onFetchCurationStatus,
 }: InlineCommentSectionProps) {
+  const observer = observerProp ?? currentUser;
   const [comments, setComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +187,7 @@ export default function InlineCommentSection({
     else setLoading(true);
     setError(null);
     try {
-      const fetched = await apiService.getCommentsList(author, permlink, currentUser ?? '');
+      const fetched = await apiService.getCommentsList(author, permlink, observer ?? '');
       setComments(fetched);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load comments');

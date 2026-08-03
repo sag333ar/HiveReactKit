@@ -60,7 +60,7 @@ import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
 import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
-import { getWeb2Identity } from "../feed/AttachmentStrip";
+import { getWeb2Identity, Web2ProviderBadge } from "../feed/AttachmentStrip";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
@@ -86,6 +86,15 @@ function useGlobalPostFilterTrigger() {
 export interface UserDetailProfileProps {
   username: string;
   currentUsername?: string;
+  /**
+   * Hive account to pass as `observer` to bridge API calls (e.g. the
+   * Snaps tab's post fetches). Defaults to `currentUsername` when
+   * omitted — pass this separately when `currentUsername` isn't a valid
+   * Hive account (e.g. a Web2 viewer), while `currentUsername` stays
+   * their real identity for permission checks (edit/delete, follow/mute
+   * state, avatar).
+   */
+  observer?: string;
   onBack?: () => void;
   /** Opens the host app's navigation (left) drawer. When set, a hamburger
    *  button appears at the far left of the header so the drawer stays
@@ -548,6 +557,7 @@ const profileStateCache: Record<string, ProfileState> = {};
 const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   username,
   currentUsername,
+  observer: observerProp,
   onBack,
   onOpenMenu,
   onOpenProfileMenu,
@@ -636,6 +646,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onSubTabChange,
   initialSubTab,
 }) => {
+  const observer = observerProp ?? currentUsername;
   const t = useKitT();
   const tierMap = useSupporterTierMap();
   const filterTrigger = useGlobalPostFilterTrigger();
@@ -2225,14 +2236,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           <div className="min-w-0 flex-1 p-2.5 sm:p-4">
             {/* Header: avatar + author/time/community inline */}
             <div className="mb-1 flex items-center gap-2 sm:mb-1.5 sm:gap-3">
-              <img
-                src={web2Identity.avatarUrl}
-                alt={web2Identity.displayName}
-                className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author])}`}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
-                }}
-              />
+              <div className="relative flex-shrink-0">
+                <img
+                  src={web2Identity.avatarUrl}
+                  alt={web2Identity.displayName}
+                  className={`h-7 w-7 rounded-full bg-[var(--hrk-bg-surface-raised)] sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author])}`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
+                  }}
+                />
+                <Web2ProviderBadge provider={web2Identity.provider} />
+              </div>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                 <HiveLink
                   href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
@@ -3753,6 +3767,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             key={targetUsername}
             username={targetUsername}
             currentUsername={currentUsername}
+            observer={observer}
             reportedPosts={reportedPosts}
             reportedAuthors={reportedAuthors}
             onUpvote={onUpvote}

@@ -51,6 +51,14 @@ export interface CommunityDetailProps {
   communityId: string
   /** Logged-in observer username — drives feed personalisation + auth-gated actions. */
   currentUser?: string
+  /**
+   * Hive account to pass as `observer` to bridge API calls (post/snap feed
+   * fetches). Defaults to `currentUser` when omitted — pass this
+   * separately when `currentUser` isn't a valid Hive account (e.g. a Web2
+   * viewer), while `currentUser` stays their real identity for
+   * subscribe/manage permission checks.
+   */
+  observer?: string
   /** Back-arrow handler. */
   onBack: () => void
 
@@ -269,6 +277,7 @@ const communityFeedCache: Map<string, CommunityFeedCacheEntry> = new Map()
 const CommunityDetail = ({
   communityId,
   currentUser,
+  observer: observerProp,
   onBack,
   onUserClick,
   onPostClick,
@@ -327,6 +336,8 @@ const CommunityDetail = ({
   onCurationRequest,
   onFetchCurationStatus,
 }: CommunityDetailProps) => {
+  const observer = observerProp ?? currentUser
+
   // Controlled-or-uncontrolled tab + sort. When the consumer passes
   // `activeTab` / `postSort`, those drive the UI (and we still fire
   // the change callbacks so the parent can mirror them to URL state).
@@ -453,7 +464,7 @@ const CommunityDetail = ({
         const data = await apiService.getRankedPosts(
           sort,
           communityId,
-          currentUser || 'hive.blog',
+          observer || 'hive.blog',
           20,
           last?.author,
           last?.permlink,
@@ -480,7 +491,7 @@ const CommunityDetail = ({
         setPostsLoadingMore(false)
       }
     },
-    [postSort, posts, communityId, currentUser],
+    [postSort, posts, communityId, observer],
   )
 
   const loadActivities = useCallback(async () => {
@@ -978,6 +989,7 @@ const CommunityDetail = ({
           <CommunitySnapsTab
             communityId={communityId}
             currentUser={currentUser}
+            observer={observer}
             reportedPosts={reportedPosts}
             reportedAuthors={reportedAuthors}
             onUpvote={onUpvote}

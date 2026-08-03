@@ -26,7 +26,7 @@ import type { RewardOption } from '../utils/commentOptions';
 import { extractPostMedia, type PostMedia } from '../utils/postMedia';
 import { MediaLightbox } from './MediaLightbox';
 import { HiveLink } from './common/HiveLink';
-import { getWeb2Identity } from './feed/AttachmentStrip';
+import { getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -571,16 +571,19 @@ export const BlogPostList: FC<BlogPostListProps> = ({
             <div className="flex items-stretch">
               <div className="min-w-0 flex-1 p-2.5 sm:p-4">
                 <div className="mb-1 flex items-center gap-2 sm:mb-1.5 sm:gap-3">
-                  <img
-                    src={web2Identity.avatarUrl}
-                    alt={web2Identity.displayName}
-                    loading="lazy"
-                    decoding="async"
-                    className={`h-7 w-7 flex-shrink-0 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author], 'ring-1 ring-[var(--hrk-border-subtle)]')}`}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
-                    }}
-                  />
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={web2Identity.avatarUrl}
+                      alt={web2Identity.displayName}
+                      loading="lazy"
+                      decoding="async"
+                      className={`h-7 w-7 rounded-full bg-[var(--hrk-bg-surface-sunken)] object-cover sm:h-9 sm:w-9 ${getSupporterRing(tierMap[item.author], 'ring-1 ring-[var(--hrk-border-subtle)]')}`}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${web2Identity.displayName}&background=random&size=40`;
+                      }}
+                    />
+                    <Web2ProviderBadge provider={web2Identity.provider} />
+                  </div>
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                     <HiveLink
                       href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
