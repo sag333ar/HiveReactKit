@@ -42,8 +42,8 @@ export interface BlogPostListProps {
   hasMore?: boolean;
   /** Called when the user requests the next page (button click or scroll). */
   onLoadMore?: () => void;
-  /** Optional empty-state message override. */
-  emptyMessage?: string;
+  /** Optional empty-state message override or rich React component. */
+  emptyMessage?: React.ReactNode;
 
   // Action callbacks — same shape used by <UserDetailProfile/>.
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
@@ -462,6 +462,9 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   }
 
   if (!loading && filteredPosts.length === 0) {
+    if (emptyMessage && typeof emptyMessage !== 'string') {
+      return <>{emptyMessage}</>;
+    }
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-tertiary)]">

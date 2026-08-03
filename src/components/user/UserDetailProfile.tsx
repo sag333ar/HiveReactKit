@@ -430,6 +430,9 @@ interface ProfileData {
   lastActivity?: string;
   hivePower?: number;
   votingPower?: number;
+  isWeb2?: boolean;
+  web2id?: string;
+  web2provider?: string;
 }
 
 type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
@@ -1122,6 +1125,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           votingPower,
         };
 
+        if (targetUsername === 'hivesuite-w2prxy' || web2IdFilter) {
+          const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+          const queryWeb2Name = urlParams?.get('web2name');
+          const queryWeb2DpUrl = urlParams?.get('web2dpurl');
+          profileData.isWeb2 = true;
+          profileData.web2id = web2IdFilter;
+          if (queryWeb2Name) profileData.name = queryWeb2Name;
+          if (queryWeb2DpUrl) profileData.profileImage = queryWeb2DpUrl;
+          if (!profileData.about || profileData.about.includes('hivesuite-w2prxy')) {
+            profileData.about = 'Web2 Account on HiveSuite';
+          }
+        }
+
         setProfile(profileData);
       } catch (err) {
         console.error("Error fetching user profile:", err);
@@ -1132,7 +1148,36 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     };
 
     fetchProfile();
-  }, [targetUsername, currentUsername]);
+  }, [targetUsername, currentUsername, web2IdFilter]);
+
+  // Overwrite Web2 profile header (display name, avatar, provider) from post metadata once posts land
+  useEffect(() => {
+    if (!web2IdFilter && targetUsername !== 'hivesuite-w2prxy') return;
+    const allPosts = [...blogs, ...posts, ...comments, ...replies];
+    if (allPosts.length === 0) return;
+
+    const match = allPosts.find((p) => {
+      const ident = getWeb2Identity(p.author, p.json_metadata, '');
+      return ident.isWeb2 && (!web2IdFilter || ident.web2id === web2IdFilter);
+    });
+
+    if (match) {
+      const ident = getWeb2Identity(match.author, match.json_metadata, '');
+      setProfile((prev) => {
+        if (!prev) return prev;
+        if (prev.name === ident.displayName && prev.profileImage === ident.avatarUrl && prev.web2provider === ident.provider) return prev;
+        return {
+          ...prev,
+          name: ident.displayName || prev.name,
+          profileImage: ident.avatarUrl || prev.profileImage,
+          about: prev.about && !prev.about.includes('hivesuite') ? prev.about : 'Web2 Account on HiveSuite',
+          isWeb2: true,
+          web2id: ident.web2id,
+          web2provider: ident.provider,
+        };
+      });
+    }
+  }, [blogs, posts, comments, replies, web2IdFilter, targetUsername]);
 
   const stateRef = useRef({
     profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
@@ -4146,21 +4191,24 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   </span>
                 </button>
               ) : (
-                <img
-                  src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
-                  alt={targetUsername}
-                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
-                  }}
-                />
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
+                    alt={profile.name || targetUsername}
+                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
+                    }}
+                  />
+                  <Web2ProviderBadge provider={profile.web2provider} />
+                </div>
               )}
               {/* Name + details */}
               <div className="flex-1 min-w-0 pb-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="min-w-0 text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
                     <span className="truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px] inline-block">{profile.name || targetUsername}</span>
-                    {profile.reputation !== undefined && (
+                    {profile.reputation !== undefined && !profile.isWeb2 && (
                       <div className="relative group inline-flex shrink-0">
                         <span
                           className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
@@ -4173,7 +4221,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         </div>
                       </div>
                     )}
-                    <span className="text-xs sm:text-sm font-normal text-[var(--hrk-text-secondary)]"> (@{targetUsername})</span>
+                    <span className="text-xs sm:text-sm font-normal text-[var(--hrk-text-secondary)]">
+                      {profile.isWeb2 ? ' (Web2 Account)' : ` (@${targetUsername})`}
+                    </span>
                   </h2>
                   {/* HivePosh-linked socials — tap opens hiveposh.com. */}
                   {(hiveposh.twitter || hiveposh.reddit) && (
