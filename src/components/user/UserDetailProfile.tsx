@@ -101,6 +101,10 @@ export interface UserDetailProfileProps {
    *  reachable from this full-screen profile page. */
   onOpenMenu?: () => void;
   onOpenProfileMenu?: () => void;
+  /** Optional avatar URL for the logged-in user (e.g. Web2 Google photoURL) */
+  currentUserAvatar?: string;
+  /** Web2 login provider string (e.g. 'google', 'apple') from auth data */
+  web2Provider?: string;
   showBackButton?: boolean;
 
   /**
@@ -564,6 +568,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onBack,
   onOpenMenu,
   onOpenProfileMenu,
+  currentUserAvatar,
+  web2Provider: web2ProviderProp,
   showBackButton = false,
   tabShown,
   ecencyToken,
@@ -654,7 +660,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const tierMap = useSupporterTierMap();
   const filterTrigger = useGlobalPostFilterTrigger();
   const targetUsername = username.replace(/^@/, "").trim();
-  const cached = profileStateCache[targetUsername];
+  const profileCacheKey = web2IdFilter ? `${targetUsername}:${web2IdFilter}` : targetUsername;
+  const isWeb2User = Boolean(web2IdFilter);
+  const cached = profileStateCache[profileCacheKey];
 
   const [profile, setProfile] = useState<ProfileData | null>(cached?.profile || null);
   const [loading, setLoading] = useState(!cached?.profile);
@@ -832,7 +840,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     isControlled, onActiveTabChange, onSubTabChange, onWalletViewChange, mapToParentTab, rawActiveTab,
     postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
   ]);
-  const prevUsernameRef = useRef<string>("");
+  const prevCacheKeyRef = useRef<string>("");
   const prevRefreshCurationTriggerRef = useRef<number>(0);
   const prevParentRef = useRef<TabType | null>(null);
   const activeTabRef = useRef<TabType>(activeTab);
@@ -912,15 +920,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
     
     // Save to cache in real-time
-    if (targetUsername) {
-      if (!profileStateCache[targetUsername]) {
-        profileStateCache[targetUsername] = {
+    if (profileCacheKey) {
+      if (!profileStateCache[profileCacheKey]) {
+        profileStateCache[profileCacheKey] = {
           tab: activeTabRef.current,
           scrollTop: 0,
           tabScrollLeft: el.scrollLeft,
         };
       } else {
-        profileStateCache[targetUsername].tabScrollLeft = el.scrollLeft;
+        profileStateCache[profileCacheKey].tabScrollLeft = el.scrollLeft;
       }
     }
   }, [targetUsername]);
@@ -1125,17 +1133,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           votingPower,
         };
 
-        if (targetUsername === 'hivesuite-w2prxy' || web2IdFilter) {
+        if (web2IdFilter) {
           const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
           const queryWeb2Name = urlParams?.get('web2name');
           const queryWeb2DpUrl = urlParams?.get('web2dpurl');
+          const queryWeb2Provider = urlParams?.get('web2provider') || urlParams?.get('provider');
           profileData.isWeb2 = true;
           profileData.web2id = web2IdFilter;
           if (queryWeb2Name) profileData.name = queryWeb2Name;
           if (queryWeb2DpUrl) profileData.profileImage = queryWeb2DpUrl;
-          if (!profileData.about || profileData.about.includes('hivesuite-w2prxy')) {
-            profileData.about = 'Web2 Account on HiveSuite';
-          }
+          profileData.web2provider = web2ProviderProp || queryWeb2Provider || (isWeb2User ? 'google' : undefined);
+          profileData.about = undefined;
         }
 
         setProfile(profileData);
@@ -1152,7 +1160,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   // Overwrite Web2 profile header (display name, avatar, provider) from post metadata once posts land
   useEffect(() => {
-    if (!web2IdFilter && targetUsername !== 'hivesuite-w2prxy') return;
+    if (!web2IdFilter) return;
     const allPosts = [...blogs, ...posts, ...comments, ...replies];
     if (allPosts.length === 0) return;
 
@@ -1170,7 +1178,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           ...prev,
           name: ident.displayName || prev.name,
           profileImage: ident.avatarUrl || prev.profileImage,
-          about: prev.about && !prev.about.includes('hivesuite') ? prev.about : 'Web2 Account on HiveSuite',
+          about: undefined,
           isWeb2: true,
           web2id: ident.web2id,
           web2provider: ident.provider,
@@ -1207,19 +1215,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   useEffect(() => {
     // Save previous profile's tab + scroll state + feed data
-    if (prevUsernameRef.current && prevUsernameRef.current !== targetUsername) {
-      const existing = profileStateCache[prevUsernameRef.current];
-      profileStateCache[prevUsernameRef.current] = {
+    if (prevCacheKeyRef.current && prevCacheKeyRef.current !== profileCacheKey) {
+      const existing = profileStateCache[prevCacheKeyRef.current];
+      profileStateCache[prevCacheKeyRef.current] = {
         tab: activeTab,
         scrollTop: mainScrollRef.current?.scrollTop !== undefined ? mainScrollRef.current.scrollTop : (existing?.scrollTop || 0),
         tabScrollLeft: tabScrollRef.current?.scrollLeft !== undefined ? tabScrollRef.current.scrollLeft : (existing?.tabScrollLeft || 0),
         ...stateRef.current,
       };
     }
-    prevUsernameRef.current = targetUsername;
+    prevCacheKeyRef.current = profileCacheKey;
 
     // Restore if visited before, otherwise default to first tab.
-    const cached = profileStateCache[targetUsername];
+    const cached = profileStateCache[profileCacheKey];
     if (cached) {
       setProfile(cached.profile || null);
       setLoading(!cached.profile);
@@ -1337,10 +1345,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Save state on unmount (e.g. navigating to HiveDetailPost)
   useEffect(() => {
     return () => {
-      const user = prevUsernameRef.current;
-      if (user) {
-        const existing = profileStateCache[user];
-        profileStateCache[user] = {
+      const key = prevCacheKeyRef.current;
+      if (key) {
+        const existing = profileStateCache[key];
+        profileStateCache[key] = {
           tab: activeTabRef.current,
           scrollTop: existing?.scrollTop !== undefined ? existing.scrollTop : (mainScrollRef.current?.scrollTop || 0),
           tabScrollLeft: existing?.tabScrollLeft !== undefined ? existing.tabScrollLeft : (tabScrollRef.current?.scrollLeft || 0),
@@ -1906,15 +1914,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const THRESHOLD = 600;
     let ticking = false;
     const onScroll = () => {
-      if (targetUsername) {
-        if (!profileStateCache[targetUsername]) {
-          profileStateCache[targetUsername] = {
+      if (profileCacheKey) {
+        if (!profileStateCache[profileCacheKey]) {
+          profileStateCache[profileCacheKey] = {
             tab: activeTabRef.current,
             scrollTop: el.scrollTop,
             tabScrollLeft: tabScrollRef.current?.scrollLeft || 0,
           };
         } else {
-          profileStateCache[targetUsername].scrollTop = el.scrollTop;
+          profileStateCache[profileCacheKey].scrollTop = el.scrollTop;
         }
       }
       if (ticking) return;
@@ -3809,10 +3817,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       return (
         <div className="h-[calc(100vh-260px)] min-h-[420px]">
           <ProfileSnapsTab
-            key={targetUsername}
+            key={`${targetUsername}:${web2IdFilter ?? ''}`}
             username={targetUsername}
             currentUsername={currentUsername}
             observer={observer}
+            web2IdFilter={web2IdFilter}
             reportedPosts={reportedPosts}
             reportedAuthors={reportedAuthors}
             onUpvote={onUpvote}
@@ -3927,12 +3936,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <img
               src={
                 profile.profileImage ||
+                (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('web2dpurl') : null) ||
                 `https://images.hive.blog/u/${targetUsername}/avatar`
               }
-              alt={targetUsername}
+              alt={profile.name || targetUsername}
               className="w-8 h-8 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
               }}
             />
 
@@ -3940,7 +3950,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-sm font-semibold text-white truncate">
-                  {`@${targetUsername}`}
+                  {isWeb2User && profile.name ? `${profile.name} (Web2 Account)` : `@${targetUsername}`}
                 </h1>
               </div>
             </div>
@@ -4105,24 +4115,22 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               {onOpenProfileMenu && (
                 <button
                   onClick={onOpenProfileMenu}
-                  className="p-1.5 hover:bg-[var(--hrk-bg-surface-raised)] rounded-full transition-colors flex-shrink-0"
+                  className="p-1 hover:bg-[var(--hrk-bg-surface-raised)] rounded-full transition-colors flex-shrink-0"
                   aria-label="Open user menu"
                 >
-                  {currentUsername ? (
-                    <img
-                      src={`https://images.hive.blog/u/${currentUsername}/avatar`}
-                      alt={currentUsername}
-                      className="h-6 w-6 rounded-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                        const fallback = e.currentTarget.nextSibling as HTMLElement | null;
-                        if (fallback) fallback.style.display = 'block';
-                      }}
-                    />
-                  ) : null}
-                  <User
-                    className="h-5 w-5 text-[var(--hrk-text-secondary)]"
-                    style={{ display: currentUsername ? 'none' : 'block' }}
+                  <img
+                    src={
+                      currentUserAvatar ||
+                      (currentUsername ? `https://images.hive.blog/u/${currentUsername}/avatar` : null) ||
+                      profile?.profileImage ||
+                      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('web2dpurl') : null) ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || targetUsername || 'User')}&background=0D8ABC&color=fff`
+                    }
+                    alt={profile?.name || currentUsername || targetUsername}
+                    className="h-7 w-7 rounded-full object-cover border border-white/20"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || currentUsername || targetUsername || 'User')}&background=0D8ABC&color=fff`;
+                    }}
                   />
                 </button>
               )}
@@ -4156,8 +4164,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           )}
 
           {/* Profile details overlaid on cover */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4">
-            <div className="flex items-end gap-3 sm:gap-4">
+          <div className={isWeb2User ? "absolute inset-0 flex items-center px-4 sm:px-6" : "absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4"}>
+            <div className={`flex gap-3 sm:gap-4 ${isWeb2User ? 'items-center' : 'items-end'}`}>
               {/* Avatar — wrapped in a button for the owner so they
                   can edit their profile. A persistent red pencil badge
                   on the bottom-right corner makes the affordance
@@ -4204,7 +4212,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 </div>
               )}
               {/* Name + details */}
-              <div className="flex-1 min-w-0 pb-0.5">
+              <div className={`flex-1 min-w-0 ${isWeb2User ? '' : 'pb-0.5'}`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="min-w-0 text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
                     <span className="truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px] inline-block">{profile.name || targetUsername}</span>
@@ -4222,7 +4230,21 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       </div>
                     )}
                     <span className="text-xs sm:text-sm font-normal text-[var(--hrk-text-secondary)]">
-                      {profile.isWeb2 ? ' (Web2 Account)' : ` (@${targetUsername})`}
+                      {profile.isWeb2 ? (
+                        profile.web2provider ? (
+                          ` (Web2 Account • Logged in with ${
+                            profile.web2provider.toLowerCase().includes('google')
+                              ? 'Google'
+                              : profile.web2provider.toLowerCase().includes('apple')
+                              ? 'Apple'
+                              : profile.web2provider
+                          })`
+                        ) : (
+                          ' (Web2 Account)'
+                        )
+                      ) : (
+                        ` (@${targetUsername})`
+                      )}
                     </span>
                   </h2>
                   {/* HivePosh-linked socials — tap opens hiveposh.com. */}
@@ -4259,12 +4281,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     </div>
                   )}
                 </div>
-                {profile.about && (
+                {profile.about && !isWeb2User && (
                   <p className="text-[var(--hrk-text-primary)] text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
                     {profile.about}
                   </p>
                 )}
-                {profile.location && (
+                {profile.location && !isWeb2User && (
                   <span className="flex items-center gap-1 text-[var(--hrk-text-secondary)] text-xs mt-1 drop-shadow-md whitespace-nowrap">
                     <MapPin className="h-3 w-3 text-rose-400 flex-shrink-0" /> {profile.location.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()}
                   </span>
@@ -4272,51 +4294,55 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </div>
             </div>
             {/* Meta info row */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
-              {profile.website && (
-                <a
-                  href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-blue-300 hover:underline drop-shadow-md"
-                >
-                  <Globe className="h-3 w-3 text-blue-400" /> {profile.website}
-                </a>
-              )}
-              {profile.created && (
-                <span className="flex items-center gap-1 drop-shadow-md">
-                  <Calendar className="h-3 w-3 text-green-400" /> {formatDate(profile.created)}
-                </span>
-              )}
-              {profile.lastActivity && (
-                <span className="flex items-center gap-1 drop-shadow-md">
-                  <Clock className="h-3 w-3 text-amber-400" /> {formatTimeAgo(profile.lastActivity)}
-                </span>
-              )}
-              {profile.votingPower !== undefined && (
-                <span className="flex items-center gap-1 drop-shadow-md">
-                  <Zap className="h-3 w-3 text-yellow-400" /> VP {profile.votingPower.toFixed(1)}%
-                </span>
-              )}
-              {profile.hivePower !== undefined && (
-                <span className="flex items-center gap-1 drop-shadow-md">
-                  <Zap className="h-3 w-3 text-orange-400" /> HP {profile.hivePower.toFixed(0)}
-                </span>
-              )}
-              <KERatioBadge username={targetUsername} hideWhileLoading />
-            </div>
+            {!isWeb2User && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
+                {profile.website && (
+                  <a
+                    href={profile.website.startsWith("http") ? profile.website : `https://${profile.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-blue-300 hover:underline drop-shadow-md"
+                  >
+                    <Globe className="h-3 w-3 text-blue-400" /> {profile.website}
+                  </a>
+                )}
+                {profile.created && (
+                  <span className="flex items-center gap-1 drop-shadow-md">
+                    <Calendar className="h-3 w-3 text-green-400" /> {formatDate(profile.created)}
+                  </span>
+                )}
+                {profile.lastActivity && (
+                  <span className="flex items-center gap-1 drop-shadow-md">
+                    <Clock className="h-3 w-3 text-amber-400" /> {formatTimeAgo(profile.lastActivity)}
+                  </span>
+                )}
+                {profile.votingPower !== undefined && (
+                  <span className="flex items-center gap-1 drop-shadow-md">
+                    <Zap className="h-3 w-3 text-yellow-400" /> VP {profile.votingPower.toFixed(1)}%
+                  </span>
+                )}
+                {profile.hivePower !== undefined && (
+                  <span className="flex items-center gap-1 drop-shadow-md">
+                    <Zap className="h-3 w-3 text-orange-400" /> HP {profile.hivePower.toFixed(0)}
+                  </span>
+                )}
+                <KERatioBadge username={targetUsername} hideWhileLoading />
+              </div>
+            )}
             {/* Followers / Following / Posts */}
-            <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
-              <button onClick={() => setActiveTab("followers")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
-                <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> {t("meta.followers")}
-              </button>
-              <button onClick={() => setActiveTab("following")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
-                <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> {t("meta.following")}
-              </button>
-              <span className="drop-shadow-md">
-                <span className="font-semibold">{profile.postsCount.toLocaleString()}</span> {t("meta.posts")}
-              </span>
-            </div>
+            {!isWeb2User && (
+              <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
+                <button onClick={() => setActiveTab("followers")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
+                  <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> {t("meta.followers")}
+                </button>
+                <button onClick={() => setActiveTab("following")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
+                  <span className="font-semibold">{profile.followingCount.toLocaleString()}</span> {t("meta.following")}
+                </button>
+                <span className="drop-shadow-md">
+                  <span className="font-semibold">{profile.postsCount.toLocaleString()}</span> {t("meta.posts")}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

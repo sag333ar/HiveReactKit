@@ -1,7 +1,7 @@
 {
   "name": "hive-react-kit",
   "private": false,
-  "version": "2.1.0",
+  "version": "2.1.1",
   "type": "module",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.esm.js",
@@ -57,9 +57,9 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist dist-app && mkdir -p dist dist-app",
-    "build": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}'",
+    "build": "vite build --mode lib && tsc -p tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}' && cp dist/build.css dist/hive-react-kit.css",
     "build:app": "vite build",
-    "build:lib": "tsc -p tsconfig.build.json && vite build --mode lib && tsc --project tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}'",
+    "build:lib": "vite build --mode lib && tsc -p tsconfig.build.json && npx @tailwindcss/cli -i src/build.css -o dist/build.css --content 'src/**/*.{ts,tsx}' && cp dist/build.css dist/hive-react-kit.css",
     "build:all": "npm run clean && npm run build:lib && npm run build:app",
     "lint": "eslint .",
     "preview": "vite preview",

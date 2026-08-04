@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /**
  * ProfileSnapsTab — Snaps tab body for the user-profile page.
  *
@@ -12,6 +13,8 @@ import type { Post } from '@/types/post';
 import SnapsFeedView, { type SnapsFeedKey, type SnapsFeedSlot } from '../feed/SnapsFeedView';
 import { userService, SNAP_SUBTYPE_PARENTS, type SnapSubType } from '@/services/userService';
 import type { RewardOption } from '../../utils/commentOptions';
+import { getWeb2Identity } from '../feed/AttachmentStrip';
+import { getGlobalPostFilter } from '@/config/hiveEndpoint';
 
 const SUBTYPES: SnapSubType[] = ['snaps', 'ecency', 'threads', 'liketu'];
 
@@ -54,6 +57,11 @@ function isHydrated(state: Record<SnapSubType, SubTypeState>): boolean {
 export interface ProfileSnapsTabProps {
   username: string;
   currentUsername?: string;
+  /**
+   * Web2 firebase UID or account identifier for filtering snaps created by a
+   * specific Web2 user on a shared proxy account (e.g. `hivesuite-w2prxy`).
+   */
+  web2IdFilter?: string;
   /**
    * Hive account to pass as `observer` to `getUserSnaps`. Defaults to
    * `currentUsername` when omitted — pass this separately when
@@ -146,63 +154,65 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
   username,
   currentUsername,
   observer: observerProp,
+  web2IdFilter,
   reportedPosts = [],
   reportedAuthors = [],
   ...feedProps
 }) => {
-  const observer = observerProp ?? currentUsername
+  const observer = observerProp ?? currentUsername;
+
+  const fullCacheKey = useMemo(
+    () => (web2IdFilter ? `${username}:${web2IdFilter}` : username),
+    [username, web2IdFilter],
+  );
+
   // Initialize from the module-level cache so we keep every page the
   // user had already loaded for this profile in this session.
   const [state, setState] = useState<Record<SnapSubType, SubTypeState>>(
-    () => profileSnapsCache.get(username) ?? makeInitialState(),
+    () => profileSnapsCache.get(fullCacheKey) ?? makeInitialState(),
   );
 
-  // Track which username `state` belongs to. The mirror effect must
-  // never write state into the cache slot of a *different* username —
-  // otherwise switching profiles briefly persists the previous user's
-  // data under the new user's key and we end up showing stale snaps.
-  const stateUsernameRef = useRef(username);
+  // Track which cache key `state` belongs to.
+  const stateKeyRef = useRef(fullCacheKey);
 
-  // When the username prop changes, re-hydrate state from the cache
-  // for the new user (or fall back to the initial empty state). This
-  // runs synchronously before the mirror effect, so the cache for
-  // the previous username is never overwritten with stale data.
+  // When username or web2IdFilter prop changes, re-hydrate state from cache
   useEffect(() => {
-    if (stateUsernameRef.current === username) return;
-    stateUsernameRef.current = username;
-    setState(profileSnapsCache.get(username) ?? makeInitialState());
-  }, [username]);
+    if (stateKeyRef.current === fullCacheKey) return;
+    stateKeyRef.current = fullCacheKey;
+    setState(profileSnapsCache.get(fullCacheKey) ?? makeInitialState());
+  }, [fullCacheKey]);
 
-  // Mirror state into the cache on every change — but only when the
-  // state actually belongs to this username.
+  // Mirror state into the cache on every change
   useEffect(() => {
-    if (stateUsernameRef.current !== username) return;
-    profileSnapsCache.set(username, state);
-  }, [username, state]);
+    if (stateKeyRef.current !== fullCacheKey) return;
+    profileSnapsCache.set(fullCacheKey, state);
+  }, [fullCacheKey, state]);
 
-  // Reported-post / reported-author filter, mirroring UserDetailProfile.
+  // Reported-post / reported-author / web2id filter, mirroring UserDetailProfile.
   const reportedPostKeys = useMemo(
     () => new Set(reportedPosts.map((p) => `${p.author}/${p.permlink}`)),
     [reportedPosts],
   );
   const reportedAuthorSet = useMemo(() => new Set(reportedAuthors), [reportedAuthors]);
   const filterPost = useCallback(
-    <T extends { author: string; permlink: string }>(items: T[]): T[] =>
-      items.filter(
+    <T extends { author: string; permlink: string; json_metadata?: unknown }>(items: T[]): T[] => {
+      const globalFilter = getGlobalPostFilter();
+      return items.filter(
         (item) =>
           !reportedAuthorSet.has(item.author) &&
-          !reportedPostKeys.has(`${item.author}/${item.permlink}`),
-      ),
-    [reportedPostKeys, reportedAuthorSet],
+          !reportedPostKeys.has(`${item.author}/${item.permlink}`) &&
+          globalFilter(item) &&
+          (!web2IdFilter || getWeb2Identity(item.author, item.json_metadata, '').web2id === web2IdFilter),
+      );
+    },
+    [reportedPostKeys, reportedAuthorSet, web2IdFilter],
   );
 
-  // First-time hydration per username. If the cache already has data
-  // for this user, we skip the fetch entirely and keep the previously
-  // loaded pages — that's what makes "open a post → come back" land on
-  // the same scroll/page as before. New profiles fall through to a
-  // parallel fetch of all 4 subtypes.
+  // First-time hydration per cache key. If the cache already has data
+  // for this key, we skip the fetch entirely and keep the previously
+  // loaded pages.
   useEffect(() => {
-    const cached = profileSnapsCache.get(username);
+    const cached = profileSnapsCache.get(fullCacheKey);
     if (cached && isHydrated(cached)) {
       setState(cached);
       return;
@@ -220,13 +230,34 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
 
     const fetchOne = async (sub: SnapSubType) => {
       try {
-        const { snaps: raw, nextStartId } = await userService.getUserSnaps(
+        let { snaps: raw, nextStartId } = await userService.getUserSnaps(
           username,
           undefined,
           observer,
           controller.signal,
           SNAP_SUBTYPE_PARENTS[sub],
         );
+        if (aborted) return;
+
+        // If web2IdFilter is set and initial batch has 0 matching posts, auto-advance
+        while (
+          web2IdFilter &&
+          filterPost(raw).length === 0 &&
+          nextStartId !== null &&
+          !aborted
+        ) {
+          const nextRes = await userService.getUserSnaps(
+            username,
+            nextStartId,
+            observer,
+            controller.signal,
+            SNAP_SUBTYPE_PARENTS[sub],
+          );
+          if (aborted) return;
+          raw = [...raw, ...nextRes.snaps];
+          nextStartId = nextRes.nextStartId;
+        }
+
         if (aborted) return;
         setState((prev) => ({
           ...prev,
@@ -255,7 +286,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       aborted = true;
       controller.abort();
     };
-  }, [username, observer]);
+  }, [fullCacheKey, username, observer, web2IdFilter, filterPost]);
 
   const loadMore = useCallback(
     async (sub: SnapSubType) => {
@@ -263,17 +294,36 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       if (!slot || slot.loadingMore || slot.nextStartId === null) return;
       setState((prev) => ({ ...prev, [sub]: { ...prev[sub], loadingMore: true } }));
       try {
-        const { snaps: raw, nextStartId } = await userService.getUserSnaps(
+        const initialRes = await userService.getUserSnaps(
           username,
           slot.nextStartId,
           observer,
           undefined,
           SNAP_SUBTYPE_PARENTS[sub],
         );
+
+        let accumulated = initialRes.snaps;
+        let nextStartId = initialRes.nextStartId;
+        while (
+          web2IdFilter &&
+          filterPost(accumulated).length === 0 &&
+          nextStartId !== null
+        ) {
+          const nextRes = await userService.getUserSnaps(
+            username,
+            nextStartId,
+            observer,
+            undefined,
+            SNAP_SUBTYPE_PARENTS[sub],
+          );
+          accumulated = [...accumulated, ...nextRes.snaps];
+          nextStartId = nextRes.nextStartId;
+        }
+
         setState((prev) => ({
           ...prev,
           [sub]: {
-            posts: [...prev[sub].posts, ...raw],
+            posts: [...prev[sub].posts, ...accumulated],
             nextStartId,
             loading: false,
             loadingMore: false,
@@ -289,7 +339,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         }));
       }
     },
-    [state, username, observer],
+    [state, username, observer, web2IdFilter, filterPost],
   );
 
   const feeds = useMemo<Record<SnapsFeedKey, SnapsFeedSlot>>(
