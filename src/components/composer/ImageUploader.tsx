@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Upload, X, Loader2, Crop as CropIcon } from "lucide-react";
+import { Image, X, Loader2, Crop as CropIcon } from "lucide-react";
 import { uploadImageWithFallback, type PostingSignMessageFn } from "../../services/hiveImageUpload";
 import { prepareImageForUpload, cropImage, type CropRect } from "../../utils/imageProcessor";
 import ImageCropperModal from "./ImageCropperModal";
@@ -246,7 +246,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         {isUploading || isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Upload className="h-4 w-4" />
+          <Image className="h-4 w-4" />
         )}
       </button>
       {modalOpen && (

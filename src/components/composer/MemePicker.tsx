@@ -457,7 +457,7 @@ function PickerBody(props: PickerBodyProps): React.JSX.Element {
           onClick={() => fileInputRef.current?.click()}
           className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hs-border-default,#3a424a)] bg-[var(--hs-bg-surface-sunken,#2f353d)] px-3 py-2 text-sm font-medium text-[var(--hs-text-primary,#f0f0f8)] hover:bg-[var(--hs-bg-hover,#3a424a)]"
         >
-          <Upload className="h-4 w-4" />
+          <ImageIcon className="h-4 w-4" />
           Upload image
         </button>
         <input
