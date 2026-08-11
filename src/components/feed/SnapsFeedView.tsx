@@ -198,9 +198,9 @@ export interface SnapsFeedViewProps {
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
   snaps: 'Snaps',
-  ecency: 'Ecency',
+  ecency: 'Waves',
   threads: 'Threads',
-  liketu: 'Liketu',
+  liketu: 'Moments',
 };
 
 const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
