@@ -50,12 +50,29 @@ interface ImageMetrics {
   height: number;
 }
 
+export type HandleType = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
 type DragMode =
   | { kind: 'none' }
   | { kind: 'move'; offsetX: number; offsetY: number }
-  | { kind: 'resize'; corner: 'nw' | 'ne' | 'sw' | 'se' };
+  | { kind: 'resize'; handle: HandleType };
 
 const MIN_SIZE = 24;
+
+const HANDLES: Array<{
+  id: HandleType;
+  cursor: string;
+  className: string;
+}> = [
+  { id: 'nw', cursor: 'nwse-resize', className: '-top-1.5 -left-1.5' },
+  { id: 'n',  cursor: 'ns-resize',   className: '-top-1.5 left-1/2 -translate-x-1/2' },
+  { id: 'ne', cursor: 'nesw-resize', className: '-top-1.5 -right-1.5' },
+  { id: 'e',  cursor: 'ew-resize',   className: 'top-1/2 -translate-y-1/2 -right-1.5' },
+  { id: 'se', cursor: 'nwse-resize', className: '-bottom-1.5 -right-1.5' },
+  { id: 's',  cursor: 'ns-resize',   className: '-bottom-1.5 left-1/2 -translate-x-1/2' },
+  { id: 'sw', cursor: 'nesw-resize', className: '-bottom-1.5 -left-1.5' },
+  { id: 'w',  cursor: 'ew-resize',   className: 'top-1/2 -translate-y-1/2 -left-1.5' },
+];
 
 export function ImageCropperModal({ isOpen, onClose, src, onApply }: ImageCropperModalProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -126,43 +143,54 @@ export function ImageCropperModal({ isOpen, onClose, src, onApply }: ImageCroppe
     if (drag.kind === 'none') return;
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+
+    const rawPx = e.clientX - rect.left;
+    const rawPy = e.clientY - rect.top;
+
     if (drag.kind === 'move') {
       setSelection(
         clampToImage({
-          x: px - drag.offsetX,
-          y: py - drag.offsetY,
+          x: rawPx - drag.offsetX,
+          y: rawPy - drag.offsetY,
           w: selection.w,
           h: selection.h,
         }),
       );
       return;
     }
+
     if (drag.kind === 'resize') {
-      const { corner } = drag;
+      const { handle } = drag;
       let { x, y, w, h } = selection;
-      if (corner === 'nw') {
-        const newX = Math.min(px, x + w - MIN_SIZE);
+
+      // Handle top edge adjustments (nw, n, ne)
+      if (handle === 'nw' || handle === 'n' || handle === 'ne') {
+        const py = Math.max(metrics.top, Math.min(metrics.top + metrics.height, rawPy));
         const newY = Math.min(py, y + h - MIN_SIZE);
-        w = w + (x - newX);
-        h = h + (y - newY);
-        x = newX;
-        y = newY;
-      } else if (corner === 'ne') {
-        const newY = Math.min(py, y + h - MIN_SIZE);
-        w = Math.max(MIN_SIZE, px - x);
         h = h + (y - newY);
         y = newY;
-      } else if (corner === 'sw') {
-        const newX = Math.min(px, x + w - MIN_SIZE);
-        w = w + (x - newX);
-        x = newX;
-        h = Math.max(MIN_SIZE, py - y);
-      } else if (corner === 'se') {
-        w = Math.max(MIN_SIZE, px - x);
+      }
+
+      // Handle bottom edge adjustments (sw, s, se)
+      if (handle === 'sw' || handle === 's' || handle === 'se') {
+        const py = Math.max(metrics.top, Math.min(metrics.top + metrics.height, rawPy));
         h = Math.max(MIN_SIZE, py - y);
       }
+
+      // Handle left edge adjustments (nw, w, sw)
+      if (handle === 'nw' || handle === 'w' || handle === 'sw') {
+        const px = Math.max(metrics.left, Math.min(metrics.left + metrics.width, rawPx));
+        const newX = Math.min(px, x + w - MIN_SIZE);
+        w = w + (x - newX);
+        x = newX;
+      }
+
+      // Handle right edge adjustments (ne, e, se)
+      if (handle === 'ne' || handle === 'e' || handle === 'se') {
+        const px = Math.max(metrics.left, Math.min(metrics.left + metrics.width, rawPx));
+        w = Math.max(MIN_SIZE, px - x);
+      }
+
       setSelection(clampToImage({ x, y, w, h }));
     }
   };
@@ -185,9 +213,9 @@ export function ImageCropperModal({ isOpen, onClose, src, onApply }: ImageCroppe
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
 
-  const startResize = (corner: 'nw' | 'ne' | 'sw' | 'se') => (e: React.PointerEvent) => {
+  const startResize = (handle: HandleType) => (e: React.PointerEvent) => {
     e.stopPropagation();
-    dragRef.current = { kind: 'resize', corner };
+    dragRef.current = { kind: 'resize', handle };
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
 
@@ -266,18 +294,12 @@ export function ImageCropperModal({ isOpen, onClose, src, onApply }: ImageCroppe
                 className="absolute border-2 border-white cursor-move"
                 style={{ left: selection.x, top: selection.y, width: selection.w, height: selection.h }}
               >
-                {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+                {HANDLES.map(({ id, cursor, className }) => (
                   <div
-                    key={corner}
-                    onPointerDown={startResize(corner)}
-                    className="absolute h-3 w-3 bg-white border border-black/30"
-                    style={{
-                      left: corner === 'nw' || corner === 'sw' ? -6 : undefined,
-                      right: corner === 'ne' || corner === 'se' ? -6 : undefined,
-                      top: corner === 'nw' || corner === 'ne' ? -6 : undefined,
-                      bottom: corner === 'sw' || corner === 'se' ? -6 : undefined,
-                      cursor: corner === 'nw' || corner === 'se' ? 'nwse-resize' : 'nesw-resize',
-                    }}
+                    key={id}
+                    onPointerDown={startResize(id)}
+                    className={`absolute h-3 w-3 bg-white border border-black/30 z-10 ${className}`}
+                    style={{ cursor }}
                   />
                 ))}
               </div>
@@ -318,3 +340,4 @@ export function ImageCropperModal({ isOpen, onClose, src, onApply }: ImageCroppe
 }
 
 export default ImageCropperModal;
+

@@ -46,3 +46,7 @@ export type { ParentPostComposerProps, ParentPostSubmitPayload } from './ParentP
 
 export { default as CrossPostModal } from './CrossPostModal'
 export type { CrossPostModalProps } from './CrossPostModal'
+
+export { default as ImageCropperModal } from './ImageCropperModal'
+export type { ImageCropperModalProps } from './ImageCropperModal'
+
