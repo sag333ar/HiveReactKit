@@ -790,16 +790,12 @@ const UpvoteListModal = ({
                         <span className="min-w-0 flex-1 truncate text-white">
                           {vote.voter}
                         </span>
-                        <div className="relative group inline-flex shrink-0">
-                          <span 
-                            className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)] cursor-pointer"
-                          >
-                            {getReputationDetails(vote.reputation).score}
-                          </span>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 text-[10px] font-medium text-white bg-black border border-neutral-800 rounded-full shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 z-50 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-[4px] after:border-transparent after:border-t-black">
-                            Reputation: {getReputationDetails(vote.reputation).formatted}
-                          </div>
-                        </div>
+                        <span 
+                          className="shrink-0 rounded bg-[var(--hrk-bg-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--hrk-text-tertiary)] cursor-pointer"
+                          title={`Reputation: ${getReputationDetails(vote.reputation).formatted}`}
+                        >
+                          {getReputationDetails(vote.reputation).score}
+                        </span>
                         <span className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold ${
                           isDownvoteMode ? 'text-red-400' : 'text-[var(--hrk-success)]'
                         }`}>
