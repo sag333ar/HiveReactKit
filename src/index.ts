@@ -249,3 +249,6 @@ export { uploadToHiveImages, type PostingSignMessageFn } from './services/hiveIm
 
 // Store
 export * from './store/walletStore';
+
+// Image processing utils & types (Crop, Blur/Redact, Downsize)
+export * from './utils/imageProcessor';

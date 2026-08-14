@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, X, Loader2, Crop as CropIcon } from "lucide-react";
+import { Image, X, Loader2, Crop as CropIcon, EyeOff } from "lucide-react";
 import { uploadImageWithFallback, type PostingSignMessageFn } from "../../services/hiveImageUpload";
-import { prepareImageForUpload, cropImage, type CropRect } from "../../utils/imageProcessor";
+import { prepareImageForUpload, cropImage, type CropRect, type BlurRect } from "../../utils/imageProcessor";
 import ImageCropperModal from "./ImageCropperModal";
 
 /** Dig a human-readable message out of whatever an upload helper (or provider SDK) might throw. */
@@ -88,6 +88,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [stagedFile, setStagedFile] = useState<File | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperInitialTool, setCropperInitialTool] = useState<'crop' | 'blur'>('crop');
 
   // Make sure the preview's object URL is released when it's replaced
   // or the component unmounts; otherwise we leak memory on every photo.
@@ -144,13 +145,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     await stageFile(file);
   };
 
-  const handleApplyCrop = async (rect: CropRect) => {
+  const handleApplyCrop = async (rect: CropRect, blurRects?: BlurRect[]) => {
     setCropperOpen(false);
     const source = originalFile ?? stagedFile;
     if (!source) return;
     setIsProcessing(true);
     try {
-      const cropped = await cropImage(source, rect, { maxDimension: maxImageDimension });
+      const cropped = await cropImage(source, rect, { maxDimension: maxImageDimension }, blurRects);
       setStagedFile(cropped);
       const url = URL.createObjectURL(cropped);
       setPreviewUrl((prev) => {
@@ -286,11 +287,27 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                       <p className="text-sm text-[var(--hrk-text-tertiary)]">Preparing image...</p>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
                       <button
                         type="button"
-                        onClick={() => setCropperOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] px-3 py-1.5 text-xs hover:bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)]"
+                        onClick={() => {
+                          setCropperInitialTool('blur');
+                          setCropperOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/20 font-medium transition-colors"
+                        title="Blur or hide private info (phone numbers, IDs, faces)"
+                      >
+                        <EyeOff className="h-3.5 w-3.5 text-cyan-400" />
+                        Blur / Redact
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCropperInitialTool('crop');
+                          setCropperOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] px-3 py-1.5 text-xs hover:bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)] transition-colors"
+                        title="Crop and resize image"
                       >
                         <CropIcon className="h-3.5 w-3.5" />
                         Crop
@@ -298,7 +315,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                       <button
                         type="button"
                         onClick={clearPreview}
-                        className="rounded-md border border-[var(--hrk-border-subtle)] px-3 py-1.5 text-xs hover:bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)]"
+                        className="rounded-md border border-[var(--hrk-border-subtle)] px-3 py-1.5 text-xs hover:bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] transition-colors"
                       >
                         Cancel
                       </button>
@@ -306,7 +323,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                         type="button"
                         onClick={startUpload}
                         disabled={!stagedFile}
-                        className="rounded-md bg-[var(--hrk-brand)] text-black px-3 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+                        className="rounded-md bg-[var(--hrk-brand)] text-black px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
                       >
                         Upload
                       </button>
@@ -323,6 +340,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           isOpen={cropperOpen}
           onClose={() => setCropperOpen(false)}
           src={previewUrl}
+          initialTool={cropperInitialTool}
           onApply={handleApplyCrop}
         />
       )}

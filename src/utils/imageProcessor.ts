@@ -137,17 +137,29 @@ export interface CropRect {
   height: number;
 }
 
+export type BlurStyle = 'blur' | 'pixelate' | 'blackout';
+
+export interface BlurRect {
+  id?: string;
+  /** Normalized 0..1 coordinates relative to the original source image's dimensions. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  style?: BlurStyle;
+}
+
 /**
- * Crop `file` to the normalised `rect` and downsize the result the
- * same way `prepareImageForUpload` does. The crop is applied at the
- * source's native resolution, *then* the downsize step runs — so
- * cropping a tiny region from a huge image still gives you a sharp
- * output without blowing up file size.
+ * Crop `file` to the normalised `rect`, apply any `blurRects`, and downsize
+ * the result the same way `prepareImageForUpload` does. The crop and blurs
+ * are applied at the source's native resolution, then the downsize step runs —
+ * so private information is completely obscured before encoding.
  */
 export async function cropImage(
   file: File,
   rect: CropRect,
   options: PrepareImageOptions = {},
+  blurRects: BlurRect[] = [],
 ): Promise<File> {
   const maxDimension = options.maxDimension ?? DEFAULT_MAX_DIMENSION;
   const jpegQuality = options.jpegQuality ?? DEFAULT_JPEG_QUALITY;
@@ -175,10 +187,74 @@ export async function cropImage(
     if (!ctx) return file;
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
+    // Apply any blur/redact areas on the canvas
+    if (blurRects && blurRects.length > 0) {
+      for (const blur of blurRects) {
+        const bxSource = blur.x * img.naturalWidth;
+        const bySource = blur.y * img.naturalHeight;
+        const bwSource = blur.width * img.naturalWidth;
+        const bhSource = blur.height * img.naturalHeight;
+
+        // Intersection of blur rectangle with crop rectangle
+        const ix1 = Math.max(sx, bxSource);
+        const iy1 = Math.max(sy, bySource);
+        const ix2 = Math.min(sx + sw, bxSource + bwSource);
+        const iy2 = Math.min(sy + sh, bySource + bhSource);
+
+        if (ix2 <= ix1 || iy2 <= iy1) continue;
+
+        const destX = Math.round(((ix1 - sx) / sw) * targetW);
+        const destY = Math.round(((iy1 - sy) / sh) * targetH);
+        const destW = Math.max(1, Math.round(((ix2 - ix1) / sw) * targetW));
+        const destH = Math.max(1, Math.round(((iy2 - iy1) / sh) * targetH));
+
+        const style = blur.style || 'blur';
+
+        if (style === 'blackout') {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(destX, destY, destW, destH);
+        } else if (style === 'pixelate') {
+          const pixelSize = Math.max(6, Math.round(Math.min(destW, destH) / 6));
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = Math.max(1, Math.round(destW / pixelSize));
+          offCanvas.height = Math.max(1, Math.round(destH / pixelSize));
+          const offCtx = offCanvas.getContext('2d');
+          if (offCtx) {
+            offCtx.imageSmoothingEnabled = false;
+            offCtx.drawImage(canvas, destX, destY, destW, destH, 0, 0, offCanvas.width, offCanvas.height);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(offCanvas, 0, 0, offCanvas.width, offCanvas.height, destX, destY, destW, destH);
+            ctx.imageSmoothingEnabled = true;
+          }
+        } else {
+          // 'blur': Heavy blur via downscale + canvas filter to ensure sensitive text (phone numbers, IDs) is 100% unreadable
+          const offCanvas = document.createElement('canvas');
+          const dsW = Math.max(2, Math.round(destW / 12));
+          const dsH = Math.max(2, Math.round(destH / 12));
+          offCanvas.width = dsW;
+          offCanvas.height = dsH;
+          const offCtx = offCanvas.getContext('2d');
+          if (offCtx) {
+            offCtx.drawImage(canvas, destX, destY, destW, destH, 0, 0, dsW, dsH);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(destX, destY, destW, destH);
+            ctx.clip();
+            if ('filter' in ctx) {
+              ctx.filter = 'blur(16px)';
+            }
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(offCanvas, 0, 0, dsW, dsH, destX, destY, destW, destH);
+            ctx.restore();
+          }
+        }
+      }
+    }
+
     const { mime, ext } = pickOutputMime(file.type);
     const blob = await canvasToBlob(canvas, mime, jpegQuality);
     const baseName = file.name.replace(/\.[^.]+$/, '') || 'image';
-    return blobToFile(blob, `${baseName}-crop.${ext}`);
+    return blobToFile(blob, `${baseName}-edit.${ext}`);
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
