@@ -1577,11 +1577,13 @@ export function HiveDetailPost({
       // Step: strip known proxy prefixes, repairing single-slash
       // scheme artifacts ("https:/foo.jpg" → "https://foo.jpg") that
       // creep in when proxy URLs are concatenated naively.
+      let rawUnproxied = src;
       for (const pattern of PROXY_PREFIXES) {
         if (pattern.test(src)) {
           const stripped = src
             .replace(pattern, '')
             .replace(/^(https?):\/(?!\/)/, '$1://');
+          rawUnproxied = stripped;
           push(stripped);
           break;
         }
@@ -1602,6 +1604,16 @@ export function HiveDetailPost({
         }
       } else if (!isAlreadyProxied && !isDataOrBlob) {
         push(`https://images.hive.blog/0x0/${src}`);
+        if (!src.toLowerCase().endsWith('.gif')) {
+          push(`https://images.hive.blog/1280x0/${src}`);
+        }
+        push(`https://images.ecency.com/0x0/${src}`);
+      } else if (rawUnproxied && rawUnproxied !== src) {
+        // If the initial URL was already proxied (e.g. 0x0) and failed, queue alternative proxy sizes & providers
+        if (!rawUnproxied.toLowerCase().endsWith('.gif')) {
+          push(`https://images.hive.blog/1280x0/${rawUnproxied}`);
+        }
+        push(`https://images.ecency.com/0x0/${rawUnproxied}`);
       }
 
       // Step: IPFS gateway swap. Match any `<host>/ipfs/<cid…>` URL

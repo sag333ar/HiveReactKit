@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, useMemo, type FC } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,6 +57,36 @@ export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, o
   const current = items[safeIndex];
   const isImage = current?.kind === 'image';
 
+  // Build candidate URL fallback list for large/failing images
+  const candidateUrls = useMemo(() => {
+    if (!current || current.kind !== 'image' || !current.url) return [];
+    const trimmed = current.url.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) return [trimmed];
+
+    const cleanUrl = trimmed.replace(/^(https?):\/(?!\/)/, '$1://');
+    const httpsUrl = cleanUrl.startsWith('http://') ? 'https://' + cleanUrl.slice('http://'.length) : cleanUrl;
+
+    const list: string[] = [];
+    const push = (u: string) => { if (u && !list.includes(u)) list.push(u); };
+
+    if (/^https?:\/\/(?:images\.hive\.blog|images\.ecency\.com)/.test(cleanUrl)) {
+      push(cleanUrl);
+    } else {
+      push(`https://images.hive.blog/0x0/${cleanUrl}`);
+      if (!cleanUrl.toLowerCase().endsWith('.gif')) {
+        push(`https://images.hive.blog/1280x0/${cleanUrl}`);
+      }
+      push(`https://images.ecency.com/0x0/${cleanUrl}`);
+    }
+    push(httpsUrl);
+    push(cleanUrl);
+    return list;
+  }, [current]);
+
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const activeImageUrl = isImage ? (candidateUrls[candidateIdx] || (current as any)?.url || '') : '';
+
   // Reset zoom/pan whenever the current item changes — otherwise
   // moving from a zoomed image to a video leaves the iframe offset.
   // Also reset the loaded flag so the spinner re-appears for the new
@@ -65,6 +95,7 @@ export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, o
     setScale(1);
     setTx(0);
     setTy(0);
+    setCandidateIdx(0);
     setImageLoaded(false);
   }, [safeIndex]);
 
@@ -220,16 +251,24 @@ export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, o
                 onLoad fires (or onError, so a bad URL doesn't trap us
                 in a spinning state forever). */}
             {!imageLoaded && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 pointer-events-none">
                 <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+                <span className="text-xs text-white/70 animate-pulse">Loading preview...</span>
               </div>
             )}
             <img
-              src={current.url}
+              src={activeImageUrl}
               alt=""
               draggable={false}
               onLoad={() => setImageLoaded(true)}
-              onError={() => setImageLoaded(true)}
+              onError={() => {
+                if (candidateIdx < candidateUrls.length - 1) {
+                  setImageLoaded(false);
+                  setCandidateIdx((prev) => prev + 1);
+                } else {
+                  setImageLoaded(true);
+                }
+              }}
               className="max-h-[80vh] max-w-full rounded-lg object-contain transition-transform duration-100"
               style={{
                 transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
