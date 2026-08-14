@@ -132,11 +132,13 @@ export interface SnapsFeedViewProps {
   ) => void | boolean | Promise<void | boolean>;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void;
+  onWeb2UserClick?: (web2id: string) => void;
   // URL builders — forwarded to every <SnapsFeedCard/> so its
   // clickable surfaces render as real <a href> links ("open in new
   // tab" etc.). See SnapsFeedCard for details.
   getPostUrl?: (author: string, permlink: string) => string;
   getUserUrl?: (username: string) => string;
+  getWeb2UserUrl?: (web2id: string) => string;
   getTagUrl?: (tag: string) => string;
   getCommunityUrl?: (community: string) => string;
 
@@ -284,8 +286,10 @@ export function SnapsFeedView({
   onVotePoll,
   onUserClick,
   onPostClick,
+  onWeb2UserClick,
   getPostUrl,
   getUserUrl,
+  getWeb2UserUrl,
   getTagUrl,
   getCommunityUrl,
   ecencyToken,
@@ -461,8 +465,10 @@ export function SnapsFeedView({
     onVotePoll,
     onUserClick,
     onPostClick,
+    onWeb2UserClick,
     getPostUrl,
     getUserUrl,
+    getWeb2UserUrl,
     getTagUrl,
     getCommunityUrl,
     ecencyToken,
