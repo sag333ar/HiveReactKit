@@ -71,7 +71,7 @@ export interface SnapsFeedViewProps {
 
   // ── BlogPostList action callbacks (forwarded per column) ──────────────
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>;
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onReblog?: (author: string, permlink: string) => void;
   isPostReblogged?: (author: string, permlink: string) => boolean;

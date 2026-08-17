@@ -6,6 +6,7 @@ import InlineCommentItem from './InlineCommentItem';
 import { PostComposer } from '../comments/AddCommentInput';
 import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
+import { formatErrorMessage } from '../../utils/errorUtils';
 import { toast } from '@/hooks';
 
 interface InlineCommentSectionProps {
@@ -190,7 +191,7 @@ export default function InlineCommentSection({
       const fetched = await apiService.getCommentsList(author, permlink, observer ?? '');
       setComments(fetched);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load comments');
+      setError(formatErrorMessage(err, 'Failed to load comments'));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -267,26 +268,28 @@ export default function InlineCommentSection({
     if (onSubmitComment) {
       try {
         const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight, beneficiaries));
-        // If callback returns false, the operation was cancelled (e.g. keychain denied) — preserve text
+        // If callback returns false, the operation was cancelled or failed — preserve text
         if (result === false) return false;
         setActiveReplyKey(null);
         setIsRefreshing(true);
         setTimeout(async () => { await fetchComments(true); }, 3000);
       } catch (err: unknown) {
-        toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to post comment' });
+        toast({ title: 'Error', description: formatErrorMessage(err, 'Failed to post comment') });
         setIsRefreshing(false);
+        return false;
       }
       return;
     }
-    if (!token) { alert('Please login to comment'); return; }
+    if (!token) { alert('Please login to comment'); return false; }
     try {
       await apiService.handleComment({ author: parentAuthor, permlink: parentPermlink, body, authToken: token });
       setActiveReplyKey(null);
       setIsRefreshing(true);
       setTimeout(async () => { await fetchComments(true); }, 3000);
     } catch (err: unknown) {
-      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to post comment' });
+      toast({ title: 'Error', description: formatErrorMessage(err, 'Failed to post comment') });
       setIsRefreshing(false);
+      return false;
     }
   };
 

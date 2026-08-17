@@ -7,6 +7,7 @@ import ReplyModal from './ReplyModal';
 import CommentSearchBar from './CommentSearchBar';
 import AddCommentInput from './AddCommentInput';
 import type { Beneficiary } from '../../utils/beneficiaries';
+import { formatErrorMessage } from '../../utils/errorUtils';
 import { toast } from '@/hooks';
 
 interface CommentsModalProps {
@@ -31,7 +32,7 @@ interface CommentsModalProps {
     body: string,
     voteWeight?: number | null,
     beneficiaries?: Beneficiary[],
-  ) => Promise<void | boolean>;
+  ) => void | boolean | Promise<void | boolean>;
   /** Show the upvote-on-publish toggle in the composer (the parent decides — usually `!alreadyVoted`). */
   showVoteButton?: boolean;
   /** Locked default tags for the top-level composer (typically the parent post's tags, app tag first). */
@@ -95,7 +96,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
       setComments(fetchedComments);
       setFilteredComments(fetchedComments);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load comments');
+      setError(formatErrorMessage(err, 'Failed to load comments'));
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -136,8 +137,8 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
         const { enabled, percent } = voteRef.current;
         const voteWeight = enabled ? percent : null;
         const result = await Promise.resolve(onSubmitComment(parentAuthor, parentPermlink, body, voteWeight, beneficiariesRef.current));
-        // If callback returns false, the operation was cancelled — preserve composer text
-        if (result === false) return;
+        // If callback returns false, the operation was cancelled or failed — preserve composer text
+        if (result === false) return false;
         setShowAddComment(false);
         setIsRefreshing(true);
         setTimeout(async () => {
@@ -145,15 +146,16 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
           setIsRefreshing(false);
         }, 3000);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to post comment';
+        const message = formatErrorMessage(err, 'Failed to post comment');
         toast({ title: 'Error', description: message });
         setIsRefreshing(false);
+        return false;
       }
       return;
     }
     if (!token) {
       alert('Please login to comment');
-      return;
+      return false;
     }
     try {
       await apiService.handleComment({
@@ -169,9 +171,10 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
         setIsRefreshing(false);
       }, 3000);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to post comment';
+      const message = formatErrorMessage(err, 'Failed to post comment');
       toast({ title: 'Error', description: message });
       setIsRefreshing(false);
+      return false;
     }
   };
 

@@ -6,7 +6,7 @@ interface ReplyModalProps {
   parentAuthor: string;
   parentPermlink: string;
   onClose: () => void;
-  onCommentSubmitted: (parentAuthor: string, parentPermlink: string, body: string) => Promise<void>;
+  onCommentSubmitted: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>;
   currentUser?: string;
   threeSpeakToken?: string;
   encoderUrl?: string;
@@ -38,11 +38,12 @@ const ReplyModal = ({
     
     setIsSubmitting(true);
     try {
-      await onCommentSubmitted(parentAuthor, parentPermlink, body);
+      const res = await onCommentSubmitted(parentAuthor, parentPermlink, body);
+      if (res === false) return false;
       onClose();
     } catch (error) {
       console.error('Failed to submit reply:', error);
-      // TODO: Show error toast
+      return false;
     } finally {
       setIsSubmitting(false);
     }

@@ -77,7 +77,7 @@ export interface CommunityDetailProps {
 
   // Action callbacks (forwarded into BlogPostList → PostActionButton)
   onUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>
-  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | Promise<void>
+  onSubmitComment?: (parentAuthor: string, parentPermlink: string, body: string) => void | boolean | Promise<void | boolean>
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>
   onReblog?: (author: string, permlink: string) => void
   isPostReblogged?: (author: string, permlink: string) => boolean
