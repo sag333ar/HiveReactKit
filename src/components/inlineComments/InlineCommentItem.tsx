@@ -80,7 +80,7 @@ interface InlineCommentItemProps {
   onUserClick?: (username: string) => void;
   /** Called instead of onUserClick when this comment's json_metadata marks
    *  its author as a "web2" user (usertype/web2id/web2name/web2dpurl). */
-  onWeb2UserClick?: (web2id: string) => void;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
   /** Default reward routing seeded into every reply composer. */
   defaultReward?: RewardOption;
   /** Beneficiaries pre-populated into every reply composer. */
@@ -579,7 +579,7 @@ export default function InlineCommentItem({
           {(web2Identity.isWeb2 ? onWeb2UserClick : onUserClick) ? (
             <button
               type="button"
-              onClick={() => web2Identity.isWeb2 ? onWeb2UserClick!(web2Identity.web2id!) : onUserClick!(comment.author)}
+              onClick={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick!(comment.author)}
               className="relative flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500/60"
               aria-label={`Open ${web2Identity.displayName}'s profile`}
             >
@@ -609,7 +609,7 @@ export default function InlineCommentItem({
           {(web2Identity.isWeb2 ? onWeb2UserClick : onUserClick) ? (
             <button
               type="button"
-              onClick={() => web2Identity.isWeb2 ? onWeb2UserClick!(web2Identity.web2id!) : onUserClick!(comment.author)}
+              onClick={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick!(comment.author)}
               className="text-xs md:text-sm font-semibold text-white truncate hover:text-blue-400 hover:underline focus:outline-none focus:text-blue-400 focus:underline"
             >
               {tier ? (

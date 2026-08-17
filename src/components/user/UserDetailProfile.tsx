@@ -328,7 +328,7 @@ export interface UserDetailProfileProps {
   /** Called instead of onUserClick when a Blogs-tab post's json_metadata
    *  marks its author as a "web2" user (usertype/web2id/web2name/
    *  web2dpurl) — see getWeb2Identity, AttachmentStrip.tsx. */
-  onWeb2UserClick?: (web2id: string) => void;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
   onPostClick?: (author: string, permlink: string, title: string, contextPosts?: Post[]) => void;
   onSnapClick?: (author: string, permlink: string) => void;
   onPollClick?: (author: string, permlink: string, question: string) => void;
@@ -341,7 +341,7 @@ export interface UserDetailProfileProps {
   getUserUrl?: (username: string) => string;
   /** Profile URL builder for a web2 user's identity — used instead of
    *  getUserUrl for a Blogs-tab post whose author is a web2 proxy. */
-  getWeb2UserUrl?: (web2id: string) => string;
+  getWeb2UserUrl?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => string;
   getTagUrl?: (tag: string) => string;
   getCommunityUrl?: (community: string) => string;
   onActivitySelect?: (activity: any) => void;
@@ -1142,8 +1142,32 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           profileData.web2id = web2IdFilter;
           if (queryWeb2Name) profileData.name = queryWeb2Name;
           if (queryWeb2DpUrl) profileData.profileImage = queryWeb2DpUrl;
-          profileData.web2provider = web2ProviderProp || queryWeb2Provider || (isWeb2User ? 'google' : undefined);
+          profileData.web2provider = queryWeb2Provider || web2ProviderProp;
           profileData.about = undefined;
+
+          // Proactively inspect the proxy account's recent snaps / posts to resolve the Web2 identity immediately
+          if (!queryWeb2Name || !queryWeb2Provider) {
+            void userService.getUserSnaps(targetUsername, undefined, observer).then(({ snaps }) => {
+              const match = snaps.find((s) => {
+                const ident = getWeb2Identity(s.author, s.json_metadata, '');
+                return ident.isWeb2 && ident.web2id === web2IdFilter;
+              });
+              if (match) {
+                const ident = getWeb2Identity(match.author, match.json_metadata, '');
+                setProfile((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    name: ident.displayName || prev.name,
+                    profileImage: ident.avatarUrl || prev.profileImage,
+                    web2provider: ident.provider || prev.web2provider,
+                    isWeb2: true,
+                    web2id: ident.web2id,
+                  };
+                });
+              }
+            }).catch(() => { /* ignore */ });
+          }
         }
 
         setProfile(profileData);
@@ -2302,8 +2326,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </div>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                 <HiveLink
-                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
-                  onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(item.author)}
+                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(item.author)}
+                  onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(item.author)}
                   className="text-[11px] font-medium text-white hover:text-blue-400 sm:text-sm"
                 >
                   {tierMap[item.author] ? (
@@ -3822,6 +3846,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             currentUsername={currentUsername}
             observer={observer}
             web2IdFilter={web2IdFilter}
+            onWeb2IdentityFound={(ident) => {
+              setProfile((prev) => {
+                if (!prev) return prev;
+                if (prev.name === ident.displayName && prev.profileImage === ident.avatarUrl && prev.web2provider === ident.provider) return prev;
+                return {
+                  ...prev,
+                  name: ident.displayName || prev.name,
+                  profileImage: ident.avatarUrl || prev.profileImage,
+                  web2provider: ident.provider || prev.web2provider,
+                  isWeb2: true,
+                  web2id: ident.web2id,
+                };
+              });
+            }}
             reportedPosts={reportedPosts}
             reportedAuthors={reportedAuthors}
             onUpvote={onUpvote}
@@ -3836,6 +3874,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onClickCommentIcon={onClickSnapCommentIcon}
             onClickCommentCount={onClickSnapCommentCount}
             onUserClick={onUserClick}
+            onWeb2UserClick={onWeb2UserClick}
+            getWeb2UserUrl={getWeb2UserUrl}
             onPostClick={onSnapClick
               ? (author, permlink) => onSnapClick(author, permlink)
               : onPostClick

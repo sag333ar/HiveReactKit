@@ -109,6 +109,14 @@ export interface ProfileSnapsTabProps {
     permlink: string,
     choiceNums: number[],
   ) => void | boolean | Promise<void | boolean>;
+  onWeb2IdentityFound?: (identity: {
+    displayName: string;
+    avatarUrl: string;
+    provider?: string;
+    web2id: string;
+  }) => void;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
+  getWeb2UserUrl?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => string;
   onUserClick?: (username: string) => void;
   onPostClick?: (author: string, permlink: string, title?: string) => void;
   // URL builders — forwarded to <SnapsFeedView/> so the snap cards
@@ -157,6 +165,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
   web2IdFilter,
   reportedPosts = [],
   reportedAuthors = [],
+  onWeb2IdentityFound,
   ...feedProps
 }) => {
   const observer = observerProp ?? currentUsername;
@@ -215,6 +224,24 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
     const cached = profileSnapsCache.get(fullCacheKey);
     if (cached && isHydrated(cached)) {
       setState(cached);
+      if (web2IdFilter && onWeb2IdentityFound) {
+        const allCached = [...cached.snaps.posts, ...cached.ecency.posts, ...cached.threads.posts, ...cached.liketu.posts];
+        const match = allCached.find((item) => {
+          const ident = getWeb2Identity(item.author, item.json_metadata, '');
+          return ident.isWeb2 && ident.web2id === web2IdFilter;
+        });
+        if (match) {
+          const ident = getWeb2Identity(match.author, match.json_metadata, '');
+          if (ident.isWeb2 && ident.web2id) {
+            onWeb2IdentityFound({
+              displayName: ident.displayName,
+              avatarUrl: ident.avatarUrl,
+              provider: ident.provider,
+              web2id: ident.web2id,
+            });
+          }
+        }
+      }
       return;
     }
 
@@ -240,7 +267,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         if (aborted) return;
 
         // If web2IdFilter is set and initial batch has 0 matching posts, auto-advance
-        while (
+        while(
           web2IdFilter &&
           filterPost(raw).length === 0 &&
           nextStartId !== null &&
@@ -256,6 +283,24 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
           if (aborted) return;
           raw = [...raw, ...nextRes.snaps];
           nextStartId = nextRes.nextStartId;
+        }
+
+        if (web2IdFilter && onWeb2IdentityFound) {
+          const match = raw.find((item) => {
+            const ident = getWeb2Identity(item.author, item.json_metadata, '');
+            return ident.isWeb2 && ident.web2id === web2IdFilter;
+          });
+          if (match) {
+            const ident = getWeb2Identity(match.author, match.json_metadata, '');
+            if (ident.isWeb2 && ident.web2id) {
+              onWeb2IdentityFound({
+                displayName: ident.displayName,
+                avatarUrl: ident.avatarUrl,
+                provider: ident.provider,
+                web2id: ident.web2id,
+              });
+            }
+          }
         }
 
         if (aborted) return;

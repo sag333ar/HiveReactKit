@@ -98,8 +98,8 @@ export interface BlogPostListProps {
   // (usertype/web2id/web2name/web2dpurl), the author header shows that
   // identity instead of the Hive account and routes clicks through
   // these instead of onUserClick/getUserUrl.
-  onWeb2UserClick?: (web2id: string) => void;
-  getWeb2UserUrl?: (web2id: string) => string;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
+  getWeb2UserUrl?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => string;
 
   // Composer tokens forwarded to <PostActionButton/>'s comments modal.
   ecencyToken?: string;
@@ -589,8 +589,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   </div>
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                     <HiveLink
-                      href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(item.author)}
-                      onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(item.author)}
+                      href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(item.author)}
+                      onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(item.author)}
                       className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
                       {tierMap[item.author] ? (

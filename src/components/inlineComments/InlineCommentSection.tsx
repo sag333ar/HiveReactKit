@@ -100,7 +100,7 @@ interface InlineCommentSectionProps {
   onUserClick?: (username: string) => void;
   /** Called instead of onUserClick when a comment's json_metadata marks
    *  its author as a "web2" user (usertype/web2id/web2name/web2dpurl). */
-  onWeb2UserClick?: (web2id: string) => void;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
   /** Forwarded to every DecentMemes picker in this section so the widget
    *  assigns the 1% frontend beneficiary slot. Pass your Hive account name
    *  (e.g. `'hivesuite.app'`) to opt in. Omit to skip the slot. */

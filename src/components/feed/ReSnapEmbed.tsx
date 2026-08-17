@@ -40,7 +40,7 @@ interface ReSnapEmbedProps {
   onUserClick?: (username: string) => void;
   /** Called instead of onUserClick when the embedded post's json_metadata
    *  marks its author as a "web2" user. */
-  onWeb2UserClick?: (web2id: string) => void;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
   /** Emits true when a preview card is shown (post or re-snap). Emits false
    *  when the fetch fails or top-level posts are hidden (`showTopLevelPostPreview`
    *  is false). */
@@ -169,7 +169,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   const handleAuthorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!post) return;
-    if (web2Identity?.isWeb2) onWeb2UserClick?.(web2Identity.web2id!);
+    if (web2Identity?.isWeb2) (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider);
     else onUserClick?.(post.author);
   };
 

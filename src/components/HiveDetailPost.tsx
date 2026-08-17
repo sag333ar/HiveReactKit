@@ -307,8 +307,8 @@ export interface HiveDetailPostProps {
   // (usertype/web2id/web2name/web2dpurl), author headers show that
   // identity instead of the Hive account and route clicks through these
   // instead of onUserClick/getUserUrl.
-  onWeb2UserClick?: (web2id: string) => void;
-  getWeb2UserUrl?: (web2id: string) => string;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
+  getWeb2UserUrl?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => string;
 
   // ── Header kebab (in-app-bar more menu) ────────────────────────────
   // Mirror of the per-card action bar's `onShare` / `onReport`, but
@@ -2241,8 +2241,8 @@ export function HiveDetailPost({
 
             {/* Avatar */}
             <HiveLink
-              href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
-              onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
+              href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
+              onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
               className="relative flex-shrink-0"
               aria-label={`${web2Identity.displayName} profile`}
             >
@@ -2267,8 +2267,8 @@ export function HiveDetailPost({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <HiveLink
-                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
-                  onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
+                  href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
+                  onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
                   className="text-sm font-semibold text-white hover:text-blue-400 transition-colors"
                 >
                   {web2Identity.isWeb2 ? web2Identity.displayName : `@${post.author}`}
@@ -2702,8 +2702,8 @@ export function HiveDetailPost({
                     Cross post by
                   </span>
                   <HiveLink
-                    href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
-                    onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
+                    href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
+                    onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
                     className="text-sm font-bold text-white hover:text-red-400 transition-colors inline-flex items-center gap-1.5"
                   >
                     <img

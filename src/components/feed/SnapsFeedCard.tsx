@@ -131,8 +131,8 @@ export interface SnapsFeedCardProps {
   // (usertype/web2id/web2name/web2dpurl), the author header shows the
   // web2 identity instead of the Hive account and routes clicks through
   // these instead of onUserClick/getUserUrl.
-  onWeb2UserClick?: (web2id: string) => void;
-  getWeb2UserUrl?: (web2id: string) => string;
+  onWeb2UserClick?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => void;
+  getWeb2UserUrl?: (web2id: string, name?: string, dpUrl?: string, provider?: string) => string;
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;
@@ -570,8 +570,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       {/* Header */}
       <header className="flex items-center gap-3 px-4 pt-4 pb-2">
         <HiveLink
-          href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
-          onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
+          href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
+          onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
           className="relative shrink-0"
           aria-label={`${web2Identity.displayName} profile`}
         >
@@ -587,8 +587,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         </HiveLink>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
           <HiveLink
-            href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!) : getUserUrl?.(post.author)}
-            onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!) : onUserClick?.(post.author)}
+            href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
+            onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
             className="truncate text-sm font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)]"
           >
             {tier ? (
