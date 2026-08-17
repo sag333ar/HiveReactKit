@@ -208,6 +208,8 @@ interface ActivityListProps {
   className?: string;
   onClickPermlink?: (author: string, permlink: string) => void;
   onSelectActivity?: (activity: ActivityListItem) => void;
+  onUserClick?: (username: string) => void;
+  getUserUrl?: (username: string) => string;
   /** The actual scroll container this list lives inside. When provided,
    *  infinite scroll attaches to it directly instead of guessing the
    *  nearest scrollable ancestor — the guess is unreliable in nested
@@ -225,6 +227,8 @@ const ActivityList: React.FC<ActivityListProps> = ({
   className,
   onClickPermlink,
   onSelectActivity,
+  onUserClick,
+  getUserUrl,
   scrollRootRef,
 }) => {
   const [localDirectionFilter, setLocalDirectionFilter] = useState(directionFilter);
@@ -958,7 +962,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
                       activity.type === 'transfer'
                         ? activity.direction === 'in'
                           ? activity.from
-                          : activity.to
+                          : (activity.to && activity.to !== activity.from ? activity.to : (activity.from || activity.to))
                         : undefined;
                     const leadAvatarUser =
                       transferCounterparty ||
@@ -972,7 +976,13 @@ const dropdownRef = useRef<HTMLDivElement>(null);
                         <img
                           src={`https://images.hive.blog/u/${leadAvatarUser}/avatar`}
                           alt={leadAvatarUser}
-                          className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--hrk-border-subtle)]"
+                          className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--hrk-border-subtle)] cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={(e) => {
+                            if (onUserClick) {
+                              e.stopPropagation();
+                              onUserClick(leadAvatarUser);
+                            }
+                          }}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
@@ -999,20 +1009,61 @@ const dropdownRef = useRef<HTMLDivElement>(null);
                   <div className="flex-1 min-w-0">
                     {activity.type === 'transfer' ? (
                       <div>
-                        <div className="flex items-center gap-1.5 text-sm">
+                        <div className="flex items-center gap-1.5 text-sm flex-wrap">
                           <span
-                            className="font-medium text-blue-600 dark:text-blue-400 truncate"
+                            className="font-medium text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:underline"
                             title={activity.from}
+                            onClick={(e) => {
+                              if (onUserClick && activity.from) {
+                                e.stopPropagation();
+                                onUserClick(activity.from);
+                              }
+                            }}
                           >
                             @{activity.from}
                           </span>
-                          <ArrowRight className="h-3 w-3 shrink-0 text-[var(--hrk-text-tertiary)]" />
-                          <span
-                            className="font-medium text-blue-600 dark:text-blue-400 truncate"
-                            title={activity.to}
-                          >
-                            @{activity.to}
-                          </span>
+                          {activity.from !== activity.to ? (
+                            <>
+                              <ArrowRight className="h-3 w-3 shrink-0 text-[var(--hrk-text-tertiary)]" />
+                              <span
+                                className="font-medium text-blue-600 dark:text-blue-400 truncate cursor-pointer hover:underline"
+                                title={activity.to}
+                                onClick={(e) => {
+                                  if (onUserClick && activity.to) {
+                                    e.stopPropagation();
+                                    onUserClick(activity.to);
+                                  }
+                                }}
+                              >
+                                @{activity.to}
+                              </span>
+                            </>
+                          ) : null}
+                          {activity.op === 'transfer_to_vesting' && (
+                            <span className="inline-flex items-center rounded bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-purple-300">
+                              Power Up
+                            </span>
+                          )}
+                          {activity.op === 'transfer_to_savings' && (
+                            <span className="inline-flex items-center rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                              To Savings
+                            </span>
+                          )}
+                          {activity.op === 'transfer_from_savings' && (
+                            <span className="inline-flex items-center rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                              From Savings
+                            </span>
+                          )}
+                          {activity.op === 'delegate_vesting_shares' && (
+                            <span className="inline-flex items-center rounded bg-teal-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-teal-300">
+                              Delegate
+                            </span>
+                          )}
+                          {activity.op === 'withdraw_vesting' && (
+                            <span className="inline-flex items-center rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-300">
+                              Power Down
+                            </span>
+                          )}
                         </div>
                         {activity.memo && (
                           <p className="mt-1 break-words text-xs italic text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">

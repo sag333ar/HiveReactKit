@@ -339,17 +339,21 @@ function mapHistoryEntryToTransaction(
         to: op.to,
         memo: op.memo || "",
       };
-    case "transfer_to_vesting":
-      // Power Up — stake HIVE as HP. From the user's POV this leaves the
-      // liquid balance, so render as "sent" with a descriptive memo.
+    case "transfer_to_vesting": {
+      // Power Up — stake HIVE as HP.
+      const targetTo = op.to || op.from;
+      const isSent = op.from === username;
       return {
         ...base,
-        type: op.from === username ? "sent" : "received",
+        type: isSent ? "sent" : "received",
         amount: String(op.amount),
         from: op.from,
-        to: op.to,
-        memo: op.from === op.to ? "Power up" : `Power up → @${op.to}`,
+        to: targetTo,
+        memo: isSent
+          ? (op.from === targetTo ? "Power up" : `Power up → @${targetTo}`)
+          : `Power up from @${op.from}`,
       };
+    }
     case "transfer_to_savings":
       return {
         ...base,

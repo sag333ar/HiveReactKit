@@ -299,7 +299,14 @@ class ActivityListService {
       case 'transfer_to_savings':
       case 'transfer_from_savings':
       case 'recurrent_transfer':
+      case 'transfer_to_vesting':
         return this.parseTransferOperation(operationType, value, username);
+
+      case 'delegate_vesting_shares':
+        return this.parseDelegateVestingSharesOperation(value, username);
+
+      case 'withdraw_vesting':
+        return this.parseWithdrawVestingOperation(value, username);
 
       default:
         return {
@@ -525,7 +532,8 @@ class ActivityListService {
     extraFields: Partial<ActivityListItem>;
   } {
     const { from, to, amount, memo } = value;
-    const isIncoming = to === username;
+    const targetTo = to || from;
+    const isIncoming = targetTo === username && from !== username;
     const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
 
     const labelMap: Record<string, string> = {
@@ -533,12 +541,13 @@ class ActivityListService {
       transfer_to_savings: 'Transfer to savings',
       transfer_from_savings: 'Transfer from savings',
       recurrent_transfer: 'Recurrent transfer',
+      transfer_to_vesting: 'Power Up',
     };
     const label = labelMap[operationType] || 'Transfer';
 
     const description = isIncoming
-      ? `${label}: ${from} → ${to} (${amount})`
-      : `${label}: ${from} → ${to} (${amount})`;
+      ? `${label}: ${from} → ${targetTo} (${amount})`
+      : `${label}: ${from} → ${targetTo} (${amount})`;
 
     return {
       type: 'transfer',
@@ -546,9 +555,56 @@ class ActivityListService {
       description,
       extraFields: {
         from,
-        to,
+        to: targetTo,
         amount,
         memo,
+      },
+    };
+  }
+
+  private parseDelegateVestingSharesOperation(value: any, username: string): {
+    type: ActivityListItem['type'];
+    direction: ActivityListItem['direction'];
+    description: string;
+    extraFields: Partial<ActivityListItem>;
+  } {
+    const { delegator, delegatee, vesting_shares } = value;
+    const isIncoming = delegatee === username;
+    const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
+    const isRemove = parseFloat(vesting_shares?.split(' ')[0] || '0') === 0;
+    const label = isRemove ? 'Cancel Delegation' : 'Delegate';
+    const description = `${label}: ${delegator} → ${delegatee} (${vesting_shares})`;
+
+    return {
+      type: 'transfer',
+      direction,
+      description,
+      extraFields: {
+        from: delegator,
+        to: delegatee,
+        amount: vesting_shares,
+      },
+    };
+  }
+
+  private parseWithdrawVestingOperation(value: any, username: string): {
+    type: ActivityListItem['type'];
+    direction: ActivityListItem['direction'];
+    description: string;
+    extraFields: Partial<ActivityListItem>;
+  } {
+    const { account, vesting_shares } = value;
+    const isCancel = parseFloat(vesting_shares?.split(' ')[0] || '0') === 0;
+    const description = isCancel ? 'Cancel Power Down' : `Power Down: ${vesting_shares}`;
+
+    return {
+      type: 'transfer',
+      direction: 'out',
+      description,
+      extraFields: {
+        from: account,
+        to: account,
+        amount: vesting_shares,
       },
     };
   }

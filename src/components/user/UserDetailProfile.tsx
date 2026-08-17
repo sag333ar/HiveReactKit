@@ -3561,6 +3561,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <Wallet
               username={targetUsername}
               currentUsername={currentUsername}
+              onUserClick={onUserClick}
+              getUserUrl={getUserUrl}
               scrollRootRef={mainScrollRef}
               onUpdateRcDelegation={onUpdateRcDelegation}
               onDeleteRcDelegation={onDeleteRcDelegation}
@@ -3615,6 +3617,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               username={targetUsername}
               onClickPermlink={onActivityPermlink}
               onSelectActivity={onActivitySelect}
+              onUserClick={onUserClick}
+              getUserUrl={getUserUrl}
               scrollRootRef={mainScrollRef}
             />
           ) : (

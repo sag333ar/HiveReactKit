@@ -37,6 +37,10 @@ interface WalletProps {
   onDeleteRcDelegation?: DelegationsProps["onDeleteRcDelegation"];
   onCreateHpDelegation?: DelegationsProps["onCreateHpDelegation"];
   onCreateRcDelegation?: DelegationsProps["onCreateRcDelegation"];
+  /** Callback fired when an avatar or @username link is tapped */
+  onUserClick?: (username: string) => void;
+  /** Resolver for profile URLs when constructing links */
+  getUserUrl?: (username: string) => string;
   /** Hide the Delegated HIVE / RC panel inside the wallet view. */
   hideDelegations?: boolean;
   /** Wallet actions — only surfaced when `currentUsername === username`.
@@ -201,9 +205,43 @@ function describeTx(tx: Transaction): {
   };
 }
 
-const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
+function renderTitleWithUsernames(
+  title: string,
+  onUserClick?: (username: string) => void,
+) {
+  if (!title.includes('@')) return title;
+  const parts = title.split(/(@[a-zA-Z0-9\-\.]+)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('@')) {
+      const uname = part.slice(1).replace(/[^a-zA-Z0-9\-\.]/g, '');
+      return (
+        <span
+          key={idx}
+          className={`text-blue-400 font-medium ${
+            onUserClick ? 'hover:underline cursor-pointer' : ''
+          }`}
+          onClick={(e) => {
+            if (onUserClick && uname) {
+              e.stopPropagation();
+              onUserClick(uname);
+            }
+          }}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={idx}>{part}</span>;
+  });
+}
+
+const TransactionRow: React.FC<{
+  tx: Transaction;
+  onUserClick?: (username: string) => void;
+  getUserUrl?: (username: string) => string;
+}> = ({ tx, onUserClick, getUserUrl }) => {
   const isSent = tx.type === "sent";
-  const otherUser = isSent ? tx.to : tx.from;
+  const otherUser = isSent ? (tx.to && tx.to !== tx.from ? tx.to : (tx.from || tx.to)) : tx.from;
   const meta = describeTx(tx);
   const tip = meta.tipData;
 
@@ -215,7 +253,15 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
         <img
           src={`https://images.hive.blog/u/${otherUser}/avatar`}
           alt={otherUser}
-          className="w-9 h-9 rounded-full border border-[var(--hrk-border-subtle)]"
+          className={`w-9 h-9 rounded-full border border-[var(--hrk-border-subtle)] ${
+            onUserClick && otherUser ? "cursor-pointer hover:opacity-80 transition-opacity" : ""
+          }`}
+          onClick={(e) => {
+            if (onUserClick && otherUser) {
+              e.stopPropagation();
+              onUserClick(otherUser);
+            }
+          }}
           onError={(e) => {
             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${otherUser}&background=random&size=36`;
           }}
@@ -234,7 +280,7 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
             gets squashed by a fixed-width sibling. */}
         <div className="flex items-baseline justify-between gap-2 min-w-0">
           <span className="text-sm font-semibold text-[var(--hrk-text-primary)] truncate">
-            {meta.title}
+            {renderTitleWithUsernames(meta.title, onUserClick)}
           </span>
           <span
             className={`text-xs sm:text-sm font-bold whitespace-nowrap ${
@@ -260,7 +306,21 @@ const TransactionRow: React.FC<{ tx: Transaction }> = ({ tx }) => {
               tip[k] ? (
                 <div key={k}>
                   <span className="text-[var(--hrk-text-tertiary)]">{k}:</span>{' '}
-                  <span className="text-blue-400">{tip[k]}</span>
+                  <span
+                    className={`text-blue-400 ${
+                      (k === 'author' || k === 'sender') && onUserClick
+                        ? 'cursor-pointer hover:underline'
+                        : ''
+                    }`}
+                    onClick={(e) => {
+                      if ((k === 'author' || k === 'sender') && onUserClick && tip[k]) {
+                        e.stopPropagation();
+                        onUserClick(tip[k].replace(/^@/, ''));
+                      }
+                    }}
+                  >
+                    {tip[k]}
+                  </span>
                 </div>
               ) : null,
             )}
@@ -608,6 +668,8 @@ export const Wallet: React.FC<WalletProps> = ({
   onDeleteRcDelegation,
   onCreateHpDelegation,
   onCreateRcDelegation,
+  onUserClick,
+  getUserUrl,
   hideDelegations = false,
   onTransfer,
   onPowerUp,
@@ -636,6 +698,8 @@ export const Wallet: React.FC<WalletProps> = ({
   const [filterIncoming, setFilterIncoming] = useState(false);
   const [filterExcludeSpam, setFilterExcludeSpam] = useState(false);
   const [filterTransfers, setFilterTransfers] = useState(false);
+  const [filterPowerUps, setFilterPowerUps] = useState(false);
+  const [filterPowerDowns, setFilterPowerDowns] = useState(false);
 
   const filteredTransactions = React.useMemo(() => {
     return transactions.filter((tx) => {
@@ -654,16 +718,28 @@ export const Wallet: React.FC<WalletProps> = ({
         if (isZeroZeroOne) return false;
       }
 
-      // 4. Transfers (only show transfer/tip kind)
-      if (filterTransfers) {
+      // 4. Category filters (Transfers, Power Ups, Power Downs)
+      const hasCategoryFilter = filterTransfers || filterPowerUps || filterPowerDowns;
+      if (hasCategoryFilter) {
         const meta = describeTx(tx);
+        const memo = (tx.memo || '').toLowerCase();
+        const title = meta.title.toLowerCase();
+
         const isTransfer = meta.kind === "transfer" || meta.kind === "tip";
-        if (!isTransfer) return false;
+        const isPowerUp = meta.kind === "power" && (memo.includes("power up") || title.includes("power up"));
+        const isPowerDown = meta.kind === "power" && (memo.includes("power down") || title.includes("power down"));
+
+        let matches = false;
+        if (filterTransfers && isTransfer) matches = true;
+        if (filterPowerUps && isPowerUp) matches = true;
+        if (filterPowerDowns && isPowerDown) matches = true;
+
+        if (!matches) return false;
       }
 
       return true;
     });
-  }, [transactions, filterOutgoing, filterIncoming, filterExcludeSpam, filterTransfers]);
+  }, [transactions, filterOutgoing, filterIncoming, filterExcludeSpam, filterTransfers, filterPowerUps, filterPowerDowns]);
 
   // Sentinel for infinite scroll on the transaction history list. We
   // attach a scroll listener to the nearest scrollable ancestor of this
@@ -1000,6 +1076,24 @@ export const Wallet: React.FC<WalletProps> = ({
                 />
                 <span>Transfers</span>
               </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterPowerUps}
+                  onChange={(e) => setFilterPowerUps(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Power Ups</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterPowerDowns}
+                  onChange={(e) => setFilterPowerDowns(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
+                />
+                <span>Power Downs</span>
+              </label>
             </div>
 
             {isLoadingTransactions && (
@@ -1027,7 +1121,12 @@ export const Wallet: React.FC<WalletProps> = ({
             {!isLoadingTransactions &&
               username &&
               filteredTransactions.map((tx) => (
-                <TransactionRow key={tx.trx_id + tx.id} tx={tx} />
+                <TransactionRow
+                  key={tx.trx_id + tx.id}
+                  tx={tx}
+                  onUserClick={onUserClick}
+                  getUserUrl={getUserUrl}
+                />
               ))}
 
             {/* Infinite-scroll sentinel. Renders only when there are
