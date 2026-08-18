@@ -48,6 +48,8 @@ import {
   Cpu,
   Database,
   MoreHorizontal,
+  Layers,
+  MessageSquare,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -57,7 +59,7 @@ import KERatioBadge from "./KERatioBadge";
 import PollListItem from "./PollListItem";
 import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
-import { userService } from "@/services/userService";
+import { userService, type Web2Credits, fetchWeb2Credits } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
 import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
 import { getWeb2Identity, Web2ProviderBadge } from "../feed/AttachmentStrip";
@@ -234,6 +236,14 @@ export interface UserDetailProfileProps {
    *  matches this value — see getWeb2Identity, AttachmentStrip.tsx.
    *  Absent for a normal Hive profile visit. */
   web2IdFilter?: string;
+  /** Web2 posting limits & credits data passed directly from host app */
+  web2Credits?: Web2Credits | null;
+  /** Async callback to fetch Web2 credits / limits */
+  onFetchWeb2Credits?: () => Promise<Web2Credits | null>;
+  /** Web2 JWT auth token to auto-fetch credits from web2ApiUrl */
+  web2Token?: string;
+  /** Base URL for Web2 backend (default: 'https://api.hivesuite.app') */
+  web2ApiUrl?: string;
   /** Called when the curator submits a curation request. `type` is
    *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab.
    *  `ownVoteWeight` is the curator's own vote weight on this content
@@ -603,6 +613,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   isCurator,
   optedOutAuthors,
   web2IdFilter,
+  web2Credits: web2CreditsProp,
+  onFetchWeb2Credits,
+  web2Token,
+  web2ApiUrl = "https://api.hivesuite.app",
   onCurationRequest,
   onFetchCurationStatus,
   onUpdateRcDelegation,
@@ -661,12 +675,53 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const filterTrigger = useGlobalPostFilterTrigger();
   const targetUsername = username.replace(/^@/, "").trim();
   const profileCacheKey = web2IdFilter ? `${targetUsername}:${web2IdFilter}` : targetUsername;
-  const isWeb2User = Boolean(web2IdFilter);
   const cached = profileStateCache[profileCacheKey];
 
   const [profile, setProfile] = useState<ProfileData | null>(cached?.profile || null);
   const [loading, setLoading] = useState(!cached?.profile);
   const [error, setError] = useState<string | null>(null);
+
+  const isWeb2User = Boolean(web2IdFilter) || Boolean(web2CreditsProp) || Boolean(profile?.isWeb2) || Boolean(web2ProviderProp) || (profile ? Boolean(profile.web2provider) : false);
+
+  // Web2 posting credits & limits state
+  const [web2Credits, setWeb2Credits] = useState<Web2Credits | null>(web2CreditsProp ?? null);
+  const [loadingWeb2Credits, setLoadingWeb2Credits] = useState(false);
+
+  useEffect(() => {
+    if (web2CreditsProp !== undefined) {
+      setWeb2Credits(web2CreditsProp);
+      return;
+    }
+    const isWeb2 = Boolean(web2IdFilter) || Boolean(web2CreditsProp) || Boolean(profile?.isWeb2) || Boolean(web2ProviderProp) || Boolean(web2Token) || Boolean(onFetchWeb2Credits);
+    if (!isWeb2) return;
+
+    let cancelled = false;
+    async function loadWeb2Credits() {
+      setLoadingWeb2Credits(true);
+      try {
+        if (onFetchWeb2Credits) {
+          const res = await onFetchWeb2Credits();
+          if (!cancelled && res) {
+            setWeb2Credits(res);
+          }
+        } else if (web2Token) {
+          const res = await fetchWeb2Credits(web2Token, web2ApiUrl);
+          if (!cancelled && res) {
+            setWeb2Credits(res);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load web2 credits:", err);
+      } finally {
+        if (!cancelled) setLoadingWeb2Credits(false);
+      }
+    }
+
+    loadWeb2Credits();
+    return () => {
+      cancelled = true;
+    };
+  }, [web2CreditsProp, onFetchWeb2Credits, web2Token, web2ApiUrl, isWeb2User, profile?.isWeb2]);
   const isControlled = controlledActiveTab !== undefined;
   const initialTab: TabType = controlledActiveTab
     ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
@@ -3082,6 +3137,72 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         </div>
       );
     }
+    if (isWeb2User) {
+      const postLimit = web2Credits?.post?.limit ?? 1;
+      const postRemaining = web2Credits?.post?.remaining ?? Math.max(0, postLimit - (web2Credits?.post?.used ?? 0));
+      const snapsLimit = web2Credits?.snap?.limit ?? web2Credits?.snapAndComment?.limit ?? 40;
+      const snapsRemaining = web2Credits?.snap?.remaining ?? web2Credits?.snapAndComment?.remaining ?? Math.max(0, snapsLimit - (web2Credits?.snapAndComment?.used ?? web2Credits?.snap?.used ?? 0));
+      const commentsLimit = web2Credits?.comment?.limit ?? web2Credits?.snapAndComment?.limit ?? 40;
+      const commentsRemaining = web2Credits?.comment?.remaining ?? web2Credits?.snapAndComment?.remaining ?? Math.max(0, commentsLimit - (web2Credits?.snapAndComment?.used ?? web2Credits?.comment?.used ?? 0));
+      const resetsIn = web2Credits?.resetsIn;
+
+      return (
+        <div className="max-w-lg mx-auto space-y-6">
+          <div className="p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] flex flex-col items-center text-center">
+            <div className="p-3 rounded-full bg-blue-500/20 text-blue-400 mb-3">
+              <Zap className="h-8 w-8" />
+            </div>
+            <h3 className="text-base font-bold text-white">Web2 Account Limits & Resources</h3>
+            <p className="text-xs text-[var(--hrk-text-tertiary)] mt-1 max-w-sm">
+              Daily posting credits reset every 24 hours at UTC midnight.
+            </p>
+            {resetsIn && (
+              <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 border border-white/10 text-xs text-[var(--hrk-text-secondary)]">
+                <Clock className="h-3.5 w-3.5 text-amber-400" />
+                Resets in {resetsIn}
+              </span>
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-white flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-400" /> Top-Level Posts
+                </span>
+                <span className="font-bold text-blue-400">{postRemaining}/{postLimit} Post{postLimit > 1 ? 's' : ''} remaining</span>
+              </div>
+              <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-2.5">
+                <div className="h-2.5 rounded-full bg-blue-500 transition-all duration-500" style={{ width: `${Math.min(100, (postRemaining / Math.max(1, postLimit)) * 100)}%` }} />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-white flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-400" /> Snaps (Replies)
+                </span>
+                <span className="font-bold text-emerald-400">{snapsRemaining}/{snapsLimit} snaps remaining</span>
+              </div>
+              <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-2.5">
+                <div className="h-2.5 rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.min(100, (snapsRemaining / Math.max(1, snapsLimit)) * 100)}%` }} />
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-medium text-white flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-amber-400" /> Comments / Replies
+                </span>
+                <span className="font-bold text-amber-400">{commentsRemaining}/{commentsLimit} Comment/reply remaining</span>
+              </div>
+              <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-2.5">
+                <div className="h-2.5 rounded-full bg-amber-500 transition-all duration-500" style={{ width: `${Math.min(100, (commentsRemaining / Math.max(1, commentsLimit)) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (!votingPowerData) {
       return (
         <div className="text-center py-12">
@@ -4187,11 +4308,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           {/* Cover image */}
           {profile.coverImage ? (
             <div
-              className={`w-full bg-cover bg-center sm:h-52 md:h-60 ${(profile.about?.length ?? 0) > 50 ? "h-52" : "h-44"}`}
+              className={`w-full bg-cover bg-center ${isWeb2User ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`}
               style={{ backgroundImage: `url(${profile.coverImage})` }}
             />
           ) : (
-            <div className={`w-full bg-gradient-to-r from-blue-600 to-purple-700 sm:h-52 md:h-60 ${(profile.about?.length ?? 0) > 50 ? "h-52" : "h-44"}`} />
+            <div className={`w-full bg-gradient-to-r from-blue-600 to-purple-700 ${isWeb2User ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`} />
           )}
           {/* Dark overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
@@ -4208,8 +4329,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           )}
 
           {/* Profile details overlaid on cover */}
-          <div className={isWeb2User ? "absolute inset-0 flex items-center px-4 sm:px-6" : "absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4"}>
-            <div className={`flex gap-3 sm:gap-4 ${isWeb2User ? 'items-center' : 'items-end'}`}>
+          <div className={isWeb2User ? "absolute inset-0 flex items-center px-3.5 sm:px-6 py-2.5" : "absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4"}>
+            <div className={`flex gap-2.5 sm:gap-4 w-full ${isWeb2User ? 'items-center' : 'items-end'}`}>
               {/* Avatar — wrapped in a button for the owner so they
                   can edit their profile. A persistent red pencil badge
                   on the bottom-right corner makes the affordance
@@ -4225,7 +4346,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={targetUsername}
-                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover"
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${isWeb2User ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
                     }}
@@ -4233,13 +4354,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <span
                     className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition-all duration-150 group-hover:bg-black/55 group-hover:opacity-100 group-focus:bg-black/55 group-focus:opacity-100"
                   >
-                    <Pencil className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <Pencil className="h-4 w-4 sm:h-5 sm:w-5" />
                   </span>
                   <span
-                    className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-[var(--hrk-brand)] text-white shadow-md sm:h-7 sm:w-7"
+                    className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-[var(--hrk-brand)] text-white shadow-md"
                     aria-hidden
                   >
-                    <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </span>
                 </button>
               ) : (
@@ -4247,7 +4368,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={profile.name || targetUsername}
-                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-3 sm:border-4 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0"
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0 ${isWeb2User ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
                     }}
@@ -4257,13 +4378,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               )}
               {/* Name + details */}
               <div className={`flex-1 min-w-0 ${isWeb2User ? '' : 'pb-0.5'}`}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="min-w-0 text-base sm:text-lg md:text-xl font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
-                    <span className="truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px] inline-block">{profile.name || targetUsername}</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <h2 className="min-w-0 text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
+                    <span className="truncate max-w-[130px] sm:max-w-[220px] md:max-w-[320px] inline-block">{profile.name || targetUsername}</span>
                     {profile.reputation !== undefined && !profile.isWeb2 && (
                       <div className="relative group inline-flex shrink-0">
                         <span
-                          className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
+                          className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
                           style={{ minWidth: '24px' }}
                         >
                           {getReputationDetails(profile.reputation).score}
@@ -4273,7 +4394,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         </div>
                       </div>
                     )}
-                    <span className="text-xs sm:text-sm font-normal text-[var(--hrk-text-secondary)]">
+                    <span className="text-[11px] sm:text-xs font-normal text-[var(--hrk-text-secondary)]">
                       {profile.isWeb2 ? (
                         profile.web2provider ? (
                           ` (Web2 Account • Logged in with ${
@@ -4301,9 +4422,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           rel="noopener noreferrer"
                           title={`X / Twitter: @${hiveposh.twitter}`}
                           aria-label="X / Twitter (via HivePosh)"
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60"
+                          className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-black/40 text-white transition-colors hover:bg-black/60"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 sm:h-3 sm:w-3" fill="currentColor" aria-hidden="true">
                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                           </svg>
                         </a>
@@ -4315,9 +4436,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           rel="noopener noreferrer"
                           title={`Reddit: u/${hiveposh.reddit}`}
                           aria-label="Reddit (via HivePosh)"
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff4500] text-white transition-colors hover:opacity-90"
+                          className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[#ff4500] text-white transition-colors hover:opacity-90"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" aria-hidden="true">
                             <path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0zm4.388 8.74c.654 0 1.184.53 1.184 1.184a1.18 1.18 0 0 1-.582 1.018c.012.092.018.185.018.28 0 1.83-2.143 3.314-4.788 3.314s-4.788-1.484-4.788-3.314c0-.094.006-.187.017-.278a1.18 1.18 0 0 1-.585-1.02 1.184 1.184 0 0 1 2.006-.852 5.86 5.86 0 0 1 3.184-1.008l.605-2.842a.26.26 0 0 1 .31-.2l2.005.426a.842.842 0 1 1-.087.41l-1.793-.382-.54 2.55a5.86 5.86 0 0 1 3.135 1.012 1.18 1.18 0 0 1 .963-.498zM9.747 11.84a.842.842 0 1 0 1.684 0 .842.842 0 0 0-1.684 0zm5.265.842a.842.842 0 1 0 0-1.684.842.842 0 0 0 0 1.684zm-.585 1.795a.26.26 0 0 0-.366.003c-.397.397-1.214.537-1.94.537s-1.543-.14-1.94-.537a.26.26 0 0 0-.367.367c.61.61 1.737.69 2.307.69s1.697-.08 2.307-.69a.26.26 0 0 0 .005-.366z" />
                           </svg>
                         </a>
@@ -4334,6 +4455,52 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <span className="flex items-center gap-1 text-[var(--hrk-text-secondary)] text-xs mt-1 drop-shadow-md whitespace-nowrap">
                     <MapPin className="h-3 w-3 text-rose-400 flex-shrink-0" /> {profile.location.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()}
                   </span>
+                )}
+
+                {/* Web2 User Resource & Limits Badges — directly below name */}
+                {isWeb2User && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] sm:text-[11px]">
+                    {loadingWeb2Credits && !web2Credits ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-5 w-16 bg-white/15 rounded-full animate-pulse" />
+                        <div className="h-5 w-20 bg-white/15 rounded-full animate-pulse" />
+                        <div className="h-5 w-20 bg-white/15 rounded-full animate-pulse" />
+                      </div>
+                    ) : (
+                      <>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/35 text-blue-200 font-medium whitespace-nowrap drop-shadow-sm backdrop-blur-sm">
+                          <FileText className="h-3 w-3 text-blue-300 shrink-0" />
+                          {(() => {
+                            const postLimit = web2Credits?.post?.limit ?? 1;
+                            const postRemaining = web2Credits?.post?.remaining ?? Math.max(0, postLimit - (web2Credits?.post?.used ?? 0));
+                            return `${postRemaining}/${postLimit} Post${postLimit > 1 ? 's' : ''}`;
+                          })()}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/35 text-emerald-200 font-medium whitespace-nowrap drop-shadow-sm backdrop-blur-sm">
+                          <Layers className="h-3 w-3 text-emerald-300 shrink-0" />
+                          {(() => {
+                            const snapsLimit = web2Credits?.snap?.limit ?? web2Credits?.snapAndComment?.limit ?? 40;
+                            const snapsRemaining = web2Credits?.snap?.remaining ?? web2Credits?.snapAndComment?.remaining ?? Math.max(0, snapsLimit - (web2Credits?.snapAndComment?.used ?? web2Credits?.snap?.used ?? 0));
+                            return `${snapsRemaining}/${snapsLimit} Snaps`;
+                          })()}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/35 text-amber-200 font-medium whitespace-nowrap drop-shadow-sm backdrop-blur-sm">
+                          <MessageSquare className="h-3 w-3 text-amber-300 shrink-0" />
+                          {(() => {
+                            const commentsLimit = web2Credits?.comment?.limit ?? web2Credits?.snapAndComment?.limit ?? 40;
+                            const commentsRemaining = web2Credits?.comment?.remaining ?? web2Credits?.snapAndComment?.remaining ?? Math.max(0, commentsLimit - (web2Credits?.snapAndComment?.used ?? web2Credits?.comment?.used ?? 0));
+                            return `${commentsRemaining}/${commentsLimit} Replies`;
+                          })()}
+                        </span>
+                        {web2Credits?.resetsIn && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10 text-[var(--hrk-text-tertiary)] text-[9.5px] sm:text-[10.5px] whitespace-nowrap drop-shadow-sm backdrop-blur-sm">
+                            <Clock className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                            Resets in {web2Credits.resetsIn.replace(/ hours?/, 'h').replace(/ minutes?/, 'm')}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

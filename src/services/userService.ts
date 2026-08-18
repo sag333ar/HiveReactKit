@@ -32,6 +32,63 @@ export type SnapSubType = keyof typeof SNAP_SUBTYPE_PARENTS;
  */
 const snapRefsCache = new Map<string, { id: number; author: string; permlink: string }[]>();
 
+/**
+ * Web2 user posting limits and remaining daily credits.
+ */
+export interface Web2Credits {
+  post?: {
+    used?: number;
+    limit?: number;
+    remaining?: number;
+  };
+  snapAndComment?: {
+    limit?: number;
+    used?: number;
+    remaining?: number;
+    snapsUsed?: number;
+    commentsUsed?: number;
+  };
+  snap?: {
+    used?: number;
+    limit?: number;
+    remaining?: number;
+  };
+  comment?: {
+    used?: number;
+    limit?: number;
+    remaining?: number;
+  };
+  resetsIn?: string;
+  error?: string;
+}
+
+/**
+ * Fetch daily Web2 credits / limits from backend.
+ * GET /web2/credits
+ */
+export async function fetchWeb2Credits(
+  jwt: string,
+  apiUrl = 'https://api.hivesuite.app',
+  signal?: AbortSignal
+): Promise<Web2Credits | null> {
+  try {
+    const cleanUrl = (apiUrl || 'https://api.hivesuite.app').replace(/\/$/, '');
+    const res = await fetch(`${cleanUrl}/web2/credits`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`,
+      },
+      signal,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error('Failed to fetch web2 credits:', err);
+    return null;
+  }
+}
+
 class UserService {
   /** Always read the latest endpoint — `setHiveApiEndpoint()` may have been
    * called after construction, and a stale instance field would miss it. */
