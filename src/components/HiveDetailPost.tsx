@@ -3095,6 +3095,7 @@ export function HiveDetailPost({
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
                 onReblog={post.depth === 0 ? onReblog : undefined}
+                isReblogged={isReblogged}
                 onReSnap={post.depth > 0 ? onReSnap : undefined}
                 onCrossPost={onCrossPost}
                 onShare={onShare}
@@ -3493,7 +3494,7 @@ function HeaderMoreMenu({
                     isReblogged ? 'fill-current text-[var(--hrk-brand)]' : 'text-gray-300'
                   }`}
                 />
-                <span>{isReblogged ? 'Reblogged' : 'Reblog'}</span>
+                <span>{isReblogged ? 'Remove Reblog' : 'Reblog'}</span>
               </button>
             )}
             {onReSnap && (

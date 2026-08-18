@@ -867,12 +867,12 @@ export function PostActionButton({
         <>
           {onReblog && isReblogged && (
             <div className="relative group">
-              <span className={tooltipClass}>Reblogged</span>
+              <span className={tooltipClass}>Remove reblog</span>
               <button
                 type="button"
                 onClick={handleReblogClick}
                 className={`flex items-center hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass} text-[var(--hrk-brand)]`}
-                aria-label="Reblog"
+                aria-label="Remove reblog"
               >
                 <Repeat2
                   className={`${iconSizeClass} fill-current text-[var(--hrk-brand)]`}
@@ -882,7 +882,7 @@ export function PostActionButton({
           )}
           <MoreActionsMenu
             onEdit={onEdit}
-            onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
+            onReblog={onReblog ? handleReblogClick : undefined}
             isReblogged={isReblogged}
             reblogLabel={reblogLabel}
             onReSnap={onReSnap ? handleReSnapClick : undefined}
@@ -902,12 +902,12 @@ export function PostActionButton({
           {/* Reblog */}
           {onReblog && isReblogged && (
             <div className="relative group">
-              <span className={tooltipClass}>Reblogged</span>
+              <span className={tooltipClass}>Remove reblog</span>
               <button
                 type="button"
                 onClick={handleReblogClick}
                 className={`flex items-center hover:text-blue-400 transition-colors rounded ${inlineGapClass} ${actionBtnPadClass} text-[var(--hrk-brand)]`}
-                aria-label="Reblog"
+                aria-label="Remove reblog"
               >
                 <Repeat2
                   className={`${iconSizeClass} fill-current text-[var(--hrk-brand)]`}
@@ -981,10 +981,10 @@ export function PostActionButton({
               alongside the inline icons when `actionsAsMenu` is off
               (snap cards already collapse everything into their
               combined kebab via the props on MoreActionsMenu above). */}
-          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin || onCrossPost || (onReblog && !isReblogged)) && (
+          {(onEdit || onDelete || onToggleBookmark || onPin || onUnpin || onCrossPost || onReblog) && (
             <MoreActionsMenu
               onEdit={onEdit}
-              onReblog={onReblog && !isReblogged ? handleReblogClick : undefined}
+              onReblog={onReblog ? handleReblogClick : undefined}
               isReblogged={isReblogged}
               onCrossPost={onCrossPost}
               onToggleBookmark={onToggleBookmark}

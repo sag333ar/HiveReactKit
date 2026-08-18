@@ -220,7 +220,7 @@ export function MoreActionsMenu({
                 )}
                 <span>
                   {isReblogged
-                    ? (reblogLabel === 'Re-snap' ? 'Re-snapped' : 'Reblogged')
+                    ? (reblogLabel === 'Re-snap' ? 'Remove Re-snap' : 'Remove Reblog')
                     : (reblogLabel || 'Reblog')}
                 </span>
               </button>
