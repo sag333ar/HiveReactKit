@@ -20,9 +20,19 @@ import { ChevronDown, ThumbsUp, X } from "lucide-react";
 import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import type { Post } from "@/types/post";
+import { getHiveClient } from "@/config/hiveEndpoint";
 import { VoteSlider } from "./VoteSlider";
 import { toast } from "@/hooks";
 import { isDownvote } from "@/utils/postVotes";
+
+export function formatVoteAmount(val: number): string {
+  if (val === 0 || !Number.isFinite(val)) return "0.000";
+  if (val >= 0.001) return val.toFixed(3);
+  if (val >= 0.0001) return val.toFixed(4);
+  if (val >= 0.00001) return val.toFixed(5);
+  if (val > 0) return "<0.00001";
+  return "0.000";
+}
 
 interface UpvoteListModalProps {
   author?: string;
@@ -164,7 +174,7 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 const DOWNVOTE_SORT_LABELS: Partial<Record<SortMode, string>> = {
-  value: "Flag Weight",
+  value: "Vote Value",
   voter: "Voter",
   newest: "Newest",
   oldest: "Oldest",
@@ -188,7 +198,7 @@ const UpvoteListModal = ({
   totalVoteCount,
 }: UpvoteListModalProps) => {
   const isDownvoteMode = voteFilter === 'downvotes';
-  const resolvedTitle = title ?? (isDownvoteMode ? 'Downvotes' : 'Votes (Hive Rewards)');
+  const resolvedTitle = title ?? (isDownvoteMode ? 'Votes (Downvote Value)' : 'Votes (Hive Rewards)');
   // Voters-only mode: a plain list of account names was supplied (or a
   // resolver to fetch them), so we skip the post fetch + reward
   // derivations and render the avatar/name grid (optionally with a
@@ -206,6 +216,7 @@ const UpvoteListModal = ({
       : "https://hive.io/images/hive-logo.png";
   const [votes, setVotes] = useState<ActiveVote[]>([]);
   const [post, setPost] = useState<Post | null>(null);
+  const [globalHbdPerRshare, setGlobalHbdPerRshare] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
@@ -237,15 +248,26 @@ const UpvoteListModal = ({
   const refreshVotes = async () => {
     if (isVotersMode || !author || !permlink) return;
     setLoading(true);
-    // Pull active votes + post payload in parallel — the post gives us
-    // the payout pool needed to translate each voter's rshares into a
-    // Hive reward number.
-    const [fetchedVotes, fetchedPost] = await Promise.all([
+    // Pull active votes + post payload + global reward fund in parallel
+    const client = getHiveClient();
+    const [fetchedVotes, fetchedPost, rewardFund, priceFeed] = await Promise.all([
       apiService.getActiveVotes(author, permlink),
       apiService.getPostContent(author, permlink),
+      client.call('condenser_api', 'get_reward_fund', ['post']).catch(() => null),
+      client.call('condenser_api', 'get_current_median_history_price', []).catch(() => null),
     ]);
     setVotes(fetchedVotes);
     setPost(fetchedPost);
+    if (rewardFund && priceFeed) {
+      const rewardBalance = parseAsset((rewardFund as any)?.reward_balance);
+      const recentClaims = Number((rewardFund as any)?.recent_claims) || 1;
+      const base = parseAsset((priceFeed as any)?.base);
+      const quote = parseAsset((priceFeed as any)?.quote) || 1;
+      const hivePrice = quote > 0 ? base / quote : 0;
+      if (recentClaims > 0 && hivePrice > 0) {
+        setGlobalHbdPerRshare((rewardBalance / recentClaims) * hivePrice);
+      }
+    }
     setLoading(false);
   };
 
@@ -288,8 +310,15 @@ const UpvoteListModal = ({
   // so historical posts still show meaningful numbers.
   const { totalPayout, totalCurationPool } = useMemo(() => {
     if (!post) return { totalPayout: 0, totalCurationPool: 0 };
+    const bridgePayout =
+      typeof (post as any)?.payout === 'number' && (post as any).payout > 0
+        ? (post as any).payout
+        : 0;
     const pending = parseAsset(
       (post as unknown as { pending_payout_value?: string }).pending_payout_value,
+    );
+    const totalPay = parseAsset(
+      (post as unknown as { total_payout_value?: string }).total_payout_value,
     );
     const author = parseAsset(
       (post as unknown as { author_payout_value?: string }).author_payout_value,
@@ -297,14 +326,47 @@ const UpvoteListModal = ({
     const curator = parseAsset(
       (post as unknown as { curator_payout_value?: string }).curator_payout_value,
     );
+    // On paid-out posts, total_payout_value is author reward; curator reward is in curator_payout_value.
+    const totalPaidOut = totalPay + curator;
     const total =
-      pending > 0 ? pending : author + curator;
+      bridgePayout > 0
+        ? bridgePayout
+        : pending > 0
+          ? pending
+          : totalPaidOut > 0
+            ? totalPaidOut
+            : author + curator;
     // Hive splits payout 50/50 between author and curators by default,
     // so the curation pool is half the total for pending posts. Paid-
     // out posts can use the canonical curator_payout_value directly.
     const curationPool = curator > 0 ? curator : total / 2;
     return { totalPayout: total, totalCurationPool: curationPool };
   }, [post]);
+
+  const netPositiveRshares = useMemo(() => {
+    const sumPositive = votes
+      .filter((v) => !isDownvote(v))
+      .reduce((s, v) => s + Math.max(0, Number(v.rshares) || 0), 0);
+    const sumNegative = votes
+      .filter((v) => isDownvote(v))
+      .reduce((s, v) => s + Math.abs(Number(v.rshares) || 0), 0);
+
+    const net = sumPositive - sumNegative;
+    if (net > 0) return net;
+    if (sumPositive > 0) return sumPositive;
+
+    const postNetRshares = Number((post as any)?.net_rshares) || 0;
+    if (postNetRshares > 0) return postNetRshares;
+    const postVoteRshares = Number((post as any)?.vote_rshares) || 0;
+    if (postVoteRshares > 0) return postVoteRshares;
+    return 0;
+  }, [votes, post]);
+
+  const totalDownvoteRshares = useMemo(() => {
+    return scopedVotes
+      .filter((v) => isDownvote(v))
+      .reduce((s, v) => s + Math.abs(Number(v.rshares) || 0), 0);
+  }, [scopedVotes]);
 
   const totalRshares = useMemo(
     () =>
@@ -328,20 +390,39 @@ const UpvoteListModal = ({
   );
 
   const enrichedVotes = useMemo(() => {
+    const hasPostRatio = netPositiveRshares > 0 && totalPayout > 0;
+    const postRatio = hasPostRatio ? totalPayout / netPositiveRshares : 0;
+
     return scopedVotes.map((vote) => {
       const rawRshares = Number(vote.rshares) || 0;
       const rawWeight = Number(vote.weight) || 0;
       const rshares = isDownvoteMode ? Math.abs(rawRshares) : Math.max(0, rawRshares);
       const weight = isDownvoteMode ? Math.abs(rawWeight) : Math.max(0, rawWeight);
-      const value = isDownvoteMode
-        ? rshares
-        : totalRshares > 0 ? (rshares / totalRshares) * totalPayout : 0;
+      
+      let value = 0;
+      if (hasPostRatio) {
+        value = rshares * postRatio;
+      } else if (globalHbdPerRshare > 0) {
+        value = rshares * globalHbdPerRshare;
+      } else if (totalRshares > 0 && totalPayout > 0) {
+        value = (rshares / totalRshares) * totalPayout;
+      }
+
       const curation = isDownvoteMode
         ? 0
         : totalWeight > 0 ? (weight / totalWeight) * totalCurationPool : 0;
       return { ...vote, value, curation };
     });
-  }, [scopedVotes, isDownvoteMode, totalRshares, totalWeight, totalPayout, totalCurationPool]);
+  }, [
+    scopedVotes,
+    isDownvoteMode,
+    netPositiveRshares,
+    globalHbdPerRshare,
+    totalRshares,
+    totalWeight,
+    totalPayout,
+    totalCurationPool,
+  ]);
 
   const sortedVotes = useMemo(() => {
     const list = enrichedVotes.slice();
@@ -367,7 +448,9 @@ const UpvoteListModal = ({
   // into a final grey "rest" segment so the chart stays legible on a
   // post with hundreds of voters.
   const breakdownSegments = useMemo(() => {
-    const pool = isDownvoteMode ? totalRshares : totalPayout;
+    const pool = isDownvoteMode
+      ? enrichedVotes.reduce((sum, v) => sum + v.value, 0)
+      : totalPayout;
     if (pool <= 0) return [] as { color: string; widthPct: number; voter: string }[];
     const byValue = enrichedVotes
       .slice()
@@ -376,7 +459,7 @@ const UpvoteListModal = ({
     const top = byValue.slice(0, TOP);
     const rest = byValue.slice(TOP);
     const segs = top.map((v, i) => ({
-      color: isDownvoteMode ? '#f87171' : SLICE_COLORS[i % SLICE_COLORS.length],
+      color: SLICE_COLORS[i % SLICE_COLORS.length],
       widthPct: (v.value / pool) * 100,
       voter: v.voter,
     }));
@@ -389,7 +472,7 @@ const UpvoteListModal = ({
       });
     }
     return segs;
-  }, [enrichedVotes, totalPayout, totalRshares, isDownvoteMode]);
+  }, [enrichedVotes, totalPayout, isDownvoteMode]);
 
   // ── Voters-only derivations ────────────────────────────────────────
   // When voters carry a `value` (e.g. each voter's MHP weight) we sort
@@ -796,22 +879,23 @@ const UpvoteListModal = ({
                         >
                           {getReputationDetails(vote.reputation).score}
                         </span>
-                        <span className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold ${
-                          isDownvoteMode ? 'text-red-400' : 'text-[var(--hrk-success)]'
-                        }`}>
-                          {isDownvoteMode ? `-${percent}%` : valueShown.toFixed(3)}
-                          {!isDownvoteMode && (
-                            <img
-                              src={resolvedHiveIcon}
-                              alt=""
-                              className="h-3.5 w-3.5 object-contain"
-                              aria-hidden
-                            />
-                          )}
+                        <span 
+                          className={`shrink-0 inline-flex items-center gap-1 text-xs font-semibold ${
+                            isDownvoteMode ? 'text-red-400' : 'text-[var(--hrk-success)]'
+                          }`}
+                          title={valueShown > 0 ? `$${valueShown.toFixed(6)}` : undefined}
+                        >
+                          {isDownvoteMode && valueShown > 0 ? `-${formatVoteAmount(valueShown)}` : formatVoteAmount(valueShown)}
+                          <img
+                            src={resolvedHiveIcon}
+                            alt=""
+                            className="h-3.5 w-3.5 object-contain"
+                            aria-hidden
+                          />
                         </span>
                       </div>
                       <div className="text-[11px] text-[var(--hrk-text-tertiary)]">
-                        {isDownvoteMode ? `Flag weight · ${valueShown.toLocaleString()}` : `${percent}%`}
+                        {isDownvoteMode ? `-${percent}%` : `${percent}%`}
                         {/* Append a literal `Z` to the timestamp so it
                             parses as UTC. condenser_api.get_active_votes
                             returns `time` without a timezone suffix —
