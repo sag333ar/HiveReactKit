@@ -13,6 +13,8 @@ interface InlineCommentSectionProps {
   author: string;
   permlink: string;
   currentUser?: string;
+  currentUserAvatar?: string;
+  currentUserDisplayName?: string;
   /**
    * Hive account to pass as `observer` when fetching the comment thread
    * (bridge.get_discussion). Defaults to `currentUser` when omitted —
@@ -122,12 +124,16 @@ interface InlineCommentSectionProps {
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to every <InlineCommentItem/>. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
+  /** When true, the current user is a Web2 user. */
+  isWeb2User?: boolean;
 }
 
 export default function InlineCommentSection({
   author,
   permlink,
   currentUser,
+  currentUserAvatar,
+  currentUserDisplayName,
   observer: observerProp,
   token,
   onSubmitComment,
@@ -172,6 +178,7 @@ export default function InlineCommentSection({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User = false,
 }: InlineCommentSectionProps) {
   const observer = observerProp ?? currentUser;
   const [comments, setComments] = useState<Discussion[]>([]);
@@ -344,41 +351,56 @@ export default function InlineCommentSection({
       {showTopComposer && (
         <div className="border border-gray-700 rounded-xl mb-3 overflow-hidden bg-gray-800/50">
           {/* Header: currentUser replying to post author */}
-          <div className="px-3 py-2.5 border-b border-gray-700 bg-gray-900/50">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                alt={currentUser}
-                className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
-                }}
-              />
-              <span className="text-xs font-medium text-white">@{currentUser}</span>
-              {isSelfPost ? (
-                <span className="text-gray-500 text-[11px]">commenting on your post</span>
-              ) : (
-                <>
-                  <span className="text-gray-500 text-[11px]">replying to</span>
+          {(() => {
+            const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
+            const authorDisplayName = isCurrentUserWeb2
+              ? (currentUserDisplayName || 'Web2 User')
+              : (currentUser ? `@${currentUser}` : '');
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || (isCurrentUserWeb2 ? 'Web2 User' : (currentUser || 'User')))}&background=0D8ABC&color=fff`;
+            const avatarSrc = currentUserAvatar || (!isCurrentUserWeb2 && currentUser ? `https://images.hive.blog/u/${currentUser}/avatar` : fallbackAvatar);
+
+            return (
+              <div className="px-3 py-2.5 border-b border-gray-700 bg-gray-900/50">
+                <div className="flex items-center gap-2.5">
                   <img
-                    src={`https://images.hive.blog/u/${author}/avatar`}
-                    alt={author}
-                    className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                    src={avatarSrc}
+                    alt={authorDisplayName || 'avatar'}
+                    className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600 object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${author}&background=random`;
+                      (e.target as HTMLImageElement).src = fallbackAvatar;
                     }}
                   />
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-medium text-blue-400 truncate">@{author}/{permlink}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+                  <span className="text-xs font-medium text-white truncate">
+                    {authorDisplayName}
+                  </span>
+                  {isSelfPost ? (
+                    <span className="text-gray-500 text-[11px]">commenting on your post</span>
+                  ) : (
+                    <>
+                      <span className="text-gray-500 text-[11px]">replying to</span>
+                      <img
+                        src={`https://images.hive.blog/u/${author}/avatar`}
+                        alt={author}
+                        className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${author}&background=random`;
+                        }}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-medium text-blue-400 truncate">@{author}/{permlink}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <PostComposer
             isInlineComment={true}
             onSubmit={(body) => handleCommentSubmit(author, permlink, body)}
             currentUser={currentUser}
+            currentUserAvatar={currentUserAvatar}
+            currentUserDisplayName={currentUserDisplayName}
             parentAuthor={author}
             parentPermlink={permlink}
             placeholder={`Write a comment to @${author}...`}
@@ -405,6 +427,7 @@ export default function InlineCommentSection({
             mentionSeedAccounts={mentionSeedAccounts}
             decentMemesAppAccount={decentMemesAppAccount}
             decentMemesTheme={decentMemesTheme}
+            isWeb2User={isWeb2User}
           />
         </div>
       )}
@@ -455,9 +478,12 @@ export default function InlineCommentSection({
               onCommentSubmit={handleCommentSubmit}
               activeReplyKey={activeReplyKey}
               currentUser={currentUser}
+              currentUserAvatar={currentUserAvatar}
+              currentUserDisplayName={currentUserDisplayName}
               token={token}
               depth={0}
               onVotedRefresh={() => fetchComments(true)}
+              isWeb2User={isWeb2User}
               onClickCommentUpvote={onClickCommentUpvote}
               threeSpeakToken={threeSpeakToken}
               encoderUrl={encoderUrl}

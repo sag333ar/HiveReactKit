@@ -79,6 +79,8 @@ export interface HiveDetailPostProps {
   author: string;
   permlink: string;
   currentUser?: string;
+  currentUserAvatar?: string;
+  currentUserDisplayName?: string;
   /**
    * Hive account to pass as `observer` to bridge API calls (get_post,
    * cross-post/re-snap embed fetches). Defaults to `currentUser` when
@@ -376,6 +378,8 @@ export interface HiveDetailPostProps {
    *  Forwarded to the post's vote slider and to every comment via
    *  <InlineCommentSection/>. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
+  /** When true, the current user is a Web2 user. */
+  isWeb2User?: boolean;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -450,6 +454,8 @@ export function HiveDetailPost({
   author,
   permlink,
   currentUser,
+  currentUserAvatar,
+  currentUserDisplayName,
   observer: observerProp,
   onUpvote,
   onSubmitComment,
@@ -517,6 +523,7 @@ export function HiveDetailPost({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User = false,
 }: HiveDetailPostProps) {
   const observer = observerProp ?? currentUser;
 
@@ -3175,6 +3182,8 @@ export function HiveDetailPost({
                 author={post.author}
                 permlink={post.permlink}
                 currentUser={currentUser}
+                currentUserAvatar={currentUserAvatar}
+                currentUserDisplayName={currentUserDisplayName}
                 observer={observer}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
@@ -3220,6 +3229,7 @@ export function HiveDetailPost({
                   ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'comment', ownVoteWeight)
                   : undefined}
                 onFetchCurationStatus={onFetchCurationStatus}
+                isWeb2User={isWeb2User}
               />
               </SelectionTranslator>
             </div>

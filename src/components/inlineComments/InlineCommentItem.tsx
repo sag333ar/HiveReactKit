@@ -32,6 +32,8 @@ interface InlineCommentItemProps {
   /** "author/permlink" key of the comment currently being replied to (null = none) */
   activeReplyKey: string | null;
   currentUser?: string;
+  currentUserAvatar?: string;
+  currentUserDisplayName?: string;
   token?: string;
   depth?: number;
   onVotedRefresh?: () => void;
@@ -126,6 +128,8 @@ interface InlineCommentItemProps {
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to this comment's vote slider and to every nested reply. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
+  /** When true, current user is a Web2 user. */
+  isWeb2User?: boolean;
 }
 
 const MAX_DEPTH = 4;
@@ -138,6 +142,8 @@ export default function InlineCommentItem({
   onCommentSubmit,
   activeReplyKey,
   currentUser,
+  currentUserAvatar,
+  currentUserDisplayName,
   token,
   depth = 0,
   onVotedRefresh,
@@ -178,6 +184,7 @@ export default function InlineCommentItem({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User = false,
 }: InlineCommentItemProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -886,48 +893,63 @@ export default function InlineCommentItem({
                     {/* Bottom sheet */}
                     <div className="fixed inset-x-0 bottom-0 z-[9999] border-t border-gray-700 bg-gray-900 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] max-h-[70vh] overflow-y-auto">
                       {/* Composer header */}
-                      <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/95 sticky top-0 z-10">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                            alt={currentUser}
-                            className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
-                            }}
-                          />
-                          <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
-                          {currentUser === comment.author ? (
-                            <span className="text-gray-500 text-[11px]">replying to your comment</span>
-                          ) : (
-                            <>
-                              <span className="text-gray-500 text-[11px]">to</span>
+                      {(() => {
+                        const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
+                        const authorDisplayName = isCurrentUserWeb2
+                          ? (currentUserDisplayName || 'Web2 User')
+                          : (currentUser ? `@${currentUser}` : '');
+                        const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || (isCurrentUserWeb2 ? 'Web2 User' : (currentUser || 'User')))}&background=0D8ABC&color=fff`;
+                        const avatarSrc = currentUserAvatar || (!isCurrentUserWeb2 && currentUser ? `https://images.hive.blog/u/${currentUser}/avatar` : fallbackAvatar);
+
+                        return (
+                          <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/95 sticky top-0 z-10">
+                            <div className="flex items-center gap-2">
                               <img
-                                src={`https://images.hive.blog/u/${comment.author}/avatar`}
-                                alt={comment.author}
-                                className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                                src={avatarSrc}
+                                alt={authorDisplayName || 'avatar'}
+                                className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600 object-cover"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                                  (e.target as HTMLImageElement).src = fallbackAvatar;
                                 }}
                               />
-                              <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}</span>
-                            </>
-                          )}
-                          <div className="flex-1" />
-                          <button
-                            onClick={onCancelReply}
-                            className="p-1.5 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
-                            title="Cancel reply"
-                          >
-                            <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                          </button>
-                        </div>
-                      </div>
+                              <span className="text-xs font-medium text-white truncate">
+                                {authorDisplayName}
+                              </span>
+                              {currentUser === comment.author ? (
+                                <span className="text-gray-500 text-[11px]">replying to your comment</span>
+                              ) : (
+                                <>
+                                  <span className="text-gray-500 text-[11px]">to</span>
+                                  <img
+                                    src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                                    alt={comment.author}
+                                    className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                                    }}
+                                  />
+                                  <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}</span>
+                                </>
+                              )}
+                              <div className="flex-1" />
+                              <button
+                                onClick={onCancelReply}
+                                className="p-1.5 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
+                                title="Cancel reply"
+                              >
+                                <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <PostComposer
                         isInlineComment={true}
                         onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                         onCancel={onCancelReply}
                         currentUser={currentUser}
+                        currentUserAvatar={currentUserAvatar}
+                        currentUserDisplayName={currentUserDisplayName}
                         parentAuthor={comment.author}
                         parentPermlink={comment.permlink}
                         placeholder={`Reply to @${comment.author}...`}
@@ -951,6 +973,7 @@ export default function InlineCommentItem({
                         mentionSeedAccounts={mentionSeedAccounts}
                         decentMemesAppAccount={decentMemesAppAccount}
                         decentMemesTheme={decentMemesTheme}
+                        isWeb2User={isWeb2User}
                       />
                     </div>
                   </div>,
@@ -959,52 +982,67 @@ export default function InlineCommentItem({
 
                 {/* Desktop: inline composer */}
                 <div className="hidden md:block mt-3 ml-9 border border-gray-700 rounded-xl overflow-hidden bg-gray-800/50">
-                  <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/50">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                        alt={currentUser}
-                        className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`;
-                        }}
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-medium text-white truncate">@{currentUser}</span>
-                      </div>
-                      {currentUser === comment.author ? (
-                        <span className="text-gray-500 text-[11px]">replying to your comment</span>
-                      ) : (
-                        <>
-                          <span className="text-gray-500 text-[11px]">replying to</span>
+                  {(() => {
+                    const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
+                    const authorDisplayName = isCurrentUserWeb2
+                      ? (currentUserDisplayName || 'Web2 User')
+                      : (currentUser ? `@${currentUser}` : '');
+                    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || (isCurrentUserWeb2 ? 'Web2 User' : (currentUser || 'User')))}&background=0D8ABC&color=fff`;
+                    const avatarSrc = currentUserAvatar || (!isCurrentUserWeb2 && currentUser ? `https://images.hive.blog/u/${currentUser}/avatar` : fallbackAvatar);
+
+                    return (
+                      <div className="px-3 py-2 border-b border-gray-700 bg-gray-900/50">
+                        <div className="flex items-center gap-2.5">
                           <img
-                            src={`https://images.hive.blog/u/${comment.author}/avatar`}
-                            alt={comment.author}
-                            className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                            src={avatarSrc}
+                            alt={authorDisplayName || 'avatar'}
+                            className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600 object-cover"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                              (e.target as HTMLImageElement).src = fallbackAvatar;
                             }}
                           />
                           <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}/{comment.permlink}</span>
+                            <span className="text-xs font-medium text-white truncate">
+                              {authorDisplayName}
+                            </span>
                           </div>
-                        </>
-                      )}
-                      <div className="flex-1" />
-                      <button
-                        onClick={onCancelReply}
-                        className="p-1 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
-                        title="Cancel reply"
-                      >
-                        <X className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
-                      </button>
-                    </div>
-                  </div>
+                          {currentUser === comment.author ? (
+                            <span className="text-gray-500 text-[11px]">replying to your comment</span>
+                          ) : (
+                            <>
+                              <span className="text-gray-500 text-[11px]">replying to</span>
+                              <img
+                                src={`https://images.hive.blog/u/${comment.author}/avatar`}
+                                alt={comment.author}
+                                className="w-6 h-6 rounded-full flex-shrink-0 bg-gray-700 border border-gray-600"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${comment.author}&background=random`;
+                                }}
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-medium text-blue-400 truncate">@{comment.author}/{comment.permlink}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex-1" />
+                          <button
+                            onClick={onCancelReply}
+                            className="p-1 rounded hover:bg-gray-700/60 transition-colors flex-shrink-0"
+                            title="Cancel reply"
+                          >
+                            <X className="w-3.5 h-3.5 text-gray-400 hover:text-white" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <PostComposer
                     isInlineComment={true}
                     onSubmit={(body) => onCommentSubmit(comment.author, comment.permlink, body, replyBeneficiariesRef.current)}
                     onCancel={onCancelReply}
                     currentUser={currentUser}
+                    currentUserAvatar={currentUserAvatar}
+                    currentUserDisplayName={currentUserDisplayName}
                     parentAuthor={comment.author}
                     parentPermlink={comment.permlink}
                     placeholder={`Reply to @${comment.author}...`}
@@ -1028,6 +1066,7 @@ export default function InlineCommentItem({
                     mentionSeedAccounts={mentionSeedAccounts}
                     decentMemesAppAccount={decentMemesAppAccount}
                     decentMemesTheme={decentMemesTheme}
+                    isWeb2User={isWeb2User}
                   />
                 </div>
               </>
@@ -1060,9 +1099,12 @@ export default function InlineCommentItem({
               onCommentSubmit={onCommentSubmit}
               activeReplyKey={activeReplyKey}
               currentUser={currentUser}
+              currentUserAvatar={currentUserAvatar}
+              currentUserDisplayName={currentUserDisplayName}
               token={token}
               depth={depth + 1}
               onVotedRefresh={onVotedRefresh}
+              isWeb2User={isWeb2User}
               onClickCommentUpvote={onClickCommentUpvote}
               threeSpeakToken={threeSpeakToken}
               encoderUrl={encoderUrl}

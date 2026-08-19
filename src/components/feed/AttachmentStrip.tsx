@@ -426,15 +426,15 @@ export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
 
   return (
     <div
-      className="twitter-embed-wrapper w-full overflow-hidden rounded-lg bg-black/60"
-      style={height ? { maxHeight: '80vh', overflowY: 'auto' } : undefined}
+      className="twitter-embed-wrapper w-full overflow-hidden rounded-lg bg-black/60 flex justify-center"
+      style={height ? { minHeight: `${height}px` } : undefined}
     >
       <iframe
         src={`https://platform.twitter.com/embed/Tweet.html?id=${id}&theme=dark&dnt=true&origin=${encodeURIComponent(origin)}`}
         title={`Tweet ${id}`}
-        className="twitter-embed-iframe w-full border-0 bg-black"
-        scrolling="yes"
-        style={{ height: height ?? '60vh' }}
+        className="twitter-embed-iframe w-full max-w-[550px] border-0 bg-black"
+        scrolling="no"
+        style={{ height: height ? `${height}px` : '480px', minHeight: '380px' }}
       />
     </div>
   );
@@ -1088,7 +1088,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
     if (current.kind === 'twitter') {
       return (
         <div
-          className="flex h-full w-full items-center justify-center p-2"
+          className="flex w-full items-center justify-center p-1 sm:p-2"
           onClick={(e) => e.stopPropagation()}
         >
           <TwitterEmbed id={current.id} />
@@ -1183,7 +1183,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
 
   return (
     <>
-      <div className="relative flex h-72 w-full items-center justify-center overflow-hidden rounded-xl bg-black my-2">
+      <div className={`relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-black my-2 ${current.kind === 'twitter' ? 'min-h-[460px] sm:min-h-[500px] h-auto' : 'h-72'}`}>
         {renderTile()}
         {tileLoading && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40">

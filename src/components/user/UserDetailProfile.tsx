@@ -718,8 +718,15 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
 
     loadWeb2Credits();
+
+    const handlePublished = () => {
+      loadWeb2Credits();
+    };
+    window.addEventListener("web2_post_published", handlePublished);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("web2_post_published", handlePublished);
     };
   }, [web2CreditsProp, onFetchWeb2Credits, web2Token, web2ApiUrl, isWeb2User, profile?.isWeb2]);
   const isControlled = controlledActiveTab !== undefined;
@@ -4059,11 +4066,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     ? Array.from(new Set(tabShown.map((id) => mapToParentTab(id as TabType))))
     : undefined;
 
-  const tabs = mappedTabShown
+  const web2AllowedTabs: TabType[] = ['posts', 'snaps', 'polls', 'replies'];
+  const baseTabs = mappedTabShown
     ? mappedTabShown
       .map((id) => allTabs.find((t) => t.id === id))
       .filter((t): t is { id: TabType; label: string; icon: any } => t !== undefined)
     : allTabs;
+
+  const tabs = isWeb2User
+    ? baseTabs.filter((t) => web2AllowedTabs.includes(t.id))
+    : baseTabs;
 
   const showActions = currentUsername && currentUsername !== targetUsername;
 

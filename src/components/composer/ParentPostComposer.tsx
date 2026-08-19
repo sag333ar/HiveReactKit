@@ -151,6 +151,8 @@ export interface ParentPostComposerProps {
   onCancel?: () => void;
   /** Logged-in Hive username — shown in the author chip and used for media uploads. */
   currentUser?: string;
+  currentUserAvatar?: string;
+  currentUserDisplayName?: string;
 
   /** Initial values (uncontrolled). */
   initialTitle?: string;
@@ -466,6 +468,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   onSubmit,
   onCancel,
   currentUser,
+  currentUserAvatar,
+  currentUserDisplayName,
   initialTitle = '',
   initialDescription = '',
   initialBody = '',
@@ -532,14 +536,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   previewExtras = '',
   isWeb2User = false,
 }) => {
-  const hideAudio = hideAudioProp || isWeb2User;
-  const hideVideo = hideVideoProp || isWeb2User;
-  const hideDecentMeme = hideDecentMemeProp || isWeb2User;
-  const hidePoll = hidePollProp || isWeb2User;
+  const hideAudio = hideAudioProp;
+  const hideVideo = hideVideoProp;
+  const hideDecentMeme = hideDecentMemeProp;
+  const hidePoll = hidePollProp;
   const hideReward = hideRewardProp || isWeb2User;
   const hideBeneficiaries = hideBeneficiariesProp || isWeb2User;
-  const onSaveDraft = isWeb2User ? undefined : onSaveDraftProp;
-  const communitySlot = isWeb2User ? undefined : communitySlotProp;
+  const onSaveDraft = onSaveDraftProp;
+  const communitySlot = communitySlotProp;
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle);
   const [draftHydrated, setDraftHydrated] = useState(false);
@@ -755,6 +759,28 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
     console.log('ParentPostComposer: recalculating lockedBeneficiaries. propLockedBeneficiaries:', propLockedBeneficiaries);
     const list: Beneficiary[] = [];
+    if (isWeb2User) {
+      const hivesuiteWeight = 20;
+      list.push({ account: 'hivesuite.app', weight: hivesuiteWeight });
+
+      let threeSpeakWeight = 0;
+      if (threeSpeakFundPercent > 0) {
+        threeSpeakWeight = threeSpeakFundPercent;
+        list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakWeight });
+      }
+
+      const memeBeneficiaries = decentMemesAsBeneficiaries(decentMemes, decentMemesKind);
+      list.push(...memeBeneficiaries);
+      const memeTotalWeight = memeBeneficiaries.reduce((sum, b) => sum + b.weight, 0);
+
+      const remainingNull = Math.max(0, 100 - hivesuiteWeight - threeSpeakWeight - memeTotalWeight);
+      if (remainingNull > 0) {
+        list.push({ account: 'null', weight: remainingNull });
+      }
+      console.log('ParentPostComposer (web2): calculated lockedBeneficiaries:', list);
+      return list;
+    }
+
     if (threeSpeakFundPercent > 0) {
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
@@ -769,19 +795,24 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     }
     console.log('ParentPostComposer: calculated lockedBeneficiaries:', list);
     return list;
-  }, [threeSpeakFundPercent, decentMemes, propLockedBeneficiaries]);
+  }, [threeSpeakFundPercent, decentMemes, propLockedBeneficiaries, isWeb2User]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
   );
   const lockReasons = useMemo<Record<string, string>>(() => {
     const reasons: Record<string, string> = {};
+    if (isWeb2User) {
+      reasons['hivesuite.app'] = '20% to hivesuite.app is required';
+      reasons['null'] = 'Remaining rewards burned to null';
+    } else {
+      reasons['hivesuite.app'] = '1% to hivesuite.app is required';
+    }
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
     } else if (threeSpeakIpfsImageCount > 0) {
       reasons[THREESPEAK_FUND_ACCOUNT] = `${threeSpeakFundPercent}% to threespeakfund is required for 3Speak IPFS images (${threeSpeakIpfsImageCount} image${threeSpeakIpfsImageCount > 1 ? 's' : ''})`;
     }
-    reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
       let targetAccount = 'decentmemeshold';
       if (meme.template.submittedBy?.trim()) {
@@ -1767,7 +1798,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               {pageTitle}
             </h1>
             <p className="text-[11px] text-[var(--hrk-text-tertiary)] truncate flex items-center gap-2">
-              {currentUser && <span>Posting as @{currentUser}</span>}
+              {currentUser && <span>Posting as {isWeb2User && currentUserDisplayName ? currentUserDisplayName : `@${currentUser}`}</span>}
               {draftKey && draftSavedAt && (
                 <>
                   <span aria-hidden className="text-[var(--hrk-text-tertiary)]">•</span>
@@ -1786,7 +1817,20 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               )}
             </p>
           </div>
-          {currentUser && <Avatar account={currentUser} size={32} className="hidden sm:block" />}
+          {currentUser && (
+            currentUserAvatar ? (
+              <img
+                src={currentUserAvatar}
+                alt={currentUserDisplayName || currentUser}
+                className="w-8 h-8 rounded-full object-cover hidden sm:block border border-[var(--hrk-border-default)]"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || currentUser || 'User')}&background=random`;
+                }}
+              />
+            ) : (
+              <Avatar account={currentUser} size={32} className="hidden sm:block" />
+            )
+          )}
           {/* Save draft — opt-in via `onSaveDraft`. Sits beside Publish so
               users always have a "keep working on this later" path. The
               snapshot includes title / description / body / tags; community
@@ -2802,8 +2846,19 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
               )}
               {currentUser && (
                 <div className="mt-3 flex items-center gap-2 text-xs text-[var(--hrk-text-tertiary)]">
-                  <Avatar account={currentUser} size={20} />
-                  <span>@{currentUser}</span>
+                  {currentUserAvatar ? (
+                    <img
+                      src={currentUserAvatar}
+                      alt={currentUserDisplayName || currentUser}
+                      className="w-5 h-5 rounded-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || currentUser || 'User')}&background=random`;
+                      }}
+                    />
+                  ) : (
+                    <Avatar account={currentUser} size={20} />
+                  )}
+                  <span>{isWeb2User && currentUserDisplayName ? currentUserDisplayName : `@${currentUser}`}</span>
                   {mergedTags.length > 0 && (
                     <span className="ml-auto flex flex-wrap gap-1 justify-end">
                       {mergedTags.slice(0, 5).map((t) => (

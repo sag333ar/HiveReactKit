@@ -46,6 +46,8 @@ export interface PostComposerProps {
   onSubmit: (body: string) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
   currentUser?: string;
+  currentUserAvatar?: string;
+  currentUserDisplayName?: string;
   placeholder?: string;
   parentAuthor?: string;
   parentPermlink?: string;
@@ -249,6 +251,8 @@ const PostComposer = ({
   onSubmit,
   onCancel,
   currentUser,
+  currentUserAvatar,
+  currentUserDisplayName,
   placeholder = "Write in Markdown...",
   parentAuthor,
   parentPermlink,
@@ -323,10 +327,10 @@ const PostComposer = ({
   mentionSeedAccounts,
   isWeb2User = false,
 }: PostComposerProps) => {
-  const hideAudio = hideAudioProp || isWeb2User;
-  const hideVideo = hideVideoProp || isWeb2User;
-  const hideDecentMeme = hideDecentMemeProp || isWeb2User;
-  const hidePoll = hidePollProp || isWeb2User;
+  const hideAudio = hideAudioProp;
+  const hideVideo = hideVideoProp;
+  const hideDecentMeme = hideDecentMemeProp;
+  const hidePoll = hidePollProp;
   const hideReward = hideRewardProp || isWeb2User;
   const hideBeneficiaries = hideBeneficiariesProp || isWeb2User;
   const [internalBody, setInternalBody] = useState('');
@@ -511,25 +515,51 @@ const PostComposer = ({
   const decentMemesKind: 'post' | 'comment' = 'comment';
   const lockedBeneficiaries = useMemo<Beneficiary[]>(() => {
     const list: Beneficiary[] = [];
+    if (isWeb2User) {
+      const hivesuiteWeight = 20;
+      list.push({ account: 'hivesuite.app', weight: hivesuiteWeight });
+
+      let threeSpeakWeight = 0;
+      if (threeSpeakFundPercent > 0) {
+        threeSpeakWeight = threeSpeakFundPercent;
+        list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakWeight });
+      }
+
+      const memeBeneficiaries = decentMemesAsBeneficiaries(decentMemes, decentMemesKind);
+      list.push(...memeBeneficiaries);
+      const memeTotalWeight = memeBeneficiaries.reduce((sum, b) => sum + b.weight, 0);
+
+      const remainingNull = Math.max(0, 100 - hivesuiteWeight - threeSpeakWeight - memeTotalWeight);
+      if (remainingNull > 0) {
+        list.push({ account: 'null', weight: remainingNull });
+      }
+      return list;
+    }
+
     if (threeSpeakFundPercent > 0) {
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
     list.push({ account: 'hivesuite.app', weight: 1 });
     return list;
-  }, [threeSpeakFundPercent, decentMemes, decentMemesKind]);
+  }, [threeSpeakFundPercent, decentMemes, decentMemesKind, isWeb2User]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
   );
   const lockReasons = useMemo<Record<string, string>>(() => {
     const reasons: Record<string, string> = {};
+    if (isWeb2User) {
+      reasons['hivesuite.app'] = '20% to hivesuite.app is required';
+      reasons['null'] = 'Remaining rewards burned to null';
+    } else {
+      reasons['hivesuite.app'] = '1% to hivesuite.app is required';
+    }
     if (hasVideo) {
       reasons[THREESPEAK_FUND_ACCOUNT] = '10% to threespeakfund is required for video posts';
     } else if (threeSpeakIpfsImageCount > 0) {
       reasons[THREESPEAK_FUND_ACCOUNT] = `${threeSpeakFundPercent}% to threespeakfund is required for 3Speak IPFS images (${threeSpeakIpfsImageCount} image${threeSpeakIpfsImageCount > 1 ? 's' : ''})`;
     }
-    reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     for (const meme of decentMemes) {
       let targetAccount = 'decentmemeshold';
       if (meme.template.submittedBy?.trim()) {
@@ -1012,24 +1042,33 @@ const PostComposer = ({
       {/* Header with user info */}
       {!hideUserHeader && (
         <div className="flex items-center justify-start space-x-3 text-left">
-          <div className="flex-shrink-0">
-            {currentUser ? (
-              <img
-                src={`https://images.hive.blog/u/${currentUser}/avatar`}
-                alt={currentUser}
-                className="w-10 h-10 rounded-full object-cover border-2 border-[var(--hrk-border-default)]"
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${currentUser}&background=random`; }}
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] flex items-center justify-center">
-                <User className="w-6 h-6 text-[var(--hrk-text-tertiary)]" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="text-sm text-white font-medium">{currentUser ? `@${currentUser}` : 'Anonymous'}</div>
-            {parentAuthor && <div className="text-xs text-[var(--hrk-text-tertiary)]">Replying to @{parentAuthor}</div>}
-          </div>
+          {(() => {
+            const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
+            const authorDisplayName = isCurrentUserWeb2
+              ? (currentUserDisplayName || 'Web2 User')
+              : (currentUser ? `@${currentUser}` : 'Anonymous');
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUserDisplayName || (isCurrentUserWeb2 ? 'Web2 User' : (currentUser || 'User')))}&background=0D8ABC&color=fff`;
+            const avatarSrc = currentUserAvatar || (!isCurrentUserWeb2 && currentUser ? `https://images.hive.blog/u/${currentUser}/avatar` : fallbackAvatar);
+
+            return (
+              <>
+                <div className="flex-shrink-0">
+                  <img
+                    src={avatarSrc}
+                    alt={authorDisplayName}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-[var(--hrk-border-default)]"
+                    onError={(e) => { (e.target as HTMLImageElement).src = fallbackAvatar; }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm text-white font-medium truncate">
+                    {authorDisplayName}
+                  </div>
+                  {parentAuthor && <div className="text-xs text-[var(--hrk-text-tertiary)]">Replying to @{parentAuthor}</div>}
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
