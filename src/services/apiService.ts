@@ -495,16 +495,20 @@ class ApiService {
     }
   }
 
+  // `observer` is accepted for call-site symmetry with get_post/
+  // get_account_posts/get_ranked_posts, but bridge.get_discussion doesn't
+  // take one — it's intentionally not forwarded into the RPC params.
   async getCommentsList(
     author: string,
     permlink: string,
     observer: string = ''
   ): Promise<Discussion[]> {
+    void observer;
     try {
       const rawResult: unknown = await dhiveClient.call(
         "bridge",
         "get_discussion",
-        { author, permlink, observer }
+        { author, permlink }
       );
 
       // The bridge API may return either an array of discussions or
