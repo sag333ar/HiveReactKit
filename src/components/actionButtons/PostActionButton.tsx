@@ -9,6 +9,7 @@ import {
   Loader2,
   Gift,
   HeartCrack,
+  Ban,
 } from "lucide-react";
 import { VoteSlider } from "@/components/VoteSlider";
 import UpvoteListModal from "@/components/UpvoteListModal";
@@ -210,6 +211,8 @@ export interface PostActionButtonProps {
    *  the payout chip stay inline. Useful in dense card layouts (videos,
    *  polls, community detail) where there isn't room for four icons. */
   actionsAsMenu?: boolean;
+  /** When true, user is logged in via Web2 and cannot perform on-chain upvotes */
+  isWeb2User?: boolean;
 }
 
 export function PostActionButton({
@@ -272,7 +275,13 @@ export function PostActionButton({
   awaitingWalletApproval = false,
   postCreatedAt,
   size = 'default',
+  isWeb2User = false,
 }: PostActionButtonProps) {
+  const currentUser =
+    currentUserProp == null || currentUserProp === ""
+      ? null
+      : currentUserProp;
+  const isWeb2UserEffective = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   // Tailwind class fragments for the action bar's icon / count
   // sizing. Two presets so consumers can opt into bigger tap
   // targets without restyling each icon individually.
@@ -291,10 +300,6 @@ export function PostActionButton({
   const inlineGapClass = size === 'lg' ? 'gap-1.5 sm:gap-0.5' : 'gap-0.5';
   const actionsGapClass = size === 'lg' ? 'gap-2.5 sm:gap-3' : 'gap-1.5 sm:gap-3';
   const upvoteBtnPadClass = size === 'lg' ? 'p-1.5 sm:p-1' : 'p-0.5 sm:p-1';
-  const currentUser =
-    currentUserProp == null || currentUserProp === ""
-      ? null
-      : currentUserProp;
   const isLoggedIn = currentUser != null;
 
   // Users can't flag their own post/comment. When the signed-in user is
@@ -513,6 +518,10 @@ export function PostActionButton({
   );
 
   const handleUpvoteClick = () => {
+    if (isWeb2UserEffective) {
+      showToast("Upvoting is restricted for Web2 accounts");
+      return;
+    }
     requireLogin("Upvote", () => {
       if (isRestrictedVoter) {
         // This account only ever requests curation — see
@@ -709,13 +718,23 @@ export function PostActionButton({
           <span className={tooltipClass}>Upvote</span>
           <button
             type="button"
-            onClick={handleUpvoteClick}
-            disabled={voteLoading}
-            className={`${upvoteBtnPadClass} rounded hover:bg-gray-700 disabled:opacity-50`}
-            aria-label="Upvote"
+            onClick={isWeb2UserEffective ? undefined : handleUpvoteClick}
+            disabled={isWeb2UserEffective || voteLoading}
+            className={`${upvoteBtnPadClass} rounded ${
+              isWeb2UserEffective
+                ? 'opacity-40 cursor-not-allowed text-gray-500 hover:bg-transparent pointer-events-none'
+                : 'hover:bg-gray-700 disabled:opacity-50'
+            }`}
+            title={isWeb2UserEffective ? "Upvoting is disabled for Web2 accounts" : "Upvote"}
+            aria-label={isWeb2UserEffective ? "Upvoting is disabled for Web2 accounts" : "Upvote"}
           >
             {voteLoading ? (
               <Loader2 className={`${iconSizeClass} animate-spin text-blue-600`} />
+            ) : isWeb2UserEffective ? (
+              <div className="relative inline-flex items-center justify-center">
+                <ThumbsUp className={`${iconSizeClass} text-gray-500`} />
+                <Ban className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-500 absolute -bottom-1 -right-1 bg-black rounded-full" />
+              </div>
             ) : (
               <ThumbsUp
                 className={`${iconSizeClass} ${
@@ -1040,7 +1059,7 @@ export function PostActionButton({
       </div>
 
       {/* Vote slider overlay */}
-      {showVoteSlider && (
+      {showVoteSlider && !isWeb2UserEffective && (
         <VoteSlider
           author={author}
           permlink={permlink}

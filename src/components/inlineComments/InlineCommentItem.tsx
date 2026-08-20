@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
-import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat } from 'lucide-react';
+import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat, Ban } from 'lucide-react';
 import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted, isRestrictedDirectVoter } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
@@ -188,6 +188,7 @@ export default function InlineCommentItem({
   onFetchCurationStatus,
   isWeb2User = false,
 }: InlineCommentItemProps) {
+  const isCurrentUserWeb2 = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -530,6 +531,10 @@ export default function InlineCommentItem({
   const tier = useSupporterTier(comment.author);
 
   const handleUpvoteClick = () => {
+    if (isCurrentUserWeb2) {
+      showToast('Upvoting is restricted for Web2 accounts');
+      return;
+    }
     if (!currentUser) { showToast('Please login to upvote'); return; }
     if (isRestrictedVoter) {
       // Always open the dialog — never gate it behind a toast. VoteSlider
@@ -688,13 +693,25 @@ export default function InlineCommentItem({
               <div className="flex items-center flex-wrap gap-x-3 gap-y-1.5">
                 {/* Primary: upvote, reply */}
                 <button
-                  onClick={handleUpvoteClick}
+                  onClick={isCurrentUserWeb2 ? undefined : handleUpvoteClick}
+                  disabled={isCurrentUserWeb2}
                   className={`flex items-center gap-1 font-medium transition-colors ${
-                    hasAlreadyVoted || isUpvoted ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'
+                    isCurrentUserWeb2
+                      ? 'opacity-40 cursor-not-allowed text-gray-500 hover:text-gray-500 pointer-events-none'
+                      : hasAlreadyVoted || isUpvoted
+                      ? 'text-blue-400'
+                      : 'text-gray-400 hover:text-blue-400'
                   }`}
-                  title="Upvote"
+                  title={isCurrentUserWeb2 ? "Upvoting is disabled for Web2 accounts" : "Upvote"}
                 >
-                  <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
+                  {isCurrentUserWeb2 ? (
+                    <div className="relative inline-flex items-center justify-center">
+                      <ThumbsUp className="w-3.5 h-3.5 text-gray-500" />
+                      <Ban className="w-2 h-2 text-red-500 absolute -bottom-0.5 -right-0.5 bg-black rounded-full" />
+                    </div>
+                  ) : (
+                    <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
+                  )}
                 </button>
                 <button
                   onClick={() => setShowUpvoteListModal(true)}
@@ -864,7 +881,7 @@ export default function InlineCommentItem({
             )}
 
             {/* Vote slider */}
-            {showVoteSlider && (!(hasAlreadyVoted || isUpvoted) || curationEligible || isRestrictedVoter) && (
+            {showVoteSlider && !isCurrentUserWeb2 && (!(hasAlreadyVoted || isUpvoted) || curationEligible || isRestrictedVoter) && (
               <div className="mt-2 ml-7 md:ml-9">
                 <VoteSlider
                   author={comment.author}

@@ -83,6 +83,7 @@ export interface PollListItemProps {
   voteWeightStep?: number;
   /** Allow landscape videos in the poll's comment composer uploader. Default false. */
   allowLandscapeVideos?: boolean;
+  isWeb2User?: boolean;
 }
 
 const PollListItem: React.FC<PollListItemProps> = ({
@@ -109,6 +110,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
   defaultVotePercent = 100,
   voteWeightStep = 0.25,
   allowLandscapeVideos = false,
+  isWeb2User = false,
 }) => {
   const t = useKitT();
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
@@ -399,6 +401,7 @@ const PollListItem: React.FC<PollListItemProps> = ({
           defaultVotePercent={defaultVotePercent}
           voteWeightStep={voteWeightStep}
           allowLandscapeVideos={allowLandscapeVideos}
+          isWeb2User={isWeb2User}
         />
       </div>
     </div>

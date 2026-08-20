@@ -196,6 +196,7 @@ export interface SnapsFeedViewProps {
    *  headers stay visible via `sticky top-0`. Mobile is unaffected. */
   pageScroll?: boolean;
   onActiveFeedChange?: (feed: SnapsFeedKey) => void;
+  isWeb2User?: boolean;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -312,6 +313,7 @@ export function SnapsFeedView({
   onFetchCurationStatus,
   pageScroll,
   onActiveFeedChange,
+  isWeb2User,
 }: SnapsFeedViewProps) {
   const cols = useFeedColumnCount();
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
@@ -487,6 +489,7 @@ export function SnapsFeedView({
     optedOutAuthors,
     onCurationRequest,
     onFetchCurationStatus,
+    isWeb2User,
   };
 
   const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu'];

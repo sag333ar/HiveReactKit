@@ -156,6 +156,7 @@ export interface ProfileSnapsTabProps {
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to <SnapsFeedView/>. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
+  isWeb2User?: boolean;
 }
 
 const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({

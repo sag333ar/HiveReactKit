@@ -66,9 +66,11 @@ interface CommentsModalProps {
    *  comment composer while a broadcast is in flight. Set when the
    *  logged-in user is on Keychain / HiveAuth / PeakVault. */
   awaitingWalletApproval?: boolean;
+  isWeb2User?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, threeSpeakToken, encoderUrl, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, threeSpeakToken, encoderUrl, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval, isWeb2User = false }: CommentsModalProps) => {
+  const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -313,6 +315,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   voteWeightStep={voteWeightStep}
                   allowLandscapeVideos={allowLandscapeVideos}
                   awaitingWalletApproval={awaitingWalletApproval}
+                  isWeb2User={isCurrentUserWeb2}
                 />
               </div>
             )}
@@ -354,6 +357,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                     onClickCommentUpvote={onClickCommentUpvote}
                     onClickCommentReply={onClickCommentReply}
                     onClickUpvoteButton={onClickUpvoteButton}
+                    isWeb2User={isCurrentUserWeb2}
                   />
                 ))}
               </div>

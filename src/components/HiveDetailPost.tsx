@@ -3143,6 +3143,7 @@ export function HiveDetailPost({
                 defaultVotePercent={defaultVotePercent}
                 voteWeightStep={voteWeightStep}
                 allowLandscapeVideos={allowLandscapeVideos}
+                isWeb2User={isWeb2User}
               />
             </div>
 

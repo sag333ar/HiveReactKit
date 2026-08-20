@@ -2,7 +2,7 @@
 import { Discussion } from '@/types/comment';
 import { useMemo, useState } from 'react';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
-import { ThumbsUp, MessageSquare, MoreHorizontal, Clock } from 'lucide-react';
+import { ThumbsUp, MessageSquare, MoreHorizontal, Clock, Ban } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 // remark-gfm no longer needed since we use hive renderer
 import { DefaultRenderer } from '@hiveio/content-renderer';
@@ -28,6 +28,7 @@ interface CommentTileProps {
   onClickCommentReply?: (comment: Discussion) => void;
 
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
+  isWeb2User?: boolean;
 }
 
 const getReputationDetails = (rep: any): { score: string; formatted: string } => {
@@ -63,7 +64,9 @@ const CommentTile = ({
   onClickCommentUpvote,
   onClickCommentReply,
   onClickUpvoteButton,
+  isWeb2User = false,
 }: CommentTileProps) => {
+  const isCurrentUserWeb2 = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const [isUpvoted, setIsUpvoted] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -305,10 +308,11 @@ const CommentTile = ({
             <div className="flex items-center space-x-4 md:space-x-6">
               <button
                 onClick={() => {
+                  if (isCurrentUserWeb2) {
+                    showToast("Upvoting is restricted for Web2 accounts");
+                    return;
+                  }
                   if (isRestrictedVoter) {
-                    // No curation UI exists in this comments-popup view
-                    // (see isRestrictedVoter's comment above) — block
-                    // outright rather than open a dead-end vote dialog.
                     showToast("This account only requests curation, not direct votes");
                     return;
                   }
@@ -348,12 +352,24 @@ const CommentTile = ({
                     }
                   }
                 }}
-                className={`flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium transition-colors duration-200 ${isUpvoted
-                  ? 'text-blue-400'
-                  : 'text-gray-400 hover:text-blue-400'
-                  }`}
+                disabled={isCurrentUserWeb2}
+                className={`flex items-center space-x-1 md:space-x-2 text-xs md:text-sm font-medium transition-colors duration-200 ${
+                  isCurrentUserWeb2
+                    ? 'opacity-40 cursor-not-allowed text-gray-500 hover:text-gray-500 pointer-events-none'
+                    : isUpvoted
+                    ? 'text-blue-400'
+                    : 'text-gray-400 hover:text-blue-400'
+                }`}
+                title={isCurrentUserWeb2 ? "Upvoting is disabled for Web2 accounts" : "Upvote"}
               >
-                <ThumbsUp className={`w-4 h-4 ${hasAlreadyVoted || isUpvoted ? 'fill-current text-blue-400' : ''}`} />
+                {isCurrentUserWeb2 ? (
+                  <div className="relative inline-flex items-center justify-center">
+                    <ThumbsUp className="w-4 h-4 text-gray-500" />
+                    <Ban className="w-2.5 h-2.5 text-red-500 absolute -bottom-0.5 -right-0.5 bg-black rounded-full" />
+                  </div>
+                ) : (
+                  <ThumbsUp className={`w-4 h-4 ${hasAlreadyVoted || isUpvoted ? 'fill-current text-blue-400' : ''}`} />
+                )}
                 <span>{voteCount}</span>
               </button>
 
@@ -388,7 +404,7 @@ const CommentTile = ({
               </button>
             </div>
 
-            {showVoteSlider && !hasAlreadyVoted && (
+            {showVoteSlider && !isCurrentUserWeb2 && !hasAlreadyVoted && (
               <div className="mt-3">
                 <VoteSlider
                   author={comment.author}

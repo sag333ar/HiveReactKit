@@ -2516,6 +2516,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             voteWeightStep={voteWeightStep}
             allowLandscapeVideos={allowLandscapeVideos}
             awaitingWalletApproval={awaitingWalletApproval}
+            isWeb2User={isWeb2User}
           />
         </div>
       </div>
@@ -4027,6 +4028,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             getCommunityUrl={getCommunityUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            isWeb2User={isWeb2User}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}

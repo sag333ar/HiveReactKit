@@ -109,6 +109,7 @@ export interface CommunitySnapsTabProps {
    *  flag) into a single 3-dot kebab. Forwarded into <SnapsFeedView/>. */
   actionsAsMenu?: boolean;
   pageScroll?: boolean;
+  isWeb2User?: boolean;
 }
 
 const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({

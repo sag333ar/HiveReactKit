@@ -216,6 +216,7 @@ export interface CommunityDetailProps {
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to each card's vote slider. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>
+  isWeb2User?: boolean;
 }
 
 interface ActivityItem {
@@ -335,6 +336,7 @@ const CommunityDetail = ({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User,
 }: CommunityDetailProps) => {
   const observer = observerProp ?? currentUser
 
@@ -611,6 +613,7 @@ const CommunityDetail = ({
       optedOutAuthors,
       onCurationRequest,
       onFetchCurationStatus,
+      isWeb2User,
     }),
     [
       currentUser,
@@ -1020,6 +1023,7 @@ const CommunityDetail = ({
             defaultReward={defaultReward}
             actionsAsMenu={actionsAsMenu}
             pageScroll={true}
+            isWeb2User={isWeb2User}
           />
         )}
 

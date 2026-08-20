@@ -138,6 +138,7 @@ export interface BlogPostListProps {
    *  type, plus whether it's already been submitted for curation.
    *  Forwarded to each card's vote slider. */
   onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
+  isWeb2User?: boolean;
 }
 
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
@@ -423,6 +424,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User,
 }) => {
   const tierMap = useSupporterTierMap();
   const filterFn = getGlobalPostFilter();
@@ -721,6 +723,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 allowLandscapeVideos={allowLandscapeVideos}
                 awaitingWalletApproval={awaitingWalletApproval}
                 actionsAsMenu={actionsAsMenu}
+                isWeb2User={isWeb2User}
               />
             </div>
           </div>

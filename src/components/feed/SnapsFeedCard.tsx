@@ -141,7 +141,9 @@ export interface SnapsFeedCardProps {
   templateApiBaseUrl?: string;
   defaultVotePercent?: number;
   voteWeightStep?: number;
+  /** Allow landscape videos in the comment composer. */
   allowLandscapeVideos?: boolean;
+  isWeb2User?: boolean;
   /** Blinking "Open Keychain App & Approve" hint on the vote slider
    *  while a broadcast is in flight. Set when the logged-in user is
    *  on Keychain / HiveAuth / PeakVault. */
@@ -322,6 +324,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   optedOutAuthors,
   onCurationRequest,
   onFetchCurationStatus,
+  isWeb2User,
 }) => {
   const observer = observerProp ?? currentUser;
   const reSnapTarget = useMemo(
@@ -870,6 +873,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           onUserClick={onUserClick}
           getUserUrl={getUserUrl}
           size="lg"
+          isWeb2User={isWeb2User}
         />
       </div>
     </article>
