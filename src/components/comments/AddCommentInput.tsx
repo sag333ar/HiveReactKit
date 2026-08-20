@@ -1267,7 +1267,7 @@ const PostComposer = ({
             GIF
           </button>
         )}
-        {!hideYoutube && youtubeApiKey && (
+        {!hideYoutube && (
           <button
             type="button"
             onClick={() => setIsYoutubeOpen(true)}
@@ -1895,7 +1895,7 @@ const PostComposer = ({
           if (!hideGif && giphyApiKey) {
             items.push({ icon: <span className="text-[10px] font-bold">GIF</span>, label: 'GIF', description: 'Search GIPHY and insert an animated GIF inline.' });
           }
-          if (!hideYoutube && youtubeApiKey) {
+          if (!hideYoutube) {
             items.push({ icon: <Play className="h-3 w-3 fill-current" />, label: 'YouTube', description: 'Search YouTube and insert a video link — auto-embeds when rendered.' });
           }
           if (!hideMeme && (ecencyToken || (onSignMessage && signingUsername))) {

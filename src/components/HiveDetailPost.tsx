@@ -262,6 +262,7 @@ export interface HiveDetailPostProps {
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
+  youtubeApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
   /** Forwarded to every DecentMemes picker in the comment composers so the
@@ -482,6 +483,7 @@ export function HiveDetailPost({
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
+  youtubeApiKey,
   templateToken,
   templateApiBaseUrl,
   reportedAuthors,
@@ -3192,6 +3194,7 @@ export function HiveDetailPost({
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}
+                youtubeApiKey={youtubeApiKey}
                 templateToken={templateToken}
                 templateApiBaseUrl={templateApiBaseUrl}
                 reportedAuthors={reportedAuthors}

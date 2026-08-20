@@ -44,6 +44,7 @@ interface InlineCommentItemProps {
   ecencyToken?: string;
   threeSpeakApiKey?: string;
   giphyApiKey?: string;
+  youtubeApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
   hiveIconUrl?: string;
@@ -153,6 +154,7 @@ export default function InlineCommentItem({
   ecencyToken,
   threeSpeakApiKey,
   giphyApiKey,
+  youtubeApiKey,
   templateToken,
   templateApiBaseUrl,
   hiveIconUrl,
@@ -960,6 +962,7 @@ export default function InlineCommentItem({
                         ecencyToken={ecencyToken}
                         threeSpeakApiKey={threeSpeakApiKey}
                         giphyApiKey={giphyApiKey}
+                        youtubeApiKey={youtubeApiKey}
                         templateToken={templateToken}
                         templateApiBaseUrl={templateApiBaseUrl}
                         hideUserHeader
@@ -1053,6 +1056,7 @@ export default function InlineCommentItem({
                     ecencyToken={ecencyToken}
                     threeSpeakApiKey={threeSpeakApiKey}
                     giphyApiKey={giphyApiKey}
+                    youtubeApiKey={youtubeApiKey}
                     templateToken={templateToken}
                     templateApiBaseUrl={templateApiBaseUrl}
                     hideUserHeader
@@ -1111,6 +1115,7 @@ export default function InlineCommentItem({
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
               giphyApiKey={giphyApiKey}
+              youtubeApiKey={youtubeApiKey}
               templateToken={templateToken}
               templateApiBaseUrl={templateApiBaseUrl}
               hiveIconUrl={hiveIconUrl}

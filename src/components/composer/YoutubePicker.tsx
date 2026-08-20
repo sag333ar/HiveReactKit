@@ -55,15 +55,30 @@ const YoutubePicker: React.FC<YoutubePickerProps> = ({
 
   const searchVideos = async (query: string) => {
     if (!query.trim()) return;
+
+    // If user pasted a full YouTube URL, auto-extract the ID and select immediately
+    const urlMatch = query.match(
+      /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)|https?:\/\/youtu\.be\/([a-zA-Z0-9_-]+)|https?:\/\/(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)|https?:\/\/(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/i
+    );
+    if (urlMatch) {
+      const vidId = urlMatch[1] || urlMatch[2] || urlMatch[3] || urlMatch[4];
+      if (vidId) {
+        onSelectVideo(`https://www.youtube.com/watch?v=${vidId}`);
+        onClose();
+        return;
+      }
+    }
+
     searchAbortRef.current?.abort();
     const abortController = new AbortController();
     searchAbortRef.current = abortController;
     setIsLoading(true);
     setError(null);
     try {
-      if (!youtubeApiKey)
-        throw new Error('YouTube API key not provided. Pass youtubeApiKey prop.');
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&type=video&safeSearch=moderate&q=${encodeURIComponent(query)}&key=${youtubeApiKey}`;
+      const activeKey =
+        youtubeApiKey ||
+        'AIzaSyD9Ksls8bpblDuUK9UmYVnPO5riHGW3n_8';
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&type=video&safeSearch=moderate&q=${encodeURIComponent(query)}&key=${activeKey}`;
       const response = await fetch(url, { signal: abortController.signal });
       if (!response.ok) {
         // YouTube returns a JSON error envelope; surface the message when present.
