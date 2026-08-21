@@ -8,6 +8,8 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaChevronDown,
+  FaFilter,
+  FaTimes,
 } from "react-icons/fa";
 import { useWalletStore, SUPPORTED_CURRENCIES } from "../store/walletStore";
 import type { Transaction, WalletData } from "../types/wallet";
@@ -141,6 +143,31 @@ function parseTipMemo(memo: string): Record<string, string> | null {
   if (!out.author) return null;
   if (!out.sender && !out.app) return null;
   return out;
+}
+
+interface ParsedAmount {
+  value: number;
+  asset: 'HIVE' | 'HBD' | 'HP' | 'OTHER';
+}
+
+/** Parse numeric amounts and asset tokens from transaction amount strings */
+function parseAmountsFromTx(amountStr: string): ParsedAmount[] {
+  if (!amountStr || amountStr === '—') return [];
+  const results: ParsedAmount[] = [];
+  const regex = /([\d,]+(?:\.\d+)?)\s*([A-Za-z]+)?/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(amountStr)) !== null) {
+    const numStr = match[1].replace(/,/g, '');
+    const val = parseFloat(numStr);
+    if (!Number.isFinite(val)) continue;
+    const rawAsset = (match[2] || '').toUpperCase();
+    let asset: 'HIVE' | 'HBD' | 'HP' | 'OTHER' = 'OTHER';
+    if (rawAsset.includes('HIVE')) asset = 'HIVE';
+    else if (rawAsset.includes('HBD')) asset = 'HBD';
+    else if (rawAsset.includes('HP') || rawAsset.includes('VEST')) asset = 'HP';
+    results.push({ value: val, asset });
+  }
+  return results;
 }
 
 /** Map a Transaction onto a human title + presentation kind. Pulled
@@ -332,6 +359,338 @@ const TransactionRow: React.FC<{
             {tx.memo}
           </p>
         ) : null}
+      </div>
+    </div>
+  );
+};
+
+interface TransactionFilterModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  filterOutgoing: boolean;
+  setFilterOutgoing: (v: boolean) => void;
+  filterIncoming: boolean;
+  setFilterIncoming: (v: boolean) => void;
+  filterExcludeClaimRewards: boolean;
+  setFilterExcludeClaimRewards: (v: boolean) => void;
+  filterExcludeSpam: boolean;
+  setFilterExcludeSpam: (v: boolean) => void;
+  filterTransfers: boolean;
+  setFilterTransfers: (v: boolean) => void;
+  filterPowerUps: boolean;
+  setFilterPowerUps: (v: boolean) => void;
+  filterPowerDowns: boolean;
+  setFilterPowerDowns: (v: boolean) => void;
+  amountFilterMode: "exclude" | "include";
+  setAmountFilterMode: (v: "exclude" | "include") => void;
+  amountFilterCondition: "below" | "above";
+  setAmountFilterCondition: (v: "below" | "above") => void;
+  amountThreshold: string;
+  setAmountThreshold: (v: string) => void;
+  amountFilterAsset: "ALL" | "HIVE" | "HBD" | "HP";
+  setAmountFilterAsset: (v: "ALL" | "HIVE" | "HBD" | "HP") => void;
+  onResetAll: () => void;
+  activeCount: number;
+}
+
+const TransactionFilterModal: React.FC<TransactionFilterModalProps> = ({
+  isOpen,
+  onClose,
+  filterOutgoing,
+  setFilterOutgoing,
+  filterIncoming,
+  setFilterIncoming,
+  filterExcludeClaimRewards,
+  setFilterExcludeClaimRewards,
+  filterExcludeSpam,
+  setFilterExcludeSpam,
+  filterTransfers,
+  setFilterTransfers,
+  filterPowerUps,
+  setFilterPowerUps,
+  filterPowerDowns,
+  setFilterPowerDowns,
+  amountFilterMode,
+  setAmountFilterMode,
+  amountFilterCondition,
+  setAmountFilterCondition,
+  amountThreshold,
+  setAmountThreshold,
+  amountFilterAsset,
+  setAmountFilterAsset,
+  onResetAll,
+  activeCount,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-[#181d23] border border-[var(--hrk-border-subtle)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[var(--hrk-border-subtle)] bg-[#15191e]">
+          <div className="flex items-center gap-2">
+            <FaFilter className="text-blue-400 text-sm" />
+            <h3 className="text-base font-semibold text-white">Filter Transactions</h3>
+            {activeCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                {activeCount} active
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[var(--hrk-text-tertiary)] hover:text-white hover:bg-[var(--hrk-bg-surface-raised)] transition-colors cursor-pointer"
+          >
+            <FaTimes size={14} />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
+          {/* Direction */}
+          <div>
+            <label className="text-xs font-semibold text-[var(--hrk-text-tertiary)] uppercase tracking-wider block mb-2">
+              Direction
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterOutgoing(!filterOutgoing)}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                  filterOutgoing
+                    ? "bg-blue-600/25 border-blue-500 text-blue-200 font-semibold"
+                    : "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-white"
+                }`}
+              >
+                <span>Outgoing (Sent)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterIncoming(!filterIncoming)}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                  filterIncoming
+                    ? "bg-blue-600/25 border-blue-500 text-blue-200 font-semibold"
+                    : "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-white"
+                }`}
+              >
+                <span>Incoming (Received)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Exclusions */}
+          <div>
+            <label className="text-xs font-semibold text-[var(--hrk-text-tertiary)] uppercase tracking-wider block mb-2">
+              Exclusions
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] cursor-pointer select-none hover:border-[var(--hrk-border-subtle)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterExcludeClaimRewards}
+                  onChange={(e) => setFilterExcludeClaimRewards(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] text-blue-500 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-white">Exclude Claim Rewards</span>
+                  <span className="text-[11px] text-[var(--hrk-text-tertiary)]">
+                    Hide all reward claim entries from the history
+                  </span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] cursor-pointer select-none hover:border-[var(--hrk-border-subtle)] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={filterExcludeSpam}
+                  onChange={(e) => setFilterExcludeSpam(e.target.checked)}
+                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-raised)] text-blue-500 focus:ring-blue-500 cursor-pointer w-4 h-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-white">Exclude 0.001 Dust / Spam</span>
+                  <span className="text-[11px] text-[var(--hrk-text-tertiary)]">
+                    Hide 0.001 HIVE / HBD promo transfers
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Categories */}
+          <div>
+            <label className="text-xs font-semibold text-[var(--hrk-text-tertiary)] uppercase tracking-wider block mb-2">
+              Transaction Types
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterTransfers(!filterTransfers)}
+                className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-colors cursor-pointer ${
+                  filterTransfers
+                    ? "bg-blue-600/25 border-blue-500 text-blue-200 font-semibold"
+                    : "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-white"
+                }`}
+              >
+                Transfers
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterPowerUps(!filterPowerUps)}
+                className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-colors cursor-pointer ${
+                  filterPowerUps
+                    ? "bg-blue-600/25 border-blue-500 text-blue-200 font-semibold"
+                    : "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-white"
+                }`}
+              >
+                Power Ups
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterPowerDowns(!filterPowerDowns)}
+                className={`py-2 px-2.5 rounded-lg text-xs font-medium border text-center transition-colors cursor-pointer ${
+                  filterPowerDowns
+                    ? "bg-blue-600/25 border-blue-500 text-blue-200 font-semibold"
+                    : "bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-default)] text-[var(--hrk-text-secondary)] hover:text-white"
+                }`}
+              >
+                Power Downs
+              </button>
+            </div>
+          </div>
+
+          {/* Amount Filter with Input Box */}
+          <div className="p-3 rounded-xl bg-[var(--hrk-bg-surface-raised)]/40 border border-[var(--hrk-border-default)] space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[var(--hrk-text-tertiary)] uppercase tracking-wider">
+                Amount Filter
+              </label>
+              {amountThreshold.trim() !== "" && (
+                <button
+                  type="button"
+                  onClick={() => setAmountThreshold("")}
+                  className="text-[11px] text-red-400 hover:underline font-medium cursor-pointer"
+                >
+                  Clear Amount
+                </button>
+              )}
+            </div>
+
+            {/* Mode & Condition */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Mode: Exclude vs Only Include */}
+              <div className="flex rounded-lg bg-[var(--hrk-bg-surface)] p-0.5 border border-[var(--hrk-border-default)]">
+                <button
+                  type="button"
+                  onClick={() => setAmountFilterMode("exclude")}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    amountFilterMode === "exclude"
+                      ? "bg-red-500/25 text-red-300 font-semibold border border-red-500/30"
+                      : "text-[var(--hrk-text-tertiary)] hover:text-white"
+                  }`}
+                >
+                  Exclude
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAmountFilterMode("include")}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    amountFilterMode === "include"
+                      ? "bg-blue-500/25 text-blue-300 font-semibold border border-blue-500/30"
+                      : "text-[var(--hrk-text-tertiary)] hover:text-white"
+                  }`}
+                >
+                  Only Include
+                </button>
+              </div>
+
+              {/* Condition: Below vs Above */}
+              <div className="flex rounded-lg bg-[var(--hrk-bg-surface)] p-0.5 border border-[var(--hrk-border-default)]">
+                <button
+                  type="button"
+                  onClick={() => setAmountFilterCondition("below")}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    amountFilterCondition === "below"
+                      ? "bg-[var(--hrk-bg-surface-raised)] text-white font-semibold"
+                      : "text-[var(--hrk-text-tertiary)] hover:text-white"
+                  }`}
+                >
+                  Below (&lt;)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAmountFilterCondition("above")}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    amountFilterCondition === "above"
+                      ? "bg-[var(--hrk-bg-surface-raised)] text-white font-semibold"
+                      : "text-[var(--hrk-text-tertiary)] hover:text-white"
+                  }`}
+                >
+                  Above (&gt;)
+                </button>
+              </div>
+            </div>
+
+            {/* Input Box and Asset dropdown */}
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="Enter amount (e.g. 0.5 or 100)"
+                  value={amountThreshold}
+                  onChange={(e) => setAmountThreshold(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-sm text-white placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:border-blue-400"
+                />
+              </div>
+
+              <select
+                value={amountFilterAsset}
+                onChange={(e) => setAmountFilterAsset(e.target.value as any)}
+                className="px-3 py-2 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-xs text-white focus:outline-none focus:border-blue-400 font-medium cursor-pointer"
+              >
+                <option value="ALL">All Assets</option>
+                <option value="HIVE">HIVE</option>
+                <option value="HBD">HBD</option>
+                <option value="HP">HP</option>
+              </select>
+            </div>
+
+            {amountThreshold.trim() !== "" && !Number.isNaN(parseFloat(amountThreshold)) && (
+              <p className="text-[11px] text-blue-300/80 bg-blue-500/10 px-2.5 py-1 rounded-md border border-blue-500/20">
+                {amountFilterMode === "exclude" ? "Excluding" : "Only showing"} transactions{" "}
+                {amountFilterCondition === "below" ? "below (<)" : "above (>)"}{" "}
+                <span className="font-semibold text-white">{amountThreshold} {amountFilterAsset !== "ALL" ? amountFilterAsset : ""}</span>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-t border-[var(--hrk-border-subtle)] bg-[#15191e]">
+          <button
+            type="button"
+            onClick={onResetAll}
+            disabled={activeCount === 0}
+            className="px-3 py-2 rounded-lg text-xs font-semibold text-[var(--hrk-text-tertiary)] hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            Reset All
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/20 transition-colors cursor-pointer"
+          >
+            Apply Filters
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -696,10 +1055,55 @@ export const Wallet: React.FC<WalletProps> = ({
 
   const [filterOutgoing, setFilterOutgoing] = useState(false);
   const [filterIncoming, setFilterIncoming] = useState(false);
+  const [filterExcludeClaimRewards, setFilterExcludeClaimRewards] = useState(false);
   const [filterExcludeSpam, setFilterExcludeSpam] = useState(false);
   const [filterTransfers, setFilterTransfers] = useState(false);
   const [filterPowerUps, setFilterPowerUps] = useState(false);
   const [filterPowerDowns, setFilterPowerDowns] = useState(false);
+
+  // Amount threshold filtering (Exclude/Include - Below/Above)
+  const [amountFilterMode, setAmountFilterMode] = useState<'exclude' | 'include'>('exclude');
+  const [amountFilterCondition, setAmountFilterCondition] = useState<'below' | 'above'>('below');
+  const [amountThreshold, setAmountThreshold] = useState<string>('');
+  const [amountFilterAsset, setAmountFilterAsset] = useState<'ALL' | 'HIVE' | 'HBD' | 'HP'>('ALL');
+
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const activeFilterCount = React.useMemo(() => {
+    let count = 0;
+    if (filterOutgoing) count++;
+    if (filterIncoming) count++;
+    if (filterExcludeClaimRewards) count++;
+    if (filterExcludeSpam) count++;
+    if (filterTransfers) count++;
+    if (filterPowerUps) count++;
+    if (filterPowerDowns) count++;
+    if (amountThreshold.trim() !== "" && !Number.isNaN(parseFloat(amountThreshold))) count++;
+    return count;
+  }, [
+    filterOutgoing,
+    filterIncoming,
+    filterExcludeClaimRewards,
+    filterExcludeSpam,
+    filterTransfers,
+    filterPowerUps,
+    filterPowerDowns,
+    amountThreshold,
+  ]);
+
+  const handleResetAllFilters = () => {
+    setFilterOutgoing(false);
+    setFilterIncoming(false);
+    setFilterExcludeClaimRewards(false);
+    setFilterExcludeSpam(false);
+    setFilterTransfers(false);
+    setFilterPowerUps(false);
+    setFilterPowerDowns(false);
+    setAmountThreshold("");
+    setAmountFilterMode("exclude");
+    setAmountFilterCondition("below");
+    setAmountFilterAsset("ALL");
+  };
 
   const filteredTransactions = React.useMemo(() => {
     return transactions.filter((tx) => {
@@ -712,16 +1116,61 @@ export const Wallet: React.FC<WalletProps> = ({
         if (!isSent && !filterIncoming) return false;
       }
 
-      // 3. Exclude 0.001
+      const meta = describeTx(tx);
+
+      // 3. Exclude Claim Rewards
+      if (filterExcludeClaimRewards) {
+        const memo = (tx.memo || '').toLowerCase();
+        const isClaimRewards =
+          tx.memo === "Claimed rewards" ||
+          memo.startsWith("claimed rewards") ||
+          meta.title === "Claimed rewards" ||
+          meta.kind === "reward";
+        if (isClaimRewards) return false;
+      }
+
+      // 4. Exclude 0.001
       if (filterExcludeSpam) {
         const isZeroZeroOne = tx.amount.startsWith("0.001 ") || tx.amount === "0.001";
         if (isZeroZeroOne) return false;
       }
 
-      // 4. Category filters (Transfers, Power Ups, Power Downs)
+      // 5. Amount Threshold Filter (Exclude/Include - Below/Above)
+      const thresholdNum = parseFloat(amountThreshold);
+      if (amountThreshold.trim() !== "" && !Number.isNaN(thresholdNum)) {
+        const parsed = parseAmountsFromTx(tx.amount);
+
+        if (parsed.length === 0) {
+          if (amountFilterMode === "include") return false;
+        } else {
+          const relevantAmounts =
+            amountFilterAsset === "ALL"
+              ? parsed
+              : parsed.filter((p) => p.asset === amountFilterAsset);
+
+          if (relevantAmounts.length === 0) {
+            if (amountFilterMode === "include") return false;
+          } else {
+            const matchesCondition = relevantAmounts.some((p) => {
+              if (amountFilterCondition === "below") {
+                return p.value < thresholdNum;
+              } else {
+                return p.value > thresholdNum;
+              }
+            });
+
+            if (amountFilterMode === "exclude") {
+              if (matchesCondition) return false;
+            } else {
+              if (!matchesCondition) return false;
+            }
+          }
+        }
+      }
+
+      // 6. Category filters (Transfers, Power Ups, Power Downs)
       const hasCategoryFilter = filterTransfers || filterPowerUps || filterPowerDowns;
       if (hasCategoryFilter) {
-        const meta = describeTx(tx);
         const memo = (tx.memo || '').toLowerCase();
         const title = meta.title.toLowerCase();
 
@@ -739,7 +1188,20 @@ export const Wallet: React.FC<WalletProps> = ({
 
       return true;
     });
-  }, [transactions, filterOutgoing, filterIncoming, filterExcludeSpam, filterTransfers, filterPowerUps, filterPowerDowns]);
+  }, [
+    transactions,
+    filterOutgoing,
+    filterIncoming,
+    filterExcludeClaimRewards,
+    filterExcludeSpam,
+    amountThreshold,
+    amountFilterMode,
+    amountFilterCondition,
+    amountFilterAsset,
+    filterTransfers,
+    filterPowerUps,
+    filterPowerDowns,
+  ]);
 
   // Sentinel for infinite scroll on the transaction history list. We
   // attach a scroll listener to the nearest scrollable ancestor of this
@@ -1024,77 +1486,133 @@ export const Wallet: React.FC<WalletProps> = ({
         {subTab === "transactions" && (
           <div className="rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] p-2 sm:p-4 min-w-0">
             <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="text-sm font-bold text-[var(--hrk-text-secondary)] tracking-wide uppercase">
-                Transaction History
-              </h3>
-              {filteredTransactions.length !== transactions.length ? (
-                <span className="text-xs text-[var(--hrk-text-tertiary)]">
-                  Showing {filteredTransactions.length} of {transactions.length}
-                </span>
-              ) : transactions.length > 0 ? (
-                <span className="text-xs text-[var(--hrk-text-tertiary)]">
-                  {transactions.length} transactions
-                </span>
-              ) : null}
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--hrk-text-secondary)] tracking-wide uppercase">
+                  Transaction History
+                </h3>
+                {filteredTransactions.length !== transactions.length ? (
+                  <span className="text-xs text-[var(--hrk-text-tertiary)]">
+                    Showing {filteredTransactions.length} of {transactions.length}
+                  </span>
+                ) : transactions.length > 0 ? (
+                  <span className="text-xs text-[var(--hrk-text-tertiary)]">
+                    {transactions.length} transactions
+                  </span>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsFilterModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                  activeFilterCount > 0
+                    ? "bg-blue-600/20 text-blue-300 border-blue-500/50 hover:bg-blue-600/30"
+                    : "bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-secondary)] border-[var(--hrk-border-subtle)] hover:text-white hover:border-[var(--hrk-border-default)]"
+                }`}
+              >
+                <FaFilter size={10} />
+                <span>Filter</span>
+                {activeFilterCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center ml-0.5">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Filter checkboxes */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 px-2 py-2 bg-[var(--hrk-bg-surface-raised)]/35 rounded-lg border border-[var(--hrk-border-subtle)]/50 text-xs text-[var(--hrk-text-secondary)] font-medium">
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterOutgoing}
-                  onChange={(e) => setFilterOutgoing(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Outgoing</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterIncoming}
-                  onChange={(e) => setFilterIncoming(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Incoming</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterExcludeSpam}
-                  onChange={(e) => setFilterExcludeSpam(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Exclude 0.001</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterTransfers}
-                  onChange={(e) => setFilterTransfers(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Transfers</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterPowerUps}
-                  onChange={(e) => setFilterPowerUps(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Power Ups</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none hover:text-white transition-colors">
-                <input
-                  type="checkbox"
-                  checked={filterPowerDowns}
-                  onChange={(e) => setFilterPowerDowns(e.target.checked)}
-                  className="rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] text-blue-500 focus:ring-blue-500 focus:ring-offset-[var(--hrk-bg-surface)] cursor-pointer w-3.5 h-3.5"
-                />
-                <span>Power Downs</span>
-              </label>
-            </div>
+            {/* Active filters pill bar (rendered only when activeFilterCount > 0) */}
+            {activeFilterCount > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mb-3 px-2.5 py-2 bg-[var(--hrk-bg-surface-raised)]/35 rounded-lg border border-[var(--hrk-border-subtle)]/50 text-xs">
+                <span className="text-[11px] text-[var(--hrk-text-tertiary)] font-medium mr-1">
+                  Active:
+                </span>
+                {filterOutgoing && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Outgoing
+                    <button type="button" onClick={() => setFilterOutgoing(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterIncoming && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Incoming
+                    <button type="button" onClick={() => setFilterIncoming(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterExcludeClaimRewards && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Exclude Rewards
+                    <button type="button" onClick={() => setFilterExcludeClaimRewards(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterExcludeSpam && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Exclude 0.001
+                    <button type="button" onClick={() => setFilterExcludeSpam(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterTransfers && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Transfers
+                    <button type="button" onClick={() => setFilterTransfers(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterPowerUps && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Power Ups
+                    <button type="button" onClick={() => setFilterPowerUps(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {filterPowerDowns && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    Power Downs
+                    <button type="button" onClick={() => setFilterPowerDowns(false)} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                {amountThreshold.trim() !== "" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-default)] text-[11px] text-white">
+                    {amountFilterMode === "exclude" ? "Exclude" : "Only"} {amountFilterCondition === "below" ? "<" : ">"} {amountThreshold} {amountFilterAsset !== "ALL" ? amountFilterAsset : ""}
+                    <button type="button" onClick={() => setAmountThreshold("")} className="text-[var(--hrk-text-tertiary)] hover:text-red-400 cursor-pointer">✕</button>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleResetAllFilters}
+                  className="text-[11px] text-red-400 hover:underline ml-auto font-medium cursor-pointer"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Filter Modal */}
+            <TransactionFilterModal
+              isOpen={isFilterModalOpen}
+              onClose={() => setIsFilterModalOpen(false)}
+              filterOutgoing={filterOutgoing}
+              setFilterOutgoing={setFilterOutgoing}
+              filterIncoming={filterIncoming}
+              setFilterIncoming={setFilterIncoming}
+              filterExcludeClaimRewards={filterExcludeClaimRewards}
+              setFilterExcludeClaimRewards={setFilterExcludeClaimRewards}
+              filterExcludeSpam={filterExcludeSpam}
+              setFilterExcludeSpam={setFilterExcludeSpam}
+              filterTransfers={filterTransfers}
+              setFilterTransfers={setFilterTransfers}
+              filterPowerUps={filterPowerUps}
+              setFilterPowerUps={setFilterPowerUps}
+              filterPowerDowns={filterPowerDowns}
+              setFilterPowerDowns={setFilterPowerDowns}
+              amountFilterMode={amountFilterMode}
+              setAmountFilterMode={setAmountFilterMode}
+              amountFilterCondition={amountFilterCondition}
+              setAmountFilterCondition={setAmountFilterCondition}
+              amountThreshold={amountThreshold}
+              setAmountThreshold={setAmountThreshold}
+              amountFilterAsset={amountFilterAsset}
+              setAmountFilterAsset={setAmountFilterAsset}
+              onResetAll={handleResetAllFilters}
+              activeCount={activeFilterCount}
+            />
 
             {isLoadingTransactions && (
               <div className="flex items-center justify-center p-8">
