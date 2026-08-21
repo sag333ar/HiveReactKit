@@ -42,6 +42,11 @@ import { uploadImageWithFallback, type PostingSignMessageFn } from '../../servic
 import { createHiveRenderer } from '@snapie/renderer';
 import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from './MentionSuggest';
 
+// Built and maintained by this account — the hivesuite.app beneficiary
+// (funds running the app on everyone else's behalf) is waived for them,
+// since it'd otherwise just be paying themselves. See lockedBeneficiaries.
+const DEVELOPER_ACCOUNT = 'sagarkothari88';
+
 export interface PostComposerProps {
   onSubmit: (body: string) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
@@ -540,9 +545,14 @@ const PostComposer = ({
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
-    list.push({ account: 'hivesuite.app', weight: 1 });
+    // `sagarkothari88` built and maintains hivesuite.app — the 1% beneficiary
+    // exists to fund running the app on everyone ELSE's behalf, so it's
+    // waived for the one account it would otherwise just be paying itself.
+    if (currentUser?.toLowerCase() !== DEVELOPER_ACCOUNT) {
+      list.push({ account: 'hivesuite.app', weight: 1 });
+    }
     return list;
-  }, [threeSpeakFundPercent, decentMemes, decentMemesKind, isWeb2User]);
+  }, [threeSpeakFundPercent, decentMemes, decentMemesKind, isWeb2User, currentUser]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
@@ -552,7 +562,7 @@ const PostComposer = ({
     if (isWeb2User) {
       reasons['hivesuite.app'] = '20% to hivesuite.app is required';
       reasons['null'] = 'Remaining rewards burned to null';
-    } else {
+    } else if (currentUser?.toLowerCase() !== DEVELOPER_ACCOUNT) {
       reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     }
     if (hasVideo) {
@@ -604,7 +614,7 @@ const PostComposer = ({
       }
     }
     return reasons;
-  }, [hasVideo, decentMemes, decentMemesKind]);
+  }, [hasVideo, decentMemes, decentMemesKind, isWeb2User, currentUser]);
 
   const [internalBeneficiaries, setInternalBeneficiaries] = useState<Beneficiary[]>(() =>
     enforceLockedBeneficiaries(defaultBeneficiaries, []),

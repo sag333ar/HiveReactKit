@@ -95,6 +95,10 @@ import {
 
 const DESCRIPTION_MAX = 120;
 const TITLE_MAX = 120;
+// Built and maintained by this account — the hivesuite.app beneficiary
+// (funds running the app on everyone else's behalf) is waived for them,
+// since it'd otherwise just be paying themselves. See lockedBeneficiaries.
+const DEVELOPER_ACCOUNT = 'sagarkothari88';
 
 export interface ParentPostSubmitPayload {
   title: string;
@@ -785,7 +789,12 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       list.push({ account: THREESPEAK_FUND_ACCOUNT, weight: threeSpeakFundPercent });
     }
     list.push(...decentMemesAsBeneficiaries(decentMemes, decentMemesKind));
-    list.push({ account: 'hivesuite.app', weight: 1 });
+    // `sagarkothari88` built and maintains hivesuite.app — the 1% beneficiary
+    // exists to fund running the app on everyone ELSE's behalf, so it's
+    // waived for the one account it would otherwise just be paying itself.
+    if (currentUser?.toLowerCase() !== DEVELOPER_ACCOUNT) {
+      list.push({ account: 'hivesuite.app', weight: 1 });
+    }
     if (propLockedBeneficiaries && propLockedBeneficiaries.length > 0) {
       for (const ben of propLockedBeneficiaries) {
         if (!list.some((existing) => existing.account === ben.account)) {
@@ -795,7 +804,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     }
     console.log('ParentPostComposer: calculated lockedBeneficiaries:', list);
     return list;
-  }, [threeSpeakFundPercent, decentMemes, propLockedBeneficiaries, isWeb2User]);
+  }, [threeSpeakFundPercent, decentMemes, propLockedBeneficiaries, isWeb2User, currentUser]);
   const lockedAccountsList = useMemo(
     () => lockedBeneficiaries.map((b) => b.account),
     [lockedBeneficiaries],
@@ -805,7 +814,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     if (isWeb2User) {
       reasons['hivesuite.app'] = '20% to hivesuite.app is required';
       reasons['null'] = 'Remaining rewards burned to null';
-    } else {
+    } else if (currentUser?.toLowerCase() !== DEVELOPER_ACCOUNT) {
       reasons['hivesuite.app'] = '1% to hivesuite.app is required';
     }
     if (hasVideo) {
@@ -864,7 +873,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       }
     }
     return reasons;
-  }, [hasVideo, decentMemes, propLockedBeneficiaries]);
+  }, [hasVideo, decentMemes, propLockedBeneficiaries, isWeb2User, currentUser]);
 
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() =>
     enforceLockedBeneficiaries(defaultBeneficiaries, []),
