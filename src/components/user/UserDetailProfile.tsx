@@ -932,8 +932,17 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>(cached?.hiveposh || {});
   const [witnessVotes, setWitnessVotes] = useState<string[]>(cached?.witnessVotes || []);
   const [votingPowerData, setVotingPowerData] = useState<{
-    upvotePower: number; downvotePower: number; resourceCredits: number;
-    maxMana: number; rewardBalance: number; recentClaims: number; feedPrice: number;
+    upvotePower: number;
+    downvotePower: number;
+    resourceCredits: number;
+    rcCurrentMana?: number;
+    rcMaxMana?: number;
+    rcConsumedMana?: number;
+    rcConsumedPct?: number;
+    maxMana: number;
+    rewardBalance: number;
+    recentClaims: number;
+    feedPrice: number;
   } | null>(null);
   const [voteWeight, setVoteWeight] = useState(100);
   const [loadingContent, setLoadingContent] = useState(false);
@@ -1728,8 +1737,13 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 if (currentManaDown > maxManaDown) currentManaDown = maxManaDown;
                 const downvotePower = maxManaDown > 0 ? (currentManaDown / maxManaDown) * 100 : 0;
 
-                // Resource credits
+                // Resource credits (regenerates linearly over 5 days = 432,000s)
                 let resourceCredits = 0;
+                let rcCurrentMana = 0;
+                let rcMaxMana = 0;
+                let rcConsumedMana = 0;
+                let rcConsumedPct = 0;
+
                 try {
                   const rcResp = await fetch(getHiveApiEndpoint(), {
                     method: "POST",
@@ -1740,9 +1754,20 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   const rcData = await rcResp.json();
                   const rcAccount = rcData?.result?.rc_accounts?.[0];
                   if (rcAccount) {
-                    const rcCurrent = parseFloat(rcAccount.rc_manabar.current_mana);
-                    const rcMax = parseFloat(rcAccount.max_rc);
-                    if (rcMax > 0) resourceCredits = (rcCurrent / rcMax) * 100;
+                    const rcStored = parseFloat(rcAccount.rc_manabar?.current_mana || "0");
+                    const rcMax = parseFloat(rcAccount.max_rc || "0");
+                    const lastUpdate = Number(rcAccount.rc_manabar?.last_update_time || 0);
+                    rcMaxMana = rcMax;
+                    if (rcMax > 0) {
+                      const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - lastUpdate);
+                      let regenerated = rcStored + (elapsed * rcMax) / (5 * 24 * 60 * 60);
+                      if (regenerated > rcMax) regenerated = rcMax;
+                      if (regenerated < 0) regenerated = 0;
+                      rcCurrentMana = regenerated;
+                      rcConsumedMana = Math.max(0, rcMax - regenerated);
+                      resourceCredits = (regenerated / rcMax) * 100;
+                      rcConsumedPct = 100 - resourceCredits;
+                    }
                   }
                 } catch {
                   // RC fetch failed — leave at 0
@@ -1779,6 +1804,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   upvotePower: clampedUpvotePower,
                   downvotePower: Math.min(downvotePower, 100),
                   resourceCredits: Math.min(resourceCredits, 100),
+                  rcCurrentMana,
+                  rcMaxMana,
+                  rcConsumedMana,
+                  rcConsumedPct,
                   maxMana,
                   rewardBalance,
                   recentClaims,
@@ -3236,13 +3265,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       return `Full in ${minutes} minute${minutes !== 1 ? "s" : ""}`;
     };
     const formatVal = (n: number, d = 2) => isNaN(n) ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
-    const bars = [
+    const powerBars = [
       { label: t("vp.upvotePower"), value: votingPowerData.upvotePower, color: "var(--hrk-success)" },
       { label: t("vp.downvotePower"), value: votingPowerData.downvotePower, color: "var(--hrk-warning)" },
-      { label: t("vp.resourceCredits"), value: votingPowerData.resourceCredits, color: "var(--hrk-info)" },
     ];
+
+    const currentRc = votingPowerData.rcCurrentMana ?? 0;
+    const consumedRc = votingPowerData.rcConsumedMana ?? 0;
+    const maxRc = votingPowerData.rcMaxMana ?? 0;
+    const rcAvailPct = votingPowerData.resourceCredits;
+    const rcConsumedPct = votingPowerData.rcConsumedPct ?? Math.max(0, 100 - rcAvailPct);
+
+    const remainingPosts = Math.max(0, Math.floor(currentRc / 1_050_000_000));
+    const remainingComments = Math.max(0, Math.floor(currentRc / 260_000_000));
+    const remainingTransfers = Math.max(0, Math.floor(currentRc / 90_000_000));
+    const remainingVotes = Math.max(0, Math.floor(currentRc / 45_000_000));
+
     return (
       <div className="max-w-lg mx-auto space-y-6">
+        {/* Vote Value Slider */}
         <div className="p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] flex flex-col items-center">
           <div className="inline-flex flex-col items-center px-5 py-2.5 rounded-full bg-blue-600/20 border border-blue-500/40 mb-5">
             <span className="text-sm sm:text-base font-bold text-white tracking-wide">
@@ -3267,7 +3308,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           </div>
           <p className="mt-3 text-sm text-[var(--hrk-text-tertiary)]">{formatRechargeTime(rechargeSeconds)}</p>
         </div>
-        {bars.map((bar) => (
+
+        {/* Voting Power Bars */}
+        {powerBars.map((bar) => (
           <div key={bar.label} className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-[var(--hrk-text-secondary)]">{bar.label}</span>
@@ -3278,6 +3321,70 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             </div>
           </div>
         ))}
+
+        {/* Resource Credits (RC) & Operations Card */}
+        <div className="p-4 sm:p-5 rounded-xl bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-sm font-bold text-white tracking-wide uppercase flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal-400" />
+              {t("vp.resourceCredits")}
+            </span>
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <span className="text-teal-400">
+                {rcAvailPct.toFixed(2)}% Available {maxRc > 0 && `(${(currentRc / 1e9).toFixed(2)}b)`}
+              </span>
+              <span className="text-orange-400">
+                {rcConsumedPct.toFixed(2)}% Consumed {maxRc > 0 && `(${(consumedRc / 1e9).toFixed(2)}b)`}
+              </span>
+            </div>
+          </div>
+
+          {/* Dual Progress Bar */}
+          <div className="w-full bg-[var(--hrk-bg-surface-raised)] rounded-full h-3 overflow-hidden flex border border-gray-700/50">
+            <div
+              className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-500"
+              style={{ width: `${Math.max(0, Math.min(100, rcAvailPct))}%` }}
+              title={`Available: ${rcAvailPct.toFixed(2)}%`}
+            />
+            <div
+              className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
+              style={{ width: `${Math.max(0, Math.min(100, rcConsumedPct))}%` }}
+              title={`Consumed: ${rcConsumedPct.toFixed(2)}%`}
+            />
+          </div>
+
+          {/* Operations Estimation Grid */}
+          <div className="pt-2 border-t border-[var(--hrk-border-subtle)]">
+            <div className="text-xs font-medium text-[var(--hrk-text-secondary)] mb-2">
+              Estimated Operations Capacity (with current RC)
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="p-2.5 rounded-lg bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-subtle)] flex flex-col">
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] font-medium">📝 Posts</span>
+                <span className="text-sm font-bold text-white">~{remainingPosts.toLocaleString()}</span>
+                <span className="text-[9px] text-[var(--hrk-text-tertiary)]">~1.05b RC / post</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-subtle)] flex flex-col">
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] font-medium">💬 Comments</span>
+                <span className="text-sm font-bold text-white">~{remainingComments.toLocaleString()}</span>
+                <span className="text-[9px] text-[var(--hrk-text-tertiary)]">~0.26b RC / comment</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-subtle)] flex flex-col">
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] font-medium">💸 Transfers</span>
+                <span className="text-sm font-bold text-white">~{remainingTransfers.toLocaleString()}</span>
+                <span className="text-[9px] text-[var(--hrk-text-tertiary)]">~0.09b RC / transfer</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-subtle)] flex flex-col">
+                <span className="text-[10px] text-[var(--hrk-text-tertiary)] font-medium">👍 Votes</span>
+                <span className="text-sm font-bold text-white">~{remainingVotes.toLocaleString()}</span>
+                <span className="text-[9px] text-[var(--hrk-text-tertiary)]">~0.045b RC / vote</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-[var(--hrk-text-tertiary)] mt-2 italic">
+              *RC (Resource Credits) are consumed by each on-chain transaction and regenerate 100% linearly over 5 days.
+            </p>
+          </div>
+        </div>
       </div>
     );
   };
