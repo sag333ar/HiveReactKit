@@ -26,12 +26,9 @@ import { toast } from "@/hooks";
 import { isDownvote } from "@/utils/postVotes";
 
 export function formatVoteAmount(val: number): string {
-  if (val === 0 || !Number.isFinite(val)) return "0.000";
-  if (val >= 0.001) return val.toFixed(3);
-  if (val >= 0.0001) return val.toFixed(4);
-  if (val >= 0.00001) return val.toFixed(5);
-  if (val > 0) return "<0.00001";
-  return "0.000";
+  if (!Number.isFinite(val) || val === 0) return "0.000";
+  const absVal = Math.abs(val);
+  return absVal.toFixed(3);
 }
 
 interface UpvoteListModalProps {
@@ -885,7 +882,13 @@ const UpvoteListModal = ({
                           }`}
                           title={valueShown > 0 ? `$${valueShown.toFixed(6)}` : undefined}
                         >
-                          {isDownvoteMode && valueShown > 0 ? `-${formatVoteAmount(valueShown)}` : formatVoteAmount(valueShown)}
+                          {(() => {
+                            const formatted = formatVoteAmount(valueShown);
+                            if (isDownvoteMode && formatted !== "0.000") {
+                              return `-${formatted}`;
+                            }
+                            return formatted;
+                          })()}
                           <img
                             src={resolvedHiveIcon}
                             alt=""
