@@ -114,16 +114,17 @@ export function parseJsonMetadata(jm: unknown): Record<string, unknown> {
 
 export interface Web2Identity {
   isWeb2: boolean;
+  isWeb3?: boolean;
   web2id?: string;
   displayName: string;
   avatarUrl: string;
-  /** Identity provider the author signed in with ('google' | 'apple' | 'email'),
+  /** Identity provider the author signed in with ('google' | 'apple' | 'metamask' | 'trust' | 'coinbase' | 'phantom' | etc.),
    *  or undefined for posts made before this was tracked. Drives <Web2ProviderBadge/>. */
   provider?: string;
 }
 
 /**
- * Posts/comments made on behalf of a "web2" user (no real Hive account) carry
+ * Posts/comments made on behalf of a "web2" or "web3" proxy user (no real Hive account) carry
  * usertype/web2id/web2name/web2dpurl/web2provider in json_metadata. When
  * present, the UI should show that identity instead of the underlying Hive
  * bridge account.
@@ -134,28 +135,28 @@ export function getWeb2Identity(
   fallbackAvatarUrl: string,
 ): Web2Identity {
   const meta = parseJsonMetadata(jsonMetadata);
-  const web2id = meta.web2id;
-  if (meta.usertype === 'web2' && typeof web2id === 'string' && web2id) {
-    const web2name = meta.web2name;
-    const web2dpurl = meta.web2dpurl;
-    const web2provider = meta.web2provider;
+  const web2id = meta.web2id || meta.web3id || meta.web3address;
+  const isWeb3 = meta.usertype === 'web3_evm' || meta.usertype === 'web3' || (typeof web2id === 'string' && web2id.startsWith('0x'));
+  if ((meta.usertype === 'web2' || meta.usertype === 'web3_evm' || meta.usertype === 'web3' || isWeb3) && typeof web2id === 'string' && web2id) {
+    const web2name = meta.web2name || meta.web3name;
+    const web2dpurl = meta.web2dpurl || meta.web3dpurl;
+    const web2provider = meta.web2provider || meta.web3provider || meta.provider;
     return {
       isWeb2: true,
+      isWeb3,
       web2id,
-      displayName: typeof web2name === 'string' && web2name ? web2name : author,
+      displayName: typeof web2name === 'string' && web2name ? web2name : (isWeb3 ? `${web2id.slice(0, 6)}...${web2id.slice(-4)}` : author),
       avatarUrl: typeof web2dpurl === 'string' && web2dpurl ? web2dpurl : fallbackAvatarUrl,
-      provider: typeof web2provider === 'string' && web2provider ? web2provider : undefined,
+      provider: typeof web2provider === 'string' && web2provider ? web2provider : (isWeb3 ? 'metamask' : undefined),
     };
   }
-  return { isWeb2: false, displayName: author, avatarUrl: fallbackAvatarUrl };
+  return { isWeb2: false, isWeb3: false, displayName: author, avatarUrl: fallbackAvatarUrl };
 }
 
 /**
- * Small corner badge identifying which login provider a Web2 author signed
- * in with — overlaid on their avatar (wrap the avatar in a `relative`
- * container and render this as a sibling). Renders nothing for providers
- * without an icon yet (e.g. 'email') or absent/legacy posts, so adding a
- * new provider later is just another branch here.
+ * Small corner badge identifying which login provider an author signed
+ * in with (Web2: Google, Apple; Web3: MetaMask, Trust Wallet, Coinbase, Phantom, etc.)
+ * overlaid on their avatar.
  */
 export function Web2ProviderBadge({
   provider,
@@ -169,12 +170,38 @@ export function Web2ProviderBadge({
   const norm = (provider || '').toLowerCase();
   const isGoogle = norm.includes('google');
   const isApple = norm.includes('apple');
-  if (!isGoogle && !isApple) return null;
+  const isMetaMask = norm.includes('metamask');
+  const isTrust = norm.includes('trust');
+  const isCoinbase = norm.includes('coinbase');
+  const isPhantom = norm.includes('phantom');
+  const isRainbow = norm.includes('rainbow');
+  const isWalletConnect = norm.includes('walletconnect') || norm.includes('reown') || norm.includes('web3');
+
+  if (!isGoogle && !isApple && !isMetaMask && !isTrust && !isCoinbase && !isPhantom && !isRainbow && !isWalletConnect) {
+    return null;
+  }
+
+  const title = isGoogle
+    ? 'Signed in with Google'
+    : isApple
+    ? 'Signed in with Apple'
+    : isMetaMask
+    ? 'Signed in with MetaMask'
+    : isTrust
+    ? 'Signed in with Trust Wallet'
+    : isCoinbase
+    ? 'Signed in with Coinbase Wallet'
+    : isPhantom
+    ? 'Signed in with Phantom'
+    : isRainbow
+    ? 'Signed in with Rainbow'
+    : 'Signed in with Web3 Wallet';
+
   return (
     <span
       className={`absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-white ring-1 ring-black/10 shadow-sm ${className}`}
       style={{ width: size, height: size }}
-      title={isGoogle ? 'Signed in with Google' : 'Signed in with Apple'}
+      title={title}
     >
       {isGoogle ? (
         <svg viewBox="0 0 48 48" width={size * 0.7} height={size * 0.7} aria-hidden="true">
@@ -183,9 +210,41 @@ export function Web2ProviderBadge({
           <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
           <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
         </svg>
-      ) : (
+      ) : isApple ? (
         <svg viewBox="0 0 384 512" width={size * 0.6} height={size * 0.6} fill="black" aria-hidden="true">
           <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1-.2 51.3-13.4 69.5-34.3z" />
+        </svg>
+      ) : isMetaMask ? (
+        <svg viewBox="0 0 32 32" width={size * 0.7} height={size * 0.7} aria-hidden="true">
+          <path fill="#E17726" d="M29.6 16l-3.2-11.2L16 11.2 19.2 16l-3.2 9.6 9.6-3.2z" />
+          <path fill="#E2761B" d="M2.4 16l3.2-11.2L16 11.2 12.8 16l3.2 9.6-9.6-3.2z" />
+          <path fill="#E2761B" d="M25.6 22.4L16 25.6l-9.6-3.2L3.2 16l3.2 9.6 9.6 4.8 9.6-4.8 3.2-9.6z" />
+          <path fill="#D5BFB2" d="M22.4 16l-3.2-4.8-3.2 4.8 3.2 6.4z" />
+          <path fill="#D5BFB2" d="M9.6 16l3.2-4.8 3.2 4.8-3.2 6.4z" />
+          <path fill="#233447" d="M12.8 16l-3.2 3.2 4.8 1.6z" />
+          <path fill="#233447" d="M19.2 16l3.2 3.2-4.8 1.6z" />
+          <path fill="#CC621B" d="M16 16l-3.2-4.8L6.4 4.8 16 11.2l9.6-6.4-6.4 6.4z" />
+        </svg>
+      ) : isTrust ? (
+        <svg viewBox="0 0 32 32" width={size * 0.7} height={size * 0.7} aria-hidden="true">
+          <path fill="#0500FF" d="M16 3.2L4.8 8v8c0 8 4.8 12.8 11.2 14.4 6.4-1.6 11.2-6.4 11.2-14.4V8L16 3.2z" />
+          <path fill="#FFFFFF" d="M16 6.4l8 3.2v6.4c0 5.6-3.2 9.6-8 11.2-4.8-1.6-8-5.6-8-11.2V9.6l8-3.2z" />
+          <path fill="#0500FF" d="M16 8l6.4 2.4v5.6c0 4.8-2.4 8-6.4 9.6V8z" />
+        </svg>
+      ) : isCoinbase ? (
+        <svg viewBox="0 0 32 32" width={size * 0.7} height={size * 0.7} aria-hidden="true">
+          <circle cx="16" cy="16" r="14" fill="#0052FF" />
+          <path fill="#FFFFFF" d="M16 9.6a6.4 6.4 0 100 12.8 6.4 6.4 0 000-12.8zm-2.4 4.8h4.8v3.2h-4.8v-3.2z" />
+        </svg>
+      ) : isPhantom ? (
+        <svg viewBox="0 0 32 32" width={size * 0.7} height={size * 0.7} aria-hidden="true">
+          <circle cx="16" cy="16" r="14" fill="#AB9FF2" />
+          <path fill="#FFFFFF" d="M22.4 16c0-3.5-2.9-6.4-6.4-6.4S9.6 12.5 9.6 16c0 2.2 1.1 4.1 2.8 5.2.3.2.7.1.8-.2l.8-1.4c.1-.2.1-.4-.1-.6-.9-.7-1.5-1.8-1.5-3 0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.2-.6 2.3-1.5 3-.2.2-.2.4-.1.6l.8 1.4c.1.3.5.4.8.2 1.7-1.1 2.8-3 2.8-5.2z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 32 32" width={size * 0.7} height={size * 0.7} aria-hidden="true">
+          <circle cx="16" cy="16" r="14" fill="#3B99FC" />
+          <path fill="#FFFFFF" d="M10 13.5l6-6 6 6-1.5 1.5-4.5-4.5-4.5 4.5zM10 18.5l6 6 6-6-1.5-1.5-4.5 4.5-4.5-4.5z" />
         </svg>
       )}
     </span>

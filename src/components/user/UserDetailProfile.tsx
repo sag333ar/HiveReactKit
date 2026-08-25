@@ -105,8 +105,11 @@ export interface UserDetailProfileProps {
   onOpenProfileMenu?: () => void;
   /** Optional avatar URL for the logged-in user (e.g. Web2 Google photoURL) */
   currentUserAvatar?: string;
-  /** Web2 login provider string (e.g. 'google', 'apple') from auth data */
+  /** Web2 / Web3 login provider string (e.g. 'google', 'apple', 'metamask', 'trust') from auth data */
   web2Provider?: string;
+  web3Provider?: string;
+  isWeb2User?: boolean;
+  isWeb3User?: boolean;
   showBackButton?: boolean;
 
   /**
@@ -445,8 +448,10 @@ interface ProfileData {
   hivePower?: number;
   votingPower?: number;
   isWeb2?: boolean;
+  isWeb3?: boolean;
   web2id?: string;
   web2provider?: string;
+  web3provider?: string;
 }
 
 type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
@@ -580,6 +585,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   onOpenProfileMenu,
   currentUserAvatar,
   web2Provider: web2ProviderProp,
+  web3Provider: web3ProviderProp,
+  isWeb2User: isWeb2UserProp,
+  isWeb3User: isWeb3UserProp,
   showBackButton = false,
   tabShown,
   ecencyToken,
@@ -681,9 +689,38 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [loading, setLoading] = useState(!cached?.profile);
   const [error, setError] = useState<string | null>(null);
 
-  const isWeb2User = Boolean(web2IdFilter) || Boolean(web2CreditsProp) || Boolean(profile?.isWeb2) || Boolean(web2ProviderProp) || (profile ? Boolean(profile.web2provider) : false);
+  const isWeb3WalletProvider = (prov?: string | null) =>
+    Boolean(prov && ['metamask', 'trust', 'coinbase', 'phantom', 'rainbow', 'walletconnect', 'reown', 'web3'].some(w => prov.toLowerCase().includes(w)));
 
-  // Web2 posting credits & limits state
+  const isWeb2SocialProvider = (prov?: string | null) =>
+    Boolean(prov && ['google', 'apple', 'email', 'firebase', 'web2'].some(w => prov.toLowerCase().includes(w)));
+
+  // If the profile object or web2IdFilter is explicitly Web2 (or provider is google/apple/email), it is NOT Web3
+  const hasWeb2SocialProvider = isWeb2SocialProvider(profile?.web2provider) || isWeb2SocialProvider(web2ProviderProp);
+  const isWeb2Uid = Boolean(web2IdFilter && !web2IdFilter.startsWith('0x'));
+
+  const isWeb3User = !hasWeb2SocialProvider && !isWeb2Uid && (
+    Boolean(profile?.isWeb3) ||
+    (Boolean(web2IdFilter) && web2IdFilter.startsWith('0x')) ||
+    (Boolean(targetUsername) && targetUsername.startsWith('0x')) ||
+    isWeb3WalletProvider(profile?.web2provider || profile?.web3provider) ||
+    isWeb3WalletProvider(web2ProviderProp || web3ProviderProp) ||
+    Boolean(isWeb3UserProp)
+  );
+
+  const isWeb2User = !isWeb3User && (
+    hasWeb2SocialProvider ||
+    isWeb2Uid ||
+    Boolean(profile?.isWeb2) ||
+    Boolean(isWeb2UserProp) ||
+    Boolean(web2IdFilter) ||
+    Boolean(web2CreditsProp) ||
+    Boolean(web2ProviderProp) ||
+    (profile ? Boolean(profile.web2provider) : false)
+  );
+  const isProxyUser = isWeb2User || isWeb3User;
+
+  // Web2 / Web3 proxy posting credits & limits state
   const [web2Credits, setWeb2Credits] = useState<Web2Credits | null>(web2CreditsProp ?? null);
   const [loadingWeb2Credits, setLoadingWeb2Credits] = useState(false);
 
@@ -4182,7 +4219,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       .filter((t): t is { id: TabType; label: string; icon: any } => t !== undefined)
     : allTabs;
 
-  const tabs = isWeb2User
+  const tabs = isProxyUser
     ? baseTabs.filter((t) => web2AllowedTabs.includes(t.id))
     : baseTabs;
 
@@ -4236,7 +4273,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-sm font-semibold text-white truncate">
-                  {isWeb2User && profile.name ? `${profile.name} (Web2 Account)` : `@${targetUsername}`}
+                  {isWeb3User
+                    ? `${profile.name || targetUsername} (Web3 Account)`
+                    : isWeb2User && profile.name
+                    ? `${profile.name} (Web2 Account)`
+                    : `@${targetUsername}`}
                 </h1>
               </div>
             </div>
@@ -4382,6 +4423,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                         </span>
                       </button>
                     )}
+
                     {isOwnProfile && onEditProfile && (
                       <button
                         onClick={() => {
@@ -4410,7 +4452,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       (currentUsername ? `https://images.hive.blog/u/${currentUsername}/avatar` : null) ||
                       profile?.profileImage ||
                       (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('web2dpurl') : null) ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || targetUsername || 'User')}&background=0D8ABC&color=fff`
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.name || currentUsername || targetUsername || 'User')}&background=0D8ABC&color=fff`
                     }
                     alt={profile?.name || currentUsername || targetUsername}
                     className="h-7 w-7 rounded-full object-cover border border-white/20"
@@ -4429,11 +4471,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           {/* Cover image */}
           {profile.coverImage ? (
             <div
-              className={`w-full bg-cover bg-center ${isWeb2User ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`}
+              className={`w-full bg-cover bg-center ${isProxyUser ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`}
               style={{ backgroundImage: `url(${profile.coverImage})` }}
             />
           ) : (
-            <div className={`w-full bg-gradient-to-r from-blue-600 to-purple-700 ${isWeb2User ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`} />
+            <div className={`w-full bg-gradient-to-r from-blue-600 to-purple-700 ${isProxyUser ? 'h-32 sm:h-36 md:h-40' : ((profile.about?.length ?? 0) > 50 ? "h-52" : "h-44 sm:h-52 md:h-60")}`} />
           )}
           {/* Dark overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
@@ -4450,8 +4492,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           )}
 
           {/* Profile details overlaid on cover */}
-          <div className={isWeb2User ? "absolute inset-0 flex items-center px-3.5 sm:px-6 py-2.5" : "absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4"}>
-            <div className={`flex gap-2.5 sm:gap-4 w-full ${isWeb2User ? 'items-center' : 'items-end'}`}>
+          <div className={isProxyUser ? "absolute inset-0 flex items-center px-3.5 sm:px-6 py-2.5" : "absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4"}>
+            <div className={`flex gap-2.5 sm:gap-4 w-full ${isProxyUser ? 'items-center' : 'items-end'}`}>
               {/* Avatar — wrapped in a button for the owner so they
                   can edit their profile. A persistent red pencil badge
                   on the bottom-right corner makes the affordance
@@ -4467,7 +4509,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={targetUsername}
-                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${isWeb2User ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
                     }}
@@ -4483,26 +4525,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   >
                     <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </span>
+                  <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />
                 </button>
               ) : (
                 <div className="relative flex-shrink-0">
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={profile.name || targetUsername}
-                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0 ${isWeb2User ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0 ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
                     }}
                   />
-                  <Web2ProviderBadge provider={profile.web2provider} />
+                  <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />
                 </div>
               )}
               {/* Name + details */}
-              <div className={`flex-1 min-w-0 ${isWeb2User ? '' : 'pb-0.5'}`}>
+              <div className={`flex-1 min-w-0 ${isProxyUser ? '' : 'pb-0.5'}`}>
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <h2 className="min-w-0 text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
                     <span className="truncate max-w-[130px] sm:max-w-[220px] md:max-w-[320px] inline-block">{profile.name || targetUsername}</span>
-                    {profile.reputation !== undefined && !profile.isWeb2 && (
+                    {profile.reputation !== undefined && !isProxyUser && (
                       <div className="relative group inline-flex shrink-0">
                         <span
                           className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-gray-700/80 hover:bg-gray-700 text-white/95 border border-gray-600/50 cursor-pointer shrink-0 shadow-sm"
@@ -4516,7 +4559,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       </div>
                     )}
                     <span className="text-[11px] sm:text-xs font-normal text-[var(--hrk-text-secondary)]">
-                      {profile.isWeb2 ? (
+                      {isWeb3User ? (
+                        (profile.web2provider || web2ProviderProp) ? (
+                          ` (Web3 Account • Logged in with ${
+                            (profile.web2provider || web2ProviderProp || '').toLowerCase().includes('metamask')
+                              ? 'MetaMask'
+                              : (profile.web2provider || web2ProviderProp || '').toLowerCase().includes('trust')
+                              ? 'Trust Wallet'
+                              : (profile.web2provider || web2ProviderProp || '').toLowerCase().includes('coinbase')
+                              ? 'Coinbase'
+                              : (profile.web2provider || web2ProviderProp || '').toLowerCase().includes('phantom')
+                              ? 'Phantom'
+                              : (profile.web2provider || web2ProviderProp || '').toLowerCase().includes('rainbow')
+                              ? 'Rainbow'
+                              : (profile.web2provider || web2ProviderProp)
+                          })`
+                        ) : (
+                          ' (Web3 Account)'
+                        )
+                      ) : isWeb2User ? (
                         profile.web2provider ? (
                           ` (Web2 Account • Logged in with ${
                             profile.web2provider.toLowerCase().includes('google')
@@ -4559,27 +4620,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                           aria-label="Reddit (via HivePosh)"
                           className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[#ff4500] text-white transition-colors hover:opacity-90"
                         >
-                          <svg viewBox="0 0 24 24" className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="currentColor" aria-hidden="true">
-                            <path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0zm4.388 8.74c.654 0 1.184.53 1.184 1.184a1.18 1.18 0 0 1-.582 1.018c.012.092.018.185.018.28 0 1.83-2.143 3.314-4.788 3.314s-4.788-1.484-4.788-3.314c0-.094.006-.187.017-.278a1.18 1.18 0 0 1-.585-1.02 1.184 1.184 0 0 1 2.006-.852 5.86 5.86 0 0 1 3.184-1.008l.605-2.842a.26.26 0 0 1 .31-.2l2.005.426a.842.842 0 1 1-.087.41l-1.793-.382-.54 2.55a5.86 5.86 0 0 1 3.135 1.012 1.18 1.18 0 0 1 .963-.498zM9.747 11.84a.842.842 0 1 0 1.684 0 .842.842 0 0 0-1.684 0zm5.265.842a.842.842 0 1 0 0-1.684.842.842 0 0 0 0 1.684zm-.585 1.795a.26.26 0 0 0-.366.003c-.397.397-1.214.537-1.94.537s-1.543-.14-1.94-.537a.26.26 0 0 0-.367.367c.61.61 1.737.69 2.307.69s1.697-.08 2.307-.69a.26.26 0 0 0 .005-.366z" />
+                          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 sm:h-3 sm:w-3" fill="currentColor" aria-hidden="true">
+                            <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.56 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.197-2.512-.73a.326.326 0 0 0-.232-.095z" />
                           </svg>
                         </a>
                       )}
                     </div>
                   )}
                 </div>
-                {profile.about && !isWeb2User && (
+                {profile.about && !isProxyUser && (
                   <p className="text-[var(--hrk-text-primary)] text-xs sm:text-sm leading-relaxed mt-1 line-clamp-2 drop-shadow-md">
                     {profile.about}
                   </p>
                 )}
-                {profile.location && !isWeb2User && (
+                {profile.location && !isProxyUser && (
                   <span className="flex items-center gap-1 text-[var(--hrk-text-secondary)] text-xs mt-1 drop-shadow-md whitespace-nowrap">
                     <MapPin className="h-3 w-3 text-rose-400 flex-shrink-0" /> {profile.location.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()}
                   </span>
                 )}
 
-                {/* Web2 User Resource & Limits Badges — directly below name */}
-                {isWeb2User && (
+                {/* Web2 / Web3 User Resource & Limits Badges — directly below name */}
+                {isProxyUser && (
                   <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] sm:text-[11px]">
                     {loadingWeb2Credits && !web2Credits ? (
                       <div className="flex items-center gap-1.5">
@@ -4626,7 +4687,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </div>
             </div>
             {/* Meta info row */}
-            {!isWeb2User && (
+            {!isProxyUser && (
               <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
                 {profile.website && (
                   <a
@@ -4662,7 +4723,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               </div>
             )}
             {/* Followers / Following / Posts */}
-            {!isWeb2User && (
+            {!isProxyUser && (
               <div className="flex items-center gap-4 mt-2 text-[11px] sm:text-xs text-[var(--hrk-text-primary)]">
                 <button onClick={() => setActiveTab("followers")} className="hover:text-[var(--hrk-text-primary)] transition-colors drop-shadow-md">
                   <span className="font-semibold">{profile.followersCount.toLocaleString()}</span> {t("meta.followers")}
