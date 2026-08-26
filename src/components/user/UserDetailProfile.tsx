@@ -699,25 +699,23 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const hasWeb2SocialProvider = isWeb2SocialProvider(profile?.web2provider) || isWeb2SocialProvider(web2ProviderProp);
   const isWeb2Uid = Boolean(web2IdFilter && !web2IdFilter.startsWith('0x'));
 
-  const isWeb3User = !hasWeb2SocialProvider && !isWeb2Uid && (
-    Boolean(profile?.isWeb3) ||
-    (Boolean(web2IdFilter) && web2IdFilter.startsWith('0x')) ||
-    (Boolean(targetUsername) && targetUsername.startsWith('0x')) ||
-    isWeb3WalletProvider(profile?.web2provider || profile?.web3provider) ||
-    isWeb3WalletProvider(web2ProviderProp || web3ProviderProp) ||
-    Boolean(isWeb3UserProp)
-  );
+  const isWeb3User = isWeb3UserProp !== undefined
+    ? isWeb3UserProp
+    : (!hasWeb2SocialProvider && !isWeb2Uid && (
+        Boolean(profile?.isWeb3) ||
+        (Boolean(web2IdFilter) && web2IdFilter.startsWith('0x')) ||
+        (Boolean(targetUsername) && targetUsername.startsWith('0x')) ||
+        isWeb3WalletProvider(profile?.web2provider || profile?.web3provider || web2ProviderProp || web3ProviderProp)
+      ));
 
-  const isWeb2User = !isWeb3User && (
-    hasWeb2SocialProvider ||
-    isWeb2Uid ||
-    Boolean(profile?.isWeb2) ||
-    Boolean(isWeb2UserProp) ||
-    Boolean(web2IdFilter) ||
-    Boolean(web2CreditsProp) ||
-    Boolean(web2ProviderProp) ||
-    (profile ? Boolean(profile.web2provider) : false)
-  );
+  const isWeb2User = isWeb2UserProp !== undefined
+    ? isWeb2UserProp
+    : (!isWeb3User && (
+        hasWeb2SocialProvider ||
+        isWeb2Uid ||
+        Boolean(profile?.isWeb2) ||
+        (Boolean(web2IdFilter) && !web2IdFilter.startsWith('0x'))
+      ));
   const isProxyUser = isWeb2User || isWeb3User;
 
   // Web2 / Web3 proxy posting credits & limits state
@@ -729,8 +727,12 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setWeb2Credits(web2CreditsProp);
       return;
     }
-    const isWeb2 = Boolean(web2IdFilter) || Boolean(web2CreditsProp) || Boolean(profile?.isWeb2) || Boolean(web2ProviderProp) || Boolean(web2Token) || Boolean(onFetchWeb2Credits);
-    if (!isWeb2) return;
+    if (!isProxyUser) {
+      setWeb2Credits(null);
+      return;
+    }
+    const shouldFetchCredits = Boolean(web2IdFilter) || Boolean(profile?.isWeb2) || Boolean(web2Token) || Boolean(onFetchWeb2Credits) || hasWeb2SocialProvider || isWeb3User;
+    if (!shouldFetchCredits) return;
 
     let cancelled = false;
     async function loadWeb2Credits() {
@@ -765,7 +767,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       cancelled = true;
       window.removeEventListener("web2_post_published", handlePublished);
     };
-  }, [web2CreditsProp, onFetchWeb2Credits, web2Token, web2ApiUrl, isWeb2User, profile?.isWeb2]);
+  }, [web2CreditsProp, onFetchWeb2Credits, web2Token, web2ApiUrl, isProxyUser, isWeb2User, isWeb3User, profile?.isWeb2, web2IdFilter, hasWeb2SocialProvider]);
   const isControlled = controlledActiveTab !== undefined;
   const initialTab: TabType = controlledActiveTab
     ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
@@ -4525,7 +4527,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   >
                     <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </span>
-                  <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />
+                  {isProxyUser && <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />}
                 </button>
               ) : (
                 <div className="relative flex-shrink-0">
@@ -4537,7 +4539,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                       (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
                     }}
                   />
-                  <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />
+                  {isProxyUser && <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />}
                 </div>
               )}
               {/* Name + details */}
