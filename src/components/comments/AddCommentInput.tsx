@@ -246,6 +246,10 @@ export interface PostComposerProps {
    *  and poll toolbar options regardless of the individual `hide*` props —
    *  these are Hive-account-cost features that free web2 users shouldn't
    *  reach. */
+  /** Extra buttons injected into the toolbar right before Help. */
+  extraToolbarButtons?: React.ReactNode;
+  /** Dedicated slot for schedule button / chip in the toolbar. */
+  scheduleSlot?: React.ReactNode;
   isWeb2User?: boolean;
 }
 
@@ -330,6 +334,8 @@ const PostComposer = ({
   walletApprovalLabel = 'Open Keychain App & Approve',
   awaitingWalletApproval = false,
   mentionSeedAccounts,
+  extraToolbarButtons,
+  scheduleSlot,
   isWeb2User = false,
 }: PostComposerProps) => {
   const hideAudio = hideAudioProp;
@@ -1403,6 +1409,9 @@ const PostComposer = ({
             <ThumbsUp className="h-4 w-4" fill={voteEnabled ? 'currentColor' : 'none'} />
           </button>
         )}
+
+        {extraToolbarButtons}
+        {scheduleSlot}
 
         {/* Help — opens a popup that documents every visible toolbar button.
             Always rendered last so users always know where to look for it. */}
