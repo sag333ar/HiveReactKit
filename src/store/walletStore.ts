@@ -327,7 +327,7 @@ function mapHistoryEntryToTransaction(
 ): Transaction | null {
   const [id, tx] = entry;
   const [opType, op] = tx.op;
-  const base = { id, timestamp: tx.timestamp, trx_id: tx.trx_id };
+  const base = { id, timestamp: tx.timestamp, trx_id: tx.trx_id, block: (tx as any).block, op: opType, details: op };
 
   switch (opType) {
     case "transfer":

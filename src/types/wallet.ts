@@ -72,6 +72,9 @@ export interface Transaction {
   to: string;
   memo: string;
   trx_id: string;
+  block?: number;
+  op?: string;
+  details?: Record<string, any>;
 }
 
 export interface WalletStore {

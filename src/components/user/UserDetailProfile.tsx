@@ -3851,6 +3851,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               onStopPowerDown={onStopPowerDown}
               onCancelSavingsWithdrawal={onCancelSavingsWithdrawal}
               onClaimRewards={onClaimRewards}
+              onSelectTransaction={onActivitySelect}
+              onActivitySelect={onActivitySelect}
             />
           )}
         </div>

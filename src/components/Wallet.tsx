@@ -89,6 +89,9 @@ interface WalletProps {
     hbd: string;
     vests: string;
   }) => void | boolean | Promise<void | boolean>;
+  /** Callback when user clicks on a transaction in the transaction history list */
+  onSelectTransaction?: (tx: any) => void;
+  onActivitySelect?: (activity: any) => void;
 }
 
 interface WalletTileProps {
@@ -266,14 +269,42 @@ const TransactionRow: React.FC<{
   tx: Transaction;
   onUserClick?: (username: string) => void;
   getUserUrl?: (username: string) => string;
-}> = ({ tx, onUserClick, getUserUrl }) => {
+  onSelectTransaction?: (tx: any) => void;
+}> = ({ tx, onUserClick, getUserUrl, onSelectTransaction }) => {
   const isSent = tx.type === "sent";
   const otherUser = isSent ? (tx.to && tx.to !== tx.from ? tx.to : (tx.from || tx.to)) : tx.from;
   const meta = describeTx(tx);
   const tip = meta.tipData;
 
   return (
-    <div className="flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0">
+    <div
+      className={`flex items-start gap-2.5 p-2.5 sm:p-3.5 rounded-lg bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] mb-2 transition-all duration-200 hover:bg-[var(--hrk-bg-surface-raised)] hover:border-[var(--hrk-border-default)] min-w-0 ${
+        onSelectTransaction ? "cursor-pointer" : ""
+      }`}
+      onClick={() => {
+        if (onSelectTransaction) {
+          onSelectTransaction({
+            id: tx.trx_id || tx.id,
+            trx_id: tx.trx_id || (tx.id && String(tx.id).length === 40 ? String(tx.id) : ""),
+            block: (tx as any).block || (tx as any).block_num || 0,
+            timestamp: tx.timestamp,
+            op: (tx as any).op || "transfer",
+            type: tx.type || "transfer",
+            details: (tx as any).details || {
+              from: tx.from,
+              to: tx.to,
+              amount: tx.amount,
+              memo: tx.memo,
+            },
+            from: tx.from,
+            to: tx.to,
+            amount: tx.amount,
+            memo: tx.memo,
+            description: `${tx.from} transferred ${tx.amount} to ${tx.to}`,
+          });
+        }
+      }}
+    >
       {/* Avatar with directional badge — replaces the separate arrow column
           so narrow rows don't burn 32px on metadata. */}
       <div className="relative flex-shrink-0">
@@ -1038,6 +1069,8 @@ export const Wallet: React.FC<WalletProps> = ({
   onStopPowerDown,
   onCancelSavingsWithdrawal,
   onClaimRewards,
+  onSelectTransaction,
+  onActivitySelect,
 }) => {
   const {
     walletData,
@@ -1644,6 +1677,7 @@ export const Wallet: React.FC<WalletProps> = ({
                   tx={tx}
                   onUserClick={onUserClick}
                   getUserUrl={getUserUrl}
+                  onSelectTransaction={onSelectTransaction || onActivitySelect}
                 />
               ))}
 
