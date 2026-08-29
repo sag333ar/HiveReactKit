@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Search, X } from 'lucide-react';
 import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { Witness, WitnessFilters, ListOfWitnessesProps, WitnessVote, Account } from '../types/witness';
 import { useWitnessStore } from '../store';
@@ -33,6 +34,8 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
   loadMoreVotes,
   theme = 'dark'
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Intersection Observer for infinite scroll votes
   const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
     if (entries[0].isIntersecting && hasMore && !loadingMore) {
@@ -56,13 +59,25 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
     };
   }, [handleIntersection, scrollContainerRef, sentinelRef]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen, witness]);
+
+  const filteredVotes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return votes;
+    return votes.filter((v) => v.account.toLowerCase().includes(q));
+  }, [votes, searchQuery]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border ${theme === 'dark' ? 'bg-[var(--hrk-bg-app)] border-[var(--hrk-border-subtle)]' : 'bg-white border-[var(--hrk-border-subtle)]'}`}>
         <div className={`flex items-center justify-between p-4 border-b ${theme === 'dark' ? 'border-[var(--hrk-border-subtle)]' : 'border-[var(--hrk-border-subtle)]'}`}>
-          <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>Votes for @{witness} (showing {votes.length})</h3>
+          <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>Votes for @{witness} (showing {filteredVotes.length}{filteredVotes.length !== votes.length ? ` of ${votes.length}` : ''})</h3>
           <button
             onClick={onClose}
             className={`text-xl font-bold ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]' : 'text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]'}`}
@@ -70,26 +85,64 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
             ×
           </button>
         </div>
-        <div ref={scrollContainerRef} className="p-4 overflow-y-auto max-h-[60vh]">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {votes.map((vote, index) => (
-              <div key={vote.account} className={`flex items-center space-x-3 p-3 rounded-lg border ${theme === 'dark' ? 'bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-subtle)]' : 'bg-[var(--hrk-bg-hover)] border-[var(--hrk-border-subtle)]'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${theme === 'dark' ? 'bg-[var(--hrk-bg-hover)] text-white' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)]'}`}>
-                  <img
-                    className="w-8 h-8 rounded-full"
-                    src={`https://images.hive.blog/u/${vote.account}/avatar`}
-                    alt={vote.account}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>{vote.account}</div>
-                  <div className={`text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Vote #{index + 1}</div>
-                </div>
-                <div className={`text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>25</div>
-              </div>
-            ))}
+
+        {/* Local Search Input */}
+        {votes.length > 0 && (
+          <div className={`px-4 pt-3 pb-1`}>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--hrk-text-tertiary)]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search votes by account name…"
+                className={`w-full rounded-lg border py-2 pl-9 pr-9 text-sm placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] ${
+                  theme === 'dark'
+                    ? 'border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] text-white'
+                    : 'border-gray-200 bg-gray-50 text-gray-900'
+                }`}
+                aria-label="Search witness votes"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
+        )}
+
+        <div ref={scrollContainerRef} className="p-4 overflow-y-auto max-h-[60vh]">
+          {filteredVotes.length === 0 && votes.length > 0 ? (
+            <div className={`text-center py-8 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
+              No voters matching “{searchQuery}”
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredVotes.map((vote, index) => (
+                <div key={vote.account} className={`flex items-center space-x-3 p-3 rounded-lg border ${theme === 'dark' ? 'bg-[var(--hrk-bg-surface)] border-[var(--hrk-border-subtle)]' : 'bg-[var(--hrk-bg-hover)] border-[var(--hrk-border-subtle)]'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${theme === 'dark' ? 'bg-[var(--hrk-bg-hover)] text-white' : 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)]'}`}>
+                    <img
+                      className="w-8 h-8 rounded-full"
+                      src={`https://images.hive.blog/u/${vote.account}/avatar`}
+                      alt={vote.account}
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar'; }}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-[var(--hrk-text-primary)]'}`}>{vote.account}</div>
+                    <div className={`text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>Vote #{index + 1}</div>
+                  </div>
+                  <div className={`text-sm ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>25</div>
+                </div>
+              ))}
+            </div>
+          )}
           {votes.length === 0 && !loadingInitial && (
             <div className={`text-center py-8 ${theme === 'dark' ? 'text-[var(--hrk-text-tertiary)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
               No votes found for this witness.
@@ -100,7 +153,7 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
               Loading more votes...
             </div>
           )}
-          {hasMore && !loadingMore && (
+          {hasMore && !loadingMore && !searchQuery && (
             <div className="text-center py-4">
               <button
                 onClick={loadMoreVotes}
@@ -110,7 +163,7 @@ const WitnessVotesModal: React.FC<WitnessVotesModalProps> = ({
               </button>
             </div>
           )}
-          {hasMore && (
+          {hasMore && !searchQuery && (
             <div ref={sentinelRef} className="h-4"></div>
           )}
         </div>

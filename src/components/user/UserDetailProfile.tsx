@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Award,
   Play,
+  Search,
   X as XIcon,
   TrendingUp,
   Shield,
@@ -964,12 +965,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [rewardsStillLoading, setRewardsStillLoading] = useState(false);
   const [followers, setFollowers] = useState<Follower[]>(cached?.followers || []);
   const [following, setFollowing] = useState<Following[]>(cached?.following || []);
+  const [followsSearchQuery, setFollowsSearchQuery] = useState<string>("");
   const [badges, setBadges] = useState<string[]>(cached?.badges || []);
   const [badgeAccounts, setBadgeAccounts] = useState<Account[]>(cached?.badgeAccounts || []);
   const [hivebuzzBadges, setHivebuzzBadges] = useState<any[]>(cached?.hivebuzzBadges || []);
   // HivePosh-linked social accounts (X / Reddit). Drives the header badges.
   const [hiveposh, setHiveposh] = useState<{ twitter?: string; reddit?: string }>(cached?.hiveposh || {});
   const [witnessVotes, setWitnessVotes] = useState<string[]>(cached?.witnessVotes || []);
+  const [witnessVotesSearchQuery, setWitnessVotesSearchQuery] = useState<string>("");
   const [votingPowerData, setVotingPowerData] = useState<{
     upvotePower: number;
     downvotePower: number;
@@ -1937,6 +1940,21 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const filteredComments = useMemo(() => filterPost(comments), [comments, filterPost]);
   const filteredReplies = useMemo(() => filterPost(replies), [replies, filterPost]);
   const filteredPolls = useMemo(() => filterPost(polls), [polls, filterPost]);
+  const filteredFollowers = useMemo(() => {
+    const q = followsSearchQuery.trim().toLowerCase();
+    if (!q) return followers;
+    return followers.filter((f) => f.follower.toLowerCase().includes(q));
+  }, [followers, followsSearchQuery]);
+  const filteredFollowing = useMemo(() => {
+    const q = followsSearchQuery.trim().toLowerCase();
+    if (!q) return following;
+    return following.filter((f) => f.following.toLowerCase().includes(q));
+  }, [following, followsSearchQuery]);
+  const filteredWitnessVotes = useMemo(() => {
+    const q = witnessVotesSearchQuery.trim().toLowerCase();
+    if (!q) return witnessVotes;
+    return witnessVotes.filter((name) => name.toLowerCase().includes(q));
+  }, [witnessVotes, witnessVotesSearchQuery]);
 
   // ─── Load more (next page) ────────────────────────────────────────────
 
@@ -3926,31 +3944,83 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
 
     if (activeTab === "followers") {
+      const isFollowersTab = followsSubTab === "followers";
+      const list = isFollowersTab ? filteredFollowers : filteredFollowing;
+      const rawList = isFollowersTab ? followers : following;
+
       return (
-        <div className="w-full space-y-2">
+        <div className="w-full space-y-3">
           {renderSubTabToggle(
             <>
-              <button type="button" onClick={() => setActiveTab("followers")} className={subTabBtnClass(followsSubTab === "followers")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("followers");
+                  setFollowsSearchQuery("");
+                }}
+                className={subTabBtnClass(followsSubTab === "followers")}
+              >
                 {t("tab.followers") || "Followers"} ({profile.followersCount})
               </button>
-              <button type="button" onClick={() => setActiveTab("following")} className={subTabBtnClass(followsSubTab === "following")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("following");
+                  setFollowsSearchQuery("");
+                }}
+                className={subTabBtnClass(followsSubTab === "following")}
+              >
                 {t("tab.following") || "Following"} ({profile.followingCount})
               </button>
             </>
           )}
+
+          {/* Search bar — matching hivesuite game search style */}
+          {rawList.length > 0 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--hrk-text-tertiary)]" />
+              <input
+                type="text"
+                value={followsSearchQuery}
+                onChange={(e) => setFollowsSearchQuery(e.target.value)}
+                placeholder={isFollowersTab ? "Search followers by username…" : "Search following by username…"}
+                className="w-full rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] py-2 pl-9 pr-9 text-sm text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] transition-colors"
+                aria-label={isFollowersTab ? "Search followers" : "Search following"}
+              />
+              {followsSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setFollowsSearchQuery("")}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)]"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           {loadingContent ? renderUserSkeleton() : (
-            (followsSubTab === "followers" ? followers : following).length === 0 ? (
+            rawList.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
                 <p className="text-[var(--hrk-text-tertiary)]">
-                  {followsSubTab === "followers" ? t("empty.noFollowers") || "No followers yet." : t("empty.notFollowing") || "Not following anyone yet."}
+                  {isFollowersTab ? t("empty.noFollowers") || "No followers yet." : t("empty.notFollowing") || "Not following anyone yet."}
+                </p>
+              </div>
+            ) : list.length === 0 ? (
+              <div className="text-center py-12">
+                <Search className="h-10 w-10 text-[var(--hrk-text-tertiary)] mx-auto mb-3 opacity-60" />
+                <p className="text-[var(--hrk-text-secondary)] font-medium">No results found</p>
+                <p className="text-xs text-[var(--hrk-text-tertiary)] mt-1">
+                  No {isFollowersTab ? "followers" : "following"} matching “{followsSearchQuery}”
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {followsSubTab === "followers"
-                  ? followers.map((f, i) => renderUserItem(f.follower, i))
-                  : following.map((f, i) => renderUserItem(f.following, i))}
+                {isFollowersTab
+                  ? (list as Follower[]).map((f, i) => renderUserItem(f.follower, i))
+                  : (list as Following[]).map((f, i) => renderUserItem(f.following, i))}
               </div>
             )
           )}
@@ -4112,8 +4182,43 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         );
       }
       return (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {witnessVotes.map((name, i) => renderUserItem(name, i))}
+        <div className="w-full space-y-3">
+          {/* Search bar — matching hivesuite game search style */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--hrk-text-tertiary)]" />
+            <input
+              type="text"
+              value={witnessVotesSearchQuery}
+              onChange={(e) => setWitnessVotesSearchQuery(e.target.value)}
+              placeholder="Search witness votes — e.g. “blocktrades”, “gtg”…"
+              className="w-full rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] py-2 pl-9 pr-9 text-sm text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] transition-colors"
+              aria-label="Search witness votes"
+            />
+            {witnessVotesSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setWitnessVotesSearchQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)]"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {filteredWitnessVotes.length === 0 ? (
+            <div className="text-center py-12">
+              <Search className="h-10 w-10 text-[var(--hrk-text-tertiary)] mx-auto mb-3 opacity-60" />
+              <p className="text-[var(--hrk-text-secondary)] font-medium">No results found</p>
+              <p className="text-xs text-[var(--hrk-text-tertiary)] mt-1">
+                No witness votes matching “{witnessVotesSearchQuery}”
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {filteredWitnessVotes.map((name, i) => renderUserItem(name, i))}
+            </div>
+          )}
         </div>
       );
     }
