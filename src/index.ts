@@ -176,6 +176,15 @@ export {
   type SelectionTranslateLanguage,
 } from './i18n/selectionTranslate';
 export {
+  fetchTransliteration,
+  isTransliterationSupported,
+  getTransliterationLanguage,
+  TRANSLITERATION_LANGUAGES,
+  type TransliterationLanguage,
+} from './services/transliterationService';
+export { useTransliteration, type UseTransliterationOptions, type UseTransliterationReturn } from './hooks/useTransliteration';
+export { TransliterationMenu, type TransliterationMenuProps } from './components/composer/TransliterationMenu';
+export {
   buildCommentOptions,
   REWARD_OPTIONS,
   REWARD_OPTION_LABELS,

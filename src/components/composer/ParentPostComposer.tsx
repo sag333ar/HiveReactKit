@@ -45,12 +45,23 @@ import {
   Users,
   Video,
   X,
+  Languages,
+  RotateCcw,
 } from 'lucide-react';
 import { createHiveRenderer } from '@snapie/renderer';
 import { ThreeSpeakPlayer } from '../ThreeSpeakPlayer';
 import { TranslatedBody } from '../TranslatedBody';
 import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from '../comments/MentionSuggest';
 import { parseHiveFrontendUrl } from '@/utils/hiveLinks';
+import {
+  translateSelection,
+  DEFAULT_TRANSLATE_LANGUAGES,
+  getPreferredTranslateLanguage,
+  setPreferredTranslateLanguage,
+} from '../../i18n/selectionTranslate';
+import { useTransliteration } from '../../hooks/useTransliteration';
+import TransliterationMenu from './TransliterationMenu';
+import { isTransliterationSupported } from '../../services/transliterationService';
 import {
   REWARD_OPTIONS,
   REWARD_OPTION_LABELS,
@@ -564,6 +575,43 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = isSubmitting;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [isTranslateOpen, setIsTranslateOpen] = useState(false);
+  const [translateLang, setTranslateLang] = useState(getPreferredTranslateLanguage);
+  const [typeToTranslate, setTypeToTranslate] = useState(true);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [preTranslateBody, setPreTranslateBody] = useState<string | null>(null);
+
+  const handleTranslateBody = async () => {
+    if (!body.trim()) return;
+    setIsTranslating(true);
+    try {
+      const res = await translateSelection(body, translateLang);
+      if (res && res !== body) {
+        setPreTranslateBody(body);
+        setBody(res);
+      }
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleUndoTranslateBody = () => {
+    if (preTranslateBody !== null) {
+      setBody(preTranslateBody);
+      setPreTranslateBody(null);
+    }
+  };
+
+  const isTranslitSupported = isTransliterationSupported(translateLang);
+
+  const transliteration = useTransliteration({
+    language: translateLang,
+    enabled: isTranslateOpen && typeToTranslate && isTranslitSupported,
+    textareaRef,
+    value: body,
+    onChange: setBody,
+  });
 
   // Mention autocomplete: empty seed by default since a brand-new
   // parent post has no upstream body. Consumer can pass a curated list
@@ -2353,6 +2401,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   </button>
                 )}
 
+                {/* Language / Type-to-Translate button */}
+                <button
+                  type="button"
+                  onClick={() => setIsTranslateOpen((v) => !v)}
+                  className={`${toolbarBtnClass} ${isTranslateOpen ? 'text-[#e31337]' : ''}`}
+                  title="Type-to-Translate / Language transliteration"
+                  disabled={isDisabled}
+                >
+                  <Languages className="h-4 w-4" />
+                </button>
+
                 {/* Help — opens a popup describing every toolbar button.
                     Always rendered last so users always know where to look. */}
                 <button
@@ -2364,6 +2423,80 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   <HelpCircle className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Inline translate options bar */}
+              {isTranslateOpen && (
+                <div className="flex flex-col gap-2 px-3 py-2 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Languages className="w-4 h-4 text-[#e31337]" />
+                      <span className="text-[var(--hrk-text-secondary)] font-medium">Language:</span>
+                      <select
+                        value={translateLang}
+                        onChange={(e) => {
+                          setTranslateLang(e.target.value);
+                          setPreferredTranslateLanguage(e.target.value);
+                        }}
+                        disabled={isTranslating || isDisabled}
+                        className="bg-[#24282d] text-white border border-[#3a424a] rounded px-2 py-1 text-xs focus:outline-none focus:border-[#e31337]"
+                      >
+                        {DEFAULT_TRANSLATE_LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                      {isTranslitSupported && (
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-[var(--hrk-text-secondary)] ml-2">
+                          <input
+                            type="checkbox"
+                            checked={typeToTranslate}
+                            onChange={(e) => setTypeToTranslate(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-[#3a424a] bg-[#24282d] text-[#e31337] focus:ring-[#e31337]"
+                          />
+                          <span>Type-to-Translate</span>
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTranslateBody}
+                        disabled={isTranslating || isDisabled || !body.trim()}
+                        className="px-3 py-1 bg-[#e31337] hover:bg-[#c00f2d] text-white rounded font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                        title="Translate existing text in editor"
+                      >
+                        {isTranslating && <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                        <span>{isTranslating ? 'Translating...' : 'Translate post'}</span>
+                      </button>
+                      {preTranslateBody !== null && preTranslateBody !== body && (
+                        <button
+                          type="button"
+                          onClick={handleUndoTranslateBody}
+                          className="text-amber-400 hover:text-amber-300 underline font-medium px-1 flex items-center gap-1"
+                          title="Restore original text before translation"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Undo</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsTranslateOpen(false)}
+                        className="text-[#9ca3b0] hover:text-white p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {isTranslitSupported && typeToTranslate && (
+                    <div className="text-[11px] text-[#9ca3b0] flex items-center gap-1.5 pt-1 border-t border-[#2d343c]/60">
+                      <span className="text-emerald-400 font-medium">✨ Type-to-Translate active:</span>
+                      <span>Type phonetic English (e.g. <code className="text-white font-mono bg-[#161a1e] px-1 rounded">ham</code>) to get {DEFAULT_TRANSLATE_LANGUAGES.find(l => l.code === translateLang)?.label || 'native'} suggestions.</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Audio preview */}
               {audioEmbedUrl && (
@@ -2616,6 +2749,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                             });
                           }
                         }
+                        return;
+                      }
+                      if (transliteration.handleKeyDown(e)) {
+                        return;
                       }
                     }}
                     onPaste={handlePaste}
@@ -2633,6 +2770,19 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     // the screen on phones.
                     className="block w-full h-[480px] sm:h-[560px] lg:h-[640px] p-3 border border-[var(--hrk-border-subtle)] rounded-lg resize-none focus:ring-2 focus:ring-[var(--hrk-info)] focus:border-[var(--hrk-info)] bg-[var(--hrk-bg-surface)] text-white placeholder-[var(--hrk-text-tertiary)] disabled:opacity-50 text-sm font-mono leading-relaxed overflow-y-auto"
                   />
+
+                  {/* Type-to-Translate phonetic transliteration suggestion popup */}
+                  <TransliterationMenu
+                    isOpen={transliteration.isOpen}
+                    query={transliteration.query}
+                    suggestions={transliteration.suggestions}
+                    selectedIndex={transliteration.selectedIndex}
+                    position={transliteration.position}
+                    onSelect={(s) => transliteration.selectSuggestion(s, true)}
+                    onNavigate={transliteration.navigateSuggestion}
+                    onClose={transliteration.closeMenu}
+                  />
+
                   {mentions.active && (
                     <div
                       className="absolute z-30"

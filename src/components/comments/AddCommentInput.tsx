@@ -41,6 +41,9 @@ import { TemplateModel, templateService } from '../../services/templateService';
 import { uploadImageWithFallback, type PostingSignMessageFn } from '../../services/hiveImageUpload';
 import { createHiveRenderer } from '@snapie/renderer';
 import { caretOffsetInTextarea, MentionSuggest, useMentionAutocomplete } from './MentionSuggest';
+import { useTransliteration } from '../../hooks/useTransliteration';
+import TransliterationMenu from '../composer/TransliterationMenu';
+import { isTransliterationSupported } from '../../services/transliterationService';
 
 // Built and maintained by this account — the hivesuite.app beneficiary
 // (funds running the app on everyone else's behalf) is waived for them,
@@ -379,6 +382,7 @@ const PostComposer = ({
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [isTranslateOpen, setIsTranslateOpen] = useState(false);
   const [translateLang, setTranslateLang] = useState(getPreferredTranslateLanguage);
+  const [typeToTranslate, setTypeToTranslate] = useState(true);
   const [isTranslating, setIsTranslating] = useState(false);
   const [preTranslateBody, setPreTranslateBody] = useState<string | null>(null);
 
@@ -404,6 +408,16 @@ const PostComposer = ({
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
+
+  const isTranslitSupported = isTransliterationSupported(translateLang);
+
+  const transliteration = useTransliteration({
+    language: translateLang,
+    enabled: isTranslateOpen && typeToTranslate && isTranslitSupported,
+    textareaRef,
+    value: body,
+    onChange: setBody,
+  });
 
   // Mention autocomplete: parent author first, then any account
   // explicitly mentioned by the consumer via `mentionSeedAccounts`
@@ -1427,55 +1441,75 @@ const PostComposer = ({
 
       {/* Inline translate options bar */}
       {isTranslateOpen && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg text-xs my-2">
-          <div className="flex items-center gap-2">
-            <Languages className="w-4 h-4 text-[#e31337]" />
-            <span className="text-[var(--hrk-text-secondary)] font-medium">Translate reply to:</span>
-            <select
-              value={translateLang}
-              onChange={(e) => {
-                setTranslateLang(e.target.value);
-                setPreferredTranslateLanguage(e.target.value);
-              }}
-              disabled={isTranslating || isDisabled}
-              className="bg-[#24282d] text-white border border-[#3a424a] rounded px-2 py-1 text-xs focus:outline-none focus:border-[#e31337]"
-            >
-              {DEFAULT_TRANSLATE_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleTranslateBody}
-              disabled={isTranslating || isDisabled || !body.trim()}
-              className="px-3 py-1 bg-[#e31337] hover:bg-[#c00f2d] text-white rounded font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5"
-            >
-              {isTranslating && <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              <span>{isTranslating ? 'Translating...' : 'Translate'}</span>
-            </button>
-            {preTranslateBody !== null && preTranslateBody !== body && (
+        <div className="flex flex-col gap-2 px-3 py-2 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg text-xs my-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Languages className="w-4 h-4 text-[#e31337]" />
+              <span className="text-[var(--hrk-text-secondary)] font-medium">Language:</span>
+              <select
+                value={translateLang}
+                onChange={(e) => {
+                  setTranslateLang(e.target.value);
+                  setPreferredTranslateLanguage(e.target.value);
+                }}
+                disabled={isTranslating || isDisabled}
+                className="bg-[#24282d] text-white border border-[#3a424a] rounded px-2 py-1 text-xs focus:outline-none focus:border-[#e31337]"
+              >
+                {DEFAULT_TRANSLATE_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              {isTranslitSupported && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] text-[var(--hrk-text-secondary)] ml-2">
+                  <input
+                    type="checkbox"
+                    checked={typeToTranslate}
+                    onChange={(e) => setTypeToTranslate(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-[#3a424a] bg-[#24282d] text-[#e31337] focus:ring-[#e31337]"
+                  />
+                  <span>Type-to-Translate</span>
+                </label>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleUndoTranslateBody}
-                className="text-amber-400 hover:text-amber-300 underline font-medium px-1 flex items-center gap-1"
-                title="Restore original text before translation"
+                onClick={handleTranslateBody}
+                disabled={isTranslating || isDisabled || !body.trim()}
+                className="px-3 py-1 bg-[#e31337] hover:bg-[#c00f2d] text-white rounded font-medium disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                title="Translate existing text in editor"
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>Undo</span>
+                {isTranslating && <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                <span>{isTranslating ? 'Translating...' : 'Translate text'}</span>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsTranslateOpen(false)}
-              className="text-[#9ca3b0] hover:text-white p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              {preTranslateBody !== null && preTranslateBody !== body && (
+                <button
+                  type="button"
+                  onClick={handleUndoTranslateBody}
+                  className="text-amber-400 hover:text-amber-300 underline font-medium px-1 flex items-center gap-1"
+                  title="Restore original text before translation"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Undo</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsTranslateOpen(false)}
+                className="text-[#9ca3b0] hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+          {isTranslitSupported && typeToTranslate && (
+            <div className="text-[11px] text-[#9ca3b0] flex items-center gap-1.5 pt-1 border-t border-[#2d343c]/60">
+              <span className="text-emerald-400 font-medium">✨ Type-to-Translate active:</span>
+              <span>Type phonetic English (e.g. <code className="text-white font-mono bg-[#161a1e] px-1 rounded">ham</code>) to get {DEFAULT_TRANSLATE_LANGUAGES.find(l => l.code === translateLang)?.label || 'native'} suggestions.</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1599,6 +1633,9 @@ const PostComposer = ({
                 }
                 return;
               }
+              if (transliteration.handleKeyDown(e)) {
+                return;
+              }
               handleKeyDown(e);
             }}
             onPaste={handlePaste}
@@ -1612,6 +1649,19 @@ const PostComposer = ({
               target.style.height = target.scrollHeight + 'px';
             }}
           />
+
+          {/* Type-to-Translate phonetic transliteration suggestion popup */}
+          <TransliterationMenu
+            isOpen={transliteration.isOpen}
+            query={transliteration.query}
+            suggestions={transliteration.suggestions}
+            selectedIndex={transliteration.selectedIndex}
+            position={transliteration.position}
+            onSelect={(s) => transliteration.selectSuggestion(s, true)}
+            onNavigate={transliteration.navigateSuggestion}
+            onClose={transliteration.closeMenu}
+          />
+
           {/* Mention autocomplete — anchored just below the line the
               caret is on so the dropdown never covers the user's
               typed `@…` token. `caretOffsetInTextarea` derives the
