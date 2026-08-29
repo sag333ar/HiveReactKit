@@ -47,8 +47,13 @@ export {
 export {
   getWeb2Identity,
   Web2ProviderBadge,
+  TwitterEmbed,
+  stripFirstContextLink,
+  extractFirstContextTwitterId,
+  isFirstContextPost,
   type Web2Identity,
 } from './components/feed/AttachmentStrip';
+export * from './utils/firstContext';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';
 export { default as FollowingList } from './components/FollowingList';

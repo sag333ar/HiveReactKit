@@ -183,6 +183,7 @@ import {
   getWeb2Identity,
   Web2ProviderBadge,
   stripViaAppsCredit,
+  stripFirstContextLink,
   TWITTER_REGEX,
   YOUTUBE_REGEX,
   THREE_SPEAK_REGEX,
@@ -334,10 +335,12 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const reSnapTargetKey = reSnapTarget ? `${reSnapTarget.author}/${reSnapTarget.permlink}` : null;
   const [visibleReSnapKey, setVisibleReSnapKey] = useState<string | null>(null);
   const shouldStripReSnapUrl = !!reSnapTargetKey && visibleReSnapKey === reSnapTargetKey;
-  const bodyForContent = useMemo(
-    () => shouldStripReSnapUrl ? stripHivePostReference(post.body ?? '', reSnapTarget) : (post.body ?? ''),
-    [post.body, reSnapTarget, shouldStripReSnapUrl],
-  );
+  const bodyForContent = useMemo(() => {
+    const raw = shouldStripReSnapUrl
+      ? stripHivePostReference(post.body ?? '', reSnapTarget)
+      : (post.body ?? '');
+    return stripFirstContextLink(raw);
+  }, [post.body, reSnapTarget, shouldStripReSnapUrl]);
   const parsed = useMemo(
     () => parseBody({ ...post, body: bodyForContent }),
     [post, bodyForContent],
@@ -408,10 +411,8 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     if (!raw || !renderHive) return '';
     let body = raw;
 
-    // Strip trailing "via Apps from <url>" attribution (sub/markdown/plain
-    // forms — see `stripViaAppsCredit`). LikeTu / hivesuite Snaps cards
-    // should never show the trailer.
-    body = stripViaAppsCredit(body);
+    // Strip trailing "via Apps from <url>" attribution and FirstContext link wrappers
+    body = stripFirstContextLink(stripViaAppsCredit(body));
 
     // Hive post bodies routinely use `<br>` instead of real newlines,
     // which kills GFM block parsing — tables, lists, blockquotes all

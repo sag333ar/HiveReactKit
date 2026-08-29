@@ -53,10 +53,42 @@ export function extractPostMedia(post: Post): PostMedia[] {
 
   // Images declared in json_metadata.image first (these are the post's
   // canonical thumbnails — usually the cover image).
-  const meta = post.json_metadata as { image?: string[] } | string | undefined;
-  if (meta && typeof meta === 'object' && Array.isArray(meta.image)) {
-    for (const u of meta.image) {
-      if (typeof u === 'string' && u) media.push({ kind: 'image', url: u });
+  let parsedMeta: Record<string, unknown> | null = null;
+  if (typeof post.json_metadata === 'string') {
+    try {
+      parsedMeta = JSON.parse(post.json_metadata) as Record<string, unknown>;
+    } catch {
+      parsedMeta = null;
+    }
+  } else if (post.json_metadata && typeof post.json_metadata === 'object') {
+    parsedMeta = post.json_metadata as Record<string, unknown>;
+  }
+
+  if (parsedMeta) {
+    if (Array.isArray(parsedMeta.image)) {
+      for (const u of parsedMeta.image) {
+        if (typeof u === 'string' && u) media.push({ kind: 'image', url: u });
+      }
+    }
+    // Check FirstContext / general contentUrl for Twitter/X, YouTube, or 3Speak
+    if (typeof parsedMeta.contentUrl === 'string' && parsedMeta.contentUrl) {
+      const cu = parsedMeta.contentUrl;
+      const twMatch = TWITTER.exec(cu);
+      if (twMatch) {
+        media.push({ kind: 'twitter', id: twMatch[1], url: cu });
+      }
+      TWITTER.lastIndex = 0;
+      const ytMatch = YOUTUBE.exec(cu);
+      if (ytMatch) {
+        const yId = (ytMatch[1] || ytMatch[2] || ytMatch[3])!;
+        if (yId) media.push({ kind: 'youtube', id: yId });
+      }
+      YOUTUBE.lastIndex = 0;
+      const tsMatch = THREE_SPEAK.exec(cu);
+      if (tsMatch) {
+        media.push({ kind: 'threespeak', url: cu });
+      }
+      THREE_SPEAK.lastIndex = 0;
     }
   }
 

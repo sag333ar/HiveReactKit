@@ -15,6 +15,9 @@ import {
 import type { Post } from '@/types/post';
 import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
 import { IPFS_URL_REGEX, useIpfsKind } from '../IpfsMedia';
+import { stripFirstContextLink, extractFirstContextTwitterId, isFirstContextPost } from '@/utils/firstContext';
+
+export { stripFirstContextLink, extractFirstContextTwitterId, isFirstContextPost };
 
 export interface AttachmentStripProps {
   attachments: Attachment[];
@@ -284,7 +287,7 @@ export function stripViaAppsCredit(body: string): string {
 }
 
 export function parseBody(post: Post): ParsedBody {
-  const raw = stripViaAppsCredit(post.body ?? '');
+  const raw = stripFirstContextLink(stripViaAppsCredit(post.body ?? ''));
 
   const imageUrls: string[] = [];
   let m: RegExpExecArray | null;
@@ -312,6 +315,12 @@ export function parseBody(post: Post): ParsedBody {
   const twitterIds: string[] = [];
   while ((m = TWITTER_REGEX.exec(raw))) twitterIds.push(m[1]);
 
+  // Check FirstContext contentUrl / metadata for Twitter/X ID
+  const fcTwitterId = extractFirstContextTwitterId(post.json_metadata, post.body);
+  if (fcTwitterId && !twitterIds.includes(fcTwitterId)) {
+    twitterIds.push(fcTwitterId);
+  }
+
   const spotifyUrls: string[] = [];
   while ((m = SPOTIFY_REGEX.exec(raw))) spotifyUrls.push(m[0]);
 
@@ -338,11 +347,11 @@ export function parseBody(post: Post): ParsedBody {
   });
 
   const attachments: Attachment[] = [
+    ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
     ...uniqueImageUrls.map((url) => ({ kind: 'image' as const, url })),
     ...ipfsUrlsFiltered.map((url) => ({ kind: 'ipfs' as const, url })),
     ...uniq(youtubeIds).map((id) => ({ kind: 'youtube' as const, id })),
     ...uniq(threeSpeakUrls).map((url) => ({ kind: 'threespeak' as const, url })),
-    ...uniq(twitterIds).map((id) => ({ kind: 'twitter' as const, id })),
     ...uniq(threeSpeakAudioUrls).map((url) => ({ kind: '3speak-audio' as const, url })),
     ...uniq(audioUrls).map((url) => ({ kind: 'audio' as const, url })),
     ...uniq(spotifyUrls).map((url) => ({ kind: 'spotify' as const, url })),

@@ -52,7 +52,7 @@ import { TranslatedText } from './TranslatedText';
 import { IPFS_URL_REGEX, IpfsMedia } from './IpfsMedia';
 import { HiveLink } from './common/HiveLink';
 import ReSnapEmbed from './feed/ReSnapEmbed';
-import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX, getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
+import { ODYSEE_REGEX, buildOdyseeEmbedUrl, YOUTUBE_REGEX, TWITTER_REGEX, TwitterEmbed, getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
 import { extractMentionsFromBody } from '../services/mentionService';
 import { PostVersionHistoryModal } from './PostVersionHistoryModal';
 import { PostRawViewModal } from './PostRawViewModal';
@@ -61,6 +61,7 @@ import { extractWorldMappinPin, stripWorldMappinMarkers } from '../utils/worldMa
 import { useTranslatedText } from '@/i18n/useTranslatedText';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import { extractPostMedia } from '@/utils/postMedia';
+import { stripFirstContextLink, extractFirstContextTwitterId } from '@/utils/firstContext';
 import { DEFAULT_TRANSLATE_LANGUAGES } from '@/i18n/selectionTranslate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1081,10 +1082,12 @@ export function HiveDetailPost({
   }, [reSnapTargetKey]);
   const shouldStripReSnapUrl = false;
 
-  const bodyForContent = useMemo(
-    () => shouldStripReSnapUrl ? stripHivePostReference(processedBody, reSnapTarget) : processedBody,
-    [processedBody, reSnapTarget, shouldStripReSnapUrl],
-  );
+  const bodyForContent = useMemo(() => {
+    const raw = shouldStripReSnapUrl
+      ? stripHivePostReference(processedBody, reSnapTarget)
+      : processedBody;
+    return stripFirstContextLink(raw);
+  }, [processedBody, reSnapTarget, shouldStripReSnapUrl]);
 
   // WorldMappin geo-pin: posts embed `[//]:# (!worldmappin <lat> lat <lng>
   // long <descr> d3scr)` to declare a location. Extract the first pin so we
@@ -1119,11 +1122,17 @@ export function HiveDetailPost({
   const embeddedImageUrls = useMemo<Set<string>>(() => {
     if (!bodyForContent) return new Set();
     const set = new Set<string>();
+    const mdImgRe = /!\[[^\]]*\]\(([^)]+)\)/g;
     let m: RegExpExecArray | null;
-    const mdImgRe = /!\[[^\]]*\]\(([^\s)]+)\)/g;
-    while ((m = mdImgRe.exec(bodyForContent))) set.add(m[1].trim());
-    const htmlImgRe = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-    while ((m = htmlImgRe.exec(bodyForContent))) set.add(m[1].trim());
+    while ((m = mdImgRe.exec(bodyForContent)) !== null) {
+      const src = m[1].split(' ')[0].trim();
+      if (src) set.add(src);
+    }
+    const htmlImgRe = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
+    while ((m = htmlImgRe.exec(bodyForContent)) !== null) {
+      const src = m[1].trim();
+      if (src) set.add(src);
+    }
     return set;
   }, [bodyForContent]);
 
@@ -1149,6 +1158,33 @@ export function HiveDetailPost({
     }
     return out;
   }, [bodyForContent, embeddedImageUrls]);
+
+  // Extract Twitter / X status IDs from json_metadata.contentUrl and bodyForContent
+  const twitterBodyRefs = useMemo<string[]>(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+
+    // 1) Check FirstContext contentUrl from metadata
+    const metaTwitterId = extractFirstContextTwitterId(displayParsedMetadata, displayPost?.body);
+    if (metaTwitterId) {
+      seen.add(metaTwitterId);
+      out.push(metaTwitterId);
+    }
+
+    if (!bodyForContent) return out;
+
+    // 2) Catch bare/markdown Twitter & X.com status URLs in body
+    const twRe = new RegExp(TWITTER_REGEX.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = twRe.exec(bodyForContent)) !== null) {
+      const id = m[1];
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    }
+    return out;
+  }, [displayParsedMetadata, displayPost?.body, bodyForContent]);
 
   /** Odysee / LBRY videos embedded as <iframe src="https://odysee.com/$/embed/...">.
    *  The @snapie/renderer strips these iframes (Odysee is not on its allowlist),
@@ -1348,6 +1384,15 @@ export function HiveDetailPost({
         new RegExp(YOUTUBE_REGEX.source, YOUTUBE_REGEX.flags),
         '',
       );
+
+      // Strip FirstContext link and Twitter/X URLs from the body — they are rendered
+      // as dedicated players via `twitterBodyRefs` above.
+      safeBody = stripFirstContextLink(safeBody);
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/\s]+\/status\/\d+[^\s)]*/gi,
+        '',
+      );
+
       let html = renderMarkdown(safeBody);
       // Belt-and-suspenders: drop any leftover "(Unsupported …)" the
       // renderer produced for an IPFS URL we couldn't pre-strip.
@@ -2819,6 +2864,17 @@ export function HiveDetailPost({
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Twitter / X.com embeds pulled from body URLs or FirstContext json_metadata.contentUrl */}
+            {twitterBodyRefs.length > 0 && (
+              <div className="space-y-3 pb-4">
+                {twitterBodyRefs.map((id) => (
+                  <div key={id} className="flex justify-center">
+                    <TwitterEmbed id={id} />
                   </div>
                 ))}
               </div>
