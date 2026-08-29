@@ -29,6 +29,7 @@ import {
   ChevronRight,
   Award,
   Play,
+  Repeat2,
   Search,
   X as XIcon,
   TrendingUp,
@@ -65,6 +66,7 @@ import ProfileSnapsTab from "./ProfileSnapsTab";
 import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
 import { getWeb2Identity, Web2ProviderBadge } from "../feed/AttachmentStrip";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
+import { getRebloggedBy, getRebloggedByList } from "../../utils/reblogUtils";
 import { MediaLightbox } from "../MediaLightbox";
 import { HiveLink } from "../common/HiveLink";
 import { getHiveApiEndpoint, getGlobalPostFilter, subscribeGlobalPostFilter } from "../../config/hiveEndpoint";
@@ -2447,12 +2449,35 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes);
     const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
+    const rebloggedBy = getRebloggedBy(item);
+    const reblogList = getRebloggedByList(item);
+
     return (
       <div
         key={`${item.author}/${item.permlink}`}
         className={`rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] ${onItemClick ? "cursor-pointer" : ""}`}
         onClick={onItemClick}
       >
+        {/* Reblog indicator banner */}
+        {rebloggedBy && (
+          <div className="flex items-center gap-1.5 px-3 pt-2.5 sm:px-4 sm:pt-3 text-[11px] sm:text-xs font-medium text-[var(--hrk-text-secondary)] border-b border-[var(--hrk-border-subtle)]/40 pb-1.5 bg-[var(--hrk-bg-app)]/30">
+            <Repeat2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <span className="text-[var(--hrk-text-tertiary)]">Reblogged by</span>
+            <HiveLink
+              href={getUserUrl?.(rebloggedBy)}
+              onActivate={() => onUserClick?.(rebloggedBy)}
+              className="font-semibold text-white hover:text-blue-400 hover:underline"
+            >
+              @{rebloggedBy}
+            </HiveLink>
+            {reblogList.length > 1 && (
+              <span className="text-[var(--hrk-text-tertiary)] text-[10px]">
+                +{reblogList.length - 1} other{reblogList.length > 2 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Body row: text on the left, image strip on the right. The
             image column uses `self-stretch` so it always fills the
             full height of the text column — taller bodies push the

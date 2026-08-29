@@ -63,6 +63,9 @@ export interface Post {
   permlink: string;
   post_id: number;
   reblogs: number;
+  reblogged_by?: string[] | string;
+  first_reblogged_by?: string;
+  reblog_by?: string[];
   replies: any[];
   stats: PostStats;
   title: string;

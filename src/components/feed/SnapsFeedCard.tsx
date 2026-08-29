@@ -16,12 +16,14 @@
  * the host app owns the data plane.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react';
+import { Repeat2 } from 'lucide-react';
 import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
 import { getReputationDetails } from '@/utils/reputation';
+import { getRebloggedBy, getRebloggedByList } from '@/utils/reblogUtils';
 import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
@@ -568,9 +570,31 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     optedOutAuthors,
   });
   const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined);
+  const rebloggedBy = getRebloggedBy(post);
+  const reblogList = getRebloggedByList(post);
 
   return (
     <article className="overflow-hidden rounded-xl border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)]">
+      {/* Re-snap / reblog indicator banner */}
+      {rebloggedBy && (
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-1.5 text-xs font-medium text-[var(--hrk-text-secondary)] border-b border-[var(--hrk-border-subtle)]/40 bg-[var(--hrk-bg-app)]/30">
+          <Repeat2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+          <span className="text-[var(--hrk-text-tertiary)]">Re-snapped by</span>
+          <HiveLink
+            href={getUserUrl?.(rebloggedBy)}
+            onActivate={() => onUserClick?.(rebloggedBy)}
+            className="font-semibold text-[var(--hrk-text-primary)] hover:text-[var(--hrk-brand)] hover:underline"
+          >
+            @{rebloggedBy}
+          </HiveLink>
+          {reblogList.length > 1 && (
+            <span className="text-[var(--hrk-text-tertiary)] text-[10px]">
+              +{reblogList.length - 1} other{reblogList.length > 2 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center gap-3 px-4 pt-4 pb-2">
         <HiveLink

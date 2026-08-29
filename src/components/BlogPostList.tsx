@@ -14,7 +14,7 @@
  * module later if more lists need them.
  */
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin, Repeat2 } from 'lucide-react';
 import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
@@ -24,6 +24,7 @@ import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
 import { extractPostMedia, type PostMedia } from '../utils/postMedia';
+import { getRebloggedBy, getRebloggedByList } from '../utils/reblogUtils';
 import { MediaLightbox } from './MediaLightbox';
 import { HiveLink } from './common/HiveLink';
 import { getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
@@ -563,12 +564,35 @@ export const BlogPostList: FC<BlogPostListProps> = ({
         const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined);
         const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
+        const rebloggedBy = getRebloggedBy(item);
+        const reblogList = getRebloggedByList(item);
+
         return (
           <div
             key={`${item.author}/${item.permlink}`}
             className={`group overflow-hidden rounded-[14px] border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] transition-[background-color,border-color] duration-150 ease-out hover:border-[var(--hrk-border-default)] hover:bg-[var(--hrk-bg-surface-raised)] ${handleClick ? 'cursor-pointer' : ''}`}
             onClick={handleClick}
           >
+            {/* Reblog indicator banner */}
+            {rebloggedBy && (
+              <div className="flex items-center gap-1.5 px-3 pt-2.5 sm:px-4 sm:pt-3 text-[11px] sm:text-xs font-medium text-[var(--hrk-text-secondary)] border-b border-[var(--hrk-border-subtle)]/40 pb-1.5 bg-[var(--hrk-bg-app)]/30">
+                <Repeat2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="text-[var(--hrk-text-tertiary)]">Reblogged by</span>
+                <HiveLink
+                  href={getUserUrl?.(rebloggedBy)}
+                  onActivate={() => onUserClick?.(rebloggedBy)}
+                  className="font-semibold text-white hover:text-[var(--hrk-brand)] hover:underline"
+                >
+                  @{rebloggedBy}
+                </HiveLink>
+                {reblogList.length > 1 && (
+                  <span className="text-[var(--hrk-text-tertiary)] text-[10px]">
+                    +{reblogList.length - 1} other{reblogList.length > 2 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Body row: text on the left, image on the right. The image
                 column uses `self-stretch` so it always covers the full
                 height of the text column — taller bodies make the

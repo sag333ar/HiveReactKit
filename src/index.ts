@@ -184,6 +184,7 @@ export {
 } from './services/transliterationService';
 export { useTransliteration, type UseTransliterationOptions, type UseTransliterationReturn } from './hooks/useTransliteration';
 export { TransliterationMenu, type TransliterationMenuProps } from './components/composer/TransliterationMenu';
+export { getRebloggedBy, getRebloggedByList } from './utils/reblogUtils';
 export {
   buildCommentOptions,
   REWARD_OPTIONS,
