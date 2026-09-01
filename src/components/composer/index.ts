@@ -1,5 +1,5 @@
 export { default as ImageUploader } from './ImageUploader'
-export type { ImageUploaderProps } from './ImageUploader'
+export type { ImageUploaderProps, ImageUploaderRef } from './ImageUploader'
 
 export { default as AudioUploader } from './AudioUploader'
 export type { AudioUploaderProps } from './AudioUploader'

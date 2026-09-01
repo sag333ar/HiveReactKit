@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useImperativeHandle, useRef, useState, useCallback } from "react";
 import { Image, X, Loader2, Crop as CropIcon, EyeOff } from "lucide-react";
 import { uploadImageWithFallback, type PostingSignMessageFn } from "../../services/hiveImageUpload";
 import { prepareImageForUpload, cropImage, type CropRect, type BlurRect } from "../../utils/imageProcessor";
@@ -38,6 +38,13 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+export interface ImageUploaderRef {
+  /** Stage an image file (from drag-drop or paste) and open preview modal with crop/blur options */
+  stageFile: (file: File) => Promise<void>;
+  /** Trigger the hidden file input programmatically */
+  openFileInput: () => void;
+}
+
 export interface ImageUploaderProps {
   /** Called with the uploaded image URL */
   onImageUploaded: (imageUrl: string) => void;
@@ -63,7 +70,7 @@ export interface ImageUploaderProps {
   maxImageDimension?: number;
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({
+const ImageUploader = React.forwardRef<ImageUploaderRef, ImageUploaderProps>(({
   onImageUploaded,
   threeSpeakToken,
   encoderUrl,
@@ -74,7 +81,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   walletApprovalLabel = 'Open Keychain App & Approve',
   disabled = false,
   maxImageDimension,
-}) => {
+}, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -98,16 +105,28 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     };
   }, [previewUrl]);
 
-  const cancelInFlight = () => {
+  const cancelInFlight = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
     setIsAwaitingApproval(false);
     onSigningStateChange?.(false);
-  };
+  }, [onSigningStateChange]);
 
-  const stageFile = async (file: File) => {
+  const stageFile = useCallback(async (file: File) => {
+    cancelInFlight();
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      // 25 MB cap on the *source* — we'll downsize before upload, but
+      // anything bigger than this is almost certainly a misclick.
+      setError("File size must be less than 25MB");
+      return;
+    }
+    setError(null);
     setIsProcessing(true);
     try {
       const prepared = await prepareImageForUpload(file, { maxDimension: maxImageDimension });
@@ -125,23 +144,20 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [cancelInFlight, maxImageDimension]);
+
+  useImperativeHandle(ref, () => ({
+    stageFile,
+    openFileInput: () => {
+      if (!disabled && !isUploading) {
+        fileInputRef.current?.click();
+      }
+    },
+  }), [stageFile, disabled, isUploading]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    cancelInFlight();
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file");
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      // 25 MB cap on the *source* — we'll downsize before upload, but
-      // anything bigger than this is almost certainly a misclick.
-      setError("File size must be less than 25MB");
-      return;
-    }
-    setError(null);
     await stageFile(file);
   };
 
@@ -346,6 +362,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       )}
     </div>
   );
-};
+});
 
 export default ImageUploader;

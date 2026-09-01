@@ -18,7 +18,7 @@ import {
   enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
-import ImageUploader from '../composer/ImageUploader';
+import ImageUploader, { type ImageUploaderRef } from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
 import VideoUploader from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
@@ -408,6 +408,7 @@ const PostComposer = ({
   };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragCounterRef = useRef(0);
+  const imageUploaderRef = useRef<ImageUploaderRef>(null);
 
   const isTranslitSupported = isTransliterationSupported(translateLang);
 
@@ -884,14 +885,13 @@ const PostComposer = ({
         e.preventDefault();
         const file = items[i].getAsFile();
         if (!file) continue;
-        setUploadingPaste(true);
-        const url = await uploadImage(file);
-        setUploadingPaste(false);
-        if (url) insertText(`![Image](${url})\n`);
+        if (imageUploaderRef.current) {
+          await imageUploaderRef.current.stageFile(file);
+        }
         return;
       }
     }
-  }, [canUploadImages, uploadImage, insertText]);
+  }, [canUploadImages]);
 
   // Drag and drop handlers
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -929,13 +929,13 @@ const PostComposer = ({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.type.startsWith('image/')) {
-        setUploadingPaste(true);
-        const url = await uploadImage(file);
-        setUploadingPaste(false);
-        if (url) insertText(`![Image](${url})\n`);
+        if (imageUploaderRef.current) {
+          await imageUploaderRef.current.stageFile(file);
+        }
+        return;
       }
     }
-  }, [canUploadImages, uploadImage, insertText]);
+  }, [canUploadImages]);
 
   const handleSubmit = async () => {
     if (!body.trim() || isDisabled) return;
@@ -1243,7 +1243,8 @@ const PostComposer = ({
 
         {!hideImage && canUploadImages && (
           <ImageUploader
-            onImageUploaded={(url) => insertText(`![Image](${url})`)}
+            ref={imageUploaderRef}
+            onImageUploaded={(url) => insertText(`![Image](${url})\n`)}
             threeSpeakToken={threeSpeakToken}
             encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}

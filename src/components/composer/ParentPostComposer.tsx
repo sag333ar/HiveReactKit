@@ -76,7 +76,7 @@ import {
   enforceLockedBeneficiaries,
   type Beneficiary,
 } from '../../utils/beneficiaries';
-import ImageUploader from './ImageUploader';
+import ImageUploader, { type ImageUploaderRef } from './ImageUploader';
 import AudioUploader from './AudioUploader';
 import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
@@ -952,6 +952,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const canHiveFallback = Boolean(onSignMessage && signingUsername);
   const canUploadImages = Boolean(threeSpeakToken) || Boolean(ecencyToken) || canHiveFallback;
   const pasteAbortRef = useRef<AbortController | null>(null);
+  const imageUploaderRef = useRef<ImageUploaderRef>(null);
   const [isAwaitingApproval, setIsAwaitingApproval] = useState(false);
   const [uploadingPaste, setUploadingPaste] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -1116,15 +1117,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           e.preventDefault();
           const file = items[i].getAsFile();
           if (!file) continue;
-          setUploadingPaste(true);
-          const url = await uploadImage(file);
-          setUploadingPaste(false);
-          if (url) insertText(`![Image](${url})\n`);
+          if (imageUploaderRef.current) {
+            await imageUploaderRef.current.stageFile(file);
+          }
           return;
         }
       }
     },
-    [canUploadImages, uploadImage, insertText],
+    [canUploadImages],
   );
 
   const handleDragEnter = useCallback(
@@ -1159,14 +1159,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.type.startsWith('image/')) {
-          setUploadingPaste(true);
-          const url = await uploadImage(file);
-          setUploadingPaste(false);
-          if (url) insertText(`![Image](${url})\n`);
+          if (imageUploaderRef.current) {
+            await imageUploaderRef.current.stageFile(file);
+          }
+          return;
         }
       }
     },
-    [canUploadImages, uploadImage, insertText],
+    [canUploadImages],
   );
 
   const cancelPasteUpload = useCallback(() => {
@@ -2217,6 +2217,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
                 {canUploadImages && (
                   <ImageUploader
+                    ref={imageUploaderRef}
                     onImageUploaded={(url) => insertText(`![Image](${url})\n`)}
                     threeSpeakToken={threeSpeakToken}
                     encoderUrl={encoderUrl}
