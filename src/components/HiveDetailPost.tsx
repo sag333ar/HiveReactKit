@@ -1035,9 +1035,9 @@ export function HiveDetailPost({
   const threeSpeakRef = useMemo<{ author: string; permlink: string } | null>(() => {
     const extract = (url: unknown): { author: string; permlink: string } | null => {
       if (typeof url !== 'string') return null;
-      const m = url.match(/3speak\.tv\/(?:embed|watch)\?(?:[^"\s'<>]*[?&])?v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
+      const m = url.match(/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([^&\s/?#]+)\/([^&\s/?#]+)/i);
       if (!m) return null;
-      return { author: m[1], permlink: m[2] };
+      return { author: m[1].toLowerCase(), permlink: m[2] };
     };
     // Path 1: declared `video` block.
     const video = displayParsedMetadata?.video as { platform?: unknown; url?: unknown } | undefined;
@@ -1257,19 +1257,19 @@ export function HiveDetailPost({
     let m: RegExpExecArray | null;
     // 0) 3Speak's canonical embed markdown is a linked thumbnail:
     //      [![](THUMB)](https://3speak.tv/watch?v=author/permlink)
-    //    Capture THUMB so the inline player shows the post's own poster
-    //    (matching the composer preview) instead of the API's first frame.
-    const linkedThumbRe = /\[!\[[^\]]*\]\(([^)\s]+)\)\]\(\s*https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^)\s]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    //      [<img src="THUMB" ... />](https://play.3speak.tv/embed?v=author/permlink)
+    const linkedThumbRe = /\[(?:!\[[^\]]*\]\(([^)\s]+)\)|<img[^>]+src=["']([^"'\s>]+)["'][^>]*>)\]\(\s*https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^)\s]*[?&])?v=|\/)([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
     while ((m = linkedThumbRe.exec(bodyForContent)) !== null) {
-      push(m[2].toLowerCase(), m[3].toLowerCase(), m[1]);
+      const thumb = m[1] || m[2];
+      push(m[3].toLowerCase(), m[4].toLowerCase(), thumb);
     }
-    // `?v=author/permlink` — works for both `/embed?v=…` and `/watch?v=…`
-    const queryRe = /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    // `?v=author/permlink` — works for `/embed?v=…`, `/watch?v=…`, `/shorts?v=…`, `/play?v=…`
+    const queryRe = /https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
     while ((m = queryRe.exec(bodyForContent)) !== null) {
       push(m[1].toLowerCase(), m[2].toLowerCase());
     }
-    // Canonical path form `3speak.tv/v/author/permlink`.
-    const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    // Canonical path form `3speak.tv/v/author/permlink` or `3speak.tv/shorts/author/permlink` or `3speak.tv/watch/author/permlink`.
+    const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:v|shorts|watch|embed|play)\/([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
     while ((m = pathRe.exec(bodyForContent)) !== null) {
       push(m[1].toLowerCase(), m[2].toLowerCase());
     }
@@ -1306,26 +1306,16 @@ export function HiveDetailPost({
       // and the page would show TWO copies of the same video (the
       // renderer's iframe + our extracted player).
       //
-      // 1) Iframe / video tags whose src is on 3speak.tv (some authors
-      //    paste raw HTML instead of a bare URL).
+      // 1) Iframe / video tags whose src is on 3speak.tv / 3speak.co
       safeBody = safeBody.replace(
-        /<(iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.tv[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
+        /<(iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.(?:tv|co)[^"']*["'][^>]*>(?:\s*<\/\1>)?/gi,
         '',
       );
-      // 1b) Markdown links whose target is a 3Speak URL. 3Speak's
-      //     standard embed markdown is a linked thumbnail plus a
-      //     "▶️ [Watch on 3Speak](…)" text link:
-      //         [![](thumb)](https://3speak.tv/watch?v=a/p)
-      //         ▶️ [Watch on 3Speak](https://3speak.tv/watch?v=a/p)
-      //     Stripping only the bare URL (rules 2/3) leaves dangling
-      //     `](` and "▶️ [Watch on 3Speak](" fragments in the body, so
-      //     we remove the whole link construct here — BEFORE the bare-
-      //     URL strip, which would otherwise gut the URL inside `(…)`
-      //     and break these matches.
-      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/(?:watch\?|embed\?|v\/)[^)\s]+`;
-      // Linked thumbnail image: `[![alt](img)](3speak-url)`.
+      // 1b) Markdown links whose target is a 3Speak URL.
+      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:watch\?|embed\?|shorts\?|play\?|v\/|shorts\/|watch\/|embed\/|play\/)[^)\s]+`;
+      // Linked thumbnail image: `[![alt](img)](3speak-url)` or `[<img ...>](3speak-url)`
       safeBody = safeBody.replace(
-        new RegExp(String.raw`\[!\[[^\]]*\]\([^)]*\)\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
+        new RegExp(String.raw`\[(?:!\[[^\]]*\]\([^)]*\)|<img[^>]*>)\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
         '',
       );
       // Text link (incl. the leading play emoji): `▶️ [Watch on 3Speak](3speak-url)`.
@@ -1337,12 +1327,12 @@ export function HiveDetailPost({
       safeBody = safeBody.replace(/▶️?/g, '');
       // 2) Bare query-string URLs (`?v=author/permlink`).
       safeBody = safeBody.replace(
-        /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?(?:[^\s"'<>]*[?&])?v=[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        /https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play)\?(?:[^\s"'<>]*[?&])?v=[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
         '',
       );
-      // 3) Canonical-path URLs (`/v/author/permlink`).
+      // 3) Canonical-path URLs (`/v/author/permlink`, `/shorts/author/permlink`, etc.).
       safeBody = safeBody.replace(
-        /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.tv\/v\/[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:v|shorts|watch|embed|play)\/[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
         '',
       );
       // Strip Odysee URLs/iframes from the body — they are rendered as

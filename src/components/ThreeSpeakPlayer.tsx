@@ -71,24 +71,20 @@ function posterCandidates(url: string | undefined): string[] {
 }
 
 const EMBED_API = 'https://play.3speak.tv/api/embed';
-// The newer `/api/watch` endpoint resolves legacy videos that
-// `/api/embed` reports as "Video not found" (embed only knows about
-// videos published through the new pipeline). Both return the same
-// `{ success, videoUrl, videoUrlFallback1..3, thumbnail, … }` shape,
-// so we try watch first and fall back to embed.
 const WATCH_API = 'https://play.3speak.tv/api/watch';
+const CHECKER_API = 'https://checker.3speak.tv';
 
 /** Resolve a video's metadata, trying `/api/watch` first (covers
- *  legacy uploads) and falling back to `/api/embed`. Returns the first
- *  successful payload, or throws if neither resolves. */
+ *  legacy uploads), then `/api/embed`, and falling back to `/videodetails`. */
 async function fetchThreeSpeakMeta(
   author: string,
   permlink: string,
   signal: () => boolean,
 ): Promise<EmbedMeta> {
+  const lowercaseAuthor = author.toLowerCase().replace(/^@/, '');
   const endpoints = [
-    `${WATCH_API}?v=${author}/${permlink}`,
-    `${EMBED_API}?v=${author}/${permlink}`,
+    `${WATCH_API}?v=${lowercaseAuthor}/${permlink}`,
+    `${EMBED_API}?v=${lowercaseAuthor}/${permlink}`,
   ];
   let lastErr: Error | null = null;
   for (const url of endpoints) {
@@ -100,8 +96,6 @@ async function fetchThreeSpeakMeta(
         continue;
       }
       const data = (await r.json()) as { success?: boolean } & EmbedMeta;
-      // A successful response still needs at least one manifest URL —
-      // otherwise treat it as a miss and try the next endpoint.
       if (data?.success && manifestCandidates(data).length > 0) {
         return data;
       }
@@ -110,6 +104,50 @@ async function fetchThreeSpeakMeta(
       lastErr = e instanceof Error ? e : new Error('fetch failed');
     }
   }
+
+  // Secondary fallback: query checker.3speak.tv/videodetails
+  if (!signal()) {
+    try {
+      const r = await fetch(`${CHECKER_API}/videodetails/${lowercaseAuthor}/${permlink}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (r.ok) {
+        const d = (await r.json()) as any;
+        if (d && (d.manifest_cid || d.spkvideo?.play_url || d.play_url || d.video_v2)) {
+          let videoUrl = '';
+          let videoUrlFallback1 = '';
+          let videoUrlFallback2 = '';
+          if (d.manifest_cid) {
+            videoUrl = `https://play.3speak.tv/hls?u=https%3A%2F%2Fhotipfs-3speak-1.b-cdn.net%2Fipfs%2F${d.manifest_cid}%2Fmanifest.m3u8`;
+            videoUrlFallback1 = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
+            videoUrlFallback2 = `https://ipfs-3speak.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
+          } else {
+            const raw = d.spkvideo?.play_url || d.play_url || d.video_v2 || '';
+            if (raw.startsWith('ipfs://')) {
+              const p = raw.replace('ipfs://', '');
+              videoUrl = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`;
+              videoUrlFallback1 = `https://ipfs-3speak.b-cdn.net/ipfs/${p}`;
+            } else if (raw.startsWith('http')) {
+              videoUrl = raw;
+            }
+          }
+          if (videoUrl) {
+            return {
+              videoUrl,
+              videoUrlFallback1,
+              videoUrlFallback2,
+              thumbnail: d.thumbnail_url || d.images?.thumbnail || d.images?.poster || d.thumbnail,
+              short: d.short === true,
+              status: d.status,
+            };
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   throw lastErr ?? new Error('Video unavailable');
 }
 

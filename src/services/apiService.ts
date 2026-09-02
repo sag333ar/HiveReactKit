@@ -181,18 +181,60 @@ class ApiService {
   async getVideoDetails(
     username: string,
     permlink: string
-  ): Promise<ThreeSpeakVideo> {
-    const url = `${server.kThreeSpeakApiUrl}/video/@${username}/${permlink}`;
-    const response = await fetch(url);
-
-    if (response.ok) {
-      const data = await response.json();
-      return data;
-    } else {
-      console.error("Failed to fetch video details:", response.statusText);
+  ): Promise<ThreeSpeakVideo | null> {
+    const cleanUser = username.toLowerCase().replace(/^@/, '');
+    const url = `https://checker.3speak.tv/videodetails/${cleanUser}/${permlink}`;
+    try {
+      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          title: data.title || 'Untitled',
+          owner: data.owner || data.author || cleanUser,
+          permlink: data.permlink || permlink,
+          created: data.created_at ? new Date(data.created_at) : new Date(),
+          category: Array.isArray(data.tags) && data.tags.length > 0 ? data.tags[0] : 'general',
+          duration: data.duration || data.spkvideo?.duration || 0,
+          thumbnail: data.thumbnail_url || data.images?.thumbnail || data.images?.poster || '',
+          video_v2: data.spkvideo?.video_v2 || data.manifest_cid || '',
+          numOfUpvotes: data.stats?.num_votes ?? 0,
+          numOfComments: data.stats?.num_comments ?? 0,
+          hiveValue: data.stats?.total_hive_reward ?? 0,
+          active_votes: [],
+        } as ThreeSpeakVideo;
+      }
+      return null;
+    } catch (e) {
+      console.error("Failed to fetch video details:", e);
+      return null;
     }
   }
 
+  private async fetchCheckerFeed(url: string): Promise<ThreeSpeakVideo[]> {
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!res.ok) return [];
+      const json = await res.json();
+      const list = Array.isArray(json?.videos) ? json.videos : (Array.isArray(json?.results) ? json.results : []);
+      return list.map((item: any) => ({
+        title: item.title || 'Untitled',
+        owner: item.owner || item.author || '',
+        permlink: item.permlink || '',
+        created: item.created_at ? new Date(item.created_at) : (item.created ? new Date(item.created) : new Date()),
+        category: Array.isArray(item.tags) && item.tags.length > 0 ? item.tags[0] : 'general',
+        duration: item.duration || item.spkvideo?.duration || 0,
+        thumbnail: item.images?.thumbnail || item.images?.poster || item.thumbnail_url || '',
+        video_v2: item.spkvideo?.video_v2 || '',
+        numOfUpvotes: item.stats?.num_votes ?? 0,
+        numOfComments: item.stats?.num_comments ?? 0,
+        hiveValue: item.stats?.total_hive_reward ?? 0,
+        active_votes: [],
+      } as ThreeSpeakVideo));
+    } catch (e) {
+      console.error("Failed to fetch checker feed:", e);
+      return [];
+    }
+  }
 
   // Common feed fetching method to reduce code duplication
   private async fetchFeed(
@@ -220,57 +262,28 @@ class ApiService {
   }
 
   async getUserVideos(username: string, skip = 0): Promise<ThreeSpeakVideo[]> {
-    return await this.fetchFeed(
-      "UserChannelFeed",
-      "socialFeed",
-      "only: true",
-      `{ byCreator: { _in: ["${username}"] } }`,
-      { skip }
-    );
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feed/${username.toLowerCase().replace(/^@/, '')}?page=${page}&limit=20`);
   }
 
   async getHomeVideos(skip = 0): Promise<ThreeSpeakVideo[]> {
-    // Keep using 3Speak API for home feed as requested
-    const url = `${server.kThreeSpeakApiUrl}/feed/home?skip=${skip}`;
-    const response = await fetch(url);
-
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    } else {
-      console.error("Failed to fetch home videos:", response.statusText);
-      return [];
-    }
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feeds/trendingSorted?page=${page}&limit=20`);
   }
 
   async getTrendingVideos(skip = 0): Promise<ThreeSpeakVideo[]> {
-    return await this.fetchFeed(
-      "TrendingFeed",
-      "trendingFeed",
-      "only: true",
-      "{}",
-      { skip }
-    );
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feeds/trendingSorted?page=${page}&limit=20`);
   }
 
   async getNewVideos(skip = 0): Promise<ThreeSpeakVideo[]> {
-    return await this.fetchFeed(
-      "NewUploadsFeed",
-      "socialFeed",
-      "only: true",
-      "{}",
-      { skip }
-    );
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feeds/new?page=${page}&limit=20`);
   }
 
   async getFirstUploadsVideos(skip = 0): Promise<ThreeSpeakVideo[]> {
-    return await this.fetchFeed(
-      "FirstUploadsFeed",
-      "trendingFeed",
-      "only: true, firstUpload: true",
-      "{}",
-      { skip }
-    );
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feeds/firstUploads?page=${page}&limit=20`);
   }
 
   async getCommunityVideos(
@@ -287,13 +300,8 @@ class ApiService {
   }
 
   async getRelatedVideos(username: string, skip = 0): Promise<ThreeSpeakVideo[]> {
-    return await this.fetchFeed(
-      "RelatedFeed",
-      "socialFeed",
-      "only: true",
-      `{ byCreator: { _in: ["${username}"] } }`,
-      { skip }
-    );
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/feed/${username.toLowerCase().replace(/^@/, '')}?page=${page}&limit=20`);
   }
 
   async getTaggedVideos(tag: string, skip = 0): Promise<ThreeSpeakVideo[]> {
@@ -308,25 +316,10 @@ class ApiService {
 
   async getSearchFeed(
     term: string,
-    skip = 0,
-    lang?: string
+    skip = 0
   ): Promise<ThreeSpeakVideo[]> {
-    const feedOptions = lang ? `{ byLang: { _eq: "${lang}" } }` : `{}`;
-    // Construct query manually here because searchFeed has a searchTerm argument
-    const query = `
-      query SearchFeed {
-        searchFeed(
-          searchTerm: "${term}"
-          spkvideo: { only: true }
-          feedOptions: ${feedOptions}
-          pagination: { limit: 50, skip: ${skip} }
-        ) {
-          ${this.commonFields}
-        }
-      }
-    `;
-    const gqlItems = await this.getGQLFeed("SearchFeed", query);
-    return this.convertGQLItemsToThreeSpeakVideos(gqlItems);
+    const page = Math.floor(skip / 20) + 1;
+    return await this.fetchCheckerFeed(`https://checker.3speak.tv/search?q=${encodeURIComponent(term)}&page=${page}&limit=20`);
   }
 
   async getTrendingTags(): Promise<TrendingTag[]> {
