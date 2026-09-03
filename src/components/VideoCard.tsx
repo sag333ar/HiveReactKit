@@ -225,13 +225,13 @@ const VideoCard = ({
         {/* Stats */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-4">
-            {stats.numOfUpvotes != null && (
+            {stats.numOfUpvotes != null && stats.numOfUpvotes > 0 && (
               <div className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer">
                 <ThumbsUp className="w-4 h-4" />
                 <span>{formatNumber(stats.numOfUpvotes)}</span>
               </div>
             )}
-            {stats.numOfComments != null && (
+            {stats.numOfComments != null && stats.numOfComments > 0 && (
               <div className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors cursor-pointer">
                 <MessageCircle className="w-4 h-4" />
                 <span>{formatNumber(stats.numOfComments)}</span>
@@ -239,7 +239,7 @@ const VideoCard = ({
             )}
           </div>
 
-          {stats.hiveValue != null && stats.hiveValue > 0 && (
+          {stats.hiveValue != null && stats.hiveValue > 0.02 && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); openRewards(); }}

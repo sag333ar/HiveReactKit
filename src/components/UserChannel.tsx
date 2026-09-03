@@ -233,18 +233,24 @@ const UserChannel: React.FC<UserChannelProps> = ({
                     {activityService.getRelativeTime(activity.created)}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <ThumbsUp className="h-3 w-3 flex-shrink-0" />
-                  <span>{activity.net_votes} votes</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Reply className="h-3 w-3 flex-shrink-0" />
-                  <span>{activity.children} replies</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span>💰</span>
-                  <span>{formatPayout(activity.total_payout_value)}</span>
-                </div>
+                {activity.net_votes > 0 && (
+                  <div className="flex items-center gap-1">
+                    <ThumbsUp className="h-3 w-3 flex-shrink-0" />
+                    <span>{activity.net_votes} votes</span>
+                  </div>
+                )}
+                {activity.children > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Reply className="h-3 w-3 flex-shrink-0" />
+                    <span>{activity.children} replies</span>
+                  </div>
+                )}
+                {(parseFloat(activity.total_payout_value?.replace(/[^\d.]/g, '') || '0') || 0) > 0.02 && (
+                  <div className="flex items-center gap-1">
+                    <span>💰</span>
+                    <span>{formatPayout(activity.total_payout_value)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

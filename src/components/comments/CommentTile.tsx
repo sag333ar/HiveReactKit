@@ -370,7 +370,7 @@ const CommentTile = ({
                 ) : (
                   <ThumbsUp className={`w-4 h-4 ${hasAlreadyVoted || isUpvoted ? 'fill-current text-blue-400' : ''}`} />
                 )}
-                <span>{voteCount}</span>
+                {voteCount > 0 && <span>{voteCount}</span>}
               </button>
 
               <button

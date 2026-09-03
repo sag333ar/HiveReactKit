@@ -250,7 +250,7 @@ const VideoInfo = ({
             {/* Video Stats */}
             {(video.hiveValue || video.category) && (
               <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">
-                {video.hiveValue && video.hiveValue > 0 && (
+                {video.hiveValue && video.hiveValue > 0.02 && (
                   <div className="flex items-center gap-1 text-success font-semibold">
                     <span>${video.hiveValue.toFixed(2)} earned</span>
                   </div>

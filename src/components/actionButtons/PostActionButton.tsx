@@ -746,17 +746,19 @@ export function PostActionButton({
             )}
           </button>
         </div>
-        <div className="relative group">
-          <span className={tooltipClass}>View upvotes</span>
-          <button
-            type="button"
-            onClick={handleUpvoteCountClick}
-            className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
-            aria-label="View upvotes"
-          >
-            <span>{upvoteCount}</span>
-          </button>
-        </div>
+        {upvoteCount > 0 && (
+          <div className="relative group">
+            <span className={tooltipClass}>View upvotes</span>
+            <button
+              type="button"
+              onClick={handleUpvoteCountClick}
+              className={`flex items-center text-gray-300 hover:text-blue-400 transition-colors ${inlineGapClass} ${upvoteBtnPadClass} rounded hover:bg-gray-700/40`}
+              aria-label="View upvotes"
+            >
+              <span>{upvoteCount}</span>
+            </button>
+          </div>
+        )}
         {hasDownvotes && (
           <div className="relative group">
             <span className={tooltipClass}>View downvotes</span>
@@ -823,19 +825,21 @@ export function PostActionButton({
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (onClickCommentCount) onClickCommentCount();
-              else handleCommentClick();
-            }}
-            className={`rounded transition-colors ${actionBtnPadClass} ${
-              hasCommented ? 'text-[var(--hrk-brand-fg-soft)]' : 'text-gray-300 hover:text-blue-400'
-            }`}
-            aria-label="Open comments"
-          >
-            {commentsCount}
-          </button>
+          {commentsCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onClickCommentCount) onClickCommentCount();
+                else handleCommentClick();
+              }}
+              className={`rounded transition-colors ${actionBtnPadClass} ${
+                hasCommented ? 'text-[var(--hrk-brand-fg-soft)]' : 'text-gray-300 hover:text-blue-400'
+              }`}
+              aria-label="Open comments"
+            >
+              {commentsCount}
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -857,7 +861,7 @@ export function PostActionButton({
                 hasCommented ? 'fill-[var(--hrk-brand)] text-[var(--hrk-brand)]' : ''
               }`}
             />
-            <span>{commentsCount}</span>
+            {commentsCount > 0 && <span>{commentsCount}</span>}
           </button>
           {hasCommented && showCommentPreview && (
             <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface-sunken)] p-3 shadow-xl">
@@ -1018,13 +1022,17 @@ export function PostActionButton({
       )}
       </div>
 
-      {/* Hive Value at end. When `payoutDetails` is supplied, the chip
-          becomes a tap target opening the full RewardsModal. The
-          legacy hover tooltip path is preserved for callers that have
-          not migrated to the structured breakdown yet. */}
+      {/* Hive Value at end. Only rendered when greater than 0.020. When
+          `payoutDetails` is supplied, the chip becomes a tap target
+          opening the full RewardsModal. The legacy hover tooltip path
+          is preserved for callers that have not migrated to the
+          structured breakdown yet. */}
       <div className="flex-1 flex justify-end min-w-0 shrink-0">
-        {hiveValue != null && hiveValue !== "" && (
-          payoutDetails ? (
+        {(() => {
+          if (hiveValue == null || hiveValue === "") return null;
+          const numValue = parseFloat(String(hiveValue).replace(/[^\d.]/g, ''));
+          if (isNaN(numValue) || numValue <= 0.02) return null;
+          return payoutDetails ? (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setShowRewardsModal(true); }}
@@ -1054,8 +1062,8 @@ export function PostActionButton({
                 </div>
               )}
             </div>
-          )
-        )}
+          );
+        })()}
       </div>
 
       {/* Vote slider overlay */}

@@ -713,13 +713,15 @@ export default function InlineCommentItem({
                     <ThumbsUp className={`w-3.5 h-3.5 ${hasAlreadyVoted || isUpvoted ? 'fill-current' : ''}`} />
                   )}
                 </button>
-                <button
-                  onClick={() => setShowUpvoteListModal(true)}
-                  className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors -ml-2"
-                  title="View upvotes"
-                >
-                  <span>{voteCount}</span>
-                </button>
+                {voteCount > 0 && (
+                  <button
+                    onClick={() => setShowUpvoteListModal(true)}
+                    className="flex items-center gap-1 font-medium text-gray-400 hover:text-blue-400 transition-colors -ml-2"
+                    title="View upvotes"
+                  >
+                    <span>{voteCount}</span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleReplyClick}
@@ -831,7 +833,7 @@ export default function InlineCommentItem({
                 {/* Hive payout value — pushed to end. Tapping opens the
                     full RewardsModal (pending/realised split, beneficiaries),
                     mirroring the parent-post chip on HiveDetailPost. */}
-                {payoutValue && (
+                {payoutValue && (parseFloat(payoutValue.replace(/[^\d.]/g, '')) || 0) > 0.02 && (
                   payoutDetails ? (
                     <button
                       type="button"
