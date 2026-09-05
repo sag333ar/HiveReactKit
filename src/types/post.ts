@@ -34,6 +34,9 @@ export interface Post {
   depth: number;
   parent_author?: string;
   parent_permlink?: string;
+  root_author?: string;
+  root_permlink?: string;
+  root_title?: string;
   is_paidout: boolean;
   // Bridge API returns json_metadata as an object; condenser_api returns it as a JSON string.
   // Use getPostMetadata() to safely read fields regardless of format.

@@ -450,6 +450,17 @@ const formatDate = (dateString: string): string => {
   }
 };
 
+function cleanMarkdownSnippet(markdown?: string): string {
+  if (!markdown) return '';
+  return markdown
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[*_~`#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function HiveDetailPost({
@@ -1017,6 +1028,64 @@ export function HiveDetailPost({
     const t = displayParsedMetadata?.tags;
     return Array.isArray(t) ? t.filter((x: unknown): x is string => typeof x === 'string') : [];
   }, [displayParsedMetadata]);
+
+  // Parent post/comment data when viewing a comment (depth > 0)
+  const [parentPostData, setParentPostData] = useState<Post | null>(null);
+  const [loadingParentPost, setLoadingParentPost] = useState(false);
+
+  useEffect(() => {
+    if (!post || post.depth === 0 || !post.parent_author || !post.parent_permlink) {
+      setParentPostData(null);
+      return;
+    }
+    let active = true;
+    setLoadingParentPost(true);
+    apiService.getPostContent(post.parent_author, post.parent_permlink, observer ?? '')
+      .then((data) => {
+        if (!active) return;
+        setParentPostData(data);
+      })
+      .catch((err) => {
+        console.error('Failed to load parent post content:', err);
+      })
+      .finally(() => {
+        if (active) setLoadingParentPost(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [post?.depth, post?.parent_author, post?.parent_permlink, observer]);
+
+  const rootPostRef = useMemo(() => {
+    if (!post || post.depth === 0) return { author: '', permlink: '' };
+    if (post.root_author && post.root_permlink) {
+      return { author: post.root_author, permlink: post.root_permlink };
+    }
+    if (post.url) {
+      const match = post.url.match(/@([a-z0-9.-]+)\/([^#?]+)/);
+      if (match) {
+        return { author: match[1], permlink: match[2] };
+      }
+    }
+    if (parentPostData?.url) {
+      const match = parentPostData.url.match(/@([a-z0-9.-]+)\/([^#?]+)/);
+      if (match) {
+        return { author: match[1], permlink: match[2] };
+      }
+    }
+    return {
+      author: post.parent_author ?? '',
+      permlink: post.parent_permlink ?? '',
+    };
+  }, [post, parentPostData]);
+
+  const threadTitle = useMemo(() => {
+    if (!post || post.depth === 0) return '';
+    const raw = post.root_title || parentPostData?.title || post.title || '';
+    if (!raw) return `RE: @${rootPostRef.author}/${rootPostRef.permlink}`;
+    if (/^re:\s*/i.test(raw)) return raw;
+    return `RE: ${raw}`;
+  }, [post, parentPostData, rootPostRef]);
 
   /**
    * 3Speak video reference. Sources, in order of preference:
@@ -2775,21 +2844,92 @@ export function HiveDetailPost({
               </div>
             )}
 
-            {/* View Parent — shown when this post is a reply (depth > 0) */}
+            {/* View Parent Block — shown when this post is a comment/reply (depth > 0) */}
             {post.depth > 0 && post.parent_author && post.parent_permlink && (
-              <button
-                onClick={() => onNavigateToPost?.(post.parent_author!, post.parent_permlink!)}
-                className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]/60 hover:bg-[var(--hrk-bg-surface-raised)]/60 transition-colors text-sm text-blue-400 hover:text-blue-300"
-              >
-                <ArrowUpRight className="w-4 h-4" />
-                <span>View parent post</span>
-                <span className="text-[var(--hrk-text-tertiary)] text-xs truncate max-w-[250px]">
-                  @{post.parent_author}/{post.parent_permlink}
-                </span>
-              </button>
+              <div className="mb-6 rounded-xl border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] p-4 sm:p-5 shadow-sm space-y-3">
+                <p className="text-xs text-[var(--hrk-text-tertiary)] font-medium">
+                  You are viewing a single comment's thread from:
+                </p>
+                <h2 className="text-base sm:text-lg font-bold text-[var(--hrk-text-primary)] leading-snug">
+                  {threadTitle}
+                </h2>
+
+                {/* Parent author + preview box */}
+                <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface-raised)]/40">
+                  <img
+                    src={`https://images.hive.blog/u/${post.parent_author}/avatar`}
+                    alt={post.parent_author}
+                    className="w-9 h-9 rounded-full object-cover border border-[var(--hrk-border-subtle)] shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar';
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-[var(--hrk-text-primary)]">
+                        @{post.parent_author}
+                      </span>
+                      {parentPostData?.created && (
+                        <span className="text-[11px] text-[var(--hrk-text-tertiary)]">
+                          · {formatDate(parentPostData.created)}
+                        </span>
+                      )}
+                    </div>
+                    {/* If parent is a comment (depth >= 2), show excerpt of parent's content */}
+                    {post.depth >= 2 ? (
+                      parentPostData?.body ? (
+                        <p className="mt-1 text-xs text-[var(--hrk-text-secondary)] line-clamp-2 leading-relaxed">
+                          {cleanMarkdownSnippet(parentPostData.body).slice(0, 200)}
+                        </p>
+                      ) : loadingParentPost ? (
+                        <div className="mt-1.5 h-3 w-3/4 animate-pulse rounded bg-[var(--hrk-bg-surface-raised)]" />
+                      ) : null
+                    ) : (
+                      parentPostData?.title ? (
+                        <p className="mt-0.5 text-xs text-[var(--hrk-text-secondary)] truncate">
+                          {parentPostData.title}
+                        </p>
+                      ) : null
+                    )}
+                  </div>
+                </div>
+
+                {/* Navigation links */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
+                  {post.depth >= 2 && rootPostRef.author && rootPostRef.permlink && (rootPostRef.author !== post.parent_author || rootPostRef.permlink !== post.parent_permlink) ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToPost?.(rootPostRef.author, rootPostRef.permlink)}
+                        className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer text-left"
+                      >
+                        <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
+                        <span>View in original post</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToPost?.(post.parent_author!, post.parent_permlink!)}
+                        className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer text-left"
+                      >
+                        <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
+                        <span>Go to parent post</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToPost?.(post.parent_author!, post.parent_permlink!)}
+                      className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 transition-colors cursor-pointer text-left"
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
+                      <span>View in original post</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
 
-            {titleContent}
+            {post.depth === 0 && titleContent}
 
             {/* Metadata-driven gallery and 3Speak preview have been
                 removed deliberately. The detail page should render
