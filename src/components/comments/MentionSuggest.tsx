@@ -19,6 +19,8 @@
  *      via mentionService and append API matches under the seed list.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { searchHiveAccounts } from "../../services/mentionService";
 
