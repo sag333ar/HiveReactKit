@@ -201,21 +201,6 @@ export interface CommunityDetailProps {
    *  the view starts at the top, matching forward navigation. */
   shouldRestoreScroll?: boolean
 
-  /** When true, a heart button is shown on each post card (forwarded
-   *  into the embedded <BlogPostList/>) so the curator can request an
-   *  on-chain upvote. */
-  isCurator?: boolean
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded into the embedded <BlogPostList/>/snaps tab. See postVotes.ts. */
-  optedOutAuthors?: Set<string>
-  /** Called when the curator submits a curation request. Weight is 1–15.
-   *  `ownVoteWeight` is the curator's own vote weight on this content
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to each card's vote slider. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>
   isWeb2User?: boolean;
 }
 
@@ -332,10 +317,6 @@ const CommunityDetail = ({
   postSort: controlledPostSort,
   onPostSortChange,
   shouldRestoreScroll = false,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User,
 }: CommunityDetailProps) => {
   const observer = observerProp ?? currentUser
@@ -609,10 +590,6 @@ const CommunityDetail = ({
       awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
-      isCurator,
-      optedOutAuthors,
-      onCurationRequest,
-      onFetchCurationStatus,
       isWeb2User,
     }),
     [
@@ -650,10 +627,6 @@ const CommunityDetail = ({
       awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
-      isCurator,
-      optedOutAuthors,
-      onCurationRequest,
-      onFetchCurationStatus,
     ],
   )
 

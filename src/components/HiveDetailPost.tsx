@@ -6,7 +6,7 @@ import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
 import { Poll } from '@/types/poll';
-import { isCurationEligible, hasCurationVoterVoted, getCurationTypeForContent } from '@/utils/postVotes';
+import { getHiveContentType } from '@/utils/postVotes';
 import {
   AlertCircle,
   ArrowLeft,
@@ -360,26 +360,6 @@ export interface HiveDetailPostProps {
    *  `<TranslatedText>` / inline-comment translators inside the
    *  page will then re-render with the new language. */
   onSelectLanguage?: (code: string) => void;
-  /** When true, a heart button is shown on the post and on each comment
-   *  so the curator can request on-chain upvotes. */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to `isCurationEligible` so the toggle never appears for
-   *  them. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request. `type` reflects
-   *  the ACTUAL content type (see `getCurationTypeForContent`), not just
-   *  whether it's the main item vs. a nested comment — the main item
-   *  itself can be a genuine post, a snap, or a comment/reply, all of
-   *  which are just `comment` ops distinguished by depth/parent_author.
-   *  `ownVoteWeight` is the curator's own vote weight on this content
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'snap' | 'comment', ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to the post's vote slider and to every comment via
-   *  <InlineCommentSection/>. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** When true, the current user is a Web2 user. */
   isWeb2User?: boolean;
 }
@@ -533,10 +513,6 @@ export function HiveDetailPost({
   awaitingWalletApproval = false,
   decentMemesAppAccount,
   decentMemesTheme,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User = false,
 }: HiveDetailPostProps) {
   const observer = observerProp ?? currentUser;
@@ -2297,21 +2273,6 @@ export function HiveDetailPost({
     );
   }
 
-  // Curation eligibility, shared by the vote slider's toggle. When the
-  // curator already voted, the vote slider itself switches into
-  // curation-only mode instead of offering a toggle. See numbered checks
-  // 1-7 in `isCurationEligible` (postVotes.ts) — checks 8-9 (bot-already-
-  // voted, already-submitted) run inside <VoteSlider/> once the dialog
-  // opens.
-  const curationEligible = isCurationEligible({
-    isCurator,
-    hasCurationHandler: !!onCurationRequest,
-    currentUser,
-    author: post.author,
-    jsonMetadata: post.json_metadata,
-    optedOutAuthors,
-  });
-  const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes);
   const web2Identity = getWeb2Identity(
     post.author,
     post.json_metadata,
@@ -2319,10 +2280,9 @@ export function HiveDetailPost({
   );
   // The main item can be a genuine top-level post, or a snap/comment
   // opened via its own permalink page — all three are `comment` ops on
-  // Hive, so the weight cap must follow the REAL type, not just assume
-  // "post" (which would let a curator bypass the snap/comment caps by
-  // opening the same content's permalink instead of its feed card).
-  const curationType = getCurationTypeForContent(post.depth, post.parent_author);
+  // Hive, distinguished only by depth/parent_author. Used below to decide
+  // reblog (posts) vs re-snap (everything else).
+  const contentType = getHiveContentType(post.depth, post.parent_author);
 
   return (
     <div className="dark flex flex-col h-full bg-[var(--hrk-bg-app)] relative" style={bgStyle}>
@@ -2513,8 +2473,8 @@ export function HiveDetailPost({
               }
               onShare={onHeaderShare ?? onShare}
               onReport={onHeaderReport ?? onReport}
-              onReblog={curationType === 'post' ? onReblog : undefined}
-              onReSnap={curationType !== 'post' ? onReSnap : undefined}
+              onReblog={contentType === 'post' ? onReblog : undefined}
+              onReSnap={contentType !== 'post' ? onReSnap : undefined}
               isReblogged={isReblogged}
               onVersionHistory={() => setVersionHistoryOpen(true)}
               onViewRaw={() => setRawViewOpen(true)}
@@ -3282,11 +3242,6 @@ export function HiveDetailPost({
                 initialCommentsCount={post.children || 0}
                 postCreatedAt={post.created}
                 onUpvote={onUpvote}
-                curationEligible={curationEligible}
-                curationBotAlreadyVoted={curationBotAlreadyVoted}
-                curationType={curationType}
-                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, curationType, ownVoteWeight) : undefined}
-                onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment}
                 onClickCommentUpvote={onClickCommentUpvote}
                 onReblog={post.depth === 0 ? onReblog : undefined}
@@ -3413,12 +3368,6 @@ export function HiveDetailPost({
                 renderOptions={renderOptions}
                 decentMemesAppAccount={decentMemesAppAccount}
                 decentMemesTheme={decentMemesTheme}
-                isCurator={isCurator}
-                optedOutAuthors={optedOutAuthors}
-                onCurationRequest={onCurationRequest
-                  ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'comment', ownVoteWeight)
-                  : undefined}
-                onFetchCurationStatus={onFetchCurationStatus}
                 isWeb2User={isWeb2User}
               />
               </SelectionTranslator>

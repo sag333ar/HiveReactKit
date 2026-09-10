@@ -18,7 +18,6 @@ import { Loader2, ChevronLeft, ChevronRight, FileText, Play, Pin, Repeat2 } from
 import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
 import { PostActionButton } from './actionButtons/PostActionButton';
 import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
@@ -124,21 +123,6 @@ export interface BlogPostListProps {
    *  flag) into a single 3-dot kebab menu. Forwarded to
    *  `<PostActionButton/>`. */
   actionsAsMenu?: boolean;
-  /** When true, a heart button is shown on each post card so the curator
-   *  can request an on-chain upvote with a chosen vote weight. */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to `isCurationEligible` so the toggle never appears for
-   *  them. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request. Weight is 1–15.
-   *  `ownVoteWeight` is the curator's own vote weight on this content
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to each card's vote slider. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   isWeb2User?: boolean;
 }
 
@@ -421,10 +405,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   awaitingWalletApproval,
   defaultReward,
   actionsAsMenu,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User,
 }) => {
   const tierMap = useSupporterTierMap();
@@ -549,19 +529,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
             }
           : undefined;
 
-        // Curation eligibility, shared by the vote slider's toggle. See
-        // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) —
-        // checks 8-9 (bot-already-voted, already-submitted) run inside
-        // <VoteSlider/> once the dialog opens.
-        const curationEligible = isCurationEligible({
-          isCurator,
-          hasCurationHandler: !!onCurationRequest,
-          currentUser,
-          author: item.author,
-          jsonMetadata: item.json_metadata,
-          optedOutAuthors,
-        });
-        const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes as ActiveVote[] | undefined);
         const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
         const rebloggedBy = getRebloggedBy(item);
@@ -711,11 +678,6 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 initialCommentsCount={item.children || 0}
                 postCreatedAt={item.created}
                 onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
-                curationEligible={curationEligible}
-                curationBotAlreadyVoted={curationBotAlreadyVoted}
-                curationType="post"
-                onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(item.author, item.permlink, weight, ownVoteWeight) : undefined}
-                onFetchCurationStatus={onFetchCurationStatus}
                 onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
                 onClickCommentUpvote={onClickCommentUpvote}
                 onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}

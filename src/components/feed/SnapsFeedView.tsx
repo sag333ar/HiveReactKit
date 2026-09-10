@@ -173,21 +173,6 @@ export interface SnapsFeedViewProps {
    *  flag) into a single 3-dot kebab menu. Forwarded to every
    *  <SnapsFeedCard/>. */
   actionsAsMenu?: boolean;
-  /** When true, a heart button is shown on each snap card so the curator
-   *  can request an on-chain upvote (1–6%). Forwarded to every <SnapsFeedCard/>. */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to every <SnapsFeedCard/>. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request on a snap.
-   *  `ownVoteWeight` is the curator's own vote weight on this snap
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to every <SnapsFeedCard/>. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
-
   /** When `true`, the desktop 4-column layout grows naturally with its
    *  content instead of pinning each column to a fixed-height per-column
    *  scroller. Use this when the parent page already provides a single
@@ -307,10 +292,6 @@ export function SnapsFeedView({
   footer,
   renderHeaderActions,
   actionsAsMenu,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   pageScroll,
   onActiveFeedChange,
   isWeb2User,
@@ -485,10 +466,6 @@ export function SnapsFeedView({
     defaultReward,
     renderHeaderActions,
     actionsAsMenu,
-    isCurator,
-    optedOutAuthors,
-    onCurationRequest,
-    onFetchCurationStatus,
     isWeb2User,
   };
 

@@ -20,7 +20,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from "@/utils/voteAge";
-import { postHasDownvotes, isDownvote, getUserVoteWeight, isRestrictedDirectVoter } from "@/utils/postVotes";
+import { postHasDownvotes, isDownvote, isRestrictedDirectVoter } from "@/utils/postVotes";
 import { MoreActionsMenu } from "./MoreActionsMenu";
 
 export interface PostActionButtonProps {
@@ -58,26 +58,6 @@ export interface PostActionButtonProps {
   initialCommentsCount?: number;
   /** Called when user confirms vote with percent (1–100). Frontend handles signing/broadcast. */
   onUpvote?: (percent: number) => void | Promise<void>;
-  /** Shows the curator-only "Request curation" toggle inside the vote
-   *  slider. Caller resolves this from `isCurator && !!onCurationRequest
-   *  && <not already curated> && <content published via HiveSuite>`. */
-  curationEligible?: boolean;
-  /** True when the curation bot already voted on this content. Shows an
-   *  explanatory message in the vote slider instead of the toggle/button
-   *  — see `curationBotAlreadyVoted` on `<VoteSlider/>`. Caller computes
-   *  this via `hasCurationVoterVoted(votes)` (postVotes.ts). */
-  curationBotAlreadyVoted?: boolean;
-  /** Required alongside `curationEligible` — sizes the curation-weight
-   *  slider's default range before the server limit resolves. */
-  curationType?: 'post' | 'snap' | 'comment';
-  /** Fired with the chosen curation weight and the curator's own vote
-   *  weight right after a successful vote, only when the curator
-   *  switched the toggle on. */
-  onCurationRequest?: (weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for
-   *  `curationType`, plus whether this content was already submitted
-   *  for curation by any curator. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** Called when user submits a comment. Frontend handles signing/broadcast.
    *  Return `false` to indicate the operation was cancelled — the composer text will be preserved.
    *  `voteWeight` is non-null when the composer's upvote-on-publish toggle is enabled
@@ -228,11 +208,6 @@ export function PostActionButton({
   initialFlagWeight,
   initialCommentsCount,
   onUpvote,
-  curationEligible = false,
-  curationBotAlreadyVoted = false,
-  curationType,
-  onCurationRequest,
-  onFetchCurationStatus,
   onSubmitComment,
   onComments,
   onEdit,
@@ -409,14 +384,12 @@ export function PostActionButton({
     isLoggedIn &&
     !!currentUser &&
     votes.some((v) => v.voter.toLowerCase() === currentUser.toLowerCase());
-  const ownVoteWeight = getUserVoteWeight(votes, currentUser);
 
-  // sagarkothari88 / letusbuyhive must never broadcast a direct vote from
-  // the app — see RESTRICTED_DIRECT_VOTE_ACCOUNTS. Treated exactly like
-  // "already voted" from VoteSlider's perspective (no slider/percent UI,
-  // curation-request is the only action), even though no vote was
-  // actually cast — that's what forces every one of these accounts'
-  // upvotes through the curation pipeline instead of a raw broadcast.
+  // A small set of accounts must never broadcast a direct vote from the
+  // app at all — see RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts). Their
+  // voting is handled entirely by backend automation instead, so the vote
+  // button just blocks them with a toast (below) rather than opening the
+  // vote dialog.
   const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
 
   const hasDownvotes = useMemo(
@@ -524,27 +497,13 @@ export function PostActionButton({
     }
     requireLogin("Upvote", () => {
       if (isRestrictedVoter) {
-        // This account only ever requests curation — see
-        // RESTRICTED_DIRECT_VOTE_ACCOUNTS. Always open the dialog (never
-        // gate it behind a toast) — VoteSlider itself, in alreadyVoted
-        // mode, shows the curation-request UI when eligible or the
-        // appropriate status message otherwise (bot already voted,
-        // already submitted, etc.), same as it already does for a
-        // regular curator revisiting content they've voted on. Skips the
-        // vote-window check entirely too — that gate is about the direct
-        // `vote` op, not a curation request.
-        setShowVoteSlider(true);
+        // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) — this
+        // account's voting is handled entirely by backend automation, so
+        // there's nothing for the vote dialog to do here.
+        showToast("Direct voting isn't available for this account");
         return;
       }
       if (hasVoted) {
-        // Nothing left to vote on — but a curator can still request
-        // curation on content they already voted for. Opens the same
-        // slider in "already voted" mode (see VoteSlider's alreadyVoted
-        // prop) instead of a dead-end toast when that's available.
-        if (curationEligible) {
-          setShowVoteSlider(true);
-          return;
-        }
         showToast("You have already upvoted this post");
         return;
       }
@@ -613,12 +572,10 @@ export function PostActionButton({
     setShowUpvoteListModal(false);
     if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
     if (isRestrictedVoter) {
-      if (curationEligible) { setShowVoteSlider(true); return; }
-      showToast("This account only requests curation, not direct votes");
+      showToast("Direct voting isn't available for this account");
       return;
     }
     if (hasVoted) {
-      if (curationEligible) { setShowVoteSlider(true); return; }
       showToast("You have already upvoted this post");
       return;
     }
@@ -1076,13 +1033,6 @@ export function PostActionButton({
           onUpvote={handleVoteSubmit}
           onCancel={() => setShowVoteSlider(false)}
           awaitingWalletApproval={awaitingWalletApproval}
-          alreadyVoted={hasVoted || isRestrictedVoter}
-          curatorOwnVoteWeight={ownVoteWeight}
-          curationEligible={curationEligible}
-          curationBotAlreadyVoted={curationBotAlreadyVoted}
-          curationType={curationType}
-          onCurationRequest={onCurationRequest}
-          onFetchCurationStatus={onFetchCurationStatus}
         />
       )}
 

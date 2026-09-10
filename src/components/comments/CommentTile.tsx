@@ -76,13 +76,10 @@ const CommentTile = ({
     const user = currentUser.toLowerCase();
     return activeVotes.some((v: { voter?: string }) => (v.voter || '').toLowerCase() === user);
   }, [comment.active_votes, currentUser]);
-  // sagarkothari88 / letusbuyhive must never broadcast a direct vote (see
-  // RESTRICTED_DIRECT_VOTE_ACCOUNTS, postVotes.ts). Unlike PostActionButton
-  // and InlineCommentItem, this tile has no curation-request wiring at all
-  // (no onCurationRequest/curationEligible props exist here — it's the
-  // simpler comments-popup view, not the full inline comment thread), so
-  // there's no curation UI to fall back to. Blocking the vote outright is
-  // the only correct option in this specific surface.
+  // A small set of accounts must never broadcast a direct vote from the
+  // app at all — see RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts). Their
+  // voting is handled entirely by backend automation instead, so the
+  // upvote button just blocks them with a toast.
   const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -313,7 +310,7 @@ const CommentTile = ({
                     return;
                   }
                   if (isRestrictedVoter) {
-                    showToast("This account only requests curation, not direct votes");
+                    showToast("Direct voting isn't available for this account");
                     return;
                   }
                   if (onClickCommentUpvote) {

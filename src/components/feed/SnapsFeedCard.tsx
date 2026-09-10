@@ -21,7 +21,6 @@ import { createHiveRenderer } from '@snapie/renderer';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
-import { isCurationEligible, hasCurationVoterVoted } from '@/utils/postVotes';
 import { getReputationDetails } from '@/utils/reputation';
 import { getRebloggedBy, getRebloggedByList } from '@/utils/reblogUtils';
 import { PostActionButton } from '../actionButtons/PostActionButton';
@@ -160,20 +159,6 @@ export interface SnapsFeedCardProps {
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab menu inside the action bar. */
   actionsAsMenu?: boolean;
-  /** When true, a heart button is shown so the curator can request an
-   *  on-chain upvote with a chosen weight (1–6%). */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to `isCurationEligible`. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request. Weight is 1–6.
-   *  `ownVoteWeight` is the curator's own vote weight on this content
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether this content was already submitted for curation
-   *  by any curator. Forwarded to the card's vote slider. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
 }
 
 import {
@@ -323,10 +308,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   defaultReward,
   renderHeaderActions,
   actionsAsMenu,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User,
 }) => {
   const observer = observerProp ?? currentUser;
@@ -555,21 +536,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     onPostClick?.(post.author, post.permlink, post.title, contextPosts);
   };
 
-  // Curation eligibility for the vote slider's curation option — either
-  // folded into the vote (not yet voted) or the only action available
-  // (already voted — see PostActionButton's `alreadyVoted` handling). See
-  // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) — checks
-  // 8-9 (bot-already-voted, already-submitted) run inside <VoteSlider/>
-  // once the dialog opens.
-  const curationEligible = isCurationEligible({
-    isCurator,
-    hasCurationHandler: !!onCurationRequest,
-    currentUser,
-    author: post.author,
-    jsonMetadata: post.json_metadata,
-    optedOutAuthors,
-  });
-  const curationBotAlreadyVoted = hasCurationVoterVoted(post.active_votes as ActiveVote[] | undefined);
   const rebloggedBy = getRebloggedBy(post);
   const reblogList = getRebloggedByList(post);
 
@@ -845,11 +811,6 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           initialCommentsCount={post.children || 0}
           postCreatedAt={post.created}
           onUpvote={onUpvote ? (percent) => onUpvote(post.author, post.permlink, percent) : undefined}
-          curationEligible={curationEligible}
-          curationBotAlreadyVoted={curationBotAlreadyVoted}
-          curationType="snap"
-          onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(post.author, post.permlink, weight, ownVoteWeight) : undefined}
-          onFetchCurationStatus={onFetchCurationStatus}
           onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
           onClickCommentUpvote={onClickCommentUpvote}
           onReblog={!onReSnap && onReblog ? () => onReblog(post.author, post.permlink) : undefined}

@@ -4,7 +4,7 @@ import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat, Ban } from 'lucide-react';
-import { isCurationEligible, getUserVoteWeight, hasCurationVoterVoted, isRestrictedDirectVoter } from '@/utils/postVotes';
+import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
@@ -114,21 +114,6 @@ interface InlineCommentItemProps {
   decentMemesAppAccount?: string;
   /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
   decentMemesTheme?: 'light' | 'dark';
-  /** When true, a heart button is shown on this comment so the curator
-   *  can request an on-chain upvote (1–3%). */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to `isCurationEligible` and to nested replies. See
-   *  postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request. Weight is 1–3.
-   *  `ownVoteWeight` is the curator's own vote weight on this comment
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to this comment's vote slider and to every nested reply. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** When true, current user is a Web2 user. */
   isWeb2User?: boolean;
 }
@@ -182,10 +167,6 @@ export default function InlineCommentItem({
   parentTags = [],
   decentMemesAppAccount,
   decentMemesTheme,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User = false,
 }: InlineCommentItemProps) {
   const isCurrentUserWeb2 = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
@@ -537,21 +518,12 @@ export default function InlineCommentItem({
     }
     if (!currentUser) { showToast('Please login to upvote'); return; }
     if (isRestrictedVoter) {
-      // Always open the dialog — never gate it behind a toast. VoteSlider
-      // itself, in alreadyVoted mode, shows the curation-request UI when
-      // eligible or the appropriate status message otherwise. Skips the
-      // vote-window check too — that's specific to the direct `vote` op.
-      setShowVoteSlider(true);
+      // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) — this
+      // account's voting is handled entirely by backend automation.
+      showToast("Direct voting isn't available for this account");
       return;
     }
     if (hasAlreadyVoted || isUpvoted) {
-      // Nothing left to vote on — but a curator can still request
-      // curation on a comment they already voted for. Opens the same
-      // slider in "already voted" mode instead of a dead-end toast.
-      if (curationEligible) {
-        setShowVoteSlider(true);
-        return;
-      }
       showToast('You have already upvoted this comment');
       return;
     }
@@ -565,20 +537,6 @@ export default function InlineCommentItem({
   };
 
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
-
-  // Curation eligibility, shared by the vote slider's toggle. See
-  // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) — checks
-  // 8-9 (bot-already-voted, already-submitted) run inside <VoteSlider/>
-  // once the dialog opens.
-  const curationEligible = isCurationEligible({
-    isCurator,
-    hasCurationHandler: !!onCurationRequest,
-    currentUser,
-    author: comment.author,
-    jsonMetadata: comment.json_metadata,
-    optedOutAuthors,
-  });
-  const curationBotAlreadyVoted = hasCurationVoterVoted(comment.active_votes);
 
   return (
     <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
@@ -883,7 +841,7 @@ export default function InlineCommentItem({
             )}
 
             {/* Vote slider */}
-            {showVoteSlider && !isCurrentUserWeb2 && (!(hasAlreadyVoted || isUpvoted) || curationEligible || isRestrictedVoter) && (
+            {showVoteSlider && !isCurrentUserWeb2 && (
               <div className="mt-2 ml-7 md:ml-9">
                 <VoteSlider
                   author={comment.author}
@@ -892,13 +850,6 @@ export default function InlineCommentItem({
                   step={voteWeightStep}
                   onUpvote={handlePerformUpvote}
                   onCancel={() => setShowVoteSlider(false)}
-                  alreadyVoted={hasAlreadyVoted || isUpvoted || isRestrictedVoter}
-                  curatorOwnVoteWeight={getUserVoteWeight(comment.active_votes, currentUser)}
-                  curationEligible={curationEligible}
-                  curationBotAlreadyVoted={curationBotAlreadyVoted}
-                  curationType="comment"
-                  onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(comment.author, comment.permlink, weight, ownVoteWeight) : undefined}
-                  onFetchCurationStatus={onFetchCurationStatus}
                 />
               </div>
             )}
@@ -1157,10 +1108,6 @@ export default function InlineCommentItem({
               allowLandscapeVideos={allowLandscapeVideos}
               awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
-              isCurator={isCurator}
-              optedOutAuthors={optedOutAuthors}
-              onCurationRequest={onCurationRequest}
-              onFetchCurationStatus={onFetchCurationStatus}
             />
           ))}
         </div>

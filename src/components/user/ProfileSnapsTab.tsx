@@ -142,20 +142,6 @@ export interface ProfileSnapsTabProps {
   /** Per-card right-side header action menu slot (e.g. Edit / Flag). */
   renderHeaderActions?: (post: Post) => ReactNode;
 
-  /** When true, a heart button is shown on each snap card so the curator
-   *  can request an on-chain upvote. Forwarded to <SnapsFeedView/>. */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to <SnapsFeedView/>. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request on a snap.
-   *  `ownVoteWeight` is the curator's own vote weight on this snap
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to <SnapsFeedView/>. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   isWeb2User?: boolean;
 }
 

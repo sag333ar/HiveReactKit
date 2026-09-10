@@ -63,7 +63,6 @@ import { useKitT } from "@/i18n";
 import { PostActionButton } from "../actionButtons/PostActionButton";
 import { userService, type Web2Credits, fetchWeb2Credits } from "@/services/userService";
 import ProfileSnapsTab from "./ProfileSnapsTab";
-import { isCurationEligible, hasCurationVoterVoted } from "@/utils/postVotes";
 import { getWeb2Identity, Web2ProviderBadge } from "../feed/AttachmentStrip";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { getRebloggedBy, getRebloggedByList } from "../../utils/reblogUtils";
@@ -228,13 +227,6 @@ export interface UserDetailProfileProps {
    *  (keychain denied / user closed the prompt) — the row stays in edit mode. */
   onUpdateRcDelegation?: (delegatee: string, maxRc: string) => void | boolean | Promise<void | boolean>;
 
-  /** When true, a heart button is shown on each post/blog/snap card so
-   *  the curator can request an on-chain upvote. */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to `isCurationEligible` so the toggle never appears for
-   *  them. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
   /** When viewing a Web2 proxy account's profile (every Web2 user's
    *  content broadcasts under one shared Hive account, so its profile
    *  alone can't distinguish between them), narrows the Blogs/Posts/
@@ -250,15 +242,6 @@ export interface UserDetailProfileProps {
   web2Token?: string;
   /** Base URL for Web2 backend (default: 'https://api.hivesuite.app') */
   web2ApiUrl?: string;
-  /** Called when the curator submits a curation request. `type` is
-   *  `'post'` for the Posts/Blogs tab or `'snap'` for the Snaps tab.
-   *  `ownVoteWeight` is the curator's own vote weight on this content
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, type: 'post' | 'snap', ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to every card's vote slider. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** Wallet tab — RC delegation removal (broadcasts max_rc=0 internally). */
   onDeleteRcDelegation?: (delegatee: string) => void | boolean | Promise<void | boolean>;
   /** Wallet tab — create a new HP delegation. `hp` is HP as a numeric string
@@ -621,15 +604,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   isUserBookmarked = false,
   onDeletePost,
   onEditPost,
-  isCurator,
-  optedOutAuthors,
   web2IdFilter,
   web2Credits: web2CreditsProp,
   onFetchWeb2Credits,
   web2Token,
   web2ApiUrl = "https://api.hivesuite.app",
-  onCurationRequest,
-  onFetchCurationStatus,
   onUpdateRcDelegation,
   onDeleteRcDelegation,
   onCreateHpDelegation,
@@ -2434,19 +2413,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       })),
     };
 
-    // Curation eligibility, shared by the vote slider's toggle. See
-    // numbered checks 1-7 in `isCurationEligible` (postVotes.ts) — checks
-    // 8-9 (bot-already-voted, already-submitted) run inside <VoteSlider/>
-    // once the dialog opens.
-    const curationEligible = isCurationEligible({
-      isCurator,
-      hasCurationHandler: !!onCurationRequest,
-      currentUser: currentUsername,
-      author: item.author,
-      jsonMetadata: item.json_metadata,
-      optedOutAuthors,
-    });
-    const curationBotAlreadyVoted = hasCurationVoterVoted(item.active_votes);
     const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
     const rebloggedBy = getRebloggedBy(item);
@@ -2584,11 +2550,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             initialCommentsCount={item.children || 0}
             postCreatedAt={item.created}
             onUpvote={onUpvote ? (percent) => onUpvote(item.author, item.permlink, percent) : undefined}
-            curationEligible={curationEligible}
-            curationBotAlreadyVoted={curationBotAlreadyVoted}
-            curationType="post"
-            onCurationRequest={onCurationRequest ? (weight, ownVoteWeight) => onCurationRequest(item.author, item.permlink, weight, 'post', ownVoteWeight) : undefined}
-            onFetchCurationStatus={onFetchCurationStatus}
             onSubmitComment={onSubmitComment ? (pAuthor, pPermlink, body) => onSubmitComment(pAuthor, pPermlink, body) : undefined}
             onClickCommentUpvote={onClickCommentUpvote}
             onReblog={onReblog ? () => onReblog(item.author, item.permlink) : undefined}
@@ -4294,10 +4255,6 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 : undefined}
             onReportPost={onReportPost ? (author, permlink) => setReportPostTarget({ author, permlink }) : undefined}
             onDeletePost={onDeletePost}
-            isCurator={isCurator}
-            optedOutAuthors={optedOutAuthors}
-            onCurationRequest={onCurationRequest ? (a, p, w, ownVoteWeight) => onCurationRequest(a, p, w, 'snap', ownVoteWeight) : undefined}
-            onFetchCurationStatus={onFetchCurationStatus}
             onVotePoll={onVotePoll}
             onEditSnap={onEditSnap}
             getPostUrl={getPostUrl}

@@ -111,20 +111,6 @@ interface InlineCommentSectionProps {
   decentMemesAppAccount?: string;
   /** Forwarded to DecentMemes pickers as `frontendInit.theme` / `setTheme`. */
   decentMemesTheme?: 'light' | 'dark';
-  /** When true, a heart button is shown on each comment so the curator
-   *  can request an on-chain upvote (1–3%). */
-  isCurator?: boolean;
-  /** Usernames who've opted out of ever receiving a curation vote —
-   *  forwarded to each `<InlineCommentItem/>`. See postVotes.ts. */
-  optedOutAuthors?: Set<string>;
-  /** Called when the curator submits a curation request on a comment.
-   *  `ownVoteWeight` is the curator's own vote weight on this comment
-   *  (0–100), recorded alongside the request for review. */
-  onCurationRequest?: (author: string, permlink: string, weight: number, ownVoteWeight: number) => void | Promise<void>;
-  /** Looks up the server-configured max curation weight for a content
-   *  type, plus whether it's already been submitted for curation.
-   *  Forwarded to every <InlineCommentItem/>. */
-  onFetchCurationStatus?: (author: string, permlink: string, type: 'post' | 'snap' | 'comment') => Promise<{ maxWeight: number; alreadySubmitted: boolean }>;
   /** When true, the current user is a Web2 user. */
   isWeb2User?: boolean;
 }
@@ -176,10 +162,6 @@ export default function InlineCommentSection({
   renderOptions,
   decentMemesAppAccount,
   decentMemesTheme,
-  isCurator,
-  optedOutAuthors,
-  onCurationRequest,
-  onFetchCurationStatus,
   isWeb2User = false,
 }: InlineCommentSectionProps) {
   const observer = observerProp ?? currentUser;
@@ -520,10 +502,6 @@ export default function InlineCommentSection({
               renderOptions={renderOptions}
               decentMemesAppAccount={decentMemesAppAccount}
               decentMemesTheme={decentMemesTheme}
-              isCurator={isCurator}
-              optedOutAuthors={optedOutAuthors}
-              onCurationRequest={onCurationRequest}
-              onFetchCurationStatus={onFetchCurationStatus}
             />
           ))}
         </div>
