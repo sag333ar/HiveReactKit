@@ -923,16 +923,23 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     return reasons;
   }, [hasVideo, decentMemes, propLockedBeneficiaries, isWeb2User, currentUser]);
 
-  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() =>
-    enforceLockedBeneficiaries(defaultBeneficiaries, []),
-  );
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(() => {
+    const initial = (defaultBeneficiaries ?? []).filter(
+      (b) => b.account !== THREESPEAK_FUND_ACCOUNT,
+    );
+    return enforceLockedBeneficiaries(initial, []);
+  });
   const visibleBeneficiaries = useMemo(() => {
     return beneficiaries.filter((b) => b.account !== 'hivesuite.app');
   }, [beneficiaries]);
   useEffect(() => {
     if (!draftHydrated) return;
     setBeneficiaries((prev) => {
-      const next = enforceLockedBeneficiaries(prev, lockedBeneficiaries);
+      const hasThreespeakInLocked = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT);
+      const cleanPrev = hasThreespeakInLocked
+        ? prev
+        : prev.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
+      const next = enforceLockedBeneficiaries(cleanPrev, lockedBeneficiaries);
       const isSame =
         next.length === prev.length &&
         next.every((item, idx) => item.account === prev[idx].account && item.weight === prev[idx].weight);
@@ -1629,7 +1636,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     setUserTags([]);
     setTagDraft('');
     setReward(defaultReward);
-    setBeneficiaries(enforceLockedBeneficiaries(initialBeneficiariesRef.current, lockedBeneficiaries));
+    const hasThreespeakInLocked = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT);
+    const cleanInitial = hasThreespeakInLocked
+      ? (initialBeneficiariesRef.current ?? [])
+      : (initialBeneficiariesRef.current ?? []).filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
+    setBeneficiaries(enforceLockedBeneficiaries(cleanInitial, lockedBeneficiaries));
     setAudioEmbedUrl(null);
     setAudioDuration(0);
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
@@ -1668,13 +1679,17 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
+      const hasThreespeakInLocked = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT);
+      const cleanBeneficiaries = hasThreespeakInLocked
+        ? beneficiaries
+        : beneficiaries.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
       const payload: ParentPostSubmitPayload = {
         title: title.trim(),
         description: description.trim().slice(0, DESCRIPTION_MAX),
         body: previewBody.trim(),
         tags: mergedTags,
         reward,
-        beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
+        beneficiaries: enforceLockedBeneficiaries(cleanBeneficiaries, lockedBeneficiaries),
         poll: pollData,
         audioEmbedUrl,
         videoEmbedUrl,
@@ -1706,6 +1721,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     mergedTags,
     reward,
     beneficiaries,
+    lockedBeneficiaries,
     hasVideo,
     pollData,
     audioEmbedUrl,
@@ -1726,25 +1742,31 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   // `beneficiaries` is the locked-merged list (`enforceLockedBeneficiaries`
   // already runs before this point in `submit`) so the saved row reflects
   // exactly what would have broadcast.
+  const cleanDraftBeneficiaries = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT)
+    ? beneficiaries
+    : beneficiaries.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
   const currentPostPayload: PostTemplatePayload = {
     title: title.trim(),
     description: description.trim().slice(0, DESCRIPTION_MAX),
     body: body,
     tags: mergedTags,
-    beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
+    beneficiaries: enforceLockedBeneficiaries(cleanDraftBeneficiaries, lockedBeneficiaries),
   };
 
   const handleSaveDraft = useCallback(async () => {
     if (!onSaveDraft || isSavingDraft) return;
     setIsSavingDraft(true);
     try {
+      const cleanBens = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT)
+        ? beneficiaries
+        : beneficiaries.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
       await Promise.resolve(
         onSaveDraft({
           title: title.trim(),
           description: description.trim().slice(0, DESCRIPTION_MAX),
           body,
           tags: mergedTags,
-          beneficiaries: enforceLockedBeneficiaries(beneficiaries, lockedBeneficiaries),
+          beneficiaries: enforceLockedBeneficiaries(cleanBens, lockedBeneficiaries),
         }),
       );
       // Draft is now persisted on the consumer side — the in-memory
@@ -2058,14 +2080,14 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
             the whole page from one to the other. On `lg:` we switch to two
             independently-scrolling columns so the side-by-side layout
             doesn't make the page absurdly tall. ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
-        <div className="mx-auto max-w-screen-2xl flex flex-col lg:flex-row lg:h-full">
+      <div className="parent-composer-body flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
+        <div className="parent-composer-grid mx-auto w-full max-w-screen-2xl flex flex-col lg:flex-row lg:h-full">
           {/* Editor pane — the entire pane is a drop target so the user can
               release an image anywhere over the editor (not just on top of
               the textarea). The overlay below is sticky-positioned inside
               the scroll container so it stays visible while the user drags. */}
           <section
-            className="relative flex flex-col border-b lg:border-b-0 lg:border-r border-[var(--hrk-border-subtle)] lg:flex-1 lg:min-h-0 lg:overflow-y-auto"
+            className="parent-composer-editor relative flex flex-col border-b lg:border-b-0 lg:border-r border-[var(--hrk-border-subtle)] lg:flex-1 lg:w-1/2 lg:min-h-0 lg:overflow-y-auto"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -2978,7 +3000,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
 
           {/* Preview pane — always visible. Independent scroll only on `lg:`;
               on mobile it expands to its full height inside the outer scroll. */}
-          <section className="bg-[var(--hrk-bg-surface-sunken)] lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+          <section className="parent-composer-preview relative flex flex-col bg-[var(--hrk-bg-surface-sunken)] lg:flex-1 lg:w-1/2 lg:min-h-0 lg:overflow-y-auto">
             <div className="px-3 sm:px-6 py-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">

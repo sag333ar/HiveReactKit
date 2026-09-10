@@ -637,9 +637,12 @@ const PostComposer = ({
     return reasons;
   }, [hasVideo, decentMemes, decentMemesKind, isWeb2User, currentUser]);
 
-  const [internalBeneficiaries, setInternalBeneficiaries] = useState<Beneficiary[]>(() =>
-    enforceLockedBeneficiaries(defaultBeneficiaries, []),
-  );
+  const [internalBeneficiaries, setInternalBeneficiaries] = useState<Beneficiary[]>(() => {
+    const initial = (defaultBeneficiaries ?? []).filter(
+      (b) => b.account !== THREESPEAK_FUND_ACCOUNT,
+    );
+    return enforceLockedBeneficiaries(initial, []);
+  });
   const currentBeneficiaries = beneficiaries ?? internalBeneficiaries;
   const visibleBeneficiaries = useMemo(() => {
     return currentBeneficiaries.filter((b) => b.account !== 'hivesuite.app');
@@ -648,7 +651,13 @@ const PostComposer = ({
   // appear / scale / disappear without the user having to re-open the editor.
   useEffect(() => {
     if (beneficiaries !== undefined) return; // controlled — consumer owns it
-    setInternalBeneficiaries((prev) => enforceLockedBeneficiaries(prev, lockedBeneficiaries));
+    setInternalBeneficiaries((prev) => {
+      const hasThreespeakInLocked = lockedBeneficiaries.some((b) => b.account === THREESPEAK_FUND_ACCOUNT);
+      const cleanPrev = hasThreespeakInLocked
+        ? prev
+        : prev.filter((b) => b.account !== THREESPEAK_FUND_ACCOUNT);
+      return enforceLockedBeneficiaries(cleanPrev, lockedBeneficiaries);
+    });
   }, [lockedBeneficiaries, beneficiaries]);
   const [isBeneficiariesOpen, setIsBeneficiariesOpen] = useState(false);
   const handleBeneficiariesSave = useCallback(

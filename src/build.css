@@ -95,6 +95,83 @@
   }
 }
 
+/* ─── ParentPostComposer: Full-screen modal layout (Mobile stacked, Desktop side-by-side) ─── */
+.parent-composer-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.parent-composer-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 1536px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  min-height: 0 !important;
+}
+
+.parent-composer-editor {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  border-bottom: 1px solid var(--hrk-border-subtle, rgba(255, 255, 255, 0.06)) !important;
+  border-right: 0 none !important;
+}
+
+.parent-composer-preview {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  background-color: var(--hrk-bg-surface-sunken, #0b0d11) !important;
+}
+
+/* ─── Desktop (>= 1024px): Two-column layout (Editor left, Preview right) ─── */
+@media (min-width: 1024px) {
+  .parent-composer-body {
+    overflow: hidden !important;
+    height: 100% !important;
+  }
+  .parent-composer-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    align-items: stretch !important;
+  }
+  .parent-composer-editor {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    max-width: 50% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    border-bottom: 0 none !important;
+    border-right: 1px solid var(--hrk-border-subtle, rgba(255, 255, 255, 0.06)) !important;
+  }
+  .parent-composer-preview {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    max-width: 50% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+}
+
 /* ─── Hive Post Body — scoped styles for @hiveio/content-renderer output ─── */
 .hive-post-body {
   color: var(--hrk-text-primary);
