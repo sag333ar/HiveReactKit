@@ -111,7 +111,7 @@ const PostComposerPage = () => {
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
-          defaultTags={['snaps', 'hsnaps']}
+          defaultTags={['hivesuite', 'snaps']}
           onTagsChange={(tags) => {
             tagsRef.current = tags;
             console.log('Tags changed:', tags);

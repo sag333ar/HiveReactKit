@@ -399,7 +399,7 @@ export default function InlineCommentSection({
             hideUserHeader
             disableAutoFocus
             showVoteButton={!!showVoteButton && !alreadyVoted}
-            defaultTags={parentTags}
+            defaultTags={['hivesuite', 'hivesuite-comment']}
             defaultReward={defaultReward}
             defaultBeneficiaries={defaultBeneficiaries}
             beneficiaryFavorites={beneficiaryFavorites}

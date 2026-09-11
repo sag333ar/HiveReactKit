@@ -19,7 +19,7 @@ import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
 import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
-import { buildOdyseeEmbedUrl, getWeb2Identity, Web2ProviderBadge } from '../feed/AttachmentStrip';
+import { buildOdyseeEmbedUrl, getWeb2Identity, Web2ProviderBadge, stripViaAppsCredit } from '../feed/AttachmentStrip';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { TranslatedBody } from '../TranslatedBody';
 
@@ -288,16 +288,20 @@ export default function InlineCommentItem({
   const metadata = (comment as any).json_metadata_parsed ||
     (() => { try { return comment.json_metadata ? JSON.parse(comment.json_metadata) : undefined; } catch { return undefined; } })();
 
-  // Show first tag next to username only when developer is sagarkothari88 and tags contains 'hivesuite', 'hreplier', 'hrepiler' or 'hsnaps'
-  const allowedTags = ['hivesuite', 'hreplier', 'hrepiler', 'hsnaps'];
-  const hasAllowedTag =
-    (Array.isArray(metadata?.tags) && metadata.tags.some((t: any) => allowedTags.includes(String(t).toLowerCase()))) ||
-    (Array.isArray(parentTags) && parentTags.some((t: any) => allowedTags.includes(String(t).toLowerCase())));
+  // Show HiveSuite tag next to username only when developer is sagarkothari88/hivesuite and an actual hivesuite tag is present
+  const HIVESUITE_TAG_PRIORITY = [
+    'hivesuite-comment',
+    'hivesuite-reply',
+    'hivesuite-inbox',
+    'hivesuite',
+  ];
+  const rawTags: string[] = Array.isArray(metadata?.tags)
+    ? metadata.tags.map((t: any) => String(t).toLowerCase().trim())
+    : [];
+  const foundHivesuiteTag = HIVESUITE_TAG_PRIORITY.find((t) => rawTags.includes(t));
   const allowedDevs = ['sagarkothari88', 'hivesuite.app'];
   const isDev = allowedDevs.includes(comment.author) || metadata?.developer === 'sagarkothari88';
-  const developerTag = isDev && hasAllowedTag
-    ? (Array.isArray(metadata?.tags) && metadata.tags.length > 0 ? (metadata.tags[0] as string) : 'hivesuite')
-    : null;
+  const developerTag = isDev && foundHivesuiteTag ? foundHivesuiteTag : null;
 
   const web2Identity = getWeb2Identity(
     comment.author,
@@ -307,8 +311,7 @@ export default function InlineCommentItem({
 
   // Sanitize body
   const rawBody = comment.body || '';
-  const sanitizedBody = rawBody
-    .replace(/<br\s*\/?>\s*\n?\s*<sub>\[via Apps from\]\(https:\/\/linktr\.ee\/sagarkothari88\)<\/sub>/gi, '')
+  const sanitizedBody = stripViaAppsCredit(rawBody)
     .replace(/^(\s*(?:#[\p{L}\p{N}_-]+\s*(?:,\s*)?)+\s*)$/gimu, '')
     .trim();
 
@@ -937,6 +940,7 @@ export default function InlineCommentItem({
                         templateApiBaseUrl={templateApiBaseUrl}
                         hideUserHeader
                         showCancel
+                        defaultTags={['hivesuite', 'hivesuite-comment']}
                         defaultReward={defaultReward}
                         defaultBeneficiaries={defaultBeneficiaries}
                         beneficiaryFavorites={beneficiaryFavorites}
@@ -1031,6 +1035,7 @@ export default function InlineCommentItem({
                     templateApiBaseUrl={templateApiBaseUrl}
                     hideUserHeader
                     showCancel
+                    defaultTags={['hivesuite', 'hivesuite-comment']}
                     defaultReward={defaultReward}
                     defaultBeneficiaries={defaultBeneficiaries}
                     beneficiaryFavorites={beneficiaryFavorites}

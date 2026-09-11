@@ -62,6 +62,7 @@ import { useTranslatedText } from '@/i18n/useTranslatedText';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import { extractPostMedia } from '@/utils/postMedia';
 import { stripFirstContextLink, extractFirstContextTwitterId } from '@/utils/firstContext';
+import { stripViaAppsCredit } from './feed/AttachmentStrip';
 import { DEFAULT_TRANSLATE_LANGUAGES } from '@/i18n/selectionTranslate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1131,7 +1132,7 @@ export function HiveDetailPost({
     const raw = shouldStripReSnapUrl
       ? stripHivePostReference(processedBody, reSnapTarget)
       : processedBody;
-    return stripFirstContextLink(raw);
+    return stripFirstContextLink(stripViaAppsCredit(raw));
   }, [processedBody, reSnapTarget, shouldStripReSnapUrl]);
 
   // WorldMappin geo-pin: posts embed `[//]:# (!worldmappin <lat> lat <lng>
@@ -3205,25 +3206,38 @@ export function HiveDetailPost({
               );
             })()}
 
-            {/* Tags */}
-            {parsedMetadata?.tags && parsedMetadata.tags.length > 0 && (
-              <div className="border-t border-[var(--hrk-border-subtle)]/50 pt-4 pb-4">
-                <div className="flex items-center gap-1.5 text-xs text-[var(--hrk-text-tertiary)] mb-2">
-                  <Tag className="w-3.5 h-3.5" /> Tags
+            {/* Tags - Only show HiveSuite family tags if available */}
+            {(() => {
+              const HIVESUITE_TAG_PRIORITY = ['hivesuite-comment', 'hivesuite-reply', 'hivesuite-inbox'];
+              const rawTags = (Array.isArray(parsedMetadata?.tags) ? parsedMetadata.tags : [])
+                .map((t: unknown) => String(t).toLowerCase().trim());
+
+              const hasSpecificTag = HIVESUITE_TAG_PRIORITY.some((t) => rawTags.includes(t));
+              const visibleTags = hasSpecificTag
+                ? HIVESUITE_TAG_PRIORITY.filter((t) => rawTags.includes(t))
+                : (rawTags.includes('hivesuite') ? ['hivesuite'] : []);
+
+              if (visibleTags.length === 0) return null;
+
+              return (
+                <div className="border-t border-[var(--hrk-border-subtle)]/50 pt-4 pb-4">
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--hrk-text-tertiary)] mb-2">
+                    <Tag className="w-3.5 h-3.5" /> Tags
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {visibleTags.map((tag: string, index: number) => (
+                      <a
+                        key={index}
+                        href={`/dashboard/tag-blogs/${encodeURIComponent(tag)}`}
+                        className="px-2.5 py-0.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 text-[11px] rounded-full transition-colors cursor-pointer"
+                      >
+                        #{tag}
+                      </a>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsedMetadata.tags.map((tag: string, index: number) => (
-                    <a
-                      key={index}
-                      href={`/dashboard/tag-blogs/${encodeURIComponent(tag)}`}
-                      className="px-2.5 py-0.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 text-[11px] rounded-full transition-colors cursor-pointer"
-                    >
-                      #{tag}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Bottom action bar (repeat for long posts) */}
             <div className="py-2.5 border-t border-[var(--hrk-border-subtle)]/50">

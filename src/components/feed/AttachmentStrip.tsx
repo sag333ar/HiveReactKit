@@ -254,7 +254,16 @@ export function Web2ProviderBadge({
   );
 }
 
-const HIVESUITE_FAMILY_TAGS = new Set(['hsnaps', 'hreplier', 'hivesuite']);
+const HIVESUITE_FAMILY_TAGS = new Set([
+  'hivesuite',
+  'hivesuite-reply',
+  'hivesuite-inbox',
+  'hivesuite-comment',
+  'hsnaps',
+  'hreplier',
+  'hrepiler',
+  'hcurators',
+]);
 
 export function hasHivesuiteFamilyTag(post: Post): boolean {
   const meta = parseJsonMetadata(post.json_metadata as unknown);
@@ -271,19 +280,29 @@ export function extractTagsFromMeta(post: Post): string[] {
 }
 
 export function stripViaAppsCredit(body: string): string {
+  if (!body || typeof body !== 'string') return body ?? '';
   return body
     .replace(
-      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\][^<]*<\/sub>\s*$/,
+      /\s*(?:<br\s*\/?>)?\s*<sub>\s*Posted (?:via|using)\s*\[?HiveSuite\]?\([^)]*\)\s*<\/sub>\s*$/i,
       '',
     )
     .replace(
-      /\s*(?:<br\s*\/?>)?\s*\[via Apps from\]\([^)]*\)\s*$/,
+      /\s*(?:<br\s*\/?>)?\s*(?:<sub>)?\s*Posted (?:via|using)\s*\[?HiveSuite\]?(?:\(https?:\/\/(?:www\.)?hivesuite\.app[^\s)]*\))?\s*(?:<\/sub>)?\s*$/i,
       '',
     )
     .replace(
-      /\s*(?:<br\s*\/?>)?\s*via Apps from\s+https?:\/\/\S+\s*$/,
+      /\s*(?:<br\s*\/?>)?\s*<sub>\s*\[via Apps from\][^<]*<\/sub>\s*$/i,
       '',
-    );
+    )
+    .replace(
+      /\s*(?:<br\s*\/?>)?\s*\[via Apps from\]\([^)]*\)\s*$/i,
+      '',
+    )
+    .replace(
+      /\s*(?:<br\s*\/?>)?\s*via Apps from\s+https?:\/\/\S+\s*$/i,
+      '',
+    )
+    .trimEnd();
 }
 
 export function parseBody(post: Post): ParsedBody {

@@ -50,8 +50,12 @@ import { isTransliterationSupported } from '../../services/transliterationServic
 // since it'd otherwise just be paying themselves. See lockedBeneficiaries.
 const DEVELOPER_ACCOUNT = 'sagarkothari88';
 
+export interface PostComposerSubmitExtra {
+  includeAppSuffix?: boolean;
+}
+
 export interface PostComposerProps {
-  onSubmit: (body: string) => void | boolean | Promise<void | boolean>;
+  onSubmit: (body: string, extra?: PostComposerSubmitExtra) => void | boolean | Promise<void | boolean>;
   onCancel?: () => void;
   currentUser?: string;
   currentUserAvatar?: string;
@@ -254,6 +258,16 @@ export interface PostComposerProps {
   /** Dedicated slot for schedule button / chip in the toolbar. */
   scheduleSlot?: React.ReactNode;
   isWeb2User?: boolean;
+  /** Show the "Posted via HiveSuite" suffix checkbox toggle (default true) */
+  showAppSuffixToggle?: boolean;
+  /** Initial state for the "Posted via HiveSuite" checkbox (default true) */
+  defaultIncludeAppSuffix?: boolean;
+  /** Controlled state for the "Posted via HiveSuite" checkbox */
+  includeAppSuffix?: boolean;
+  /** Callback when the "Posted via HiveSuite" toggle state changes */
+  onIncludeAppSuffixChange?: (include: boolean) => void;
+  /** Custom label for the app suffix toggle (default "Posted via HiveSuite") */
+  appSuffixLabel?: string;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -340,6 +354,11 @@ const PostComposer = ({
   extraToolbarButtons,
   scheduleSlot,
   isWeb2User = false,
+  showAppSuffixToggle = true,
+  defaultIncludeAppSuffix = true,
+  includeAppSuffix: controlledIncludeAppSuffix,
+  onIncludeAppSuffixChange,
+  appSuffixLabel = 'Posted via HiveSuite',
 }: PostComposerProps) => {
   const hideAudio = hideAudioProp;
   const hideVideo = hideVideoProp;
@@ -347,6 +366,18 @@ const PostComposer = ({
   const hidePoll = hidePollProp;
   const hideReward = hideRewardProp || isWeb2User;
   const hideBeneficiaries = hideBeneficiariesProp || isWeb2User;
+  const [internalIncludeAppSuffix, setInternalIncludeAppSuffix] = useState(
+    defaultIncludeAppSuffix ?? true
+  );
+  const currentIncludeAppSuffix = controlledIncludeAppSuffix !== undefined
+    ? controlledIncludeAppSuffix
+    : internalIncludeAppSuffix;
+
+  const handleToggleAppSuffix = useCallback((checked: boolean) => {
+    setInternalIncludeAppSuffix(checked);
+    onIncludeAppSuffixChange?.(checked);
+  }, [onIncludeAppSuffixChange]);
+
   const [internalBody, setInternalBody] = useState('');
   const body = value !== undefined ? value : internalBody;
   const setBody = (v: string) => {
@@ -953,7 +984,7 @@ const PostComposer = ({
       let finalBody = body.trim();
       if (audioEmbedUrl) finalBody += `\n${audioEmbedUrl}`;
       if (videoEmbedUrl) finalBody += `\n${videoEmbedUrl}`;
-      const result = await Promise.resolve(onSubmit(finalBody));
+      const result = await Promise.resolve((onSubmit as any)(finalBody, { includeAppSuffix: currentIncludeAppSuffix }));
       // If onSubmit returns false, the operation was cancelled — preserve text and attachments
       if (result === false) return;
       setBody('');
@@ -993,7 +1024,8 @@ const PostComposer = ({
         onPollChange?.(null);
         setDecentMemes([]);
       },
-    };
+      includeAppSuffix: currentIncludeAppSuffix,
+    } as any;
     return () => { if (submitRef) submitRef.current = null; };
   });
 
@@ -1820,6 +1852,22 @@ const PostComposer = ({
             >
               Edit
             </button>
+          </div>
+        )}
+
+        {/* App suffix toggle ("Posted via HiveSuite") */}
+        {showAppSuffixToggle && (
+          <div className="flex items-center gap-2 pt-1 px-0.5">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)] transition-colors">
+              <input
+                type="checkbox"
+                checked={currentIncludeAppSuffix}
+                onChange={(e) => handleToggleAppSuffix(e.target.checked)}
+                disabled={isDisabled}
+                className="h-3.5 w-3.5 rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-app)] text-[var(--hrk-brand)] focus:ring-[var(--hrk-brand)] cursor-pointer"
+              />
+              <span>{appSuffixLabel}</span>
+            </label>
           </div>
         )}
       </div>

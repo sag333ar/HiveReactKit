@@ -306,7 +306,7 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   templateApiBaseUrl={templateApiBaseUrl}
                   showVoteButton={showVoteButton}
                   onVoteChange={(enabled, percent) => { voteRef.current = { enabled, percent }; }}
-                  defaultTags={parentTags}
+                  defaultTags={['hivesuite', 'hivesuite-comment']}
                   defaultReward={defaultReward}
                   defaultBeneficiaries={defaultBeneficiaries}
                   beneficiaryFavorites={beneficiaryFavorites}

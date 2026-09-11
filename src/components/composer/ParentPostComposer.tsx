@@ -103,6 +103,7 @@ import {
   uploadImageWithFallback,
   type PostingSignMessageFn,
 } from '../../services/hiveImageUpload';
+import { stripViaAppsCredit } from '../feed/AttachmentStrip';
 
 const DESCRIPTION_MAX = 120;
 const TITLE_MAX = 120;
@@ -151,6 +152,8 @@ export interface ParentPostSubmitPayload {
    * post can fold it into `json_metadata` if they want.
    */
   isNsfw: boolean;
+  /** Whether to append the "Posted via HiveSuite" markdown suffix */
+  includeAppSuffix: boolean;
 }
 
 export interface ParentPostComposerProps {
@@ -399,6 +402,16 @@ export interface ParentPostComposerProps {
    *  suppresses `communitySlot` — these all cost real Hive-account
    *  resources that free web2 users shouldn't reach. */
   isWeb2User?: boolean;
+  /** Show the "Posted via HiveSuite" suffix checkbox toggle (default true) */
+  showAppSuffixToggle?: boolean;
+  /** Initial state for the "Posted via HiveSuite" checkbox (default true) */
+  defaultIncludeAppSuffix?: boolean;
+  /** Controlled state for the "Posted via HiveSuite" checkbox */
+  includeAppSuffix?: boolean;
+  /** Callback when the "Posted via HiveSuite" toggle state changes */
+  onIncludeAppSuffixChange?: (include: boolean) => void;
+  /** Custom label for the app suffix toggle (default "Posted via HiveSuite") */
+  appSuffixLabel?: string;
 }
 
 /**
@@ -550,6 +563,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   reblogToggleLabel = 'Reblog',
   previewExtras = '',
   isWeb2User = false,
+  showAppSuffixToggle = true,
+  defaultIncludeAppSuffix = true,
+  includeAppSuffix: controlledIncludeAppSuffix,
+  onIncludeAppSuffixChange,
+  appSuffixLabel = 'Posted via HiveSuite',
 }) => {
   const hideAudio = hideAudioProp;
   const hideVideo = hideVideoProp;
@@ -564,6 +582,16 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   const [draftHydrated, setDraftHydrated] = useState(false);
   const [description, setDescription] = useState(initialDescription);
   const [body, setBody] = useState(initialBody);
+  const [internalIncludeAppSuffix, setInternalIncludeAppSuffix] = useState(
+    defaultIncludeAppSuffix ?? true
+  );
+  const includeAppSuffix = controlledIncludeAppSuffix !== undefined
+    ? controlledIncludeAppSuffix
+    : internalIncludeAppSuffix;
+  const handleToggleAppSuffix = useCallback((checked: boolean) => {
+    setInternalIncludeAppSuffix(checked);
+    onIncludeAppSuffixChange?.(checked);
+  }, [onIncludeAppSuffixChange]);
   // Reblog toggle (only meaningful when the host enabled `reblogToggle`).
   // Tracking the host-controlled default lets the toggle flip on/off as
   // the host shows/hides it (e.g. user selects then clears the community).
@@ -1232,7 +1260,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     if (audioEmbedUrl) out += `\n${audioEmbedUrl}`;
     if (videoEmbedUrl) out += `\n${videoEmbedUrl}`;
     if (previewExtras) out += `\n\n${previewExtras}`;
-    out = stripWorldMapPinMarkers(out);
+    out = stripViaAppsCredit(stripWorldMapPinMarkers(out));
     return out;
   }, [body, audioEmbedUrl, videoEmbedUrl, previewExtras]);
 
@@ -1699,6 +1727,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
         hasVideo: Boolean(videoUploadDetails),
         isNsfw,
         reblog: reblogToggle ? reblog : false,
+        includeAppSuffix,
         // Pass the picked app through to the host so it can route
         // the broadcast appropriately (blog vs snap-style comment).
         appId: apps && apps.length > 0 ? activeAppId : undefined,
@@ -1734,6 +1763,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
     clearDraftAndReset,
     reblog,
     reblogToggle,
+    includeAppSuffix,
   ]);
 
   // ── Save Draft / Post Templates ──────────────────────────────────────────
@@ -2140,35 +2170,49 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                   typing. */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">{communitySlot}</div>
-                {reblogToggle && (
-                  <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-[var(--hrk-text-secondary)]">
-                    <span>{reblogToggleLabel}:</span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={reblog}
-                      aria-label={`${reblogToggleLabel} ${reblog ? 'on' : 'off'}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setReblog((v) => !v);
-                      }}
-                      disabled={isDisabled}
-                      className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors ${
-                        reblog ? 'bg-[var(--hrk-info)]' : 'bg-[var(--hrk-bg-hover)]'
-                      } disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                          reblog ? 'translate-x-4' : 'translate-x-0.5'
-                        }`}
+                <div className="flex items-center gap-3 shrink-0">
+                  {showAppSuffixToggle && (
+                    <label className="inline-flex items-center gap-1.5 text-xs text-[var(--hrk-text-secondary)] hover:text-[var(--hrk-text-primary)] cursor-pointer select-none transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={includeAppSuffix}
+                        onChange={(e) => handleToggleAppSuffix(e.target.checked)}
+                        disabled={isDisabled}
+                        className="h-3.5 w-3.5 rounded border-[var(--hrk-border-default)] bg-[var(--hrk-bg-app)] text-[var(--hrk-brand)] focus:ring-[var(--hrk-brand)] cursor-pointer"
                       />
-                    </button>
-                    <span className={`font-medium ${reblog ? 'text-[var(--hrk-info)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
-                      {reblog ? 'yes' : 'no'}
-                    </span>
-                  </div>
-                )}
+                      <span>{appSuffixLabel}</span>
+                    </label>
+                  )}
+                  {reblogToggle && (
+                    <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-[var(--hrk-text-secondary)]">
+                      <span>{reblogToggleLabel}:</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={reblog}
+                        aria-label={`${reblogToggleLabel} ${reblog ? 'on' : 'off'}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setReblog((v) => !v);
+                        }}
+                        disabled={isDisabled}
+                        className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors ${
+                          reblog ? 'bg-[var(--hrk-info)]' : 'bg-[var(--hrk-bg-hover)]'
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                            reblog ? 'translate-x-4' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                      <span className={`font-medium ${reblog ? 'text-[var(--hrk-info)]' : 'text-[var(--hrk-text-tertiary)]'}`}>
+                        {reblog ? 'yes' : 'no'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Title */}
