@@ -16,8 +16,10 @@
  * the host app owns the data plane.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react';
-import { Repeat2 } from 'lucide-react';
+import { Repeat2, Heart, MessageCircle, Gift } from 'lucide-react';
 import { createHiveRenderer } from '@snapie/renderer';
+import { apiService } from '@/services/apiService';
+import type { Discussion } from '@/types/comment';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
@@ -196,8 +198,30 @@ function formatTimeAgo(dateString: string): string {
   if (seconds < 60) return 'just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+function cleanCommentSnippet(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  return stripViaAppsCredit(raw)
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/(?:^|\n)\s*(?:#[\p{L}\p{N}_-]+(?:\s*,?\s*)){1,}$/u, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatCommentPayout(c: Discussion): string {
+  if (typeof c.payout === 'number' && c.payout > 0) {
+    return `${c.payout.toFixed(2)}`;
+  }
+  const pending = c.pending_payout_value ? parseFloat(c.pending_payout_value) : 0;
+  const author = c.author_payout_value ? parseFloat(c.author_payout_value) : 0;
+  const curator = c.curator_payout_value ? parseFloat(c.curator_payout_value) : 0;
+  const val = pending || (author + curator) || 0;
+  return `${val.toFixed(2)}`;
 }
 
 // ── Inline body renderer ─────────────────────────────────────────────────
@@ -484,15 +508,104 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     }
   }, [bodyForContent, renderHive]);
 
+  // ── "I already commented" tooltip support ───────────────────────────
   const myReplyKey = useMemo(() => {
-    if (!currentUser || !Array.isArray(post.replies) || post.replies.length === 0) return undefined;
-    const prefix = `${currentUser.toLowerCase()}/`;
-    const found = (post.replies as unknown[]).find(
-      (key): key is string => typeof key === 'string' && key.toLowerCase().startsWith(prefix),
-    );
-    return found ?? undefined;
+    if (!currentUser || !post.replies) return null;
+    const prefix = `${currentUser}/`;
+    const found = post.replies.find((r) => r.startsWith(prefix));
+    return found ?? null;
   }, [currentUser, post.replies]);
-  const hasCommented = !!myReplyKey;
+  const hasCommented = myReplyKey !== null;
+
+  // ── Top comment preview (under 100 characters) ─────────────────────────
+  const [topComment, setTopComment] = useState<Discussion | null>(null);
+  const [totalCommentsCount, setTotalCommentsCount] = useState<number>(post.children || 0);
+  const [hasVotedTopComment, setHasVotedTopComment] = useState(false);
+  const [topCommentVoteCount, setTopCommentVoteCount] = useState(0);
+
+  useEffect(() => {
+    if (!post?.author || !post?.permlink || (post.children || 0) === 0) {
+      setTopComment(null);
+      return;
+    }
+
+    let active = true;
+    apiService.getCommentsList(post.author, post.permlink, observer || '')
+      .then((list) => {
+        if (!active || !Array.isArray(list) || list.length === 0) return;
+        setTotalCommentsCount(Math.max(post.children || 0, list.length));
+
+        // Filter direct replies with cleaned body length < 100 characters
+        const directReplies = list.filter((c) => {
+          if (c.parent_permlink === post.permlink) return true;
+          if (c.parent_author === post.author && (!c.depth || c.depth <= 2)) return true;
+          if (c.depth === 1) return true;
+          return false;
+        });
+
+        const pool = directReplies.length > 0 ? directReplies : list;
+        const qualifying = pool.filter((c) => {
+          const clean = cleanCommentSnippet(c.body || '');
+          return clean.length > 0 && clean.length < 100;
+        });
+
+        if (qualifying.length === 0) {
+          setTopComment(null);
+          return;
+        }
+
+        // Sort to pick the "top" comment: highest votes first, then highest payout, then newest
+        qualifying.sort((a, b) => {
+          const votesA = Array.isArray(a.active_votes) ? a.active_votes.length : (a.net_votes ?? 0);
+          const votesB = Array.isArray(b.active_votes) ? b.active_votes.length : (b.net_votes ?? 0);
+          if (votesB !== votesA) return votesB - votesA;
+          const payoutA = parseFloat(String(a.pending_payout_value || a.author_payout_value || a.payout || '0'));
+          const payoutB = parseFloat(String(b.pending_payout_value || b.author_payout_value || b.payout || '0'));
+          if (payoutB !== payoutA) return payoutB - payoutA;
+          return new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime();
+        });
+
+        const chosen = qualifying[0];
+        setTopComment(chosen);
+        const votes = Array.isArray(chosen.active_votes) ? chosen.active_votes : [];
+        setTopCommentVoteCount(votes.length || (chosen.net_votes ?? 0));
+        setHasVotedTopComment(
+          !!currentUser && votes.some((v: any) => String(v.voter).toLowerCase() === currentUser.toLowerCase())
+        );
+      })
+      .catch(() => {
+        // Silently ignore if comments fail to load
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [post?.author, post?.permlink, post?.children, observer, currentUser]);
+
+  const handleTopCommentUpvote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!topComment || !onClickCommentUpvote) return;
+    const newVoted = !hasVotedTopComment;
+    setHasVotedTopComment(newVoted);
+    setTopCommentVoteCount((prev) => (newVoted ? prev + 1 : Math.max(0, prev - 1)));
+    try {
+      await onClickCommentUpvote(topComment.author, topComment.permlink, defaultVotePercent ?? 100);
+    } catch {
+      setHasVotedTopComment(!newVoted);
+      setTopCommentVoteCount((prev) => (newVoted ? Math.max(0, prev - 1) : prev + 1));
+    }
+  };
+
+  const handleCommentNavigation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCommentClick) {
+      onCommentClick(post.author, post.permlink);
+    } else if (onClickCommentCount) {
+      onClickCommentCount(post.author, post.permlink, contextPosts);
+    } else if (onPostClick) {
+      onPostClick(post.author, post.permlink, post.title, contextPosts);
+    }
+  };
   const tier = useSupporterTier(post.author);
 
   const rawPayout = post.payout
@@ -862,6 +975,119 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           isWeb2User={isWeb2User}
         />
       </div>
+
+      {/* Top short comment preview (under 100 characters) */}
+      {topComment && (
+        <div className="border-t border-[var(--hrk-border-default)]/30 pt-2 pb-3 px-3 sm:px-4">
+          <div className="relative flex items-start gap-2.5 pl-2 sm:pl-3">
+            {/* L-shaped Thread connector line */}
+            <div className="pointer-events-none absolute -left-0.5 sm:left-0 -top-2 bottom-3.5 w-3.5 sm:w-4 rounded-bl-xl border-b border-l border-neutral-700/60" />
+
+            {/* Commenter Avatar */}
+            <HiveLink
+              href={getUserUrl?.(topComment.author)}
+              onActivate={() => onUserClick?.(topComment.author)}
+              className="z-10 shrink-0"
+            >
+              <img
+                src={`https://images.hive.blog/u/${topComment.author}/avatar`}
+                alt={topComment.author}
+                className="h-6 w-6 sm:h-7 sm:w-7 rounded-full object-cover border border-neutral-700/80 bg-neutral-800"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar';
+                }}
+              />
+            </HiveLink>
+
+            {/* Comment Body & Meta */}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <HiveLink
+                  href={getUserUrl?.(topComment.author)}
+                  onActivate={() => onUserClick?.(topComment.author)}
+                  className="text-xs font-semibold text-white hover:text-[var(--hrk-brand)] transition-colors truncate"
+                >
+                  {topComment.author}
+                </HiveLink>
+                <span className="text-[11px] text-[var(--hrk-text-tertiary)]">
+                  {topComment.created ? formatTimeAgo(topComment.created) : ''}
+                </span>
+              </div>
+
+              <div
+                onClick={handleCommentNavigation}
+                className="text-xs sm:text-[13px] text-neutral-200 leading-relaxed cursor-pointer hover:text-white transition-colors"
+              >
+                {cleanCommentSnippet(topComment.body || '')}
+              </div>
+
+              {/* Comment mini action row */}
+              <div className="flex items-center gap-3.5 pt-1 text-[11px] text-[var(--hrk-text-tertiary)]">
+                <button
+                  type="button"
+                  onClick={handleCommentNavigation}
+                  className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer"
+                  title="Replies"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  <span>{topComment.children || 0}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTopCommentUpvote}
+                  className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                    hasVotedTopComment ? 'text-red-500 font-medium' : 'hover:text-red-400'
+                  }`}
+                  title="Upvote comment"
+                >
+                  <Heart className={`h-3.5 w-3.5 ${hasVotedTopComment ? 'fill-current text-red-500' : ''}`} />
+                  <span>{topCommentVoteCount}</span>
+                </button>
+
+                {onTip && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTip(topComment.author, topComment.permlink);
+                    }}
+                    className="flex items-center gap-1 hover:text-yellow-400 transition-colors cursor-pointer"
+                    title="Tip author"
+                  >
+                    <Gift className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                <div className="ml-auto flex items-center gap-1 font-mono text-[10px] text-[var(--hrk-text-tertiary)]">
+                  <span>{formatCommentPayout(topComment)}</span>
+                  <img
+                    src="/images/hive_logo.png"
+                    alt="Hive"
+                    className="h-3 w-3 object-contain opacity-70"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* More comments button */}
+          <div className="pt-2.5 flex justify-center">
+            <button
+              type="button"
+              onClick={handleCommentNavigation}
+              className="w-full max-w-sm py-1.5 px-4 rounded-xl bg-[#1c2229]/80 hover:bg-[#252e38] border border-blue-500/20 hover:border-blue-500/40 text-blue-400 hover:text-blue-300 text-xs font-medium transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>
+                {totalCommentsCount > 1
+                  ? `${totalCommentsCount - 1} more comment${totalCommentsCount - 1 > 1 ? 's' : ''}`
+                  : 'View comments'}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
     </article>
   );
 };
