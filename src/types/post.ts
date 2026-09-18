@@ -74,6 +74,8 @@ export interface Post {
   title: string;
   updated: string;
   url: string;
+  top_comment?: import('./comment').Discussion | null;
+  topComment?: import('./comment').Discussion | null;
 }
 
 export type PostSort = 'trending' | 'hot' | 'created';

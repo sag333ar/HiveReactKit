@@ -518,69 +518,35 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const hasCommented = myReplyKey !== null;
 
   // ── Top comment preview (under 100 characters) ─────────────────────────
-  const [topComment, setTopComment] = useState<Discussion | null>(null);
+  const initialTopComment = ((post as any)?.top_comment || (post as any)?.topComment || null) as Discussion | null;
+  const [topComment, setTopComment] = useState<Discussion | null>(initialTopComment);
   const [totalCommentsCount, setTotalCommentsCount] = useState<number>(post.children || 0);
-  const [hasVotedTopComment, setHasVotedTopComment] = useState(false);
-  const [topCommentVoteCount, setTopCommentVoteCount] = useState(0);
+  const [hasVotedTopComment, setHasVotedTopComment] = useState<boolean>(() => {
+    if (!currentUser || !initialTopComment) return false;
+    const votes = Array.isArray(initialTopComment.active_votes) ? initialTopComment.active_votes : [];
+    return votes.some((v: any) => String(v.voter).toLowerCase() === currentUser.toLowerCase());
+  });
+  const [topCommentVoteCount, setTopCommentVoteCount] = useState<number>(() => {
+    if (!initialTopComment) return 0;
+    const votes = Array.isArray(initialTopComment.active_votes) ? initialTopComment.active_votes : [];
+    return votes.length || (initialTopComment.net_votes ?? 0);
+  });
 
   useEffect(() => {
-    if (!post?.author || !post?.permlink || (post.children || 0) === 0) {
-      setTopComment(null);
-      return;
+    const rawTop = ((post as any)?.top_comment || (post as any)?.topComment || null) as Discussion | null;
+    setTopComment(rawTop);
+    setTotalCommentsCount(post.children || 0);
+    if (rawTop) {
+      const votes = Array.isArray(rawTop.active_votes) ? rawTop.active_votes : [];
+      setTopCommentVoteCount(votes.length || (rawTop.net_votes ?? 0));
+      setHasVotedTopComment(
+        !!currentUser && votes.some((v: any) => String(v.voter).toLowerCase() === currentUser.toLowerCase())
+      );
+    } else {
+      setTopCommentVoteCount(0);
+      setHasVotedTopComment(false);
     }
-
-    let active = true;
-    apiService.getCommentsList(post.author, post.permlink, observer || '')
-      .then((list) => {
-        if (!active || !Array.isArray(list) || list.length === 0) return;
-        setTotalCommentsCount(Math.max(post.children || 0, list.length));
-
-        // Filter direct replies with cleaned body length < 100 characters
-        const directReplies = list.filter((c) => {
-          if (c.parent_permlink === post.permlink) return true;
-          if (c.parent_author === post.author && (!c.depth || c.depth <= 2)) return true;
-          if (c.depth === 1) return true;
-          return false;
-        });
-
-        const pool = directReplies.length > 0 ? directReplies : list;
-        const qualifying = pool.filter((c) => {
-          const clean = cleanCommentSnippet(c.body || '');
-          return clean.length > 0 && clean.length < 100;
-        });
-
-        if (qualifying.length === 0) {
-          setTopComment(null);
-          return;
-        }
-
-        // Sort to pick the "top" comment: highest votes first, then highest payout, then newest
-        qualifying.sort((a, b) => {
-          const votesA = Array.isArray(a.active_votes) ? a.active_votes.length : (a.net_votes ?? 0);
-          const votesB = Array.isArray(b.active_votes) ? b.active_votes.length : (b.net_votes ?? 0);
-          if (votesB !== votesA) return votesB - votesA;
-          const payoutA = parseFloat(String(a.pending_payout_value || a.author_payout_value || a.payout || '0'));
-          const payoutB = parseFloat(String(b.pending_payout_value || b.author_payout_value || b.payout || '0'));
-          if (payoutB !== payoutA) return payoutB - payoutA;
-          return new Date(b.created || 0).getTime() - new Date(a.created || 0).getTime();
-        });
-
-        const chosen = qualifying[0];
-        setTopComment(chosen);
-        const votes = Array.isArray(chosen.active_votes) ? chosen.active_votes : [];
-        setTopCommentVoteCount(votes.length || (chosen.net_votes ?? 0));
-        setHasVotedTopComment(
-          !!currentUser && votes.some((v: any) => String(v.voter).toLowerCase() === currentUser.toLowerCase())
-        );
-      })
-      .catch(() => {
-        // Silently ignore if comments fail to load
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [post?.author, post?.permlink, post?.children, observer, currentUser]);
+  }, [post, currentUser]);
 
   const handleTopCommentUpvote = async (e: React.MouseEvent) => {
     e.stopPropagation();
