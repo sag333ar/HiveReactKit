@@ -542,7 +542,7 @@ const CommunityDetail = ({
   }, [activeTab, communityId])
 
   const handleShare = () => {
-    const url = `https://peakd.com/c/${communityId}`
+    const url = `https://hivesuite.app/dashboard/communities/${communityId}`
     if (navigator.share) {
       navigator.share({ title: communityDetails?.result?.title || communityId, url })
     } else {

@@ -324,12 +324,12 @@ export default function InlineCommentItem({
   const renderHiveContent = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: renderOptions?.postBaseUrl ?? 'https://peakd.com/',
+        baseUrl: renderOptions?.postBaseUrl ?? 'https://hivesuite.app/',
         ipfsGateway: renderOptions?.ipfsGateway ?? 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 480,
-        usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `https://peakd.com/@${user}`),
-        hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `https://peakd.com/created/${tag}`),
+        usertagUrlFn: renderOptions?.userLinkUrlFn ?? ((user: string) => `/@${user}`),
+        hashtagUrlFn: renderOptions?.tagLinkUrlFn ?? ((tag: string) => `/tags/${tag}`),
         convertHiveUrls: true,
         imageProxyFn: (url: string) => {
           if (!url) return url;

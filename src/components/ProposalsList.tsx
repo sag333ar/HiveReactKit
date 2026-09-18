@@ -181,9 +181,9 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                         </div>
                         <div className="flex gap-2 mb-2">
                           <button
-                            onClick={() => window.open(`https://peakd.com/${p.creator}/${p.permlink}`, '_blank')}
+                            onClick={() => window.open(`https://hivesuite.app/@${p.creator}/${p.permlink}`, '_blank')}
                             className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                            title="View on Peakd"
+                            title="View Post"
                           >
                             <ExternalLink size={16} />
                           </button>
@@ -273,9 +273,9 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                             </div>
                             <div className="flex gap-2 mb-2">
                               <button
-                                onClick={() => window.open(`https://peakd.com/${p.creator}/${p.permlink}`, '_blank')}
+                                onClick={() => window.open(`https://hivesuite.app/@${p.creator}/${p.permlink}`, '_blank')}
                                 className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                                title="View on Peakd"
+                                title="View Post"
                               >
                                 <ExternalLink size={16} />
                               </button>
@@ -362,9 +362,9 @@ const ProposalsList: React.FC<ProposalsListProps> = ({
                   </div>
                   <div className="flex gap-2 mb-2">
                     <button
-                      onClick={() => window.open(`https://peakd.com/@${p.creator}/${p.permlink}`, '_blank')}
+                      onClick={() => window.open(`https://hivesuite.app/@${p.creator}/${p.permlink}`, '_blank')}
                       className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                      title="View on Peakd"
+                      title="View Post"
                     >
                       <ExternalLink size={16} />
                     </button>

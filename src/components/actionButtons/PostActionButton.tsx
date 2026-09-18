@@ -615,19 +615,22 @@ export function PostActionButton({
       onShare();
       return;
     }
+    const shareBase = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+      ? window.location.origin
+      : 'https://hivesuite.app';
+    const shareUrl = `${shareBase}/@${author}/${permlink}`;
+
     if (typeof navigator !== "undefined" && navigator.share) {
       navigator
         .share({
           title: `${author}'s post`,
-          url: `https://peakd.com/@${author}/${permlink}`,
+          url: shareUrl,
           text: `Check out this post by @${author}`,
         })
         .then(() => showToast("Shared"))
         .catch(() => {});
     } else {
-      navigator.clipboard?.writeText(
-        `https://peakd.com/@${author}/${permlink}`
-      );
+      navigator.clipboard?.writeText(shareUrl);
       showToast("Link copied to clipboard");
     }
   };

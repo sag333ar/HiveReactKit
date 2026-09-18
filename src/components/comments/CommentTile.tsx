@@ -4,8 +4,7 @@ import { useMemo, useState } from 'react';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { ThumbsUp, MessageSquare, MoreHorizontal, Clock, Ban } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-// remark-gfm no longer needed since we use hive renderer
-import { DefaultRenderer } from '@hiveio/content-renderer';
+import { createHiveRenderer } from '@snapie/renderer';
 import { apiService } from '@/services/apiService';
 import { VoteSlider } from '../VoteSlider';
 import { toast } from '@/index';
@@ -200,22 +199,20 @@ const CommentTile = ({
   const metadataImages: string[] = Array.isArray(metadata?.image) ? metadata.image : [];
 
   // Hive content renderer instance (memoized per render)
-  const hiveRenderer = new DefaultRenderer({
-    baseUrl: 'https://hive.blog/',
-    breaks: true,
-    skipSanitization: false,
-    allowInsecureScriptTags: false,
-    addNofollowToLinks: true,
-    doNotShowImages: false,
-    assetsWidth: 640,
-    assetsHeight: 480,
-    imageProxyFn: (url: string) => url,
-    usertagUrlFn: (account: string) => `/@${account}`,
-    hashtagUrlFn: (hashtag: string) => `/trending/${hashtag}`,
-    isLinkSafeFn: (_url: string) => true,
-    addExternalCssClassToMatchingLinksFn: (_url: string) => true,
-    ipfsPrefix: 'https://ipfs.io/ipfs/'
-  });
+  const renderHive = useMemo(() => {
+    try {
+      return createHiveRenderer({
+        baseUrl: 'https://hivesuite.app/',
+        assetsWidth: 640,
+        assetsHeight: 480,
+        usertagUrlFn: (account: string) => `/@${account}`,
+        hashtagUrlFn: (hashtag: string) => `/tags/${hashtag}`,
+        convertHiveUrls: true,
+      });
+    } catch {
+      return (s: string) => s;
+    }
+  }, []);
 
   // Get vote count from stats or net_votes
   const voteCount = comment.stats?.total_votes || comment.net_votes || 0;
@@ -282,7 +279,7 @@ const CommentTile = ({
               {searchQuery ? (
                 <TranslatedBody className="text-left" html={displayBody} />
               ) : (
-                <TranslatedBody className="text-left" html={hiveRenderer.render(sanitizedBody)} />
+                <TranslatedBody className="text-left" html={renderHive(sanitizedBody)} />
               )}
             </div>
 

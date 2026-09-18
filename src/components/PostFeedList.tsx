@@ -5,7 +5,6 @@ import { Post, PostSort } from '@/types/post';
 import { apiService } from '@/services/apiService';
 import { formatDistanceToNow } from 'date-fns';
 import { ThumbsUp, MessageCircle, Repeat2, Loader2 } from 'lucide-react';
-import { DefaultRenderer } from '@hiveio/content-renderer';
 
 interface PostFeedListProps {
   sort?: PostSort;
@@ -46,24 +45,6 @@ export default function PostFeedList({
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
-
-  // Hive content renderer instance
-  const hiveRenderer = new DefaultRenderer({
-    baseUrl: 'https://hive.blog/',
-    breaks: true,
-    skipSanitization: false,
-    allowInsecureScriptTags: false,
-    addNofollowToLinks: true,
-    doNotShowImages: false,
-    assetsWidth: 640,
-    assetsHeight: 480,
-    imageProxyFn: (url: string) => url,
-    usertagUrlFn: (account: string) => `/@${account}`,
-    hashtagUrlFn: (hashtag: string) => `/trending/${hashtag}`,
-    isLinkSafeFn: (_url: string) => true,
-    addExternalCssClassToMatchingLinksFn: (_url: string) => true,
-    ipfsPrefix: 'https://ipfs.io/ipfs/'
-  });
 
   const fetchPosts = useCallback(async (sortType: PostSort, append = false) => {
     if (append) {

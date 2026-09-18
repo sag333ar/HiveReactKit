@@ -35,6 +35,7 @@ export {
   default as SnapsFeedCard,
   type SnapsFeedCardProps,
 } from './components/feed/SnapsFeedCard';
+export { PollVoteWidget, type PollVoteWidgetProps } from './components/PollVoteWidget';
 export {
   default as SnapsFeedList,
   type SnapsFeedListProps,
@@ -128,7 +129,7 @@ export * from './hooks/use-toast';
 export * from './hooks/useHiveImageSign';
 
 // Utils
-export { parseHiveFrontendUrl, type HiveLinkTarget, preLinkMentions, preLinkUrls, preLinkHashtags } from './utils/hiveLinks';
+export { parseHiveFrontendUrl, rewriteHiveUrlsToHiveSuite, type HiveLinkTarget, preLinkMentions, preLinkUrls, preLinkHashtags } from './utils/hiveLinks';
 export {
   isPostTooOldToVote,
   parseHiveCreated,

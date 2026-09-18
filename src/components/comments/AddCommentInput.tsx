@@ -764,12 +764,12 @@ const PostComposer = ({
   const renderMarkdown = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: 'https://hive.blog/',
+        baseUrl: 'https://hivesuite.app/',
         ipfsGateway: 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 390,
-        usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
-        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        usertagUrlFn: (user: string) => `/@${user}`,
+        hashtagUrlFn: (tag: string) => `/tags/${tag}`,
         convertHiveUrls: true,
         imageProxyFn: (url: string) => {
           if (!url) return url;

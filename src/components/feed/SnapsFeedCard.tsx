@@ -29,7 +29,7 @@ import { PostActionButton } from '../actionButtons/PostActionButton';
 import { SelectionTranslator } from '../SelectionTranslator';
 import { PollVoteWidget } from '../PollVoteWidget';
 import type { RewardOption } from '../../utils/commentOptions';
-import { parseHiveFrontendUrl, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
+import { parseHiveFrontendUrl, rewriteHiveUrlsToHiveSuite, preLinkMentions, preLinkUrls, preLinkHashtags } from '@/utils/hiveLinks';
 import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePostReferences';
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX } from '../IpfsMedia';
@@ -346,7 +346,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     const raw = shouldStripReSnapUrl
       ? stripHivePostReference(post.body ?? '', reSnapTarget)
       : (post.body ?? '');
-    return stripFirstContextLink(raw);
+    return rewriteHiveUrlsToHiveSuite(stripFirstContextLink(raw));
   }, [post.body, reSnapTarget, shouldStripReSnapUrl]);
   const parsed = useMemo(
     () => parseBody({ ...post, body: bodyForContent }),
@@ -391,12 +391,12 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const renderHive = useMemo(() => {
     try {
       return createHiveRenderer({
-        baseUrl: 'https://peakd.com/',
+        baseUrl: 'https://hivesuite.app/',
         ipfsGateway: 'https://ipfs.3speak.tv',
         assetsWidth: 640,
         assetsHeight: 480,
-        usertagUrlFn: (user: string) => `https://peakd.com/@${user}`,
-        hashtagUrlFn: (tag: string) => `https://peakd.com/created/${tag}`,
+        usertagUrlFn: (user: string) => getUserUrl ? getUserUrl(user) : `/@${user}`,
+        hashtagUrlFn: (tag: string) => getTagUrl ? getTagUrl(tag) : `/tags/${tag}`,
         convertHiveUrls: true,
         imageProxyFn: (url: string) => {
           if (!url) return url;
@@ -411,7 +411,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     } catch {
       return null;
     }
-  }, []);
+  }, [getUserUrl, getTagUrl]);
 
   const renderedBodyHtml = useMemo(() => {
     const raw = bodyForContent;
@@ -476,9 +476,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     if (!body) return '';
     try {
       // Pre-link mentions and URLs before rendering to fix parsing bugs
-      let safeBody = preLinkMentions(body);
+      let safeBody = preLinkMentions(body, (u) => (getUserUrl ? getUserUrl(u) : `/@${u}`));
       safeBody = preLinkUrls(safeBody);
-      safeBody = preLinkHashtags(safeBody);
+      safeBody = preLinkHashtags(safeBody, (t) => (getTagUrl ? getTagUrl(t) : `/tags/${t}`));
       let html = renderHive(safeBody);
       // Match the kit's HiveDetailPost: rewrite the embed iframe to
       // `play.3speak.tv` (the legacy `3speak.tv/embed` shape doesn't

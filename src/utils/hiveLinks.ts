@@ -12,11 +12,18 @@ const HIVE_FRONTEND_HOSTS = new Set([
   'www.ecency.com',
   'inleo.io',
   'www.inleo.io',
+  'leofinance.io',
+  'www.leofinance.io',
+  'waivio.com',
+  'www.waivio.com',
+  'liketu.com',
+  'www.liketu.com',
+  'travelfeed.io',
+  'www.travelfeed.io',
+  'splintertalk.io',
+  'www.splintertalk.io',
   'worldmappin.com',
   'www.worldmappin.com',
-  // Snap-specific frontends — needed so re-snap bodies (a single URL
-  // to a snap on snapie.io / hivesuite.app) get recognised as a Hive
-  // post target and trigger the embedded re-snap card.
   'snapie.io',
   'www.snapie.io',
   'hivesuite.app',
@@ -35,26 +42,55 @@ function targetFromParts(author: string | undefined, permlink: string | undefine
   return { kind: 'user', author: a };
 }
 
+const HIVE_HOSTS_REGEX =
+  /https?:\/\/(?:www\.)?(?:peakd\.com|hive\.blog|ecency\.com|inleo\.io|leofinance\.io|waivio\.com|liketu\.com|travelfeed\.io|splintertalk\.io|snapie\.io)\/([^\s<>"')\]]+)/gi;
+
+/**
+ * Replace external Hive frontend URLs (PeakD, Ecency, Hive.blog, etc.) with HiveSuite URLs.
+ */
+export function rewriteHiveUrlsToHiveSuite(body: string, baseUrl: string = 'https://hivesuite.app'): string {
+  if (!body || typeof body !== 'string') return body ?? '';
+
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  return body.replace(HIVE_HOSTS_REGEX, (_fullUrl, path: string) => {
+    const m = path.match(/^(.*?)([.,;:!?)\]>]+)?$/);
+    let cleanPath = m ? m[1] : path;
+    const trailing = m && m[2] ? m[2] : '';
+
+    if (!cleanPath) return `${cleanBase}${trailing}`;
+
+    // inleo.io thread permalinks: threads/view/author/permlink
+    if (cleanPath.startsWith('threads/view/')) {
+      const parts = cleanPath.split('/').filter(Boolean);
+      if (parts.length >= 4) {
+        return `${cleanBase}/@${parts[2].replace(/^@/, '')}/${parts[3]}${trailing}`;
+      }
+    }
+
+    // Community post: c/hive-12345/@author/permlink -> hive-12345/@author/permlink
+    if (cleanPath.startsWith('c/') && cleanPath.includes('/@')) {
+      cleanPath = cleanPath.slice(2);
+    }
+
+    // Community page: c/hive-12345 -> dashboard/communities/hive-12345
+    if (cleanPath.startsWith('c/') && cleanPath.split('/').filter(Boolean).length === 2) {
+      const comm = cleanPath.split('/')[1];
+      return `${cleanBase}/dashboard/communities/${comm}${trailing}`;
+    }
+
+    // Tags: created/tag, trending/tag, hot/tag
+    if (cleanPath.startsWith('created/') || cleanPath.startsWith('trending/') || cleanPath.startsWith('hot/')) {
+      const tag = cleanPath.split('/')[1];
+      if (tag) return `${cleanBase}/tags/${tag}${trailing}`;
+    }
+
+    return `${cleanBase}/${cleanPath}${trailing}`;
+  });
+}
+
 /**
  * Return the in-app target for a Hive-frontend URL, or null if the URL does
  * not match a recognised pattern.
- *
- * Handles:
- *   https://peakd.com/@alice                             → user
- *   https://peakd.com/@alice/permlink                    → post
- *   https://peakd.com/hive-178315/@alice/permlink        → post (community prefix)
- *   https://peakd.com/trending/@alice/permlink           → post (tag prefix)
- *   https://hive.blog/@alice/permlink                    → post
- *   https://ecency.com/@alice/permlink                   → post
- *   https://inleo.io/threads/view/alice/permlink         → post
- *   https://worldmappin.com                              → map
- *
- * Also resolves relative/hash hrefs emitted by @snapie/renderer (`convertHiveUrls`)
- * and in-app hash router links:
- *   /@alice                                              → user
- *   /@alice/permlink                                     → post
- *   #/@alice                                             → user
- *   #/@alice/permlink                                    → post
  */
 export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   if (!href) return null;
@@ -65,10 +101,19 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
     return targetFromParts(author, permlink);
   }
 
-  // Root-relative path: "/@alice" or "/@alice/permlink"
+  // Root-relative path with @author: "/@alice" or "/@alice/permlink"
   if (href.startsWith('/@')) {
     const [author, permlink] = href.slice(2).split('/').filter(Boolean);
     return targetFromParts(author, permlink);
+  }
+
+  // Root-relative path with category: "/hive-12345/@alice/permlink" or "/c/hive-12345/@alice/permlink"
+  if (href.startsWith('/')) {
+    const parts = href.slice(1).split('/').filter(Boolean);
+    const atIdx = parts.findIndex((p) => p.startsWith('@'));
+    if (atIdx !== -1) {
+      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
+    }
   }
 
   // Absolute URLs
@@ -110,27 +155,13 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
  * Pre-convert bare `@username` mentions in a markdown body into explicit
  * markdown links so `@hiveio/content-renderer` never sees them as bare
  * mentions.
- *
- * Why: that library's `HtmlDOMParser.processTextNode` linkifies a text
- * node containing an `@mention` by building a new `<span>` and
- * **appending** it to the parent (instead of inserting at the original
- * position) — which shuffles the first paragraph line to the end of the
- * rendered output. The bug shows up whenever a comment body starts with
- * `Hello @user,` followed by `<br>`-separated lines.
- *
- * Pre-linking sidesteps the buggy path: the renderer sees a proper
- * markdown link and emits a regular `<a>` inline, no DOM reordering.
- *
- * Conservative regex — only matches `@account` patterns Hive allows
- * (lower-case, dot/dash, 3–17 chars), and only when the `@` is at the
- * start of the body or preceded by a non-identifier char.
  */
 export function preLinkMentions(
   body: string,
   usertagUrlFn?: (username: string) => string,
 ): string {
   if (!body) return body;
-  const buildUrl = usertagUrlFn ?? ((u: string) => `https://peakd.com/@${u}`);
+  const buildUrl = usertagUrlFn ?? ((u: string) => `/@${u}`);
   return body.replace(
     /(^|[^A-Za-z0-9_!#$%&*@/＠])@([a-z][a-z0-9.-]{1,15}[a-z0-9])(?![a-z0-9.-])/gi,
     (_m, pre: string, user: string) => {
@@ -205,7 +236,7 @@ export function preLinkHashtags(
   tagLinkUrlFn?: (tag: string) => string,
 ): string {
   if (!body) return body;
-  const buildUrl = tagLinkUrlFn ?? ((t: string) => `https://peakd.com/created/${t}`);
+  const buildUrl = tagLinkUrlFn ?? ((t: string) => `/tags/${t}`);
   return body.replace(
     /(^|[^A-Za-z0-9_!#$%&*@/＠])#([a-zA-Z0-9_]+)(?![a-zA-Z0-9_])/g,
     (match, pre, tag) => {

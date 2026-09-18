@@ -112,7 +112,7 @@ const UserDetailProfilePage = () => {
         }}
         onShare={(user) => {
           console.log("[Callback] Share:", user);
-          const url = `https://peakd.com/@${user}`;
+          const url = `https://hivesuite.app/@${user}`;
           navigator.clipboard.writeText(url);
           alert(`Profile link copied: ${url}`);
         }}

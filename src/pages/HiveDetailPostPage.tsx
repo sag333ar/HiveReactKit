@@ -45,7 +45,7 @@ const HiveDetailPostPage = () => {
           alert(`Reblog @${author}/${permlink} — integrate with Aioha/HiveKeychain here`);
         }}
         onShare={() => {
-          const url = `https://peakd.com/@${author}/${permlink}`;
+          const url = `https://hivesuite.app/@${author}/${permlink}`;
           navigator.clipboard.writeText(url);
           console.log("[Callback] Share:", url);
           alert(`Post link copied: ${url}`);
@@ -63,7 +63,7 @@ const HiveDetailPostPage = () => {
           alert(`Vote on poll @${pollAuthor}/${pollPermlink} — choices: ${choiceNums.join(', ')}`);
         }}
         onShareComment={(cAuthor, cPermlink) => {
-          const url = `https://peakd.com/@${cAuthor}/${cPermlink}`;
+          const url = `https://hivesuite.app/@${cAuthor}/${cPermlink}`;
           navigator.clipboard.writeText(url);
           console.log("[Callback] Share Comment:", url);
           alert(`Comment link copied: ${url}`);
