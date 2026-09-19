@@ -63,7 +63,7 @@ const HiveDetailPostPage = () => {
           alert(`Vote on poll @${pollAuthor}/${pollPermlink} — choices: ${choiceNums.join(', ')}`);
         }}
         onShareComment={(cAuthor, cPermlink) => {
-          const url = `https://hivesuite.app/@${cAuthor}/${cPermlink}`;
+          const url = `https://hivesuite.app/@${author}/${permlink}#@${cAuthor}/${cPermlink}`;
           navigator.clipboard.writeText(url);
           console.log("[Callback] Share Comment:", url);
           alert(`Comment link copied: ${url}`);

@@ -295,8 +295,8 @@ export interface HiveDetailPostProps {
   onOpenProfileMenu?: () => void;
   onUserClick?: (username: string) => void;
   /** Called when user clicks "View parent post" or Next/Prev post.
-   *  Optionally accepts contextPosts so the next post detail inherits the list. */
-  onNavigateToPost?: (author: string, permlink: string, contextPosts?: Post[]) => void;
+   *  Optionally accepts contextPosts so the next post detail inherits the list, and hash for comment deep-linking. */
+  onNavigateToPost?: (author: string, permlink: string, contextPosts?: Post[], hash?: string) => void;
   /** Called when user clicks a WorldMapPin map link. */
   onNavigateToMap?: () => void;
   /** Called when the user taps the community pill in the header.
@@ -1914,7 +1914,7 @@ export function HiveDetailPost({
       if (target) {
         if (target.kind === 'post' && target.author && onNavigateToPost) {
           e.preventDefault();
-          onNavigateToPost(target.author, target.permlink);
+          onNavigateToPost(target.author, target.permlink, undefined, target.hash);
           return;
         }
         if (target.kind === 'user' && onUserClick) {
@@ -3398,7 +3398,7 @@ export function HiveDetailPost({
                 mentionSeedAccounts={mentionSeedAccounts}
                 onEditComment={onEditComment}
                 onDeleteComment={onDeleteComment}
-                onNavigateToPost={onNavigateToPost}
+                onNavigateToPost={(a, p, hash) => onNavigateToPost?.(a, p, undefined, hash)}
                 onNavigateToMap={onNavigateToMap}
                 onUserClick={onUserClick}
                 onWeb2UserClick={onWeb2UserClick}

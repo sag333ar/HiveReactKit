@@ -444,3 +444,22 @@
   object-fit: contain;
   max-height: 80vh;
 }
+
+/* Comment deep link highlight animation */
+.comment-target-highlight {
+  animation: commentHighlightPulse 3.5s ease-out;
+}
+
+@keyframes commentHighlightPulse {
+  0% {
+    background-color: rgba(59, 130, 246, 0.35);
+    border-radius: 0.75rem;
+  }
+  70% {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+

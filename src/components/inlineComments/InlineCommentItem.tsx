@@ -77,7 +77,7 @@ interface InlineCommentItemProps {
    *  the entry-point internally to `comment.author === currentUser`. */
   onDeleteComment?: (author: string, permlink: string) => void;
   /** Called when an intra-body link points at a Hive post (peakd/hive.blog/ecency/inleo). */
-  onNavigateToPost?: (author: string, permlink: string) => void;
+  onNavigateToPost?: (author: string, permlink: string, hash?: string) => void;
   onNavigateToMap?: () => void;
   /** Called when an intra-body link points at a Hive user profile. */
   onUserClick?: (username: string) => void;
@@ -246,7 +246,7 @@ export default function InlineCommentItem({
       if (target) {
         if (target.kind === 'post' && target.author && onNavigateToPost) {
           e.preventDefault();
-          onNavigateToPost(target.author, target.permlink);
+          onNavigateToPost(target.author, target.permlink, target.hash);
           return;
         }
         if (target.kind === 'user' && onUserClick) {
@@ -546,7 +546,14 @@ export default function InlineCommentItem({
   const shouldShowChildReplies = !isMaxDepth || expandedPastMaxDepth;
 
   return (
-    <div className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''}`}>
+    <div
+      id={`@${comment.author}/${comment.permlink}`}
+      data-comment-id={`@${comment.author}/${comment.permlink}`}
+      data-comment-key={`${comment.author.toLowerCase()}/${comment.permlink.toLowerCase()}`}
+      data-author={comment.author.toLowerCase()}
+      data-permlink={comment.permlink}
+      className={`${depth > 0 ? 'ml-2 md:ml-6 border-l-2 border-gray-700/50 pl-2 md:pl-4' : ''} transition-all duration-500`}
+    >
       <div className="py-2 px-1.5 md:py-3 md:px-3">
         {/* Header row */}
         <div className="flex items-center gap-1.5 md:gap-2 mb-1 min-w-0">

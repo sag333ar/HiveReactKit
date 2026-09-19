@@ -98,7 +98,7 @@ interface InlineCommentSectionProps {
    *  comments. Consumer confirms + broadcasts `delete_comment`. */
   onDeleteComment?: (author: string, permlink: string) => void;
   /** Intercept intra-body Hive post links in comment bodies. */
-  onNavigateToPost?: (author: string, permlink: string) => void;
+  onNavigateToPost?: (author: string, permlink: string, hash?: string) => void;
   onNavigateToMap?: () => void;
   /** Called when an intra-body Hive profile links in comment bodies. */
   onUserClick?: (username: string) => void;
@@ -113,6 +113,39 @@ interface InlineCommentSectionProps {
   decentMemesTheme?: 'light' | 'dark';
   /** When true, the current user is a Web2 user. */
   isWeb2User?: boolean;
+}
+
+function findCommentElement(hash: string): HTMLElement | null {
+  if (!hash) return null;
+  const clean = decodeURIComponent(hash).replace(/^#/, '').trim();
+  if (!clean) return null;
+
+  // 1. Direct ID match
+  const byId = document.getElementById(clean) || document.getElementById(`@${clean.replace(/^@/, '')}`);
+  if (byId) return byId;
+
+  // 2. Extract author/permlink: e.g. "@author/permlink" or "author/permlink"
+  const match = clean.match(/^@?([a-z0-9.-]+)\/([a-z0-9.-]+)/i);
+  if (match) {
+    const author = match[1].toLowerCase();
+    const permlink = match[2];
+    const key = `${author}/${permlink.toLowerCase()}`;
+    const el =
+      document.querySelector(`[data-comment-key="${key}"]`) ||
+      document.querySelector(`[data-comment-id="@${author}/${permlink}"]`) ||
+      document.querySelector(`[data-author="${author}"][data-permlink="${permlink}"]`);
+    if (el) return el as HTMLElement;
+  }
+
+  // 3. Fallback to querySelector with escape
+  try {
+    const el = document.querySelector(`[id="${CSS.escape(clean)}"]`);
+    if (el) return el as HTMLElement;
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 export default function InlineCommentSection({
@@ -190,6 +223,39 @@ export default function InlineCommentSection({
   }, [author, permlink]);
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
+
+  const scrolledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loading || comments.length === 0) return;
+
+    const scrollToTarget = () => {
+      const hash = typeof window !== 'undefined' ? window.location.hash : '';
+      if (!hash || hash === '#' || hash === '#/') return;
+
+      const el = findCommentElement(hash);
+      if (el) {
+        scrolledRef.current = hash;
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('comment-target-highlight');
+          setTimeout(() => {
+            el.classList.remove('comment-target-highlight');
+          }, 3500);
+        }, 150);
+      }
+    };
+
+    scrollToTarget();
+
+    const handleHashChange = () => {
+      scrolledRef.current = null;
+      scrollToTarget();
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [loading, comments]);
 
   // Search filter
   const searchFiltered = useMemo(() => {

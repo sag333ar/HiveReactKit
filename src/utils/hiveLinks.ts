@@ -31,14 +31,40 @@ const HIVE_FRONTEND_HOSTS = new Set([
 ]);
 
 export type HiveLinkTarget =
-  | { kind: 'post'; author: string; permlink: string }
+  | { kind: 'post'; author: string; permlink: string; hash?: string; commentAuthor?: string; commentPermlink?: string }
   | { kind: 'user'; author: string }
   | { kind: 'map' };
 
-function targetFromParts(author: string | undefined, permlink: string | undefined): HiveLinkTarget | null {
+function targetFromParts(
+  author: string | undefined,
+  permlink: string | undefined,
+  hash?: string,
+): HiveLinkTarget | null {
   const a = author?.toLowerCase();
   if (!a) return null;
-  if (permlink) return { kind: 'post', author: a, permlink };
+  if (permlink) {
+    const [rawP, pHash] = permlink.split('#');
+    const cleanPermlink = rawP.split('?')[0];
+    const effectiveHash = hash || (pHash ? `#${pHash}` : undefined);
+    let commentAuthor: string | undefined;
+    let commentPermlink: string | undefined;
+    if (effectiveHash) {
+      const cleanH = effectiveHash.replace(/^#/, '');
+      const match = cleanH.match(/^@?([a-z0-9.-]+)\/([a-z0-9.-]+)/i);
+      if (match) {
+        commentAuthor = match[1].toLowerCase();
+        commentPermlink = match[2];
+      }
+    }
+    return {
+      kind: 'post',
+      author: a,
+      permlink: cleanPermlink,
+      hash: effectiveHash,
+      commentAuthor,
+      commentPermlink,
+    };
+  }
   return { kind: 'user', author: a };
 }
 
@@ -67,8 +93,11 @@ export function rewriteHiveUrlsToHiveSuite(body: string, baseUrl: string = 'http
       }
     }
 
-    // Community post: c/hive-12345/@author/permlink -> hive-12345/@author/permlink
-    if (cleanPath.startsWith('c/') && cleanPath.includes('/@')) {
+    // Community/category post: hive-12345/@author/permlink#hash -> @author/permlink#hash
+    const atMatch = cleanPath.match(/^(?:c\/)?[a-z0-9.-]+\/(@[a-z0-9.-]+\/.*)$/i);
+    if (atMatch) {
+      cleanPath = atMatch[1];
+    } else if (cleanPath.startsWith('c/') && cleanPath.includes('/@')) {
       cleanPath = cleanPath.slice(2);
     }
 
@@ -95,24 +124,33 @@ export function rewriteHiveUrlsToHiveSuite(body: string, baseUrl: string = 'http
 export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   if (!href) return null;
 
+  // Split out explicit hash if present
+  let rawHash: string | undefined;
+  let cleanHref = href;
+  const hashIdx = href.indexOf('#');
+  if (hashIdx !== -1 && !href.startsWith('#/')) {
+    rawHash = href.slice(hashIdx);
+    cleanHref = href.slice(0, hashIdx);
+  }
+
   // In-app hash-router link: "#/@alice" or "#/@alice/permlink"
-  if (href.startsWith('#/@')) {
-    const [author, permlink] = href.slice(3).split('/').filter(Boolean);
-    return targetFromParts(author, permlink);
+  if (cleanHref.startsWith('#/@')) {
+    const parts = cleanHref.slice(3).split('/').filter(Boolean);
+    return targetFromParts(parts[0], parts[1], rawHash);
   }
 
   // Root-relative path with @author: "/@alice" or "/@alice/permlink"
-  if (href.startsWith('/@')) {
-    const [author, permlink] = href.slice(2).split('/').filter(Boolean);
-    return targetFromParts(author, permlink);
+  if (cleanHref.startsWith('/@')) {
+    const parts = cleanHref.slice(2).split('/').filter(Boolean);
+    return targetFromParts(parts[0], parts[1], rawHash);
   }
 
   // Root-relative path with category: "/hive-12345/@alice/permlink" or "/c/hive-12345/@alice/permlink"
-  if (href.startsWith('/')) {
-    const parts = href.slice(1).split('/').filter(Boolean);
+  if (cleanHref.startsWith('/')) {
+    const parts = cleanHref.slice(1).split('/').filter(Boolean);
     const atIdx = parts.findIndex((p) => p.startsWith('@'));
     if (atIdx !== -1) {
-      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
+      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1], rawHash);
     }
   }
 
@@ -126,29 +164,30 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   const host = url.hostname.toLowerCase();
   if (!HIVE_FRONTEND_HOSTS.has(host)) return null;
   const parts = url.pathname.split('/').filter(Boolean);
+  const urlHash = url.hash || rawHash;
 
   // inleo.io thread permalinks: /threads/view/{author}/{permlink} — no @ prefix.
   if ((host === 'inleo.io' || host === 'www.inleo.io') && parts[0] === 'threads' && parts[1] === 'view') {
-    return targetFromParts(parts[2], parts[3]);
+    return targetFromParts(parts[2], parts[3], urlHash);
   }
 
   if (host === 'worldmappin.com' || host === 'www.worldmappin.com') {
     const atIdx = parts.findIndex((p) => p.startsWith('@'));
     if (atIdx !== -1) {
-      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
+      return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1], urlHash);
     }
     if ((parts[0] === 'p' || parts[0] === 'post') && parts.length >= 3) {
-      return targetFromParts(parts[1].replace(/^@/, ''), parts[2]);
+      return targetFromParts(parts[1].replace(/^@/, ''), parts[2], urlHash);
     }
     if ((parts[0] === 'p' || parts[0] === 'post') && parts.length === 2) {
-      return { kind: 'post', author: '', permlink: parts[1] };
+      return { kind: 'post', author: '', permlink: parts[1], hash: urlHash };
     }
     return { kind: 'map' };
   }
 
   const atIdx = parts.findIndex((p) => p.startsWith('@'));
   if (atIdx === -1) return null;
-  return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1]);
+  return targetFromParts(parts[atIdx].slice(1), parts[atIdx + 1], urlHash);
 }
 
 /**
