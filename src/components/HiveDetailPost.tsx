@@ -307,7 +307,9 @@ export interface HiveDetailPostProps {
   // render as real <a href> links so the browser offers "open in new
   // tab" / Cmd-click. Plain clicks still route through the callbacks.
   getUserUrl?: (username: string) => string;
+  getTagUrl?: (tag: string) => string;
   getCommunityUrl?: (communityId: string) => string;
+  onTagClick?: (tag: string) => void;
   // When a post/comment's json_metadata marks the author as a "web2" user
   // (usertype/web2id/web2name/web2dpurl), author headers show that
   // identity instead of the Hive account and route clicks through these
@@ -489,7 +491,9 @@ export function HiveDetailPost({
   onUserClick,
   onCommunityClick,
   getUserUrl,
+  getTagUrl,
   getCommunityUrl,
+  onTagClick,
   onWeb2UserClick,
   getWeb2UserUrl,
   onNavigateToPost,
@@ -3206,18 +3210,43 @@ export function HiveDetailPost({
               );
             })()}
 
-            {/* Tags - Only show HiveSuite family tags if available */}
+            {/* Tags - Show all tags from json_metadata on root post detail page */}
             {(() => {
-              const HIVESUITE_TAG_PRIORITY = ['hivesuite-comment', 'hivesuite-reply', 'hivesuite-inbox'];
-              const rawTags = (Array.isArray(parsedMetadata?.tags) ? parsedMetadata.tags : [])
-                .map((t: unknown) => String(t).toLowerCase().trim());
+              if (post.depth !== undefined && post.depth > 0) return null;
 
-              const hasSpecificTag = HIVESUITE_TAG_PRIORITY.some((t) => rawTags.includes(t));
-              const visibleTags = hasSpecificTag
-                ? HIVESUITE_TAG_PRIORITY.filter((t) => rawTags.includes(t))
-                : (rawTags.includes('hivesuite') ? ['hivesuite'] : []);
+              const meta = displayParsedMetadata || parsedMetadata || {};
+              let rawTagsList: unknown = meta.tags;
+              if (!rawTagsList && (displayPost as any)?.json_metadata_parsed?.tags) {
+                rawTagsList = (displayPost as any).json_metadata_parsed.tags;
+              }
+              if (!rawTagsList && (post as any)?.json_metadata_parsed?.tags) {
+                rawTagsList = (post as any).json_metadata_parsed.tags;
+              }
+
+              let extractedTags: string[] = [];
+              if (Array.isArray(rawTagsList)) {
+                extractedTags = rawTagsList.map((t: unknown) => String(t || '').trim()).filter(Boolean);
+              } else if (typeof rawTagsList === 'string') {
+                extractedTags = rawTagsList.split(/[,\s]+/).map((t: string) => t.trim()).filter(Boolean);
+              }
+
+              const seen = new Set<string>();
+              const visibleTags: string[] = [];
+              for (const tag of extractedTags) {
+                const lower = tag.toLowerCase();
+                if (!seen.has(lower)) {
+                  seen.add(lower);
+                  visibleTags.push(tag);
+                }
+              }
 
               if (visibleTags.length === 0) return null;
+
+              const resolveTagUrl = (tag: string) => {
+                if (getTagUrl) return getTagUrl(tag);
+                if (renderOptions?.tagLinkUrlFn) return renderOptions.tagLinkUrlFn(tag);
+                return `/dashboard/tag-blogs/${encodeURIComponent(tag)}`;
+              };
 
               return (
                 <div className="border-t border-[var(--hrk-border-subtle)]/50 pt-4 pb-4">
@@ -3225,15 +3254,19 @@ export function HiveDetailPost({
                     <Tag className="w-3.5 h-3.5" /> Tags
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {visibleTags.map((tag: string, index: number) => (
-                      <a
-                        key={index}
-                        href={`/dashboard/tag-blogs/${encodeURIComponent(tag)}`}
-                        className="px-2.5 py-0.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 text-[11px] rounded-full transition-colors cursor-pointer"
-                      >
-                        #{tag}
-                      </a>
-                    ))}
+                    {visibleTags.map((tag: string, index: number) => {
+                      const tagUrl = resolveTagUrl(tag);
+                      return (
+                        <HiveLink
+                          key={`${tag}-${index}`}
+                          href={tagUrl}
+                          onActivate={() => onTagClick?.(tag)}
+                          className="px-2.5 py-0.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 text-[11px] rounded-full transition-colors cursor-pointer"
+                        >
+                          #{tag}
+                        </HiveLink>
+                      );
+                    })}
                   </div>
                 </div>
               );
