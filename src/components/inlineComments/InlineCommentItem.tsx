@@ -288,7 +288,7 @@ export default function InlineCommentItem({
   const metadata = (comment as any).json_metadata_parsed ||
     (() => { try { return comment.json_metadata ? JSON.parse(comment.json_metadata) : undefined; } catch { return undefined; } })();
 
-  // Show HiveSuite tag next to username only when developer is sagarkothari88/hivesuite and an actual hivesuite tag is present
+  // Show HiveSuite tag next to username only when App name = hivesuite... and developer is sagarkothari88 and an actual hivesuite tag is present
   const HIVESUITE_TAG_PRIORITY = [
     'hivesuite-comment',
     'hivesuite-reply',
@@ -299,9 +299,13 @@ export default function InlineCommentItem({
     ? metadata.tags.map((t: any) => String(t).toLowerCase().trim())
     : [];
   const foundHivesuiteTag = HIVESUITE_TAG_PRIORITY.find((t) => rawTags.includes(t));
-  const allowedDevs = ['sagarkothari88', 'hivesuite.app'];
-  const isDev = allowedDevs.includes(comment.author) || metadata?.developer === 'sagarkothari88';
-  const developerTag = isDev && foundHivesuiteTag ? foundHivesuiteTag : null;
+  const rawApp = typeof metadata?.app === 'string' ? metadata.app.trim() : '';
+  const appName = rawApp.split('/')[0].toLowerCase();
+  const dev = typeof metadata?.dev === 'string' ? metadata.dev.trim().toLowerCase() : '';
+  const developer = typeof metadata?.developer === 'string' ? metadata.developer.trim().toLowerCase() : '';
+  const isHiveSuiteApp = appName === 'hivesuite' || appName.startsWith('hivesuite');
+  const isSagarDev = dev === 'sagarkothari88' || developer === 'sagarkothari88';
+  const developerTag = isHiveSuiteApp && isSagarDev && foundHivesuiteTag ? foundHivesuiteTag : null;
 
   const web2Identity = getWeb2Identity(
     comment.author,
