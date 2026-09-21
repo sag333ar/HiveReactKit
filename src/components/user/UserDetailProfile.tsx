@@ -1611,17 +1611,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 setLoadingContent(false);
                 break;
               }
-              const data = filterPost(await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              const raw = await userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+              const data = filterPost(raw);
               setBlogs(data);
-              setHasMore((prev) => ({ ...prev, blogs: data.length >= PAGE_SIZE }));
+              setHasMore((prev) => ({ ...prev, blogs: raw.length >= PAGE_SIZE }));
             } else {
               if (posts.length > 0) {
                 setLoadingContent(false);
                 break;
               }
-              const data = filterPost(await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              const raw = await userService.getUserPosts(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+              const data = filterPost(raw);
               setPosts(data);
-              setHasMore((prev) => ({ ...prev, posts: data.length >= PAGE_SIZE }));
+              setHasMore((prev) => ({ ...prev, posts: raw.length >= PAGE_SIZE }));
             }
             break;
           }
@@ -1646,9 +1648,10 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 setLoadingContent(false);
                 break;
               }
-              const data = filterPost(await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal));
+              const raw = await userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal);
+              const data = filterPost(raw);
               setComments(data);
-              setHasMore((prev) => ({ ...prev, comments: data.length >= PAGE_SIZE }));
+              setHasMore((prev) => ({ ...prev, comments: raw.length >= PAGE_SIZE }));
             } else {
               if (replies.length > 0) {
                 setLoadingContent(false);
@@ -1947,16 +1950,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
    *  different tab's state. */
   const PAGINATED_TABS: TabType[] = ["posts", "replies", "activities", "followers"];
 
+  const currentHasMore = useMemo(() => {
+    if (!PAGINATED_TABS.includes(activeTab)) return false;
+    if (activeTab === "posts") return !!hasMore[postsSubTab];
+    if (activeTab === "replies") return !!hasMore[repliesSubTab];
+    if (activeTab === "followers") return !!hasMore[followsSubTab];
+    if (activeTab === "activities") return activitiesSubTab === "curation" ? !!hasMore.curation : false;
+    return false;
+  }, [activeTab, hasMore, postsSubTab, repliesSubTab, followsSubTab, activitiesSubTab]);
+
   const loadMore = useCallback(async () => {
     if (!PAGINATED_TABS.includes(activeTab)) return;
 
-    let currentHasMore = false;
-    if (activeTab === "posts") currentHasMore = hasMore[postsSubTab];
-    else if (activeTab === "replies") currentHasMore = hasMore[repliesSubTab];
-    else if (activeTab === "followers") currentHasMore = hasMore[followsSubTab];
-    else if (activeTab === "activities") currentHasMore = hasMore[activitiesSubTab];
+    let subHasMore = false;
+    if (activeTab === "posts") subHasMore = hasMore[postsSubTab];
+    else if (activeTab === "replies") subHasMore = hasMore[repliesSubTab];
+    else if (activeTab === "followers") subHasMore = hasMore[followsSubTab];
+    else if (activeTab === "activities") subHasMore = activitiesSubTab === "curation" ? hasMore.curation : false;
 
-    if (loadingMore || !currentHasMore || !targetUsername) return;
+    if (loadingMore || !subHasMore || !targetUsername) return;
     setLoadingMore(true);
 
     try {
@@ -1978,7 +1990,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             const activityItems = activityListService.convertToActivityListItems(raw, targetUsername);
             const newItems = activityItems.filter(item => item.type === 'vote' && item.voter === targetUsername);
             newItems.sort((a, b) => b.index - a.index);
-            setCurations((prev) => [...prev, ...newItems]);
+            setCurations((prev) => {
+              const seen = new Set(prev.map(c => `${c.index}_${c.voter}_${c.permlink}`));
+              const unique = newItems.filter(c => !seen.has(`${c.index}_${c.voter}_${c.permlink}`));
+              return [...prev, ...unique];
+            });
             const lowestIndex = raw.length > 0 ? Math.min(...raw.map(item => item.index)) : -1;
             setLowestCurationIndex(lowestIndex);
             setHasMore((prev) => ({ ...prev, curation: raw.length > 0 && lowestIndex > 0 }));
@@ -1989,17 +2005,27 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           if (postsSubTab === "blogs") {
             const last = blogs[blogs.length - 1];
             if (!last) break;
-            const data = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
-            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-            setBlogs((prev) => [...prev, ...newItems]);
-            setHasMore((prev) => ({ ...prev, blogs: newItems.length >= PAGE_SIZE - 1 }));
+            const raw = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+            const newItems = filterPost(sliced);
+            setBlogs((prev) => {
+              const seen = new Set(prev.map(p => `${p.author}/${p.permlink}`));
+              const unique = newItems.filter(p => !seen.has(`${p.author}/${p.permlink}`));
+              return [...prev, ...unique];
+            });
+            setHasMore((prev) => ({ ...prev, blogs: raw.length >= PAGE_SIZE }));
           } else {
             const last = posts[posts.length - 1];
             if (!last) break;
-            const data = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
-            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-            setPosts((prev) => [...prev, ...newItems]);
-            setHasMore((prev) => ({ ...prev, posts: newItems.length >= PAGE_SIZE - 1 }));
+            const raw = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+            const newItems = filterPost(sliced);
+            setPosts((prev) => {
+              const seen = new Set(prev.map(p => `${p.author}/${p.permlink}`));
+              const unique = newItems.filter(p => !seen.has(`${p.author}/${p.permlink}`));
+              return [...prev, ...unique];
+            });
+            setHasMore((prev) => ({ ...prev, posts: raw.length >= PAGE_SIZE }));
           }
           break;
         }
@@ -2007,16 +2033,26 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           if (repliesSubTab === "comments") {
             const last = comments[comments.length - 1];
             if (!last) break;
-            const data = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
-            const newItems = filterPost(data.length > 0 && data[0].permlink === last.permlink ? data.slice(1) : data);
-            setComments((prev) => [...prev, ...newItems]);
-            setHasMore((prev) => ({ ...prev, comments: newItems.length >= PAGE_SIZE - 1 }));
+            const raw = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
+            const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+            const newItems = filterPost(sliced);
+            setComments((prev) => {
+              const seen = new Set(prev.map(p => `${p.author}/${p.permlink}`));
+              const unique = newItems.filter(p => !seen.has(`${p.author}/${p.permlink}`));
+              return [...prev, ...unique];
+            });
+            setHasMore((prev) => ({ ...prev, comments: raw.length >= PAGE_SIZE }));
           } else {
             const last = replies[replies.length - 1];
             if (!last) break;
             const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
-            const newItems = filterPost(raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw);
-            setReplies((prev) => [...prev, ...newItems]);
+            const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+            const newItems = filterPost(sliced);
+            setReplies((prev) => {
+              const seen = new Set(prev.map(p => `${p.author}/${p.permlink}`));
+              const unique = newItems.filter(p => !seen.has(`${p.author}/${p.permlink}`));
+              return [...prev, ...unique];
+            });
             setHasMore((prev) => ({ ...prev, replies: raw.length >= PAGE_SIZE }));
           }
           break;
@@ -2025,17 +2061,25 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           if (followsSubTab === "followers") {
             const last = followers[followers.length - 1];
             if (!last) break;
-            const data = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
-            const newItems = data.length > 0 && data[0].follower === last.follower ? data.slice(1) : data;
-            setFollowers((prev) => [...prev, ...newItems]);
-            setHasMore((prev) => ({ ...prev, followers: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+            const raw = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
+            const newItems = raw.length > 0 && raw[0].follower === last.follower ? raw.slice(1) : raw;
+            setFollowers((prev) => {
+              const seen = new Set(prev.map(f => f.follower));
+              const unique = newItems.filter(f => !seen.has(f.follower));
+              return [...prev, ...unique];
+            });
+            setHasMore((prev) => ({ ...prev, followers: raw.length >= FOLLOWER_PAGE_SIZE }));
           } else {
             const last = following[following.length - 1];
             if (!last) break;
-            const data = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
-            const newItems = data.length > 0 && data[0].following === last.following ? data.slice(1) : data;
-            setFollowing((prev) => [...prev, ...newItems]);
-            setHasMore((prev) => ({ ...prev, following: newItems.length >= FOLLOWER_PAGE_SIZE - 1 }));
+            const raw = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
+            const newItems = raw.length > 0 && raw[0].following === last.following ? raw.slice(1) : raw;
+            setFollowing((prev) => {
+              const seen = new Set(prev.map(f => f.following));
+              const unique = newItems.filter(f => !seen.has(f.following));
+              return [...prev, ...unique];
+            });
+            setHasMore((prev) => ({ ...prev, following: raw.length >= FOLLOWER_PAGE_SIZE }));
           }
           break;
         }
@@ -2047,27 +2091,50 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     }
   }, [activeTab, targetUsername, currentUsername, loadingMore, hasMore, postsSubTab, repliesSubTab, followsSubTab, activitiesSubTab, blogs, posts, comments, replies, followers, following, curations, lowestCurationIndex]);
 
-  // ─── Infinite scroll — direct scroll listener on the nested scroll
-  // container. We tried IntersectionObserver first, but it proved
-  // unreliable inside the kit's nested scroll layout when the consumer
-  // app wraps the profile in its own shell (HiveSuite). The Posts tab
-  // happened to work because its rendered cards are tall enough that the
-  // sentinel crossed the viewport boundary — Comments / Replies rows are
-  // short, so the sentinel never made it into the viewport unless the
-  // observer's `root` was pinned exactly to the right element. Scroll
-  // events are guaranteed to fire on every scroll regardless of layout,
-  // so this is the bulletproof approach.
+  // Keep latest references for scroll callbacks to avoid stale closures
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+
+  const loadingMoreRef = useRef(loadingMore);
+  loadingMoreRef.current = loadingMore;
+
+  const currentHasMoreRef = useRef(currentHasMore);
+  currentHasMoreRef.current = currentHasMore;
+
+  const triggerLoadMore = useCallback(() => {
+    if (loadingMoreRef.current || !currentHasMoreRef.current) return;
+    loadMoreRef.current();
+  }, []);
+
+  // ─── Infinite scroll — Dual listener on both nested scroll container and window
   useEffect(() => {
     const el = mainScrollRef.current;
-    if (!el) return;
-
-    // Bottom-edge threshold: when the user has scrolled to within this
-    // many pixels of the end, fire `loadMore`. 600px gives the next page
-    // a head start so the user rarely hits a hard stop while scrolling.
     const THRESHOLD = 600;
     let ticking = false;
+
+    const checkScrollPosition = () => {
+      if (loadingMoreRef.current || !currentHasMoreRef.current) return;
+
+      // Check inner container (when mainScrollRef is the scrolling element)
+      if (el && el.scrollHeight > el.clientHeight) {
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD) {
+          triggerLoadMore();
+          return;
+        }
+      }
+
+      // Check document / window (when whole page is scrolling)
+      const doc = document.documentElement;
+      const windowScrollTop = window.scrollY || doc.scrollTop || 0;
+      const windowHeight = window.innerHeight;
+      const docHeight = doc.scrollHeight;
+      if (docHeight > windowHeight && windowScrollTop + windowHeight >= docHeight - THRESHOLD) {
+        triggerLoadMore();
+      }
+    };
+
     const onScroll = () => {
-      if (profileCacheKey) {
+      if (el && profileCacheKey) {
         if (!profileStateCache[profileCacheKey]) {
           profileStateCache[profileCacheKey] = {
             tab: activeTabRef.current,
@@ -2082,34 +2149,114 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       ticking = true;
       requestAnimationFrame(() => {
         ticking = false;
-        if (el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD) {
-          loadMore();
-        }
+        checkScrollPosition();
       });
     };
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [loadMore, targetUsername]);
+    if (el) {
+      el.addEventListener("scroll", onScroll, { passive: true });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-  // After a load-more completes, if the new page didn't make the content
-  // any taller than the viewport (short rows / fast network), the user
-  // never gets a chance to scroll and the listener above sits idle.
-  // Manually peek the scroll position and fire again — bounded by
-  // `hasMore` / `loadingMore` so it can't loop forever.
+    return () => {
+      if (el) {
+        el.removeEventListener("scroll", onScroll);
+      }
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [triggerLoadMore, profileCacheKey]);
+
+  // ─── IntersectionObserver on sentinel as a responsive trigger
   useEffect(() => {
-    const currentHasMore = activeTab === "posts" ? hasMore[postsSubTab]
-      : activeTab === "replies" ? hasMore[repliesSubTab]
-      : activeTab === "followers" ? hasMore[followsSubTab]
-      : activeTab === "activities" ? hasMore[activitiesSubTab]
-      : false;
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !currentHasMore) return;
+
+    const el = mainScrollRef.current;
+    const containerObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          triggerLoadMore();
+        }
+      },
+      {
+        root: el && el.scrollHeight > el.clientHeight ? el : null,
+        rootMargin: "400px 0px",
+      }
+    );
+    containerObserver.observe(sentinel);
+
+    let viewportObserver: IntersectionObserver | null = null;
+    if (el && el.scrollHeight > el.clientHeight) {
+      viewportObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting) {
+            triggerLoadMore();
+          }
+        },
+        { root: null, rootMargin: "400px 0px" }
+      );
+      viewportObserver.observe(sentinel);
+    }
+
+    return () => {
+      containerObserver.disconnect();
+      if (viewportObserver) viewportObserver.disconnect();
+    };
+  }, [
+    currentHasMore,
+    triggerLoadMore,
+    activeTab,
+    postsSubTab,
+    repliesSubTab,
+    followsSubTab,
+    activitiesSubTab,
+    blogs.length,
+    posts.length,
+    comments.length,
+    replies.length,
+    followers.length,
+    following.length,
+    curations.length,
+  ]);
+
+  // After a load-more completes or tab changes, peek scroll position to continue
+  // fetching if content is shorter than viewport or already scrolled near bottom.
+  useEffect(() => {
     if (loadingMore || !currentHasMore) return;
     const el = mainScrollRef.current;
-    if (!el) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) {
-      loadMore();
+    const THRESHOLD = 600;
+
+    if (el && el.scrollHeight > el.clientHeight) {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - THRESHOLD) {
+        triggerLoadMore();
+        return;
+      }
     }
-  }, [loadingMore, activeTab, hasMore, postsSubTab, repliesSubTab, followsSubTab, activitiesSubTab, blogs.length, posts.length, comments.length, replies.length, followers.length, following.length, curations.length, loadMore]);
+
+    const doc = document.documentElement;
+    const windowScrollTop = window.scrollY || doc.scrollTop || 0;
+    const windowHeight = window.innerHeight;
+    const docHeight = doc.scrollHeight;
+    if (docHeight > windowHeight && windowScrollTop + windowHeight >= docHeight - THRESHOLD) {
+      triggerLoadMore();
+    }
+  }, [
+    loadingMore,
+    currentHasMore,
+    triggerLoadMore,
+    activeTab,
+    postsSubTab,
+    repliesSubTab,
+    followsSubTab,
+    activitiesSubTab,
+    blogs.length,
+    posts.length,
+    comments.length,
+    replies.length,
+    followers.length,
+    following.length,
+    curations.length,
+  ]);
 
   // ─── Action handlers ─────────────────────────────────────────────────────
 
@@ -4930,7 +5077,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
           {renderTabContent()}
 
           {/* Infinite scroll sentinel — min-h prevents scroll jump during loading */}
-          {activeTab !== "wallet" && hasMore[activeTab] && (
+          {PAGINATED_TABS.includes(activeTab) && currentHasMore && (
             <div ref={sentinelRef} className="min-h-[60px] py-2">
               {loadingMore ? (
                 <div className="animate-pulse space-y-3">

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSupporterTier, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
-import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat, Ban } from 'lucide-react';
+import { ThumbsUp, MessageSquare, ChevronDown, ChevronUp, Clock, X, Share2, Gift, Flag, Pencil, Repeat, Ban, Play } from 'lucide-react';
 import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { MoreActionsMenu } from '../actionButtons/MoreActionsMenu';
 import { formatDistanceToNow } from 'date-fns';
@@ -116,6 +116,10 @@ interface InlineCommentItemProps {
   decentMemesTheme?: 'light' | 'dark';
   /** When true, current user is a Web2 user. */
   isWeb2User?: boolean;
+  /** Primary 3Speak video of the parent post, used to show thumbnails in comments instead of nested players. */
+  parentThreeSpeakVideo?: { author: string; permlink: string; videoUrl?: string; thumbnail?: string } | null;
+  /** Callback to smoothly scroll to and highlight the parent post's 3Speak video. */
+  onScrollToParentVideo?: () => void;
 }
 
 const MAX_DEPTH = 4;
@@ -168,6 +172,8 @@ export default function InlineCommentItem({
   decentMemesAppAccount,
   decentMemesTheme,
   isWeb2User = false,
+  parentThreeSpeakVideo,
+  onScrollToParentVideo,
 }: InlineCommentItemProps) {
   const isCurrentUserWeb2 = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -355,6 +361,46 @@ export default function InlineCommentItem({
     renderOptions?.tagLinkUrlFn,
   ]);
 
+  const commentThreeSpeakVideo = useMemo<{
+    author: string;
+    permlink: string;
+    thumbnail?: string;
+  } | null>(() => {
+    const body = comment.body || '';
+    const m = body.match(
+      /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([a-z0-9.-]+)\/([a-z0-9.-]+)/i
+    );
+    if (m) {
+      const a = m[1].toLowerCase();
+      const p = m[2];
+      let thumb =
+        parentThreeSpeakVideo &&
+        (parentThreeSpeakVideo.author.toLowerCase() === a || parentThreeSpeakVideo.permlink === p)
+          ? parentThreeSpeakVideo.thumbnail
+          : undefined;
+      if (!thumb && metadata?.video?.thumbnail) {
+        thumb = metadata.video.thumbnail;
+      }
+      if (!thumb && Array.isArray(metadata?.image) && metadata.image[0]) {
+        thumb = metadata.image[0];
+      }
+      return { author: a, permlink: p, thumbnail: thumb };
+    }
+    if (metadata?.video && (metadata.video.platform === '3speak' || String(metadata.video.url || '').includes('3speak'))) {
+      const fromMeta = String(metadata.video.url || '').match(
+        /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([a-z0-9.-]+)\/([a-z0-9.-]+)/i
+      );
+      if (fromMeta) {
+        return {
+          author: fromMeta[1].toLowerCase(),
+          permlink: fromMeta[2],
+          thumbnail: metadata.video.thumbnail || parentThreeSpeakVideo?.thumbnail,
+        };
+      }
+    }
+    return null;
+  }, [comment.body, metadata, parentThreeSpeakVideo]);
+
   const renderedBody = useMemo(() => {
     if (!sanitizedBody || !renderHiveContent) return '';
     try {
@@ -373,11 +419,37 @@ export default function InlineCommentItem({
         /https?:\/\/(?:www\.)?(?:odysee\.com|lbry\.tv)\/[^\s"'<>)]+/gi,
         '',
       );
+      // Strip 3Speak URLs/iframes from comment body — rendered as thumbnail preview below
+      safeBody = safeBody.replace(
+        /<(?:iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.(?:tv|co)[^"']*["'][^>]*>(?:\s*<\/(?:iframe|video)>)?/gi,
+        '',
+      );
+      const THREE_SPEAK_HREF = String.raw`https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:watch\?|embed\?|shorts\?|play\?|v\/|shorts\/|watch\/|embed\/|play\/)[^)\s]+`;
+      safeBody = safeBody.replace(
+        new RegExp(String.raw`\[(?:!\[[^\]]*\]\([^)]*\)|<img[^>]*>)\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
+        '',
+      );
+      safeBody = safeBody.replace(
+        new RegExp(String.raw`(?:▶️?\s*)?\[[^\]]*\]\(\s*${THREE_SPEAK_HREF}\s*\)`, 'gi'),
+        '',
+      );
+      safeBody = safeBody.replace(/▶️?/g, '');
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play)\?(?:[^\s"'<>]*[?&])?v=[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        '',
+      );
+      safeBody = safeBody.replace(
+        /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:v|shorts|watch|embed|play)\/[a-z0-9.-]+\/[a-z0-9.-]+[^\s"'<>]*/gi,
+        '',
+      );
       let html = renderHiveContent(safeBody);
       html = html.replace(
-        /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
-        (_m: string, v: string) =>
-          `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
+        /<iframe\s[^>]*src="https:\/\/(?:play\.)?3speak\.tv\/[^"]*"[^>]*>(?:<\/iframe>)?/gi,
+        '',
+      );
+      html = html.replace(
+        /<a\s[^>]*href="https:\/\/(?:play\.)?3speak\.tv\/[^"]*"[^>]*>[^<]*<\/a>/gi,
+        '',
       );
       return html;
     } catch {
@@ -644,6 +716,55 @@ export default function InlineCommentItem({
                 <p className="text-gray-400 text-sm italic">No content available.</p>
               )}
             </div>
+
+            {/* 3Speak Video Thumbnail Card in Inline Comment */}
+            {commentThreeSpeakVideo && (
+              <div className="mb-3 ml-7 md:ml-9 max-w-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onScrollToParentVideo) {
+                      onScrollToParentVideo();
+                    } else {
+                      const el = document.getElementById('parent-threespeak-player-wrapper') || document.getElementById('parent-threespeak-video-container');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('ring-4', 'ring-blue-500/80', 'ring-offset-2', 'transition-all', 'duration-500');
+                        setTimeout(() => {
+                          el.classList.remove('ring-4', 'ring-blue-500/80', 'ring-offset-2');
+                        }, 2500);
+                      }
+                    }
+                  }}
+                  className="group relative block w-full overflow-hidden rounded-xl bg-gray-900 border border-gray-800 shadow-md transition hover:border-blue-500/60 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-left cursor-pointer"
+                  style={{ aspectRatio: '16/9' }}
+                  title="Click to scroll up and play video"
+                >
+                  <img
+                    src={
+                      commentThreeSpeakVideo.thumbnail ||
+                      `https://images.hive.blog/0x0/https://images.3speak.tv/images/${commentThreeSpeakVideo.permlink}.webp`
+                    }
+                    alt="3Speak video thumbnail"
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105 group-hover:opacity-90"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        parentThreeSpeakVideo?.thumbnail ||
+                        'https://images.hive.blog/0x0/https://play.3speak.tv/assets/3speak.png';
+                    }}
+                  />
+                  {/* Overlay play button & badge */}
+                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1.5 transition group-hover:bg-black/25">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600/90 text-white shadow-lg backdrop-blur-sm transition group-hover:scale-110 group-hover:bg-blue-500">
+                      <Play className="h-5 w-5 translate-x-0.5" fill="currentColor" />
+                    </span>
+                    <span className="rounded-full bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-gray-200 backdrop-blur-sm group-hover:text-white">
+                      Watch parent video
+                    </span>
+                  </div>
+                </button>
+              </div>
+            )}
 
             {/* Metadata images */}
             {!hasMarkdownImagesInBody && metadataImages.length > 0 && (
@@ -1124,6 +1245,10 @@ export default function InlineCommentItem({
               allowLandscapeVideos={allowLandscapeVideos}
               awaitingWalletApproval={awaitingWalletApproval}
               renderOptions={renderOptions}
+              decentMemesAppAccount={decentMemesAppAccount}
+              decentMemesTheme={decentMemesTheme}
+              parentThreeSpeakVideo={parentThreeSpeakVideo}
+              onScrollToParentVideo={onScrollToParentVideo}
             />
           ))}
         </div>

@@ -113,6 +113,10 @@ interface InlineCommentSectionProps {
   decentMemesTheme?: 'light' | 'dark';
   /** When true, the current user is a Web2 user. */
   isWeb2User?: boolean;
+  /** Primary 3Speak video of the parent post, used to show thumbnails in comments instead of nested players. */
+  parentThreeSpeakVideo?: { author: string; permlink: string; videoUrl?: string; thumbnail?: string } | null;
+  /** Callback to smoothly scroll to and highlight the parent post's 3Speak video. */
+  onScrollToParentVideo?: () => void;
 }
 
 function findCommentElement(hash: string): HTMLElement | null {
@@ -196,6 +200,8 @@ export default function InlineCommentSection({
   decentMemesAppAccount,
   decentMemesTheme,
   isWeb2User = false,
+  parentThreeSpeakVideo,
+  onScrollToParentVideo,
 }: InlineCommentSectionProps) {
   const observer = observerProp ?? currentUser;
   const [comments, setComments] = useState<Discussion[]>([]);
@@ -568,6 +574,8 @@ export default function InlineCommentSection({
               renderOptions={renderOptions}
               decentMemesAppAccount={decentMemesAppAccount}
               decentMemesTheme={decentMemesTheme}
+              parentThreeSpeakVideo={parentThreeSpeakVideo}
+              onScrollToParentVideo={onScrollToParentVideo}
             />
           ))}
         </div>

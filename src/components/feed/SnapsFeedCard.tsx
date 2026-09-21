@@ -486,7 +486,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
       html = html.replace(
         /https:\/\/3speak\.tv\/embed\?v=([^"&\s]+)/gi,
         (_m: string, v: string) =>
-          `https://play.3speak.tv/embed?v=${v}&mode=iframe&noscroll=1`,
+          `https://play.3speak.tv/embed?v=${v}&mode=iframe&layout=desktop&noscroll=1`,
       );
       // Belt-and-suspenders: even after pre-stripping images from the
       // markdown source, the renderer can re-emit <img> tags from cases we

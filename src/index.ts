@@ -64,6 +64,11 @@ export { default as TransactionHistory } from './components/TransactionHistory';
 export { default as UserChannel } from './components/UserChannel';
 export { default as HiveToolbar, type HiveToolbarProps } from './components/HiveToolbar';
 export { HiveDetailPost, type HiveDetailPostProps } from './components/HiveDetailPost';
+export {
+  ThreeSpeakPlayer,
+  build3SpeakEmbedUrl,
+  type ThreeSpeakPlayerProps,
+} from './components/ThreeSpeakPlayer';
 export { default as CommentsModal } from './components/comments/CommentsModal';
 export {
   PostActionButton,
