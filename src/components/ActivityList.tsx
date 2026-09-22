@@ -98,30 +98,108 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative z-30" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-2 py-1.5 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] sm:px-3 sm:py-2 sm:text-sm"
+        className="flex w-full items-center justify-between gap-1.5 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] px-2 py-1.5 text-xs text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] sm:px-3 sm:py-2 sm:text-sm cursor-pointer"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="truncate">{selectedLabel}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className="truncate font-medium">{selectedLabel}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-[var(--hrk-text-tertiary)] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <>
-          {/* Mobile backdrop — taps anywhere outside the panel close it. */}
-          <div
-            className="fixed inset-0 z-40 bg-black/30 sm:hidden"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
+          {/* Mobile bottom sheet (Screen < 640px) */}
+          <div className="sm:hidden">
+            <div
+              className="fixed inset-0 z-40 bg-black/50"
+              onClick={() => setOpen(false)}
+              aria-hidden
+            />
 
+            <div
+              role="listbox"
+              className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-xl border-t border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-2xl"
+            >
+              {/* Header / search */}
+              <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-2">
+                <Search className="h-4 w-4 shrink-0 text-[var(--hrk-text-tertiary)]" />
+                <input
+                  ref={searchInputRef}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search filter…"
+                  className="w-full bg-transparent text-sm text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] focus:outline-none dark:text-[var(--hrk-text-primary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded p-1 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-tertiary)] dark:hover:bg-[var(--hrk-bg-surface-raised)]"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Options */}
+              <div className="flex-1 overflow-y-auto overscroll-contain p-1">
+                {(query.trim() === "" || "all".includes(query.trim().toLowerCase())) && (
+                  <button
+                    type="button"
+                    onClick={() => pick("all")}
+                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm cursor-pointer ${
+                      value === "all"
+                        ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)] font-semibold"
+                        : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
+                    }`}
+                  >
+                    <span>All</span>
+                    {value === "all" && <Check className="h-4 w-4" />}
+                  </button>
+                )}
+
+                {filteredGroups.map(group => (
+                  <div key={group.label} className="mt-1">
+                    <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
+                      {group.label}
+                    </div>
+                    {group.options.map(opt => {
+                      const selected = value === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => pick(opt.value)}
+                          className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm cursor-pointer ${
+                            selected
+                              ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)] font-semibold"
+                              : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
+                          }`}
+                        >
+                          <span className="truncate">{opt.label}</span>
+                          {selected && <Check className="h-4 w-4 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+
+                {filteredGroups.length === 0 && query.trim() !== "" && (
+                  <div className="px-3 py-4 text-center text-sm text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-tertiary)]">
+                    No filters match "{query}"
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop dropdown menu (Screen >= 640px) */}
           <div
             role="listbox"
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[75vh] flex-col rounded-t-xl border-t border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-2xl sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[60vh] sm:w-72 sm:rounded-lg sm:border sm:border-[var(--hrk-border-subtle)]"
+            className="hidden sm:flex absolute right-0 top-full mt-1.5 z-50 w-72 max-h-[60vh] flex-col rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] shadow-2xl overflow-hidden"
           >
             {/* Header / search */}
             <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-2">
@@ -133,26 +211,17 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                 placeholder="Search filter…"
                 className="w-full bg-transparent text-sm text-[var(--hrk-text-primary)] placeholder-[var(--hrk-text-tertiary)] focus:outline-none dark:text-[var(--hrk-text-primary)]"
               />
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded p-1 text-[var(--hrk-text-tertiary)] hover:bg-[var(--hrk-bg-hover)] dark:text-[var(--hrk-text-tertiary)] dark:hover:bg-[var(--hrk-bg-surface-raised)] sm:hidden"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
 
             {/* Options */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-1">
-              {/* "All" — always visible unless filtered out by the query. */}
               {(query.trim() === "" || "all".includes(query.trim().toLowerCase())) && (
                 <button
                   type="button"
                   onClick={() => pick("all")}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm cursor-pointer transition-colors ${
                     value === "all"
-                      ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
+                      ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)] font-semibold"
                       : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
                   }`}
                 >
@@ -173,9 +242,9 @@ const OperationFilterDropdown: React.FC<OperationFilterDropdownProps> = ({ value
                         key={opt.value}
                         type="button"
                         onClick={() => pick(opt.value)}
-                        className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm ${
+                        className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-sm cursor-pointer transition-colors ${
                           selected
-                            ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
+                            ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)] font-semibold"
                             : "text-[var(--hrk-text-primary)] hover:bg-[var(--hrk-bg-surface-raised)]"
                         }`}
                       >
@@ -852,7 +921,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
     <div className="space-y-4">
       {/* Compact filter bar — single row on every breakpoint. Toggle pinned
           to the start, filter + refresh pushed to the end on desktop. */}
-      <div className="bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-2 sm:p-3">
+      <div className="relative z-20 bg-[var(--hrk-bg-surface)] border border-[var(--hrk-border-subtle)] rounded-lg p-2 sm:p-3">
         <div className="flex items-center justify-between gap-1.5 sm:gap-2">
           {/* 3-position direction toggle. Default is centre (All). */}
           <div
@@ -870,7 +939,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
               role="radio"
               aria-checked={localDirectionFilter === 'out'}
               onClick={() => setLocalDirectionFilter('out')}
-              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors ${
+              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors cursor-pointer ${
                 localDirectionFilter === 'out' ? 'text-white' : 'text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-secondary)]'
               }`}
             >
@@ -882,7 +951,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
               role="radio"
               aria-checked={localDirectionFilter === 'all'}
               onClick={() => setLocalDirectionFilter('all')}
-              className={`relative z-10 inline-flex items-center justify-center whitespace-nowrap rounded-full px-1 py-1 sm:py-1.5 transition-colors ${
+              className={`relative z-10 inline-flex items-center justify-center whitespace-nowrap rounded-full px-1 py-1 sm:py-1.5 transition-colors cursor-pointer ${
                 localDirectionFilter === 'all' ? 'text-[var(--hrk-text-primary)] dark:text-white' : 'text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-secondary)]'
               }`}
             >
@@ -893,7 +962,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
               role="radio"
               aria-checked={localDirectionFilter === 'in'}
               onClick={() => setLocalDirectionFilter('in')}
-              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors ${
+              className={`relative z-10 inline-flex items-center justify-center gap-0.5 whitespace-nowrap rounded-full px-1 py-1 sm:gap-1 sm:py-1.5 transition-colors cursor-pointer ${
                 localDirectionFilter === 'in' ? 'text-white' : 'text-[var(--hrk-text-tertiary)] dark:text-[var(--hrk-text-secondary)]'
               }`}
             >
@@ -905,8 +974,8 @@ const dropdownRef = useRef<HTMLDivElement>(null);
           {/* End-of-row group: filter dropdown + refresh. Stays right on
               desktop; on mobile takes the remaining space (filter expands,
               refresh stays compact). */}
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:flex-none sm:gap-2">
-            <div className="min-w-0 flex-1 sm:flex-none sm:w-44">
+          <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+            <div className="w-36 sm:w-56">
               <OperationFilterDropdown
                 value={localOperationFilter}
                 onChange={setLocalOperationFilter}
@@ -916,7 +985,7 @@ const dropdownRef = useRef<HTMLDivElement>(null);
             <button
               onClick={() => loadActivities()}
               disabled={loading || loadingMore}
-              className="shrink-0 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] p-1.5 text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] disabled:cursor-not-allowed disabled:opacity-50 sm:p-2"
+              className="shrink-0 rounded-md border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-app)] p-1.5 text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--hrk-info)] disabled:cursor-not-allowed disabled:opacity-50 sm:p-2 cursor-pointer shadow-sm"
               aria-label="Refresh"
             >
               <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading || loadingMore ? 'animate-spin' : ''}`} />
