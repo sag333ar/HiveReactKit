@@ -1090,18 +1090,44 @@ export function HiveDetailPost({
   } | null>(() => {
     const extract = (url: unknown): { author: string; permlink: string; videoUrl?: string } | null => {
       if (typeof url !== 'string') return null;
-      const m = url.match(
+      let decoded = url.trim();
+      try {
+        decoded = decodeURIComponent(url);
+      } catch {
+        /* ignore */
+      }
+      const m = decoded.match(
         /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([^&\s/?#]+)\/([^&\s/?#]+)/i
       );
-      if (!m) return null;
-      return { author: m[1].toLowerCase(), permlink: m[2], videoUrl: url };
+      if (m) {
+        return { author: m[1].toLowerCase().replace(/^@/, ''), permlink: m[2], videoUrl: url };
+      }
+      const vMatch = decoded.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
+      if (vMatch && (decoded.includes('3speak.tv') || decoded.includes('3speak.co'))) {
+        const a = vMatch[2] ? vMatch[1] : '';
+        const p = vMatch[2] ? vMatch[2] : vMatch[1];
+        if (a && p) return { author: a.toLowerCase().replace(/^@/, ''), permlink: p, videoUrl: url };
+      }
+      return null;
     };
     // Path 1: declared `video` block.
     const video = displayParsedMetadata?.video as any;
-    if (video && (video.platform === '3speak' || (typeof video.url === 'string' && video.url.includes('3speak')))) {
+    const is3Speak =
+      video &&
+      (video.platform === '3speak' ||
+        video.info?.platform === '3speak' ||
+        (typeof video.url === 'string' && (video.url.includes('3speak.tv') || video.url.includes('3speak.co'))) ||
+        (video.info?.author && video.info?.permlink) ||
+        (video.author && video.permlink) ||
+        video.info?.video_v2 ||
+        video.info?.file === 'manifest.m3u8' ||
+        (typeof displayParsedMetadata?.app === 'string' && displayParsedMetadata.app.includes('3speak')));
+
+    if (video && is3Speak) {
       const thumb =
         video.thumbnail ||
         video.info?.thumbnail ||
+        video.info?.poster ||
         (Array.isArray(video.info?.sourceMap) ? video.info.sourceMap.find((s: any) => s.type === 'thumbnail')?.url : undefined) ||
         (Array.isArray(displayParsedMetadata?.image) ? displayParsedMetadata?.image[0] : undefined);
 
@@ -1109,10 +1135,20 @@ export function HiveDetailPost({
       if (fromVideo) {
         return { ...fromVideo, thumbnail: thumb };
       }
-      if (video.info?.author && video.info?.permlink) {
+      const vAuthor = video.info?.author || video.author;
+      const vPermlink = video.info?.permlink || video.permlink;
+      if (vAuthor && vPermlink) {
         return {
-          author: String(video.info.author).toLowerCase(),
-          permlink: String(video.info.permlink),
+          author: String(vAuthor).toLowerCase().replace(/^@/, ''),
+          permlink: String(vPermlink),
+          videoUrl: typeof video.url === 'string' ? video.url : undefined,
+          thumbnail: thumb,
+        };
+      }
+      if (displayPost?.author && displayPost?.permlink) {
+        return {
+          author: String(displayPost.author).toLowerCase().replace(/^@/, ''),
+          permlink: String(displayPost.permlink),
           videoUrl: typeof video.url === 'string' ? video.url : undefined,
           thumbnail: thumb,
         };
@@ -1130,7 +1166,7 @@ export function HiveDetailPost({
       }
     }
     return null;
-  }, [displayParsedMetadata]);
+  }, [displayParsedMetadata, displayPost?.author, displayPost?.permlink]);
 
   // Let the consumer transform the body (e.g. strip app footers) before the
   // markdown renderer runs. Depends on parentTags so transforms can inspect them.
@@ -1321,9 +1357,9 @@ export function HiveDetailPost({
     const seen = new Set<string>();
     const out: Array<{ author: string; permlink: string; thumbnail?: string }> = [];
     const push = (author: string, permlink: string, thumbnail?: string) => {
-      const a = author.toLowerCase().replace(/^@/, '');
-      const p = permlink.toLowerCase();
-      const key = `${a}/${p}`;
+      const a = author.toLowerCase().replace(/^@/, '').trim();
+      const p = permlink.trim();
+      const key = `${a}/${p.toLowerCase()}`;
       if (seen.has(key)) return;
       seen.add(key);
       out.push({ author: a, permlink: p, thumbnail });
@@ -1339,18 +1375,18 @@ export function HiveDetailPost({
     // 0) 3Speak's canonical embed markdown is a linked thumbnail:
     //      [![](THUMB)](https://3speak.tv/watch?v=author/permlink)
     //      [<img src="THUMB" ... />](https://play.3speak.tv/embed?v=author/permlink)
-    const linkedThumbRe = /\[(?:!\[[^\]]*\]\(([^)\s]+)\)|<img[^>]+src=["']([^"'\s>]+)["'][^>]*>)\]\(\s*https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^)\s]*[?&])?v=|\/)([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    const linkedThumbRe = /\[(?:!\[[^\]]*\]\(([^)\s]+)\)|<img[^>]+src=["']([^"'\s>]+)["'][^>]*>)\]\(\s*https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^)\s]*[?&])?v=|\/)([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)/gi;
     while ((m = linkedThumbRe.exec(cleanedBody)) !== null) {
       const thumb = m[1] || m[2];
       push(m[3], m[4], thumb);
     }
     // `?v=author/permlink` — works for `/embed?v=…`, `/watch?v=…`, `/shorts?v=…`, `/play?v=…`
-    const queryRe = /https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)\?(?:[^\s"'<>]*[?&])?v=([a-z0-9.-]+)\/([a-z0-9.-]+)/gi;
+    const queryRe = /https?:\/\/(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)\?(?:[^\s"'<>]*[?&])?v=([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)/gi;
     while ((m = queryRe.exec(cleanedBody)) !== null) {
       push(m[1], m[2]);
     }
     // Canonical path form `3speak.tv/v/author/permlink` or `3speak.tv/shorts/author/permlink` or `3speak.tv/watch/author/permlink`.
-    const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:v|shorts|watch|embed|play)\/[a-z0-9.-]+\/[a-z0-9.-]+/gi;
+    const pathRe = /https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/(?:v|shorts|watch|embed|play)\/([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)/gi;
     while ((m = pathRe.exec(cleanedBody)) !== null) {
       push(m[1], m[2]);
     }
@@ -1368,15 +1404,15 @@ export function HiveDetailPost({
     const postBacklinkKey = currentPostAuthor && currentPostPermlink ? `${currentPostAuthor}/${currentPostPermlink}` : null;
 
     const addVideo = (vidAuthor: string, vidPermlink: string, videoUrl?: string, thumbnail?: string) => {
-      const a = vidAuthor.toLowerCase().replace(/^@/, '');
-      const p = vidPermlink.toLowerCase();
-      const key = `${a}/${p}`;
+      const a = vidAuthor.toLowerCase().replace(/^@/, '').trim();
+      const p = vidPermlink.trim();
+      const key = `${a}/${p.toLowerCase()}`;
       if (seen.has(key)) return;
       seen.add(key);
       out.push({
         author: a,
         permlink: p,
-        videoUrl: videoUrl || `https://play.3speak.tv/embed?v=${encodeURIComponent(`${a}/${p}`)}`,
+        videoUrl: videoUrl || `https://play.3speak.tv/embed?v=${a}/${p}`,
         thumbnail,
       });
     };
@@ -1884,13 +1920,29 @@ export function HiveDetailPost({
     /** Match `?…&v=author/permlink…` regardless of param order. */
     const extractIds = (url: string | null): { author: string; permlink: string } | null => {
       if (!url) return null;
-      const m = url.match(/[?&]v=([^&\s/?#]+)\/([^&\s/?#]+)/i);
-      if (!m) return null;
-      return { author: m[1], permlink: m[2] };
+      let decoded = url.trim();
+      try {
+        decoded = decodeURIComponent(url);
+      } catch {
+        /* ignore */
+      }
+      const m = decoded.match(
+        /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([^&\s/?#]+)\/([^&\s/?#]+)/i
+      );
+      if (m) {
+        return { author: m[1].toLowerCase().replace(/^@/, '').trim(), permlink: m[2].trim() };
+      }
+      const vMatch = decoded.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
+      if (vMatch && (decoded.includes('3speak.tv') || decoded.includes('3speak.co'))) {
+        const a = vMatch[2] ? vMatch[1] : '';
+        const p = vMatch[2] ? vMatch[2] : vMatch[1];
+        if (a && p) return { author: a.toLowerCase().replace(/^@/, '').trim(), permlink: p.trim() };
+      }
+      return null;
     };
     const isThreeSpeakEmbedUrl = (url: string | null): boolean => {
       if (!url) return false;
-      return /https?:\/\/(?:play\.)?3speak\.tv\/(?:embed|watch)\?/i.test(url);
+      return /(?:play\.)?3speak\.(?:tv|co)/i.test(url);
     };
 
     const targets: { el: HTMLElement; author: string; permlink: string }[] = [];

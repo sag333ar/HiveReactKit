@@ -1,7 +1,10 @@
 /**
- * ThreeSpeakPlayer — native HTML5 video player for 3Speak embeds with
- * HLS.js streaming, multi-CDN fallback, Hive RPC metadata resolution,
- * portrait/short letterboxing, and iframe fallback.
+ * ThreeSpeakPlayer — Smart 3Speak video player with automatic fallback:
+ *   1. Primary: Official 3Speak iframe player (`play.3speak.tv/embed?v=...&mode=iframe&layout=desktop&noscroll=1`)
+ *      used whenever the video is indexed on 3Speak's embed API (200 OK).
+ *   2. Fallback: If 3Speak embed returns 404 / Video Not Found (e.g. uploads from hivesuite/Ecency),
+ *      automatically resolves the on-chain IPFS manifest via Hive RPC metadata (`video_v2`) / `api/watch` / `checker.3speak.tv`
+ *      and streams directly with Hls.js & Safari Native HLS.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
@@ -22,6 +25,7 @@ export interface ThreeSpeakPlayerProps {
 }
 
 interface EmbedMeta {
+  useIframe?: boolean;
   videoUrl?: string;
   videoUrlFallback1?: string;
   videoUrlFallback2?: string;
@@ -30,11 +34,9 @@ interface EmbedMeta {
   short?: boolean;
   isPlaceholder?: boolean;
   status?: string;
-  useIframeFallback?: boolean;
 }
 
-/** Strip a `images.hive.blog/<WxH>/` or `images.ecency.com/<WxH>/`
- *  resize prefix so we can rebuild the proxy chain from the original URL. */
+/** Strip image proxy prefixes to build fallback chains */
 function stripImageProxy(url: string): string {
   let out = url.trim();
   let prev: string;
@@ -45,16 +47,15 @@ function stripImageProxy(url: string): string {
   return out;
 }
 
-/** Poster candidates in priority order: Hive proxy → Ecency proxy → the
- *  original URL. data:/blob: URLs can't be proxied, so they pass through. */
+/** Poster candidates in priority order: direct → Hive proxy → Ecency proxy */
 function posterCandidates(url: string | undefined): string[] {
   const raw = stripImageProxy((url ?? '').trim());
   if (!raw) return [];
   if (raw.startsWith('data:') || raw.startsWith('blob:')) return [raw];
   const chain = [
+    raw,
     `https://images.hive.blog/0x0/${raw}`,
     `https://images.ecency.com/0x0/${raw}`,
-    raw,
   ];
   return chain.filter((u, i) => u && chain.indexOf(u) === i);
 }
@@ -76,13 +77,20 @@ export function build3SpeakEmbedUrl(options: {
   let vParam = '';
   if (options.videoUrl) {
     const raw = options.videoUrl.trim();
-    const match = raw.match(
+    let decoded = raw;
+    try {
+      decoded = decodeURIComponent(raw);
+    } catch {
+      /* ignore */
+    }
+
+    const match = decoded.match(
       /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([^&\s/?#]+)\/([^&\s/?#]+)/i
     );
     if (match) {
       vParam = `${match[1]}/${match[2]}`;
-    } else if (raw.includes('?v=')) {
-      const vMatch = raw.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
+    } else if (decoded.includes('?v=') || decoded.includes('&v=')) {
+      const vMatch = decoded.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
       if (vMatch) {
         vParam = vMatch[2] ? `${vMatch[1]}/${vMatch[2]}` : vMatch[1];
       }
@@ -90,12 +98,13 @@ export function build3SpeakEmbedUrl(options: {
   }
 
   if (!vParam && options.author && options.permlink) {
-    const a = options.author.toLowerCase().replace(/^@/, '');
-    vParam = `${a}/${options.permlink}`;
+    const a = options.author.toLowerCase().replace(/^@/, '').trim();
+    const p = options.permlink.trim();
+    vParam = `${a}/${p}`;
   }
 
   if (!vParam) return '';
-  const cleanV = vParam.replace(/^@/, '');
+  const cleanV = vParam.replace(/^@/, '').trim();
   const layout = options.layout || 'desktop';
   let url = `https://play.3speak.tv/embed?v=${cleanV}&mode=iframe&layout=${layout}&noscroll=1`;
   if (options.autoplay) {
@@ -104,9 +113,12 @@ export function build3SpeakEmbedUrl(options: {
   return url;
 }
 
-/** Resolve a video's metadata, trying `/api/watch` first (covers
- *  legacy uploads), then `/api/embed`, then `/videodetails`, then Hive RPC metadata. */
-async function fetchThreeSpeakMeta(
+/**
+ * Smart metadata resolution:
+ * 1. Test official 3Speak embed API (/api/embed). If 200 OK -> use official 3Speak iframe player!
+ * 2. If 404 / Video Not Found -> Fallback to decentralized HLS stream from Hive RPC / IPFS / api/watch.
+ */
+async function resolveVideoSource(
   author?: string,
   permlink?: string,
   videoUrl?: string,
@@ -116,6 +128,7 @@ async function fetchThreeSpeakMeta(
   if (videoUrl?.startsWith('ipfs://')) {
     const p = videoUrl.replace(/^ipfs:\/\//, '');
     return {
+      useIframe: false,
       videoUrl: `https://ipfs-3speak.b-cdn.net/ipfs/${p}`,
       videoUrlFallback1: `https://ipfs.3speak.tv/ipfs/${p}`,
       videoUrlFallback2: `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`,
@@ -126,6 +139,7 @@ async function fetchThreeSpeakMeta(
   // 2. If direct HTTP m3u8 or mp4
   if (videoUrl && (videoUrl.includes('.m3u8') || videoUrl.includes('.mp4'))) {
     return {
+      useIframe: false,
       videoUrl,
       videoUrlFallback1: videoUrl.includes('hotipfs-3speak-1.b-cdn.net')
         ? videoUrl.replace('hotipfs-3speak-1.b-cdn.net', 'ipfs-3speak.b-cdn.net')
@@ -138,21 +152,27 @@ async function fetchThreeSpeakMeta(
     };
   }
 
-  let cleanAuthor = (author || '').toLowerCase().replace(/^@/, '');
-  let cleanPermlink = permlink || '';
+  let cleanAuthor = (author || '').toLowerCase().replace(/^@/, '').trim();
+  let cleanPermlink = (permlink || '').trim();
 
   if (videoUrl && (!cleanAuthor || !cleanPermlink)) {
-    const match = videoUrl.match(
+    let decoded = videoUrl.trim();
+    try {
+      decoded = decodeURIComponent(videoUrl);
+    } catch {
+      /* ignore */
+    }
+    const match = decoded.match(
       /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([^&\s/?#]+)\/([^&\s/?#]+)/i
     );
     if (match) {
-      cleanAuthor = match[1].toLowerCase().replace(/^@/, '');
-      cleanPermlink = match[2];
-    } else if (videoUrl.includes('?v=')) {
-      const vMatch = videoUrl.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
+      cleanAuthor = match[1].toLowerCase().replace(/^@/, '').trim();
+      cleanPermlink = match[2].trim();
+    } else if (decoded.includes('?v=') || decoded.includes('&v=')) {
+      const vMatch = decoded.match(/[?&]v=([^&\s/?#]+)(?:\/([^&\s/?#]+))?/i);
       if (vMatch) {
-        cleanAuthor = (vMatch[2] ? vMatch[1] : cleanAuthor).toLowerCase().replace(/^@/, '');
-        cleanPermlink = vMatch[2] ? vMatch[2] : vMatch[1];
+        cleanAuthor = (vMatch[2] ? vMatch[1] : cleanAuthor).toLowerCase().replace(/^@/, '').trim();
+        cleanPermlink = (vMatch[2] ? vMatch[2] : vMatch[1]).trim();
       }
     }
   }
@@ -161,155 +181,197 @@ async function fetchThreeSpeakMeta(
     throw new Error('No author or permlink provided');
   }
 
-  const endpoints = [
-    `${WATCH_API}?v=${cleanAuthor}/${cleanPermlink}`,
-    `${EMBED_API}?v=${cleanAuthor}/${cleanPermlink}`,
-  ];
-  let lastErr: Error | null = null;
-  for (const url of endpoints) {
-    if (signal()) throw new Error('cancelled');
-    try {
-      const r = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (r.ok) {
-        const data = (await r.json()) as { success?: boolean } & EmbedMeta;
-        if (data?.success && manifestCandidates(data).length > 0) {
-          return data;
-        }
+  // Step 1: Check if official 3Speak embed API (/api/embed) succeeds
+  try {
+    const embedRes = await fetch(`${EMBED_API}?v=${cleanAuthor}/${cleanPermlink}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (embedRes.ok) {
+      const embedData = await embedRes.json();
+      if (embedData && embedData.status !== 'failed' && (embedData.videoUrl || embedData.manifest_cid || embedData.success !== false)) {
+        return { useIframe: true };
       }
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error('fetch failed');
     }
+  } catch {
+    /* proceed to fallback */
   }
 
-  // 3. Fallback to checker.3speak.tv/videodetails
-  if (!signal()) {
+  if (signal()) throw new Error('cancelled');
+
+  // Step 2: Fallback — check /api/watch (legacy uploads)
+  try {
+    const watchRes = await fetch(`${WATCH_API}?v=${cleanAuthor}/${cleanPermlink}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (watchRes.ok) {
+      const watchData = await watchRes.json();
+      if (watchData?.videoUrl || watchData?.manifest_cid) {
+        return {
+          useIframe: false,
+          ...watchData,
+        };
+      }
+    }
+  } catch {
+    /* proceed to next fallback */
+  }
+
+  if (signal()) throw new Error('cancelled');
+
+  // Step 3: Fallback — check checker.3speak.tv
+  try {
+    const checkerRes = await fetch(`${CHECKER_API}/videodetails/${cleanAuthor}/${cleanPermlink}`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (checkerRes.ok) {
+      const d = await checkerRes.json();
+      if (d && (d.manifest_cid || d.spkvideo?.play_url || d.play_url || d.video_v2)) {
+        let vUrl = '';
+        let fb1 = '';
+        let fb2 = '';
+        let fb3 = '';
+        if (d.manifest_cid) {
+          vUrl = `https://ipfs-3speak.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
+          fb1 = `https://ipfs.3speak.tv/ipfs/${d.manifest_cid}/manifest.m3u8`;
+          fb2 = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
+          fb3 = `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${d.manifest_cid}%2Fmanifest.m3u8`;
+        } else {
+          const raw = d.spkvideo?.play_url || d.play_url || d.video_v2 || '';
+          if (raw.startsWith('ipfs://')) {
+            const p = raw.replace('ipfs://', '');
+            vUrl = `https://ipfs-3speak.b-cdn.net/ipfs/${p}`;
+            fb1 = `https://ipfs.3speak.tv/ipfs/${p}`;
+            fb2 = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`;
+            fb3 = `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${encodeURIComponent(p)}`;
+          } else if (raw.startsWith('http')) {
+            vUrl = raw;
+          }
+        }
+        if (vUrl) {
+          return {
+            useIframe: false,
+            videoUrl: vUrl,
+            videoUrlFallback1: fb1,
+            videoUrlFallback2: fb2,
+            videoUrlFallback3: fb3,
+            thumbnail: d.thumbnail_url || d.images?.thumbnail || d.images?.poster || d.thumbnail,
+            short: d.short === true,
+            status: d.status,
+          };
+        }
+      }
+    }
+  } catch {
+    /* proceed to next fallback */
+  }
+
+  if (signal()) throw new Error('cancelled');
+
+  // Step 4: Fallback — Hive blockchain RPC metadata (bridge.get_post)
+  const hiveNodes = ['https://api.deathwing.me', 'https://api.hive.blog', 'https://hive-api.arcange.eu'];
+  for (const node of hiveNodes) {
     try {
-      const r = await fetch(`${CHECKER_API}/videodetails/${cleanAuthor}/${cleanPermlink}`, {
-        headers: { Accept: 'application/json' },
+      const r = await fetch(node, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'bridge.get_post',
+          params: { author: cleanAuthor, permlink: cleanPermlink },
+          id: 1,
+        }),
       });
       if (r.ok) {
-        const d = (await r.json()) as any;
-        if (d && (d.manifest_cid || d.spkvideo?.play_url || d.play_url || d.video_v2)) {
-          let vUrl = '';
-          let fb1 = '';
-          let fb2 = '';
-          let fb3 = '';
-          if (d.manifest_cid) {
-            vUrl = `https://ipfs-3speak.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
-            fb1 = `https://ipfs.3speak.tv/ipfs/${d.manifest_cid}/manifest.m3u8`;
-            fb2 = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${d.manifest_cid}/manifest.m3u8`;
-            fb3 = `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${d.manifest_cid}%2Fmanifest.m3u8`;
-          } else {
-            const raw = d.spkvideo?.play_url || d.play_url || d.video_v2 || '';
-            if (raw.startsWith('ipfs://')) {
-              const p = raw.replace('ipfs://', '');
-              vUrl = `https://ipfs-3speak.b-cdn.net/ipfs/${p}`;
-              fb1 = `https://ipfs.3speak.tv/ipfs/${p}`;
-              fb2 = `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`;
-              fb3 = `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${encodeURIComponent(p)}`;
-            } else if (raw.startsWith('http')) {
-              vUrl = raw;
+        const res = await r.json();
+        const post = res?.result;
+        if (post) {
+          const meta = typeof post.json_metadata === 'string' ? JSON.parse(post.json_metadata) : post.json_metadata;
+          const video = meta?.video;
+          const rawV2 =
+            video?.info?.video_v2 ||
+            video?.info?.sourceMap?.find((s: any) => s.type === 'video' || s.format === 'm3u8')?.url ||
+            video?.url;
+          const thumb =
+            video?.info?.thumbnail ||
+            video?.thumbnail ||
+            video?.info?.sourceMap?.find((s: any) => s.type === 'thumbnail')?.url ||
+            (Array.isArray(meta?.image) ? meta.image[0] : undefined);
+          const isShort = video?.info?.short === true;
+
+          if (rawV2 && typeof rawV2 === 'string') {
+            if (rawV2.startsWith('ipfs://')) {
+              const p = rawV2.replace('ipfs://', '');
+              return {
+                useIframe: false,
+                videoUrl: `https://ipfs-3speak.b-cdn.net/ipfs/${p}`,
+                videoUrlFallback1: `https://ipfs.3speak.tv/ipfs/${p}`,
+                videoUrlFallback2: `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`,
+                videoUrlFallback3: `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${encodeURIComponent(p)}`,
+                thumbnail: thumb,
+                short: isShort,
+              };
+            } else if (rawV2.startsWith('http')) {
+              return {
+                useIframe: false,
+                videoUrl: rawV2,
+                thumbnail: thumb,
+                short: isShort,
+              };
             }
-          }
-          if (vUrl) {
-            return {
-              videoUrl: vUrl,
-              videoUrlFallback1: fb1,
-              videoUrlFallback2: fb2,
-              videoUrlFallback3: fb3,
-              thumbnail: d.thumbnail_url || d.images?.thumbnail || d.images?.poster || d.thumbnail,
-              short: d.short === true,
-              status: d.status,
-            };
           }
         }
       }
     } catch {
-      /* ignore */
+      /* try next node */
     }
   }
 
-  // 4. Fallback to Hive RPC metadata (bridge.get_post) to extract video_v2 / sourceMap
-  if (!signal()) {
-    try {
-      const hiveNodes = ['https://api.hive.blog', 'https://api.deathwing.me', 'https://hive-api.arcange.eu'];
-      for (const node of hiveNodes) {
-        try {
-          const r = await fetch(node, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              method: 'bridge.get_post',
-              params: { author: cleanAuthor, permlink: cleanPermlink },
-              id: 1,
-            }),
-          });
-          if (r.ok) {
-            const res = (await r.json()) as any;
-            const post = res?.result;
-            if (post) {
-              const meta = typeof post.json_metadata === 'string' ? JSON.parse(post.json_metadata) : post.json_metadata;
-              const video = meta?.video;
-              const rawV2 =
-                video?.info?.video_v2 ||
-                video?.info?.sourceMap?.find((s: any) => s.type === 'video' || s.format === 'm3u8')?.url ||
-                video?.url;
-              if (rawV2 && typeof rawV2 === 'string') {
-                if (rawV2.startsWith('ipfs://')) {
-                  const p = rawV2.replace('ipfs://', '');
-                  return {
-                    videoUrl: `https://ipfs-3speak.b-cdn.net/ipfs/${p}`,
-                    videoUrlFallback1: `https://ipfs.3speak.tv/ipfs/${p}`,
-                    videoUrlFallback2: `https://hotipfs-3speak-1.b-cdn.net/ipfs/${p}`,
-                    videoUrlFallback3: `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${encodeURIComponent(p)}`,
-                    thumbnail: video?.info?.thumbnail || (Array.isArray(meta?.image) ? meta.image[0] : undefined),
-                    short: video?.info?.short === true,
-                  };
-                } else if (rawV2.startsWith('http')) {
-                  return {
-                    videoUrl: rawV2,
-                    thumbnail: video?.info?.thumbnail || (Array.isArray(meta?.image) ? meta.image[0] : undefined),
-                  };
-                }
-              }
-            }
-          }
-        } catch {
-          /* try next node */
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // 5. If everything else failed, use iframe fallback
-  return {
-    useIframeFallback: true,
-  };
+  // Default fallback: try iframe
+  return { useIframe: true };
 }
 
-/** All candidate manifest URLs, in priority order. */
-function manifestCandidates(meta: EmbedMeta): string[] {
-  return [
+/** All candidate manifest URLs in priority order with IPFS CDN derivation */
+function extractManifestCandidates(meta: EmbedMeta): string[] {
+  const urls: string[] = [];
+  const rawList = [
     meta.videoUrl,
     meta.videoUrlFallback1,
     meta.videoUrlFallback2,
     meta.videoUrlFallback3,
   ].filter((u): u is string => typeof u === 'string' && u.length > 0);
+
+  let ipfsCid = '';
+  for (const r of rawList) {
+    const match = r.match(/(?:ipfs\/|ipfs:\/\/)([a-zA-Z0-9]{46,})/i);
+    if (match) {
+      ipfsCid = match[1];
+      break;
+    }
+  }
+
+  if (ipfsCid) {
+    urls.push(
+      `https://ipfs-3speak.b-cdn.net/ipfs/${ipfsCid}/manifest.m3u8`,
+      `https://ipfs.3speak.tv/ipfs/${ipfsCid}/manifest.m3u8`,
+      `https://hotipfs-3speak-1.b-cdn.net/ipfs/${ipfsCid}/manifest.m3u8`,
+      `https://play.3speak.tv/hls?u=https%3A%2F%2Fipfs-3speak.b-cdn.net%2Fipfs%2F${ipfsCid}%2Fmanifest.m3u8`,
+    );
+  }
+
+  urls.push(...rawList);
+  return Array.from(new Set(urls.filter(Boolean)));
 }
 
 /**
- * Attach an HLS source. Uses hls.js where supported and falls back
- * to native HLS on Safari.
+ * Attach HLS stream to video element with Hls.js or Safari native HLS
  */
 function attachHls(
   video: HTMLVideoElement,
   src: string,
   onFatal?: () => void,
 ): () => void {
-  if (video.canPlayType('application/vnd.apple.mpegurl') || !src.includes('.m3u8')) {
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari && video.canPlayType('application/vnd.apple.mpegurl')) {
     let fired = false;
     const handleError = () => {
       if (fired) return;
@@ -325,11 +387,21 @@ function attachHls(
     };
   }
   if (Hls.isSupported()) {
-    const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+    const hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+    });
     let fired = false;
     hls.on(Hls.Events.ERROR, (_evt, data) => {
       if (!data.fatal || fired) return;
       fired = true;
+      try {
+        hls.destroy();
+      } catch {
+        /* swallow */
+      }
       onFatal?.();
     });
     hls.loadSource(src);
@@ -375,7 +447,6 @@ export function ThreeSpeakPlayer({
   const [hasPlayed, setHasPlayed] = useState(false);
   const [starting, setStarting] = useState(false);
   const [posterStep, setPosterStep] = useState(0);
-  const [useIframeFallback, setUseIframeFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const startPlayback = () => {
@@ -396,20 +467,16 @@ export function ThreeSpeakPlayer({
     setHasPlayed(false);
     setStarting(false);
     setPosterStep(0);
-    setUseIframeFallback(false);
 
-    fetchThreeSpeakMeta(author, permlink, videoUrl, () => cancelled)
+    resolveVideoSource(author, permlink, videoUrl, () => cancelled)
       .then((data) => {
         if (!cancelled) {
-          if (data.useIframeFallback) {
-            setUseIframeFallback(true);
-          }
           setMeta(data);
         }
       })
       .catch((e) => {
         if (!cancelled && (!(e instanceof Error) || e.message !== 'cancelled')) {
-          setUseIframeFallback(true);
+          setMeta({ useIframe: true });
         }
       });
     return () => {
@@ -419,19 +486,19 @@ export function ThreeSpeakPlayer({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !meta || meta.useIframeFallback || useIframeFallback) return;
-    const candidates = manifestCandidates(meta);
-    if (candidates.length === 0) {
-      setUseIframeFallback(true);
-      return;
-    }
+    if (!video || !meta || meta.useIframe) return;
+    const candidates = extractManifestCandidates(meta);
+    if (candidates.length === 0) return;
 
     const onMeta = () => {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
         setAspectRatio(video.videoWidth / video.videoHeight);
       }
     };
-    const onPlaying = () => setHasPlayed(true);
+    const onPlaying = () => {
+      setHasPlayed(true);
+      setStarting(false);
+    };
     video.addEventListener('loadedmetadata', onMeta);
     video.addEventListener('playing', onPlaying);
 
@@ -446,8 +513,6 @@ export function ThreeSpeakPlayer({
         detach = null;
       }
       if (index >= candidates.length) {
-        // Fallback to iframe if all CDN streams fail
-        setUseIframeFallback(true);
         return;
       }
       const url = candidates[index];
@@ -465,11 +530,11 @@ export function ThreeSpeakPlayer({
       video.removeEventListener('playing', onPlaying);
       if (detach) detach();
     };
-  }, [meta, useIframeFallback]);
+  }, [meta]);
 
   const isPortrait = aspectRatio != null ? aspectRatio < 1 : meta?.short === true;
   const orientationClass = isPortrait ? 'threeSpeakNativePortrait' : 'threeSpeakNativeLandscape';
-  const wrapperClass = `threeSpeakNative ${orientationClass}${
+  const wrapperClass = `threeSpeakEmbed ${orientationClass}${
     hideThumbnail ? ' threeSpeakNativeNoThumb' : ''
   } ${className}`;
 
@@ -480,25 +545,28 @@ export function ThreeSpeakPlayer({
     margin: '0 auto',
     aspectRatio: `${reservedRatio}`,
     width: '100%',
+    position: 'relative',
     ...style,
   };
 
   const posters = posterCandidates(thumbnail || meta?.thumbnail);
 
-  // If iframe fallback is required
-  if (useIframeFallback) {
+  // If official 3Speak iframe player is preferred and available
+  if (meta?.useIframe) {
     const embedSrc = build3SpeakEmbedUrl({ author, permlink, videoUrl, autoplay, layout });
     if (!embedSrc) {
       return (
         <div id={id} className={wrapperClass} style={inlineStyle} data-state="error">
-          <div className="threeSpeakNativeMessage">Video unavailable</div>
+          <div className="flex h-full w-full items-center justify-center rounded-xl bg-black/40 text-sm text-gray-400">
+            Video unavailable
+          </div>
         </div>
       );
     }
     return (
       <div
         id={id}
-        className={`threeSpeakNative threeSpeakNativeLandscape overflow-hidden rounded-xl bg-black w-full relative mx-auto ${className}`}
+        className={`threeSpeakEmbed overflow-hidden rounded-xl bg-black w-full relative mx-auto ${className}`}
         style={{
           aspectRatio: '16 / 9',
           width: '100%',
@@ -522,61 +590,94 @@ export function ThreeSpeakPlayer({
   if (error) {
     return (
       <div id={id} className={wrapperClass} style={inlineStyle} data-state="error">
-        <div className="threeSpeakNativeMessage">{error}</div>
+        <div className="flex h-full w-full items-center justify-center rounded-xl bg-black/40 text-sm text-gray-400">
+          {error}
+        </div>
       </div>
     );
   }
 
   if (!meta) {
     return (
-      <div id={id} className={wrapperClass} style={inlineStyle} data-state="loading">
-        <div className="threeSpeakNativeSkeleton" aria-hidden="true">
-          <span className="threeSpeakNativeSkeletonDisc">
-            <Play className="h-6 w-6 translate-x-0.5 text-white/60 sm:h-7 sm:w-7" fill="currentColor" />
-          </span>
-        </div>
+      <div
+        id={id}
+        className={`threeSpeakEmbed relative overflow-hidden rounded-xl bg-black flex items-center justify-center w-full mx-auto ${className}`}
+        style={inlineStyle}
+        data-state="loading"
+      >
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm sm:h-16 sm:w-16">
+          <Play className="h-6 w-6 translate-x-0.5 text-white/60 sm:h-7 sm:w-7" fill="currentColor" />
+        </span>
       </div>
     );
   }
 
+  // Fallback direct HLS streaming player
   return (
-    <div id={id} className={wrapperClass} style={inlineStyle} data-state="ready">
+    <div
+      id={id}
+      className={`threeSpeakEmbed relative overflow-hidden rounded-xl bg-black w-full mx-auto ${className}`}
+      style={inlineStyle}
+      data-state="ready"
+    >
       {!hideThumbnail && posters.length > 0 && posterStep < posters.length && !hasPlayed && (
-        <>
-          <img
-            key={posterStep}
-            src={posters[posterStep]}
-            alt=""
-            className="threeSpeakNativeThumb"
-            aria-hidden="true"
-            onError={() => setPosterStep((s) => s + 1)}
-          />
+        <div className="vjs-poster absolute inset-0 z-10 overflow-hidden rounded-xl bg-black" aria-disabled="false">
+          <picture className="vjs-poster w-full h-full block" tabIndex={-1}>
+            <img
+              key={posterStep}
+              loading="lazy"
+              alt=""
+              src={posters[posterStep]}
+              className="w-full h-full object-contain"
+              onError={() => setPosterStep((s) => s + 1)}
+            />
+          </picture>
           <button
             type="button"
-            aria-label="Play video"
+            className="vjs-big-play-button absolute inset-0 z-20 flex items-center justify-center cursor-pointer bg-black/25 transition hover:bg-black/35"
+            title="Play Video"
+            aria-label="Play Video"
+            aria-disabled="false"
             onClick={startPlayback}
-            className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
           >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm transition hover:scale-105 hover:bg-black/70 sm:h-16 sm:w-16">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/65 backdrop-blur-md transition hover:scale-110 hover:bg-black/80 shadow-lg">
               {starting ? (
-                <Loader2 className="h-6 w-6 animate-spin text-white sm:h-7 sm:w-7" />
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
               ) : (
-                <Play className="h-6 w-6 translate-x-0.5 text-white sm:h-7 sm:w-7" fill="currentColor" />
+                <Play className="h-8 w-8 translate-x-0.5 text-white" fill="currentColor" />
               )}
             </span>
+            <span className="vjs-control-text sr-only" aria-live="polite">Play Video</span>
           </button>
-        </>
+        </div>
       )}
       <video
         ref={videoRef}
-        controls
-        playsInline
+        id={id ? `${id}_html5_api` : 'snapie-player_html5_api'}
+        className="vjs-tech w-full h-full rounded-xl bg-black object-contain"
         preload="auto"
-        className="w-full h-full rounded-xl bg-black object-contain"
-      />
+        playsInline
+        {...({ 'webkit-playsinline': '' } as any)}
+        tabIndex={-1}
+        crossOrigin="anonymous"
+        poster={posters[posterStep] || thumbnail || meta?.thumbnail}
+        controls
+      >
+        <p className="vjs-no-js">
+          To view this video please enable JavaScript, and consider upgrading to a web browser that{' '}
+          <a
+            href="https://videojs.com/html5-video-support/"
+            target="_blank"
+            rel="noreferrer"
+            className="keychainify-checked vjs-hidden"
+            hidden
+          >
+            supports HTML5 video
+          </a>
+        </p>
+      </video>
     </div>
   );
 }
 
 export default ThreeSpeakPlayer;
-
