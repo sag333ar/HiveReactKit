@@ -26,6 +26,8 @@ const HIVE_FRONTEND_HOSTS = new Set([
   'www.worldmappin.com',
   'snapie.io',
   'www.snapie.io',
+  'slothbuzz.com',
+  'www.slothbuzz.com',
   'hivesuite.app',
   'www.hivesuite.app',
 ]);
@@ -69,7 +71,7 @@ function targetFromParts(
 }
 
 const HIVE_HOSTS_REGEX =
-  /https?:\/\/(?:www\.)?(?:peakd\.com|hive\.blog|ecency\.com|inleo\.io|leofinance\.io|waivio\.com|liketu\.com|travelfeed\.io|splintertalk\.io|snapie\.io)\/([^\s<>"')\]]+)/gi;
+  /https?:\/\/(?:www\.)?(?:peakd\.com|hive\.blog|ecency\.com|inleo\.io|leofinance\.io|waivio\.com|liketu\.com|travelfeed\.io|splintertalk\.io|snapie\.io|slothbuzz\.com)\/([^\s<>"')\]]+)/gi;
 
 /**
  * Replace external Hive frontend URLs (PeakD, Ecency, Hive.blog, etc.) with HiveSuite URLs.
@@ -90,6 +92,14 @@ export function rewriteHiveUrlsToHiveSuite(body: string, baseUrl: string = 'http
       const parts = cleanPath.split('/').filter(Boolean);
       if (parts.length >= 4) {
         return `${cleanBase}/@${parts[2].replace(/^@/, '')}/${parts[3]}${trailing}`;
+      }
+    }
+
+    // slothbuzz.com hangs or post permalinks: hangs/author/permlink or post/author/permlink
+    if (cleanPath.startsWith('hangs/') || cleanPath.startsWith('post/')) {
+      const parts = cleanPath.split('/').filter(Boolean);
+      if (parts.length >= 3) {
+        return `${cleanBase}/@${parts[1].replace(/^@/, '')}/${parts[2]}${trailing}`;
       }
     }
 
@@ -145,6 +155,17 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
     return targetFromParts(parts[0], parts[1], rawHash);
   }
 
+  // Root-relative path with hangs or post: "/hangs/alice/permlink" or "/post/alice/permlink"
+  if (cleanHref.startsWith('/hangs/') || cleanHref.startsWith('/post/')) {
+    const parts = cleanHref.slice(1).split('/').filter(Boolean);
+    if (parts.length >= 3) {
+      return targetFromParts(parts[1]?.replace(/^@/, ''), parts[2], rawHash);
+    }
+    if (parts.length === 2) {
+      return targetFromParts(parts[1]?.replace(/^@/, ''), undefined, rawHash);
+    }
+  }
+
   // Root-relative path with category: "/hive-12345/@alice/permlink" or "/c/hive-12345/@alice/permlink"
   if (cleanHref.startsWith('/')) {
     const parts = cleanHref.slice(1).split('/').filter(Boolean);
@@ -169,6 +190,16 @@ export function parseHiveFrontendUrl(href: string): HiveLinkTarget | null {
   // inleo.io thread permalinks: /threads/view/{author}/{permlink} — no @ prefix.
   if ((host === 'inleo.io' || host === 'www.inleo.io') && parts[0] === 'threads' && parts[1] === 'view') {
     return targetFromParts(parts[2], parts[3], urlHash);
+  }
+
+  // slothbuzz.com hangs or post: /hangs/{author}/{permlink} or /post/{author}/{permlink}
+  if ((host === 'slothbuzz.com' || host === 'www.slothbuzz.com') && (parts[0] === 'hangs' || parts[0] === 'post')) {
+    if (parts.length >= 3) {
+      return targetFromParts(parts[1]?.replace(/^@/, ''), parts[2], urlHash);
+    }
+    if (parts.length === 2) {
+      return targetFromParts(parts[1]?.replace(/^@/, ''), undefined, urlHash);
+    }
   }
 
   if (host === 'worldmappin.com' || host === 'www.worldmappin.com') {
