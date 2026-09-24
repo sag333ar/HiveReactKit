@@ -647,6 +647,22 @@
 }
 .snaps-feed-body iframe { display: none; } /* iframes go through AttachmentStrip */
 
+/* Twitter / X embeds */
+.twitter-embed-wrapper {
+  max-width: 550px;
+  margin: 0 auto;
+  border-radius: 0.5rem;
+  background: #000000;
+}
+.twitter-embed-iframe {
+  aspect-ratio: auto !important;
+  min-height: unset !important;
+  margin: 0 !important;
+  width: 100% !important;
+  color-scheme: dark;
+  background-color: #000000 !important;
+}
+
 /* Metadata media gallery — preview tiles for `json_metadata.image`
    entries that aren't already inlined in the body. Sits above the
    rendered body so wave / snap posts always have a visible

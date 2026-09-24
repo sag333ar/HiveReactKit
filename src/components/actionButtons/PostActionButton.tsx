@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ThumbsUp,
   MessageCircle,
@@ -294,20 +294,40 @@ export function PostActionButton({
   const [voteCount, setVoteCount] = useState<number>(
     initialVoteCount ?? initialVotes?.length ?? 0,
   );
+
+  const hasDownvotes = useMemo(
+    () => postHasDownvotes(votes, initialFlagWeight),
+    [votes, initialFlagWeight],
+  );
+
+  const downvoteCount = useMemo(() => {
+    const fromArray = votes.filter((v) => isDownvote(v)).length;
+    if (fromArray > 0) return fromArray;
+    if (hasDownvotes) {
+      if (voteCount > votes.length) {
+        return voteCount - votes.length;
+      }
+      if (typeof initialFlagWeight === 'number' && initialFlagWeight > 0) {
+        return Math.round(initialFlagWeight);
+      }
+    }
+    return 0;
+  }, [votes, hasDownvotes, voteCount, initialFlagWeight]);
+
   const upvoteCount = useMemo(() => {
     const downvotes = votes.filter((v) => isDownvote(v)).length;
     if (voteCount > votes.length) {
-      return Math.max(0, voteCount - downvotes);
+      if (downvotes > 0) {
+        return Math.max(0, voteCount - downvotes);
+      }
+      // If downvotes were missing from the votes array, votes.length is the upvote count
+      return votes.length;
     }
     if (votes.length > 0) {
       return votes.length - downvotes;
     }
     return voteCount;
   }, [votes, voteCount]);
-
-  const downvoteCount = useMemo(() => {
-    return votes.filter((v) => isDownvote(v)).length;
-  }, [votes]);
 
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -392,10 +412,20 @@ export function PostActionButton({
   // vote dialog.
   const isRestrictedVoter = isRestrictedDirectVoter(currentUser);
 
-  const hasDownvotes = useMemo(
-    () => postHasDownvotes(votes, initialFlagWeight),
-    [votes, initialFlagWeight],
-  );
+  // If initial active_votes lacked downvotes (e.g. filtered by observer or capped),
+  // but the post stats indicate downvotes (flag_weight > 0), fetch full active votes once.
+  const hasRefetchedForDownvotes = useRef(false);
+  useEffect(() => {
+    if (
+      hasDownvotes &&
+      votes.length > 0 &&
+      votes.filter(isDownvote).length === 0 &&
+      !hasRefetchedForDownvotes.current
+    ) {
+      hasRefetchedForDownvotes.current = true;
+      fetchVotes();
+    }
+  }, [hasDownvotes, votes, fetchVotes]);
 
   // ── "I already commented" hover preview (mirrors hSnaps PostCard) ───
   // When `hasCommented` is true and a `myReplyKey` is provided, hovering

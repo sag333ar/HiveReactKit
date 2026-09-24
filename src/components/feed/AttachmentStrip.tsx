@@ -490,13 +490,20 @@ export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
   useEffect(() => {
     const onMsg = (e: MessageEvent) => {
       try {
-        const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (!d || typeof d !== 'object') return;
+        const raw = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (!raw || typeof raw !== 'object') return;
+        const d = (raw && typeof raw === 'object' && raw['twttr.embed']) ? raw['twttr.embed'] : raw;
         let h: number | undefined;
+        if (Array.isArray(d.params)) {
+          for (const p of d.params) {
+            if (typeof p === 'number' && p > 0) h = p;
+            if (p && typeof p === 'object' && typeof p.height === 'number' && p.height > 0) h = p.height;
+          }
+        }
         if (d.method === 'resize' && Array.isArray(d.params)) {
           for (const p of d.params) {
             if (typeof p === 'number' && p > 0) h = p;
-            if (p && typeof p === 'object' && typeof p.height === 'number') h = p.height;
+            if (p && typeof p === 'object' && typeof p.height === 'number' && p.height > 0) h = p.height;
           }
         }
         if (d['twttr.private.resize']?.height) h = d['twttr.private.resize'].height;
@@ -513,7 +520,7 @@ export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
 
   return (
     <div
-      className="twitter-embed-wrapper w-full overflow-hidden rounded-lg bg-black/60 flex justify-center"
+      className="twitter-embed-wrapper w-full overflow-hidden rounded-lg bg-black flex justify-center"
       style={height ? { minHeight: `${height}px` } : undefined}
     >
       <iframe
@@ -521,7 +528,12 @@ export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
         title={`Tweet ${id}`}
         className="twitter-embed-iframe w-full max-w-[550px] border-0 bg-black"
         scrolling="no"
-        style={{ height: height ? `${height}px` : '480px', minHeight: '380px' }}
+        allowTransparency
+        style={{
+          height: height ? `${height}px` : '320px',
+          colorScheme: 'dark',
+          backgroundColor: '#000000',
+        }}
       />
     </div>
   );
@@ -1270,7 +1282,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
 
   return (
     <>
-      <div className={`relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-black my-2 ${current.kind === 'twitter' ? 'min-h-[460px] sm:min-h-[500px] h-auto' : 'h-72'}`}>
+      <div className={`relative flex w-full items-center justify-center overflow-hidden rounded-xl bg-black my-2 ${current.kind === 'twitter' ? 'h-auto min-h-[150px]' : 'h-72'}`}>
         {renderTile()}
         {tileLoading && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40">

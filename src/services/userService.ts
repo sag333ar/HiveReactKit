@@ -325,11 +325,11 @@ class UserService {
     }
   }
 
-  async getUserBlogs(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal): Promise<Post[]> {
+  async getUserBlogs(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'bridge.get_account_posts',
-      params: { sort: 'blog', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      params: { sort: 'blog', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
       id: 1,
     };
     const response = await this._fetch(this.HIVE_API_URL, {
@@ -342,11 +342,11 @@ class UserService {
     return data.result || [];
   }
 
-  async getUserPosts(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal): Promise<Post[]> {
+  async getUserPosts(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'bridge.get_account_posts',
-      params: { sort: 'posts', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      params: { sort: 'posts', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
       id: 1,
     };
     const response = await this._fetch(this.HIVE_API_URL, {
@@ -359,11 +359,11 @@ class UserService {
     return data.result || [];
   }
 
-  async getUserComments(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal): Promise<Post[]> {
+  async getUserComments(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'bridge.get_account_posts',
-      params: { sort: 'comments', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      params: { sort: 'comments', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
       id: 1,
     };
     const response = await this._fetch(this.HIVE_API_URL, {
@@ -376,11 +376,11 @@ class UserService {
     return data.result || [];
   }
 
-  async getUserReplies(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal): Promise<Post[]> {
+  async getUserReplies(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'bridge.get_account_posts',
-      params: { sort: 'replies', account: username, observer: username, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      params: { sort: 'replies', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
       id: 1,
     };
     const response = await this._fetch(this.HIVE_API_URL, {
@@ -604,7 +604,7 @@ class UserService {
         const requestBody = {
           jsonrpc: '2.0',
           method: 'bridge.get_account_posts',
-          params: { sort, account: username, observer: username, limit, start_author, start_permlink },
+          params: { sort, account: username, observer: null, limit, start_author, start_permlink },
           id: 1,
         };
         const response = await this._fetch(this.HIVE_API_URL, {
