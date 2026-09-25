@@ -82,6 +82,33 @@ const SnapsFeedList = ({
   loadingMoreRef.current = !!loadingMore;
   hasMoreRef.current = !!hasMore;
 
+  // Cooldown guard against a self-sustaining auto-pagination loop.
+  // `loadingMoreRef` only covers the window while a fetch is actually
+  // in flight — the instant it resolves (often well under 100ms on a
+  // fast/local API), the sentinel can still be sitting inside the
+  // 400px margin because the freshly-appended cards' images/embeds
+  // haven't finished laying out yet, so the observer fires again
+  // immediately.
+  const lastLoadAtRef = useRef(0);
+  const LOAD_COOLDOWN_MS = 400;
+
+  // Second, stronger guard: after the very first automatic page (which
+  // is expected — it's what lets a short initial feed fill the screen
+  // before the user has scrolled at all), every SUBSEQUENT auto-load
+  // requires a genuine `scroll` event to have fired on the intersection
+  // root since the last one. Measured empirically on this exact
+  // sentinel: without this, navigating straight to a feed and never
+  // touching the scrollbar could still blow through dozens of pages
+  // (hundreds of posts, dozens of iframes/videos) in a couple of
+  // seconds — the cooldown above slows that down but doesn't stop it,
+  // because the sentinel can apparently keep re-reporting as
+  // intersecting across many cooldown windows in a row (root sizing /
+  // layout-thrash edge cases). Tying further pages to an actual scroll
+  // event decouples "how many pages load" from network speed / layout
+  // timing entirely, and ties it to what the user actually did.
+  const hasAutoLoadedOnceRef = useRef(false);
+  const scrolledSinceLastLoadRef = useRef(false);
+
   // Callback ref: attach the IntersectionObserver the moment the
   // sentinel mounts in the DOM, and tear it down when it unmounts.
   // This is more robust than `useEffect(..., [])` because the sentinel
@@ -89,19 +116,39 @@ const SnapsFeedList = ({
   // state the sentinel doesn't exist yet, so a one-time effect would
   // miss attaching the observer entirely.
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
   const setSentinel = useCallback((node: HTMLDivElement | null) => {
     if (observerRef.current) {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
+    if (scrollCleanupRef.current) {
+      scrollCleanupRef.current();
+      scrollCleanupRef.current = null;
+    }
     if (!node) return;
     const root = findScrollAncestor(node);
+    // Fresh sentinel instance (new mount, e.g. switching feeds) — reset
+    // both gates so the new list gets its one "free" fill-the-screen
+    // auto-load.
+    hasAutoLoadedOnceRef.current = false;
+    scrolledSinceLastLoadRef.current = false;
+    const scrollTarget: EventTarget = root ?? window;
+    const onUserScroll = () => { scrolledSinceLastLoadRef.current = true; };
+    scrollTarget.addEventListener('scroll', onUserScroll, { passive: true } as AddEventListenerOptions);
+    scrollCleanupRef.current = () => scrollTarget.removeEventListener('scroll', onUserScroll);
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (!entry?.isIntersecting) return;
         if (loadingMoreRef.current) return;
         if (!hasMoreRef.current) return;
+        if (hasAutoLoadedOnceRef.current && !scrolledSinceLastLoadRef.current) return;
+        const now = Date.now();
+        if (now - lastLoadAtRef.current < LOAD_COOLDOWN_MS) return;
+        lastLoadAtRef.current = now;
+        hasAutoLoadedOnceRef.current = true;
+        scrolledSinceLastLoadRef.current = false;
         onLoadMoreRef.current?.();
       },
       // 400 px head-start triggers the next page well before the user

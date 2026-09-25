@@ -392,8 +392,26 @@ function attachHls(
       lowLatencyMode: false,
       maxBufferLength: 30,
       maxMaxBufferLength: 60,
+      // Without this, `attachMedia`/`loadSource` below start pulling actual
+      // media *segments* into memory immediately — for every 3Speak
+      // attachment that scrolls into a feed's (unvirtualized) DOM, whether
+      // or not the viewer ever presses play. `loadSource` alone only
+      // fetches the tiny .m3u8 manifest; the multi-MB segment downloads are
+      // deferred until `startLoad()` is called explicitly below, gated on
+      // the viewer actually requesting playback.
+      autoStartLoad: false,
     });
     let fired = false;
+    let loadStarted = false;
+    const startLoadOnce = () => {
+      if (loadStarted) return;
+      loadStarted = true;
+      try {
+        hls.startLoad();
+      } catch {
+        /* swallow */
+      }
+    };
     hls.on(Hls.Events.ERROR, (_evt, data) => {
       if (!data.fatal || fired) return;
       fired = true;
@@ -406,7 +424,13 @@ function attachHls(
     });
     hls.loadSource(src);
     hls.attachMedia(video);
+    // `play` fires as soon as playback is requested (native controls'
+    // Play button, or an explicit video.play() call) — even before any
+    // data is buffered — so this is the right moment to start pulling
+    // segments, not component mount.
+    video.addEventListener('play', startLoadOnce);
     return () => {
+      video.removeEventListener('play', startLoadOnce);
       try {
         hls.destroy();
       } catch {
@@ -655,7 +679,12 @@ export function ThreeSpeakPlayer({
         ref={videoRef}
         id={id ? `${id}_html5_api` : 'snapie-player_html5_api'}
         className="vjs-tech w-full h-full rounded-xl bg-black object-contain"
-        preload="auto"
+        // "metadata" (not "auto"): the HLS.js path above already gates real
+        // segment downloads on the `play` event; `auto` would tell Safari's
+        // native HLS player (and any no-HLS.js fallback) to start buffering
+        // the moment this element renders, undermining that gate for
+        // Safari/iOS viewers scrolling an unvirtualized feed.
+        preload="metadata"
         playsInline
         {...({ 'webkit-playsinline': '' } as any)}
         tabIndex={-1}

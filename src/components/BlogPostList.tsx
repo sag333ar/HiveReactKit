@@ -731,6 +731,29 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   );
 };
 
+/**
+ * Walks up from `el` looking for the nearest ancestor that scrolls
+ * vertically (mirrors SnapsFeedList's identical helper). Returns `null`
+ * (the document/viewport) if none is found. BlogPostList is normally
+ * hosted inside a consumer-owned `overflow-y-auto` container (see
+ * `BlogFeedView`'s `scrollContainerRef`) rather than the page itself —
+ * `scroll` events fired on that inner container never bubble to
+ * `window`, so genuinely detecting it is required for the "did the user
+ * actually scroll" gate below to work at all instead of silently
+ * blocking every page past the first.
+ */
+function findScrollAncestor(el: HTMLElement | null): Element | null {
+  let cur: HTMLElement | null = el?.parentElement ?? null;
+  while (cur && cur !== document.body && cur !== document.documentElement) {
+    const overflowY = window.getComputedStyle(cur).overflowY;
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+      return cur;
+    }
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
 interface LoadMoreSentinelProps {
   onLoadMore: () => void;
   loadingMore?: boolean;
@@ -745,16 +768,49 @@ const LoadMoreSentinel: FC<LoadMoreSentinelProps> = ({ onLoadMore, loadingMore }
   const loadingMoreRef = useRef(!!loadingMore);
   useEffect(() => { callbackRef.current = onLoadMore; }, [onLoadMore]);
   useEffect(() => { loadingMoreRef.current = !!loadingMore; }, [loadingMore]);
+  // Cooldown against a self-sustaining auto-pagination loop: `loadingMoreRef`
+  // only covers the window while a fetch is actually in flight, and the
+  // instant it resolves the sentinel can still be sitting inside the 600px
+  // margin (freshly-appended cards' images haven't finished laying out
+  // yet), re-firing the observer immediately. Measured on the Snaps feed's
+  // equivalent sentinel: with no cooldown, navigating to a feed with zero
+  // scrolling could blow through dozens of pages in ~1-2s, racing network
+  // responses instead of reflecting anything the user did. Same fixed
+  // cooldown applied here defensively since this sentinel shares the exact
+  // same level-triggered pattern.
+  const lastLoadAtRef = useRef(0);
+  const LOAD_COOLDOWN_MS = 400;
+  // Stronger guard, same reasoning as SnapsFeedList's sentinel: allow one
+  // free auto-load (fills a short initial list before the user scrolls at
+  // all), then require a genuine `scroll` event before the next one, so
+  // page count is tied to what the user did rather than network/layout
+  // timing.
+  const hasAutoLoadedOnceRef = useRef(false);
+  const scrolledSinceLastLoadRef = useRef(false);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // `root: null` below still correctly reflects visibility inside a
+    // scrolled ancestor (browsers account for clipping ancestors in the
+    // intersection computation regardless of the explicit `root`), but
+    // `scroll` events don't bubble — the listener has to be attached to
+    // whichever element genuinely scrolls, or it silently never fires.
+    const scrollAncestor = findScrollAncestor(el);
+    const scrollTarget: EventTarget = scrollAncestor ?? window;
+    const onUserScroll = () => { scrolledSinceLastLoadRef.current = true; };
+    scrollTarget.addEventListener('scroll', onUserScroll, { passive: true } as AddEventListenerOptions);
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry?.isIntersecting && !loadingMoreRef.current) {
-          callbackRef.current();
-        }
+        if (!entry?.isIntersecting || loadingMoreRef.current) return;
+        if (hasAutoLoadedOnceRef.current && !scrolledSinceLastLoadRef.current) return;
+        const now = Date.now();
+        if (now - lastLoadAtRef.current < LOAD_COOLDOWN_MS) return;
+        lastLoadAtRef.current = now;
+        hasAutoLoadedOnceRef.current = true;
+        scrolledSinceLastLoadRef.current = false;
+        callbackRef.current();
       },
       // Trigger 600px BEFORE the sentinel becomes visible — the
       // network round-trip usually lands before the user gets to the
@@ -762,7 +818,10 @@ const LoadMoreSentinel: FC<LoadMoreSentinelProps> = ({ onLoadMore, loadingMore }
       { root: null, rootMargin: '600px', threshold: 0 },
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      scrollTarget.removeEventListener('scroll', onUserScroll);
+    };
   }, []);
 
   return (

@@ -529,6 +529,12 @@ export const TwitterEmbed: FC<{ id: string }> = ({ id }) => {
         className="twitter-embed-iframe w-full max-w-[550px] border-0 bg-black"
         scrolling="no"
         allowTransparency
+        // Used both from the feed-card strip tile (mounted the instant a
+        // tweet post's card renders, in an unvirtualized list) and the
+        // click-opened lightbox — lazy in both cases is safe and avoids
+        // spinning up a cross-origin renderer process for tweets the
+        // viewer never scrolls to.
+        loading="lazy"
         style={{
           height: height ? `${height}px` : '320px',
           colorScheme: 'dark',
@@ -1157,6 +1163,13 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
             style={{ aspectRatio: '16/9', height: '100%', maxHeight: '100%', maxWidth: '100%' }}
             allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            // Every embedded iframe here is a separate cross-origin renderer
+            // process Chrome has to spin up — in a long, unvirtualized feed
+            // list this is a much bigger memory cost than the video itself.
+            // `loading="lazy"` (same as every <img> in this file) defers
+            // that until the tile is actually near the viewport instead of
+            // the instant its post's card mounts.
+            loading="lazy"
           />
         </div>
       );
@@ -1223,6 +1236,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
               src={current.url}
               title="3Speak audio player"
               className="h-24 w-full border-0"
+              loading="lazy"
             />
           </div>
         </div>
@@ -1262,6 +1276,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
               style={{ aspectRatio: '16/9', height: '100%', maxHeight: '100%', maxWidth: '100%' }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
+              loading="lazy"
             />
           ) : (
             <a
