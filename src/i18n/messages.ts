@@ -18,7 +18,7 @@
 
 export type KitMessageKey =
   // Tabs
-  | "tab.blogs" | "tab.posts" | "tab.snaps" | "tab.polls"
+  | "tab.blogs" | "tab.posts" | "tab.snaps" | "tab.polls" | "tab.gallery"
   | "tab.comments" | "tab.replies" | "tab.activities"
   | "tab.authorRewards" | "tab.curationRewards" | "tab.growth"
   | "tab.followers" | "tab.following" | "tab.follows" | "tab.wallet"
@@ -40,7 +40,9 @@ export type KitMessageKey =
   | "empty.notFollowing" | "empty.noBadges" | "empty.noWitnessVotes"
   | "empty.noPendingAuthor" | "empty.noPendingCuration" | "empty.curationHint"
   | "empty.votingPowerUnavailable" | "empty.userNotFound"
-  | "empty.noCuration"
+  | "empty.noCuration" | "empty.noPhotos"
+  // Gallery
+  | "gallery.loadMore" | "gallery.loadingMore"
   // Status / poll
   | "status.active" | "status.ended"
   | "poll.selectAnOption" | "poll.selectUpTo" | "poll.changeYourVote"
@@ -66,6 +68,7 @@ const en: Record<KitMessageKey, string> = {
   "tab.posts": "Posts",
   "tab.snaps": "Snaps",
   "tab.polls": "Polls",
+  "tab.gallery": "Gallery",
   "tab.comments": "Comments",
   "tab.replies": "Replies",
   "tab.activities": "Activities",
@@ -122,7 +125,11 @@ const en: Record<KitMessageKey, string> = {
   "empty.votingPowerUnavailable": "Voting power data unavailable",
   "empty.userNotFound": "User not found",
   "empty.noCuration": "No curation history found",
+  "empty.noPhotos": "No photos found",
 
+  // Gallery
+  "gallery.loadMore": "Load more",
+  "gallery.loadingMore": "Loading…",
 
   // Status / poll
   "status.active": "Active",
@@ -171,6 +178,7 @@ const es: Record<KitMessageKey, string> = {
   "tab.posts": "Publicaciones",
   "tab.snaps": "Snaps",
   "tab.polls": "Encuestas",
+  "tab.gallery": "Galería",
   "tab.comments": "Comentarios",
   "tab.replies": "Respuestas",
   "tab.activities": "Actividad",
@@ -228,6 +236,11 @@ const es: Record<KitMessageKey, string> = {
   "empty.votingPowerUnavailable": "Datos de poder de voto no disponibles",
   "empty.userNotFound": "Usuario no encontrado",
   "empty.noCuration": "No se encontró historial de curación",
+  "empty.noPhotos": "No se encontraron fotos",
+
+  // Gallery
+  "gallery.loadMore": "Cargar más",
+  "gallery.loadingMore": "Cargando…",
 
   // Status / poll
   "status.active": "Activa",

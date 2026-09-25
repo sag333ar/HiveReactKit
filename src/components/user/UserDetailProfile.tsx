@@ -52,6 +52,7 @@ import {
   MoreHorizontal,
   Layers,
   MessageSquare,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Wallet } from "../Wallet";
 import { ReportModal } from "../ReportModal";
@@ -440,7 +441,7 @@ interface ProfileData {
   web3provider?: string;
 }
 
-type TabType = "blogs" | "posts" | "snaps" | "polls" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
+type TabType = "blogs" | "posts" | "snaps" | "polls" | "gallery" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
 
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -540,6 +541,11 @@ interface ProfileState {
   curationRewardsTotals?: { totalHp: number; totalHbd: number };
   comments?: Post[];
   replies?: Post[];
+  galleryPosts?: Post[];
+  galleryComments?: Post[];
+  galleryLoaded?: boolean;
+  galleryHasMorePosts?: boolean;
+  galleryHasMoreComments?: boolean;
   followers?: Follower[];
   following?: Following[];
   curations?: ActivityListItem[];
@@ -935,6 +941,19 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [posts, setPosts] = useState<Post[]>(cached?.posts || []);
   const [comments, setComments] = useState<Post[]>(cached?.comments || []);
   const [replies, setReplies] = useState<Post[]>(cached?.replies || []);
+  // Gallery tab — lazy-loaded only once the tab is actually opened (see the
+  // "Fetch content based on active tab" effect below). Pulls the same
+  // Blogs / own-Comments data sources as the Posts/Replies tabs, then
+  // extracts image attachments client-side via `extractPostMedia`. Two
+  // independent author/permlink cursors (posts vs. comments) since each
+  // content type paginates and exhausts at its own rate.
+  const [galleryPosts, setGalleryPosts] = useState<Post[]>(cached?.galleryPosts || []);
+  const [galleryComments, setGalleryComments] = useState<Post[]>(cached?.galleryComments || []);
+  const [galleryLoaded, setGalleryLoaded] = useState<boolean>(cached?.galleryLoaded || false);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryLoadingMore, setGalleryLoadingMore] = useState(false);
+  const [galleryHasMorePosts, setGalleryHasMorePosts] = useState<boolean>(cached?.galleryHasMorePosts ?? true);
+  const [galleryHasMoreComments, setGalleryHasMoreComments] = useState<boolean>(cached?.galleryHasMoreComments ?? true);
   const [curations, setCurations] = useState<ActivityListItem[]>(cached?.curations || []);
   const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(cached?.lowestCurationIndex !== undefined ? cached.lowestCurationIndex : -1);
   const [refreshCurationTrigger, setRefreshCurationTrigger] = useState<number>(0);
@@ -981,7 +1000,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   // Pagination states
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<Record<TabType, boolean>>(cached?.hasMore || {
-    blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true,
+    blogs: true, posts: true, snaps: true, polls: false, gallery: false, comments: true, replies: true,
     activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false,
     votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false,
   });
@@ -1306,7 +1325,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   }, [blogs, posts, comments, replies, web2IdFilter, targetUsername]);
 
   const stateRef = useRef({
-    profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+    profile, blogs, posts, comments, replies, galleryPosts, galleryComments, galleryLoaded, galleryHasMorePosts, galleryHasMoreComments, curations, lowestCurationIndex,
     polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
     followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
     witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
@@ -1315,14 +1334,14 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
 
   useEffect(() => {
     stateRef.current = {
-      profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+      profile, blogs, posts, comments, replies, galleryPosts, galleryComments, galleryLoaded, galleryHasMorePosts, galleryHasMoreComments, curations, lowestCurationIndex,
       polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
       followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
       witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
       rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab
     };
   }, [
-    profile, blogs, posts, comments, replies, curations, lowestCurationIndex,
+    profile, blogs, posts, comments, replies, galleryPosts, galleryComments, galleryLoaded, galleryHasMorePosts, galleryHasMoreComments, curations, lowestCurationIndex,
     polls, authorRewards, authorRewardsTotals, curationRewards, curationRewardsTotals,
     followers, following, badges, badgeAccounts, hivebuzzBadges, hiveposh,
     witnessVotes, votingPowerData, hasMore, postsSubTab, repliesSubTab,
@@ -1353,6 +1372,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setPosts(cached.posts || []);
       setComments(cached.comments || []);
       setReplies(cached.replies || []);
+      setGalleryPosts(cached.galleryPosts || []);
+      setGalleryComments(cached.galleryComments || []);
+      setGalleryLoaded(cached.galleryLoaded || false);
+      setGalleryHasMorePosts(cached.galleryHasMorePosts ?? true);
+      setGalleryHasMoreComments(cached.galleryHasMoreComments ?? true);
       setCurations(cached.curations || []);
       setLowestCurationIndex(cached.lowestCurationIndex !== undefined ? cached.lowestCurationIndex : -1);
       setPolls(cached.polls || []);
@@ -1368,7 +1392,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setHiveposh(cached.hiveposh || {});
       setWitnessVotes(cached.witnessVotes || []);
       setVotingPowerData(cached.votingPowerData || null);
-      setHasMore(cached.hasMore || { blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
+      setHasMore(cached.hasMore || { blogs: true, posts: true, snaps: true, polls: false, gallery: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
       if (cached.postsSubTab !== undefined) setPostsSubTab(cached.postsSubTab);
       if (cached.repliesSubTab !== undefined) setRepliesSubTab(cached.repliesSubTab);
       if (cached.rewardsSubTab !== undefined) setRewardsSubTab(cached.rewardsSubTab);
@@ -1387,6 +1411,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setCurationRewardsTotals({ totalHp: 0, totalHbd: 0 });
       setComments([]);
       setReplies([]);
+      setGalleryPosts([]);
+      setGalleryComments([]);
+      setGalleryLoaded(false);
+      setGalleryHasMorePosts(true);
+      setGalleryHasMoreComments(true);
       setFollowers([]);
       setFollowing([]);
       setCurations([]);
@@ -1397,7 +1426,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       setBadgeAccounts([]);
       setHivebuzzBadges([]);
       setHiveposh({});
-      setHasMore({ blogs: true, posts: true, snaps: true, polls: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
+      setHasMore({ blogs: true, posts: true, snaps: true, polls: false, gallery: false, comments: true, replies: true, activities: false, authorRewards: false, curationRewards: false, followers: true, following: true, follows: true, wallet: false, votingPower: false, badges: false, witnessVotes: false, growth: false, curation: true, rewards: false, tokens: false, blockchainData: false });
       
       const initialTab: TabType = controlledActiveTab
         ?? (tabShown && tabShown.length > 0 ? tabShown[0] : "blogs");
@@ -1918,12 +1947,130 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     };
   }, [targetUsername, activeTab, refreshCurationTrigger, postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab]);
 
+  // ─── Gallery tab — lazy first-load only ──────────────────────────────────
+  // Deliberately NOT part of the switch above: the Gallery tab fetches TWO
+  // sources in parallel (blogs + own comments) rather than one, and once
+  // fetched should never silently refetch just from switching tabs back and
+  // forth — `galleryLoaded` latches so this only ever runs once per profile
+  // (matching the "nothing that runs in the background" requirement — this
+  // fires only the moment the tab is actually opened).
+  useEffect(() => {
+    if (activeTab !== "gallery" || galleryLoaded || !targetUsername) return;
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    (async () => {
+      setGalleryLoading(true);
+      try {
+        const [rawPosts, rawComments] = await Promise.all([
+          userService.getUserBlogs(targetUsername, PAGE_SIZE, undefined, undefined, signal),
+          userService.getUserComments(targetUsername, PAGE_SIZE, undefined, undefined, signal),
+        ]);
+        if (signal.aborted) return;
+        setGalleryPosts(filterPost(rawPosts));
+        setGalleryComments(filterPost(rawComments));
+        setGalleryHasMorePosts(rawPosts.length >= PAGE_SIZE);
+        setGalleryHasMoreComments(rawComments.length >= PAGE_SIZE);
+        setGalleryLoaded(true);
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        console.error("Error fetching gallery content:", err);
+        // Mark as loaded anyway so we don't spin forever — the empty-state
+        // renders "No photos found" rather than surfacing an API error.
+        setGalleryHasMorePosts(false);
+        setGalleryHasMoreComments(false);
+        setGalleryLoaded(true);
+      } finally {
+        if (!signal.aborted) setGalleryLoading(false);
+      }
+    })();
+
+    return () => abortController.abort();
+  }, [activeTab, targetUsername, galleryLoaded]);
+
+  const loadMoreGallery = useCallback(async () => {
+    if (galleryLoadingMore || !targetUsername) return;
+    if (!galleryHasMorePosts && !galleryHasMoreComments) return;
+    setGalleryLoadingMore(true);
+    try {
+      const tasks: Promise<void>[] = [];
+
+      if (galleryHasMorePosts) {
+        const last = galleryPosts[galleryPosts.length - 1];
+        if (!last) {
+          setGalleryHasMorePosts(false);
+        } else {
+          tasks.push(
+            userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink).then((raw) => {
+              const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+              const newItems = filterPost(sliced);
+              setGalleryPosts((prev) => {
+                const seen = new Set(prev.map((p) => `${p.author}/${p.permlink}`));
+                const unique = newItems.filter((p) => !seen.has(`${p.author}/${p.permlink}`));
+                return [...prev, ...unique];
+              });
+              setGalleryHasMorePosts(raw.length >= PAGE_SIZE);
+            })
+          );
+        }
+      }
+
+      if (galleryHasMoreComments) {
+        const last = galleryComments[galleryComments.length - 1];
+        if (!last) {
+          setGalleryHasMoreComments(false);
+        } else {
+          tasks.push(
+            userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink).then((raw) => {
+              const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
+              const newItems = filterPost(sliced);
+              setGalleryComments((prev) => {
+                const seen = new Set(prev.map((p) => `${p.author}/${p.permlink}`));
+                const unique = newItems.filter((p) => !seen.has(`${p.author}/${p.permlink}`));
+                return [...prev, ...unique];
+              });
+              setGalleryHasMoreComments(raw.length >= PAGE_SIZE);
+            })
+          );
+        }
+      }
+
+      await Promise.all(tasks);
+    } catch (err) {
+      console.error("Error loading more gallery content:", err);
+    } finally {
+      setGalleryLoadingMore(false);
+    }
+  }, [galleryLoadingMore, targetUsername, galleryHasMorePosts, galleryHasMoreComments, galleryPosts, galleryComments, filterPost]);
+
   // Filtered data for rendering — always reflects latest filter props
   const filteredBlogs = useMemo(() => filterPost(blogs), [blogs, filterPost]);
   const filteredPosts = useMemo(() => filterPost(posts), [posts, filterPost]);
   const filteredComments = useMemo(() => filterPost(comments), [comments, filterPost]);
   const filteredReplies = useMemo(() => filterPost(replies), [replies, filterPost]);
   const filteredPolls = useMemo(() => filterPost(polls), [polls, filterPost]);
+  const filteredGalleryPosts = useMemo(() => filterPost(galleryPosts), [galleryPosts, filterPost]);
+  const filteredGalleryComments = useMemo(() => filterPost(galleryComments), [galleryComments, filterPost]);
+  /** Deduped image attachments pulled from both the profile's blog posts and
+   *  their own authored comments via the shared `extractPostMedia` util
+   *  (same body/json_metadata parser the Blogs/Posts/Replies tabs use to
+   *  drive their thumbnail strips — no bespoke markdown parsing here). */
+  const galleryPhotos = useMemo(() => {
+    const out: { url: string; author: string; permlink: string; title?: string }[] = [];
+    const seen = new Set<string>();
+    const collect = (items: Post[]) => {
+      for (const item of items) {
+        for (const media of extractPostMedia(item)) {
+          if (media.kind !== "image" || seen.has(media.url)) continue;
+          seen.add(media.url);
+          out.push({ url: media.url, author: item.author, permlink: item.permlink, title: item.title });
+        }
+      }
+    };
+    collect(filteredGalleryPosts);
+    collect(filteredGalleryComments);
+    return out;
+  }, [filteredGalleryPosts, filteredGalleryComments]);
   const filteredFollowers = useMemo(() => {
     const q = followsSearchQuery.trim().toLowerCase();
     if (!q) return followers;
@@ -2905,6 +3052,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             <div className="ml-auto h-3 w-12 rounded bg-[var(--hrk-bg-surface-raised)]/70" />
           </div>
         </div>
+      ))}
+    </div>
+  );
+
+  /** Gallery tab thumbnail-grid skeleton — mirrors the grid used once photos
+   *  land, just with pulsing placeholder tiles instead of images. */
+  const renderGallerySkeleton = (count = 12) => (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 animate-pulse">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="aspect-square rounded-lg bg-[var(--hrk-bg-surface-raised)]" />
       ))}
     </div>
   );
@@ -4219,6 +4376,54 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       );
     }
 
+    if (activeTab === "gallery") {
+      if (galleryLoading) return renderGallerySkeleton();
+      if (galleryPhotos.length === 0) {
+        return (
+          <div className="text-center py-12">
+            <ImageIcon className="h-12 w-12 text-[var(--hrk-text-tertiary)] mx-auto mb-3" />
+            <p className="text-[var(--hrk-text-tertiary)]">{t("empty.noPhotos") || "No photos found"}</p>
+          </div>
+        );
+      }
+      const galleryHasMore = galleryHasMorePosts || galleryHasMoreComments;
+      return (
+        <div className="w-full space-y-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
+            {galleryPhotos.map((photo, i) => (
+              <HiveLink
+                key={`${photo.author}/${photo.permlink}/${i}`}
+                href={getPostUrl?.(photo.author, photo.permlink)}
+                onActivate={onPostClick ? () => onPostClick(photo.author, photo.permlink, photo.title || "") : undefined}
+                title={photo.title || `${photo.author}/${photo.permlink}`}
+                className="group relative block aspect-square overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)]"
+              >
+                <img
+                  src={photo.url}
+                  alt={photo.title || ""}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              </HiveLink>
+            ))}
+          </div>
+          {galleryHasMore && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => void loadMoreGallery()}
+                disabled={galleryLoadingMore}
+                className="rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-4 py-2 text-sm font-medium text-[var(--hrk-text-primary)] transition-colors hover:bg-[var(--hrk-bg-surface-raised)] disabled:opacity-50"
+              >
+                {galleryLoadingMore ? (t("gallery.loadingMore") || "Loading…") : (t("gallery.loadMore") || "Load more")}
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     if (activeTab === "polls") {
       if (loadingContent) return renderPollSkeleton();
       if (filteredPolls.length === 0) {
@@ -4432,6 +4637,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const allTabs: { id: TabType; label: string; icon: any }[] = [
     { id: "posts", label: t("tab.posts") || "Posts", icon: FileText },
     { id: "snaps", label: t("tab.snaps"), icon: Camera },
+    { id: "gallery", label: t("tab.gallery") || "Gallery", icon: ImageIcon },
     { id: "polls", label: t("tab.polls"), icon: BarChart3 },
     { id: "replies", label: t("tab.replies") || "Replies", icon: Reply },
     { id: "activities", label: t("tab.activities") || "Activities", icon: Activity },
