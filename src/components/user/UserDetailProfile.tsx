@@ -4503,7 +4503,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               alt={profile.name || targetUsername}
               className="w-8 h-8 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
+                // A user-supplied profile_image can point to a dead/expired
+                // URL (e.g. an old Facebook CDN link) — fall back to Hive's
+                // own avatar resolver before giving up on a real photo.
+                const img = e.target as HTMLImageElement;
+                if (img.dataset.avatarFallback !== 'hive') {
+                  img.dataset.avatarFallback = 'hive';
+                  img.src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                } else {
+                  img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
+                }
               }}
             />
 
@@ -4772,7 +4781,16 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     alt={profile.name || targetUsername}
                     className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0 ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
+                      // Same broken/expired profile_image case as the compact
+                      // header avatar above — try Hive's avatar resolver
+                      // before falling back to a generic initials avatar.
+                      const img = e.target as HTMLImageElement;
+                      if (img.dataset.avatarFallback !== 'hive') {
+                        img.dataset.avatarFallback = 'hive';
+                        img.src = `https://images.hive.blog/u/${targetUsername}/avatar`;
+                      } else {
+                        img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || targetUsername)}&background=random&size=80`;
+                      }
                     }}
                   />
                   {isProxyUser && <Web2ProviderBadge provider={profile.web2provider || web2ProviderProp} />}
