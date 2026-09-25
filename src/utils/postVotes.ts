@@ -29,6 +29,7 @@ const SNAP_CONTAINER_ACCOUNTS = new Set([
   'ecency.waves',
   'leothreads',
   'liketu.moments',
+  'slothbuzz.hangs',
 ]);
 
 /**

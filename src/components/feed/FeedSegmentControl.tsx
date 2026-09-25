@@ -2,12 +2,12 @@
  * Segment control (pill switcher) for picking one of N feeds.
  *
  * Themed to match hivesuite tokens (#262b30 / #3a424a / #e31337). Used by
- * <SnapsFeedView/> in tablet (2-col) layouts where each column lets the
- * user toggle between two feeds.
+ * <SnapsFeedView/> as the single mechanism for choosing which one feed is
+ * mounted, at every viewport width (mobile through desktop).
  *
  * Active tab: logo + label text.
  * Inactive tabs: logo only (no label text) to save horizontal space when
- * there are 6 feeds in a single row.
+ * there are several feeds in a single row.
  */
 export interface FeedSegmentOption {
   id: string;

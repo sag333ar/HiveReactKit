@@ -89,6 +89,28 @@ export async function fetchWeb2Credits(
   }
 }
 
+/**
+ * Some Hive bridge/hivemind node builds signal "this account genuinely has
+ * zero posts/comments/replies" as a structured JSON-RPC error (an
+ * `assert_exception`-style body, e.g. "Account foo not found" / "... does
+ * not exist" / "could not find ...") instead of an empty `result` array —
+ * a known hivemind quirk that varies by node. Real hive.blog-family nodes
+ * we've observed return `{ result: [] }` cleanly for this case, but not
+ * every node in the app's rotation pool does, and self-hosted/older
+ * hivemind builds are known to throw here.
+ *
+ * We only want to swallow THAT specific "nothing here" shape into `[]`.
+ * Any other structured error (rate limiting, malformed params, internal
+ * DB errors) must keep propagating so real outages still surface to the
+ * user and to error monitoring instead of silently rendering as if the
+ * account just had no content.
+ */
+const NO_CONTENT_BRIDGE_ERROR_PATTERN = /does not exist|could ?n[o']?t find|not found|no data found/i;
+
+function isNoContentBridgeError(message: unknown): boolean {
+  return typeof message === 'string' && NO_CONTENT_BRIDGE_ERROR_PATTERN.test(message);
+}
+
 class UserService {
   /** Always read the latest endpoint — `setHiveApiEndpoint()` may have been
    * called after construction, and a stale instance field would miss it. */
@@ -325,11 +347,32 @@ class UserService {
     }
   }
 
-  async getUserBlogs(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
+  /**
+   * Shared fetcher behind getUserBlogs/getUserPosts/getUserComments/
+   * getUserReplies — all four call `bridge.get_account_posts` with a
+   * different `sort` and need identical empty-vs-error handling, so that
+   * logic lives here once instead of being duplicated four times.
+   *
+   * See `isNoContentBridgeError` above for why a structured "not found"
+   * RPC error is treated the same as an empty `result` array here: some
+   * node builds throw for an account with genuinely zero posts/comments
+   * instead of returning `[]`, and callers (the profile Blogs/Posts/
+   * Comments/Replies tabs) must render the normal empty state either way,
+   * not a generic error.
+   */
+  private async fetchAccountPosts(
+    sort: 'blog' | 'posts' | 'comments' | 'replies',
+    username: string,
+    limit = 20,
+    startAuthor?: string,
+    startPermlink?: string,
+    signal?: AbortSignal,
+    observer?: string,
+  ): Promise<Post[]> {
     const requestBody = {
       jsonrpc: '2.0',
       method: 'bridge.get_account_posts',
-      params: { sort: 'blog', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
+      params: { sort, account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
       id: 1,
     };
     const response = await this._fetch(this.HIVE_API_URL, {
@@ -337,60 +380,40 @@ class UserService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     }, signal);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    if (!response.ok) {
+      // A non-200 status is usually a real failure (rate limit, 5xx,
+      // gateway error) and should keep throwing — but a few node builds
+      // wrap the "account has no content" case in an error response with
+      // a non-200 status too. Only swallow that specific shape.
+      let errorBody: any = null;
+      try { errorBody = await response.json(); } catch { /* non-JSON error body — not our pattern */ }
+      if (isNoContentBridgeError(errorBody?.error?.message)) return [];
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
+    if (data?.error) {
+      if (isNoContentBridgeError(data.error.message)) return [];
+      throw new Error(data.error.message || 'bridge.get_account_posts error');
+    }
     return data.result || [];
+  }
+
+  async getUserBlogs(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
+    return this.fetchAccountPosts('blog', username, limit, startAuthor, startPermlink, signal, observer);
   }
 
   async getUserPosts(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
-    const requestBody = {
-      jsonrpc: '2.0',
-      method: 'bridge.get_account_posts',
-      params: { sort: 'posts', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
-      id: 1,
-    };
-    const response = await this._fetch(this.HIVE_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    }, signal);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return data.result || [];
+    return this.fetchAccountPosts('posts', username, limit, startAuthor, startPermlink, signal, observer);
   }
 
   async getUserComments(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
-    const requestBody = {
-      jsonrpc: '2.0',
-      method: 'bridge.get_account_posts',
-      params: { sort: 'comments', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
-      id: 1,
-    };
-    const response = await this._fetch(this.HIVE_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    }, signal);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return data.result || [];
+    return this.fetchAccountPosts('comments', username, limit, startAuthor, startPermlink, signal, observer);
   }
 
   async getUserReplies(username: string, limit = 20, startAuthor?: string, startPermlink?: string, signal?: AbortSignal, observer?: string): Promise<Post[]> {
-    const requestBody = {
-      jsonrpc: '2.0',
-      method: 'bridge.get_account_posts',
-      params: { sort: 'replies', account: username, observer: observer || null, limit, start_author: startAuthor || null, start_permlink: startPermlink || null },
-      id: 1,
-    };
-    const response = await this._fetch(this.HIVE_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    }, signal);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return data.result || [];
+    return this.fetchAccountPosts('replies', username, limit, startAuthor, startPermlink, signal, observer);
   }
 
   /**

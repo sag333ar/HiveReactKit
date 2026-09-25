@@ -552,7 +552,7 @@ const Index = () => {
   //
   //   1. `userService.getUserPosts(<container account>)` → latest "container"
   //      posts published by peak.snaps / ecency.waves / leothreads /
-  //      liketu.moments.
+  //      liketu.moments / slothbuzz.hangs.
   //   2. For each container, `apiService.getCommentsList(author, permlink)`
   //      → the replies. Each reply is a "snap".
   //
@@ -564,6 +564,7 @@ const Index = () => {
     ecency: "ecency.waves",
     threads: "leothreads",
     liketu: "liketu.moments",
+    slothbuzz: "slothbuzz.hangs",
     // snapie and hivesuite omitted from the demo (separate container accounts).
   };
 
@@ -572,10 +573,12 @@ const Index = () => {
     const [ecencyPosts, setEcencyPosts] = useState<Post[]>([]);
     const [threadsPosts, setThreadsPosts] = useState<Post[]>([]);
     const [liketuPosts, setLiketuPosts] = useState<Post[]>([]);
+    const [slothbuzzPosts, setSlothbuzzPosts] = useState<Post[]>([]);
     const [snapsLoading, setSnapsLoading] = useState(true);
     const [ecencyLoading, setEcencyLoading] = useState(true);
     const [threadsLoading, setThreadsLoading] = useState(true);
     const [liketuLoading, setLiketuLoading] = useState(true);
+    const [slothbuzzLoading, setSlothbuzzLoading] = useState(true);
 
     /**
      * Pull the latest 2 container posts for a feed account, then unwrap
@@ -606,6 +609,7 @@ const Index = () => {
       loadFeed("ecency").then(setEcencyPosts).catch(() => setEcencyPosts([])).finally(() => setEcencyLoading(false));
       loadFeed("threads").then(setThreadsPosts).catch(() => setThreadsPosts([])).finally(() => setThreadsLoading(false));
       loadFeed("liketu").then(setLiketuPosts).catch(() => setLiketuPosts([])).finally(() => setLiketuLoading(false));
+      loadFeed("slothbuzz").then(setSlothbuzzPosts).catch(() => setSlothbuzzPosts([])).finally(() => setSlothbuzzLoading(false));
     }, []);
 
     const slot = (posts: Post[], loading: boolean): SnapsFeedSlot => ({
@@ -623,6 +627,7 @@ const Index = () => {
             ecency: slot(ecencyPosts, ecencyLoading),
             threads: slot(threadsPosts, threadsLoading),
             liketu: slot(liketuPosts, liketuLoading),
+            slothbuzz: slot(slothbuzzPosts, slothbuzzLoading),
           }}
           currentUser={mockUser?.username}
           onUpvote={(author, permlink, percent) => {
