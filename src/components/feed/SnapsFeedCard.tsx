@@ -161,6 +161,18 @@ export interface SnapsFeedCardProps {
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab menu inside the action bar. */
   actionsAsMenu?: boolean;
+
+  /**
+   * When true, iframe-based attachment previews (YouTube, 3Speak,
+   * Twitter, 3Speak audio, Spotify, Odysee) render as a plain link
+   * instead of mounting their embed — see `AttachmentStripProps.
+   * disableIframePreviews`. Forwarded to this card's own
+   * `<AttachmentStrip/>` and to its embedded re-snap preview. Only ever
+   * passed from the Snaps feed rendering path — every other consumer
+   * (post detail, videos page) omits it, so the default (`undefined` /
+   * falsy) keeps their behavior unchanged.
+   */
+  disableIframePreviews?: boolean;
 }
 
 import {
@@ -333,6 +345,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   renderHeaderActions,
   actionsAsMenu,
   isWeb2User,
+  disableIframePreviews,
 }) => {
   const observer = observerProp ?? currentUser;
   const reSnapTarget = useMemo(
@@ -740,7 +753,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         className="cursor-pointer space-y-2 overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
-        <AttachmentStrip attachments={parsed.attachments} />
+        <AttachmentStrip attachments={parsed.attachments} disableIframePreviews={disableIframePreviews} />
         {renderedBodyHtml ? (
           // No `line-clamp-6` here: webkit-line-clamp is an
           // inline-text clamp and breaks block-level rendering for
@@ -842,6 +855,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             onWeb2UserClick={onWeb2UserClick}
             onPreviewVisibilityChange={handleReSnapPreviewVisibility}
             showTopLevelPostPreview
+            disableIframePreviews={disableIframePreviews}
           />
         )}
       </div>

@@ -48,6 +48,11 @@ interface ReSnapEmbedProps {
   /** When true, depth-0 targets render a compact "Post" preview instead of
    *  being hidden. Used in Snaps feed and detail pages. */
   showTopLevelPostPreview?: boolean;
+  /** Forwarded to this embed's own `<AttachmentStrip/>` — see
+   *  `AttachmentStripProps.disableIframePreviews`. Only ever passed
+   *  `true` by `<SnapsFeedCard/>` on the Snaps feed; the post-detail
+   *  page's own `<ReSnapEmbed/>` call omits it. */
+  disableIframePreviews?: boolean;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -103,6 +108,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   onWeb2UserClick,
   onPreviewVisibilityChange,
   showTopLevelPostPreview = false,
+  disableIframePreviews,
 }) => {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -293,7 +299,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
           </div>
 
           {attachments.length > 0 ? (
-            <AttachmentStrip attachments={attachments} />
+            <AttachmentStrip attachments={attachments} disableIframePreviews={disableIframePreviews} />
           ) : previewImage ? (
             <img
               src={previewImage}

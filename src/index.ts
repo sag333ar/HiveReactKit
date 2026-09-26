@@ -30,6 +30,8 @@ export {
   type SnapsFeedViewProps,
   type SnapsFeedSlot,
   type SnapsFeedKey,
+  type SnapsFeedSelection,
+  type SnapsTrendingTag,
 } from './components/feed/SnapsFeedView';
 export {
   default as SnapsFeedCard,
@@ -45,6 +47,18 @@ export {
   type FeedSegmentControlProps,
   type FeedSegmentOption,
 } from './components/feed/FeedSegmentControl';
+export {
+  default as SnapsFeedSidebarNav,
+  type SnapsFeedSidebarNavProps,
+} from './components/feed/SnapsFeedSidebarNav';
+export {
+  default as TrendingTagsPanel,
+  type TrendingTagsPanelProps,
+} from './components/feed/TrendingTagsPanel';
+export {
+  default as TagsBottomSheet,
+  type TagsBottomSheetProps,
+} from './components/feed/TagsBottomSheet';
 export {
   getWeb2Identity,
   Web2ProviderBadge,

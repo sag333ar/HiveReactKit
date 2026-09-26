@@ -2,38 +2,68 @@
  * SnapsFeedView — single-feed-at-a-time shell ported from the hSnaps
  * `UnifiedFeedPage`.
  *
- * At every viewport width (mobile, tablet, desktop) exactly ONE of the
- * feeds is mounted at a time: a pill switcher lets the user pick which
- * one, and only that feed's posts are fetched/rendered/kept in memory.
- * Switching pills unmounts the previous feed's list — it's never just
- * hidden-but-still-loaded — which is what keeps memory flat regardless of
- * how many feed types exist. (Previously desktop mounted every feed
- * side-by-side simultaneously, which could use up to ~2GB of memory and
- * made the page painfully slow, especially on tablets/lower-power
- * devices — this component now applies the same single-container
- * behavior mobile already had to every breakpoint.)
+ * At every viewport width (mobile, tablet, desktop) exactly ONE feed is
+ * mounted at a time — either one of the 5 named feed types (Snaps /
+ * Waves / Threads / Moments / Hangs) or, when the host opts into the
+ * trending-tags feature, one trending tag. A single `SnapsFeedSelection`
+ * value tracks which of those two mutually-exclusive things is active;
+ * switching either unmounts whatever was previously showing (and its
+ * in-memory post list) instead of just hiding it, so memory stays flat
+ * regardless of how many feed types / tags exist. (Previously desktop
+ * mounted every feed side-by-side simultaneously, which could use up to
+ * ~2GB of memory — this component must never regress back to that.)
  *
- * Data is supplied by the host app: each feed slot receives `posts`,
- * loading/error/pagination flags, plus an optional `onLoadMore`. Per-post
- * action callbacks (vote / comment / reblog / share / tip / report) are
- * forwarded to the embedded <BlogPostList/> exactly the way <BlogsPage/>
- * already does — so the rendered cards behave identically to the rest of
- * the hivesuite Blog-style surfaces.
+ * Desktop chrome ("Where does the picker live?"): by default
+ * (`desktopNav="topPills"`) this renders the original horizontal pill
+ * switcher above the feed, unchanged — existing consumers (e.g.
+ * `CommunitySnapsTab`) get zero visual change. Passing
+ * `desktopNav="sidebar"` switches desktop (`md:` and up) to a left-rail
+ * vertical nav for the 5 feed types, freeing the old empty right-hand
+ * space for an optional trending-tags panel (opt in by passing
+ * `trendingTags`). Mobile is unaffected by `desktopNav` — it always uses
+ * the pill row, extended with a "Tags" entry point (see below) when
+ * `trendingTags` is provided.
+ *
+ * Mobile tags UX: rather than cramming N extra tag pills into the
+ * already-scrollable pill row, one more entry is appended — "Tags"
+ * (or the active tag's own "#tag" chip, once one is selected) — which
+ * opens a bottom sheet listing the same trending tags the desktop rail
+ * shows. This keeps the row scannable at any tag-list length and mirrors
+ * a pattern already used elsewhere in the app (filter dropdowns, more
+ * menus) rather than inventing a new interaction.
+ *
+ * Data is supplied by the host app: each named feed slot receives
+ * `posts`, loading/error/pagination flags, plus an optional
+ * `onLoadMore` — and so does `tagFeed`, the slot for whichever tag is
+ * currently selected. Per-post action callbacks (vote / comment /
+ * reblog / share / tip / report) are forwarded to the embedded
+ * <BlogPostList/> exactly the way <BlogsPage/> already does — so the
+ * rendered cards behave identically to the rest of the hivesuite
+ * Blog-style surfaces.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-// SnapsFeedView layout: one column, at every viewport width. The pill
-// switcher (<FeedSegmentControl/>) is the ONE mechanism for choosing
-// which single feed is mounted; the parent scroll container owns
-// scrolling. The switcher's own styling can still respond to viewport
-// width (FeedSegmentControl grows a bit via `md:` classes), but desktop
-// no longer renders every feed side-by-side.
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
-import { ArrowUp } from 'lucide-react';
-import FeedSegmentControl from './FeedSegmentControl';
+import { ArrowUp, Hash } from 'lucide-react';
+import FeedSegmentControl, { type FeedSegmentOption } from './FeedSegmentControl';
+import SnapsFeedSidebarNav from './SnapsFeedSidebarNav';
+import TrendingTagsPanel, { type SnapsTrendingTag } from './TrendingTagsPanel';
+import TagsBottomSheet from './TagsBottomSheet';
 import type { RewardOption } from '../../utils/commentOptions';
 
 export type SnapsFeedKey = 'snaps' | 'ecency' | 'threads' | 'liketu' | 'slothbuzz';
+
+export type { SnapsTrendingTag };
+
+/**
+ * The single thing currently on screen: either one of the 5 named feed
+ * types, or a trending tag. A discriminated union (rather than two
+ * independent booleans/flags) makes "exactly one of these is active"
+ * structurally true instead of a rule callers have to maintain by hand.
+ */
+export type SnapsFeedSelection =
+  | { kind: 'feed'; feed: SnapsFeedKey }
+  | { kind: 'tag'; tag: string };
 
 export interface SnapsFeedSlot {
   posts: Post[];
@@ -59,6 +89,39 @@ export interface SnapsFeedViewProps {
   /** Initial feed shown (the only mounted feed at any viewport width).
    *  Defaults to `snaps`. */
   defaultPrimary?: SnapsFeedKey;
+
+  /**
+   * Where the desktop (`md:`+) feed picker lives.
+   *   'topPills' (default) — the original horizontal pill switcher
+   *     above the feed. Zero change for existing consumers that don't
+   *     pass this prop.
+   *   'sidebar' — a left-rail vertical nav for the 5 feed types,
+   *     freeing the old empty right-hand space for an optional
+   *     trending-tags panel (see `trendingTags`).
+   * Mobile always uses the pill row regardless of this setting.
+   */
+  desktopNav?: 'topPills' | 'sidebar';
+
+  /**
+   * Trending tags to offer as an alternate way to pick the single
+   * active feed (desktop right rail when `desktopNav="sidebar"`; a
+   * "Tags" entry point + bottom sheet on mobile, at any `desktopNav`
+   * setting). Omit entirely to hide the trending-tags feature — e.g.
+   * a profile's Snaps tab opts out since network-wide trending tags
+   * don't make contextual sense there; a standalone Snaps page passes
+   * whatever `/custom-snaps` already fetches for its own trending-tags
+   * feature.
+   */
+  trendingTags?: SnapsTrendingTag[];
+  trendingTagsLoading?: boolean;
+  /**
+   * Data slot for whichever tag is currently selected
+   * (`selection.kind === 'tag'`) — mirrors a `feeds[key]` slot. The host
+   * is responsible for fetching this tag's posts, gated on it being the
+   * active selection (same pattern as the 5 named feeds' `active` flag
+   * upstream).
+   */
+  tagFeed?: SnapsFeedSlot;
 
   /** Logged-in observer username (drives auth-gated buttons inside post cards). */
   currentUser?: string;
@@ -184,8 +247,22 @@ export interface SnapsFeedViewProps {
    * `pageScroll` don't need an immediate update.
    */
   pageScroll?: boolean;
-  onActiveFeedChange?: (feed: SnapsFeedKey) => void;
+  /**
+   * Fires whenever the active selection changes — a named feed OR a
+   * trending tag, whichever the viewer picked. Replaces the previous
+   * feed-only `onActiveFeedChange`; check `selection.kind` to see which
+   * branch fired.
+   */
+  onSelectionChange?: (selection: SnapsFeedSelection) => void;
   isWeb2User?: boolean;
+  /**
+   * When true, every card's iframe-based attachment previews (YouTube,
+   * 3Speak, Twitter, 3Speak audio, Spotify, Odysee) render as a plain
+   * link instead of mounting their embed. See
+   * `AttachmentStripProps.disableIframePreviews` for the full rationale
+   * — forwarded straight through to every <SnapsFeedCard/>.
+   */
+  disableIframePreviews?: boolean;
 }
 
 const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
@@ -204,20 +281,33 @@ const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
   slothbuzz: 'https://images.hive.blog/u/slothbuzz.hangs/avatar',
 };
 
+const FEED_KEYS: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz'];
+
+function isFeedKey(id: string): id is SnapsFeedKey {
+  return (FEED_KEYS as string[]).includes(id);
+}
+
 /**
- * Module-level cache of the pill-switcher selection. Without this, every
- * remount (e.g. coming back from a post detail) resets the active feed
- * to `defaultPrimary` — so a user on threads page 3 would land back on
- * snaps page 1 after closing a post. Persisting the key makes them land
- * on the same feed they left, on every viewport width.
+ * Module-level cache of the active selection. Without this, every
+ * remount (e.g. coming back from a post detail) resets the active
+ * selection to `defaultPrimary` — so a user on threads page 3, or
+ * viewing a trending tag, would land back on snaps page 1 after closing
+ * a post. Persisting it makes them land on the same thing they left, at
+ * every viewport width.
  */
-let lastActiveFeed: string | null = null;
+let lastSelection: SnapsFeedSelection | null = null;
+
+const TAGS_PILL_ID = '__tags__';
 
 export function SnapsFeedView({
   feeds,
   labels,
   avatars,
   defaultPrimary = 'snaps',
+  desktopNav = 'topPills',
+  trendingTags,
+  trendingTagsLoading,
+  tagFeed,
   currentUser,
   observer,
   onUpvote,
@@ -260,30 +350,44 @@ export function SnapsFeedView({
   footer,
   renderHeaderActions,
   actionsAsMenu,
-  onActiveFeedChange,
+  onSelectionChange,
   isWeb2User,
+  disableIframePreviews,
 }: SnapsFeedViewProps) {
   const finalLabels = { ...DEFAULT_LABELS, ...labels };
   const finalAvatars = { ...DEFAULT_AVATARS, ...avatars };
 
-  // The pill switcher picks which single feed is mounted, at every
-  // viewport width — only the active feed's data is fetched/rendered/
-  // kept in memory; switching pills unmounts the previous one instead of
-  // just hiding it. Initialized from the module-level cache so the user
-  // lands back on the same feed they were viewing before navigating to a
-  // post.
-  const [activeFeed, setActiveFeed] = useState<SnapsFeedKey>(() => {
-    const cached = lastActiveFeed;
-    if (cached === 'snaps' || cached === 'ecency' || cached === 'threads' || cached === 'liketu' || cached === 'slothbuzz') {
-      return cached;
+  // Trending-tags feature is opt-in: only enabled when the host actually
+  // passes a `trendingTags` array (even an empty one while it's still
+  // loading). Omitting the prop entirely (e.g. ProfileSnapsTab) hides
+  // every bit of tags UI — desktop right rail, mobile "Tags" entry
+  // point, and the sheet.
+  const tagsEnabled = Array.isArray(trendingTags);
+
+  // The selection picks which single thing is mounted — a named feed or
+  // a trending tag — at every viewport width. Only the active selection's
+  // data is fetched/rendered/kept in memory; switching unmounts whatever
+  // was previously showing instead of just hiding it. Initialized from
+  // the module-level cache so the user lands back on the same thing they
+  // were viewing before navigating to a post.
+  const [selection, setSelection] = useState<SnapsFeedSelection>(() => {
+    if (lastSelection) {
+      if (lastSelection.kind === 'feed' && isFeedKey(lastSelection.feed)) return lastSelection;
+      if (lastSelection.kind === 'tag' && tagsEnabled) return lastSelection;
     }
-    return defaultPrimary;
+    return { kind: 'feed', feed: defaultPrimary };
   });
   // Keep the module cache in sync on every change.
   useEffect(() => {
-    lastActiveFeed = activeFeed;
-    if (onActiveFeedChange) onActiveFeedChange(activeFeed);
-  }, [activeFeed, onActiveFeedChange]);
+    lastSelection = selection;
+    if (onSelectionChange) onSelectionChange(selection);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection]);
+
+  const selectFeed = (feed: SnapsFeedKey) => setSelection({ kind: 'feed', feed });
+  const selectTag = (tag: string) => setSelection({ kind: 'tag', tag });
+
+  const [tagsSheetOpen, setTagsSheetOpen] = useState(false);
 
   const [scrolled, setScrolled] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -322,7 +426,7 @@ export function SnapsFeedView({
     };
   }, []);
 
-  const segOpt = (k: SnapsFeedKey) => ({
+  const segOpt = (k: SnapsFeedKey): FeedSegmentOption => ({
     id: k,
     label: finalLabels[k],
     avatarUrl: finalAvatars[k],
@@ -370,18 +474,22 @@ export function SnapsFeedView({
     renderHeaderActions,
     actionsAsMenu,
     isWeb2User,
+    disableIframePreviews,
   };
 
-  const feedOptions: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz'];
+  const feedOptions: SnapsFeedKey[] = FEED_KEYS;
 
-  /** The active feed's body (error banner + list). This is the ONLY feed
-   *  body ever rendered — switching `activeFeed` unmounts this and
-   *  mounts a fresh one for the newly-selected key, so a non-active
-   *  feed's posts are never kept mounted/in memory. */
-  const renderBody = (key: SnapsFeedKey) => {
-    const slot = feeds[key];
-    // Guard: if the host hasn't wired up this feed yet, show nothing.
+  /** The active selection's body (error banner + list). This is the
+   *  ONLY feed body ever rendered — switching `selection` unmounts this
+   *  and mounts a fresh one for the newly-selected feed/tag, so nothing
+   *  else is ever kept mounted/in memory at the same time. */
+  const renderBody = () => {
+    const slot = selection.kind === 'feed' ? feeds[selection.feed] : tagFeed;
+    // Guard: if the host hasn't wired up this slot yet, show nothing.
     if (!slot) return null;
+    const emptyLabel = selection.kind === 'feed'
+      ? finalLabels[selection.feed].toLowerCase()
+      : `#${selection.tag}`;
     return (
       <>
         {slot.error && (
@@ -396,63 +504,139 @@ export function SnapsFeedView({
           loadingMore={!!slot.loadingMore}
           hasMore={!!slot.hasMore}
           onLoadMore={slot.onLoadMore}
-          emptyMessage={`No ${finalLabels[key].toLowerCase()} yet.`}
+          emptyMessage={`No ${emptyLabel} posts yet.`}
         />
       </>
     );
   };
 
-  // ── Single feed, with a pill switcher — same shell at every viewport
-  //    width. Only `feeds[activeFeed]` is ever rendered/mounted below;
-  //    picking a different pill mounts that feed fresh and lets the
-  //    previous one (and its in-memory post list) get garbage collected.
-  const slot = feeds[activeFeed];
-  const showPill = !!(slot && slot.newCount && slot.newCount > 0 && scrolled);
+  const activeSlot = selection.kind === 'feed' ? feeds[selection.feed] : tagFeed;
+  const showPill = !!(activeSlot && activeSlot.newCount && activeSlot.newCount > 0 && scrolled);
+  const activeFeedForHighlight = selection.kind === 'feed' ? selection.feed : null;
+  const activeTagForHighlight = selection.kind === 'tag' ? selection.tag : null;
+
+  // Mobile pill row: the 5 named feeds, plus (when the host opted into
+  // trending tags) one more entry — "Tags" normally, or the active
+  // tag's own "#tag" chip once one is selected — that opens the bottom
+  // sheet. Tapping any of the 5 feed pills leaves tag mode directly.
+  const mobileOptions: FeedSegmentOption[] = [
+    ...feedOptions.map(segOpt),
+    ...(tagsEnabled
+      ? [{
+          id: TAGS_PILL_ID,
+          label: selection.kind === 'tag' ? `#${selection.tag}` : 'Tags',
+          icon: <Hash className="h-3.5 w-3.5" />,
+        }]
+      : []),
+  ];
+  const mobileValue = selection.kind === 'tag' ? TAGS_PILL_ID : selection.feed;
+
+  const showSidebarLayout = desktopNav === 'sidebar';
+  const showTagsRail = showSidebarLayout && tagsEnabled;
 
   return (
-    <div ref={containerRef} className="mx-auto flex w-full max-w-[720px] md:max-w-[880px] flex-col gap-3">
-      <div className="sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2">
-        <div className="overflow-x-auto min-w-0 flex-1 scrollbar-none">
-          <FeedSegmentControl
+    <div
+      ref={containerRef}
+      className={
+        showSidebarLayout
+          ? `mx-auto flex w-full max-w-[1200px] items-start gap-4 md:grid ${
+              showTagsRail ? 'md:grid-cols-[200px_minmax(0,1fr)_240px]' : 'md:grid-cols-[200px_minmax(0,1fr)]'
+            }`
+          : 'mx-auto flex w-full max-w-[720px] md:max-w-[880px] flex-col gap-3'
+      }
+    >
+      {/* Desktop left rail — the 5 named feeds as a vertical nav. Only
+          rendered when the host opts into `desktopNav="sidebar"`;
+          existing consumers (e.g. CommunitySnapsTab) that don't pass it
+          keep the original top-pill layout untouched. */}
+      {showSidebarLayout && (
+        <aside className="hidden md:block md:sticky md:top-0 md:max-h-screen md:overflow-y-auto">
+          <SnapsFeedSidebarNav
             options={feedOptions.map(segOpt)}
-            value={activeFeed}
-            onChange={(id) => setActiveFeed(id as SnapsFeedKey)}
+            activeFeed={activeFeedForHighlight}
+            onSelect={(id) => { if (isFeedKey(id)) selectFeed(id); }}
           />
+        </aside>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2">
+          {/* On the sidebar layout, the pill row is mobile-only (the
+              left rail takes over on desktop). On the legacy top-pills
+              layout it's shown at every width, unchanged. */}
+          <div className={`overflow-x-auto min-w-0 flex-1 scrollbar-none ${showSidebarLayout ? 'md:hidden' : ''}`}>
+            <FeedSegmentControl
+              options={mobileOptions}
+              value={mobileValue}
+              onChange={(id) => {
+                if (id === TAGS_PILL_ID) { setTagsSheetOpen(true); return; }
+                if (isFeedKey(id)) selectFeed(id);
+              }}
+            />
+          </div>
+          {toolbar && (
+            <div className="shrink-0">
+              {toolbar}
+            </div>
+          )}
         </div>
-        {toolbar && (
-          <div className="shrink-0">
-            {toolbar}
-          </div>
-        )}
+        <div className="relative flex flex-col">
+          {showPill && (
+            <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
+              <button
+                type="button"
+                onClick={activeSlot?.onShowNew}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1d9bf0] px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-[#1a8cd8] active:scale-95 cursor-pointer"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                {activeSlot?.newAvatars && activeSlot.newAvatars.length > 0 && (
+                  <div className="flex -space-x-1.5 overflow-hidden mr-1">
+                    {activeSlot.newAvatars.slice(0, 3).map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt=""
+                        className="inline-block h-5 w-5 rounded-full ring-2 ring-[#1d9bf0] object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+                <span>{activeSlot?.newCount} posted</span>
+              </button>
+            </div>
+          )}
+          {renderBody()}
+        </div>
+        {footer}
       </div>
-      <div className="relative flex flex-col">
-        {showPill && (
-          <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
-            <button
-              type="button"
-              onClick={slot.onShowNew}
-              className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1d9bf0] px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-[#1a8cd8] active:scale-95 cursor-pointer"
-            >
-              <ArrowUp className="h-3.5 w-3.5" />
-              {slot.newAvatars && slot.newAvatars.length > 0 && (
-                <div className="flex -space-x-1.5 overflow-hidden mr-1">
-                  {slot.newAvatars.slice(0, 3).map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt=""
-                      className="inline-block h-5 w-5 rounded-full ring-2 ring-[#1d9bf0] object-cover"
-                    />
-                  ))}
-                </div>
-              )}
-              <span>{slot.newCount} posted</span>
-            </button>
-          </div>
-        )}
-        {renderBody(activeFeed)}
-      </div>
-      {footer}
+
+      {/* Desktop right rail — trending tags, filling the space that used
+          to sit empty next to the feed. Only rendered on the sidebar
+          layout, and only when the host opted into trending tags. */}
+      {showTagsRail && (
+        <aside className="hidden md:block md:sticky md:top-0 md:max-h-screen md:overflow-y-auto">
+          <h3 className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-[var(--hrk-text-tertiary)]">
+            Trending Tags
+          </h3>
+          <TrendingTagsPanel
+            tags={trendingTags ?? []}
+            loading={trendingTagsLoading}
+            activeTag={activeTagForHighlight}
+            onSelectTag={selectTag}
+          />
+        </aside>
+      )}
+
+      {tagsEnabled && (
+        <TagsBottomSheet
+          isOpen={tagsSheetOpen}
+          onClose={() => setTagsSheetOpen(false)}
+          tags={trendingTags ?? []}
+          loading={trendingTagsLoading}
+          activeTag={activeTagForHighlight}
+          onSelectTag={selectTag}
+        />
+      )}
     </div>
   );
 }

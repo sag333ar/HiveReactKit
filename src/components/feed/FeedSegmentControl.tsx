@@ -9,10 +9,20 @@
  * Inactive tabs: logo only (no label text) to save horizontal space when
  * there are several feeds in a single row.
  */
+import type { ReactNode } from 'react';
+
 export interface FeedSegmentOption {
   id: string;
   label: string;
   avatarUrl?: string;
+  /**
+   * Icon rendered in place of an avatar image for options that aren't
+   * backed by a Hive account avatar (e.g. a "Tags" entry point). Unlike
+   * the avatar-image tabs, both the icon and its label stay visible
+   * whether or not the option is active, since there's no image to fall
+   * back to when inactive.
+   */
+  icon?: ReactNode;
 }
 
 export interface FeedSegmentControlProps {
@@ -51,7 +61,7 @@ export function FeedSegmentControl({
                 : 'text-[var(--hrk-text-tertiary)] hover:text-[var(--hrk-text-primary)]'
             }`}
           >
-            {opt.avatarUrl && (
+            {opt.avatarUrl ? (
               <img
                 src={opt.avatarUrl}
                 alt=""
@@ -59,9 +69,14 @@ export function FeedSegmentControl({
                   isActive ? 'h-4 w-4 md:h-5 md:w-5' : 'h-5 w-5 md:h-5 md:w-5'
                 }`}
               />
-            )}
-            {/* Show label text only for the active tab */}
-            {isActive && opt.label}
+            ) : opt.icon ? (
+              <span className="shrink-0 flex items-center">{opt.icon}</span>
+            ) : null}
+            {/* Avatar-backed tabs show label text only when active (to
+                save horizontal space); icon-only options (no avatar)
+                always show their label since there's no image to fall
+                back to when inactive. */}
+            {(isActive || (!opt.avatarUrl && !!opt.icon)) && opt.label}
           </button>
         );
       })}

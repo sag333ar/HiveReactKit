@@ -143,6 +143,14 @@ export interface ProfileSnapsTabProps {
   renderHeaderActions?: (post: Post) => ReactNode;
 
   isWeb2User?: boolean;
+
+  /**
+   * When true, every card's iframe-based attachment previews (YouTube,
+   * 3Speak, Twitter, 3Speak audio, Spotify, Odysee) render as a plain
+   * link instead of mounting their embed. Forwarded straight through to
+   * `<SnapsFeedView/>` — see `SnapsFeedViewProps.disableIframePreviews`.
+   */
+  disableIframePreviews?: boolean;
 }
 
 const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
@@ -421,6 +429,15 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       feeds={feeds}
       currentUser={currentUsername}
       observer={observer}
+      // Desktop gets the same left-sidebar-of-5 nav as the standalone
+      // Snaps page (freeing the old empty right-hand space), but NOT
+      // the trending-tags panel: those tags are network-wide (sourced
+      // from the peak.snaps container overall), and showing "what's
+      // trending across all of Hive" on one user's profile doesn't
+      // make contextual sense the way it does on the main Snaps feed.
+      // Omitting `trendingTags` here disables that feature entirely —
+      // no right rail, no mobile "Tags" entry point.
+      desktopNav="sidebar"
       {...feedProps}
     />
   );

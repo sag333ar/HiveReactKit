@@ -21,6 +21,18 @@ export { stripFirstContextLink, extractFirstContextTwitterId, isFirstContextPost
 
 export interface AttachmentStripProps {
   attachments: Attachment[];
+  /**
+   * When true, every iframe-based attachment (YouTube, 3Speak, Twitter,
+   * 3Speak audio, Spotify, Odysee) renders as a plain text link instead
+   * of mounting its embed — each is a separate cross-origin renderer
+   * process, and an unvirtualized feed list can otherwise spin up dozens
+   * of them on a single unscrolled mount. Image/IPFS tiles are
+   * unaffected. Only ever passed `true` from the Snaps feed rendering
+   * path (see `disableIframePreviews` on `<SnapsFeedView/>`) — every
+   * other consumer (post detail, videos page) omits it, so its default
+   * (`false`) keeps their behavior exactly as before.
+   */
+  disableIframePreviews?: boolean;
 }
 
 export interface ParsedBody {
@@ -451,6 +463,70 @@ export const ThreeSpeakPlayer: FC<{ author: string; permlink: string }> = ({ aut
     </div>
   );
 };
+
+/** Attachment kinds whose feed-strip tile mounts a cross-origin
+ *  `<iframe>` (or, for 3Speak, an iframe-first player with an HLS
+ *  fallback) — the set gated by the "disable iframe previews" setting.
+ *  Image/IPFS/direct-audio tiles never mount an iframe and are always
+ *  unaffected. */
+const IFRAME_ATTACHMENT_KINDS = new Set<Attachment['kind']>([
+  'youtube',
+  'threespeak',
+  'twitter',
+  '3speak-audio',
+  'spotify',
+  'odysee',
+]);
+
+export function isIframeAttachment(a: Attachment): boolean {
+  return IFRAME_ATTACHMENT_KINDS.has(a.kind);
+}
+
+/**
+ * Best-effort original URL for an attachment. Twitter/YouTube tiles only
+ * carry an extracted id (not the full source URL), so reconstruct a
+ * canonical link from it; every other kind already stores its URL.
+ */
+export function attachmentSourceUrl(a: Attachment): string {
+  if (a.kind === 'twitter') return `https://twitter.com/i/status/${a.id}`;
+  if (a.kind === 'youtube') return `https://www.youtube.com/watch?v=${a.id}`;
+  return a.url;
+}
+
+/** Visible link text for the "disable iframe previews" replacement —
+ *  matches the exact per-embed-type format the user requested. */
+export function iframeDisabledLinkLabel(a: Attachment): string {
+  switch (a.kind) {
+    case 'twitter': return 'link to twitter';
+    case 'youtube': return 'link to youtube';
+    case 'threespeak': return 'link to 3speak';
+    case '3speak-audio': return 'link to 3speak audio';
+    case 'spotify': return 'link to spotify';
+    case 'odysee': return 'link to odysee';
+    default: return 'link';
+  }
+}
+
+/** Replacement tile shown instead of an iframe embed when the viewer has
+ *  disabled iframe previews — a plain, clearly-labelled outbound link so
+ *  the content is still reachable, just never auto-loaded. */
+const IframeDisabledLink: FC<{ attachment: Attachment }> = ({ attachment }) => (
+  <div
+    className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[var(--hrk-bg-surface-sunken)] p-4 text-center"
+    onClick={(e) => e.stopPropagation()}
+  >
+    <span className="text-xs text-[var(--hrk-text-tertiary)]">Preview disabled in settings</span>
+    <a
+      href={attachmentSourceUrl(attachment)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm font-medium text-[var(--hrk-brand)] underline"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {iframeDisabledLinkLabel(attachment)}
+    </a>
+  </div>
+);
 
 export const attachmentLabel = (a: Attachment): string => {
   if (a.kind === 'image') return a.url.toLowerCase().includes('.gif') ? 'GIF' : 'Image';
@@ -1047,7 +1123,7 @@ export const MediaPopup: FC<{
   );
 };
 
-export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
+export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments, disableIframePreviews }) => {
   const [idx, setIdx] = useState(0);
   const [activeAttachment, setActiveAttachment] = useState<Attachment | null>(null);
   const [popupIdx, setPopupIdx] = useState<number>(0);
@@ -1109,6 +1185,9 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments }) => {
   };
 
   const renderTile = () => {
+    if (disableIframePreviews && isIframeAttachment(current)) {
+      return <IframeDisabledLink attachment={current} />;
+    }
     if (current.kind === 'ipfs') {
       return <IpfsStripTile url={current.url} onOpen={(e) => open(e, current)} />;
     }

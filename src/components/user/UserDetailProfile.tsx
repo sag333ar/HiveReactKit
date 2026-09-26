@@ -114,6 +114,15 @@ export interface UserDetailProfileProps {
   isWeb2User?: boolean;
   isWeb3User?: boolean;
   showBackButton?: boolean;
+  /**
+   * When true, the Snaps tab's cards render iframe-based attachment
+   * previews (YouTube, 3Speak, Twitter, 3Speak audio, Spotify, Odysee)
+   * as plain links instead of mounting their embed. Forwarded straight
+   * through to `<ProfileSnapsTab/>` — see
+   * `SnapsFeedViewProps.disableIframePreviews`. Only affects the Snaps
+   * tab; every other tab on this profile is unaffected.
+   */
+  disableIframePreviews?: boolean;
 
   /**
    * Controls which tabs are shown and their order.
@@ -581,6 +590,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   isWeb2User: isWeb2UserProp,
   isWeb3User: isWeb3UserProp,
   showBackButton = false,
+  disableIframePreviews,
   tabShown,
   ecencyToken,
   threeSpeakApiKey,
@@ -4624,6 +4634,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             allowLandscapeVideos={allowLandscapeVideos}
             awaitingWalletApproval={awaitingWalletApproval}
             renderHeaderActions={renderSnapHeaderActions}
+            disableIframePreviews={disableIframePreviews}
           />
         </div>
       );
