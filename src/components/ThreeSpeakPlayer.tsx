@@ -22,6 +22,14 @@ export interface ThreeSpeakPlayerProps {
   autoplay?: boolean;
   layout?: 'desktop' | 'mobile' | 'square';
   id?: string;
+  /**
+   * Signed 3Speak "viewer rewards" token (the `vt` embed param), pre-minted
+   * by the CONSUMING app's own backend — this kit never knows about, mints,
+   * or holds any appId/secret for that protocol; it only ever forwards
+   * whatever token (or none) it's handed. Only used on the official-iframe
+   * path (`meta.useIframe`); omit it for anonymous/logged-out playback.
+   */
+  token?: string;
 }
 
 interface EmbedMeta {
@@ -73,6 +81,8 @@ export function build3SpeakEmbedUrl(options: {
   videoUrl?: string;
   autoplay?: boolean;
   layout?: 'desktop' | 'mobile' | 'square';
+  /** Pre-minted `vt` viewer-reward token — appended as-is, never generated here. */
+  token?: string;
 }): string {
   let vParam = '';
   if (options.videoUrl) {
@@ -109,6 +119,9 @@ export function build3SpeakEmbedUrl(options: {
   let url = `https://play.3speak.tv/embed?v=${cleanV}&mode=iframe&layout=${layout}&noscroll=1`;
   if (options.autoplay) {
     url += '&autoplay=1';
+  }
+  if (options.token) {
+    url += `&vt=${encodeURIComponent(options.token)}`;
   }
   return url;
 }
@@ -464,6 +477,7 @@ export function ThreeSpeakPlayer({
   autoplay = false,
   layout = 'desktop',
   id,
+  token,
 }: ThreeSpeakPlayerProps) {
   const [meta, setMeta] = useState<EmbedMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -577,7 +591,7 @@ export function ThreeSpeakPlayer({
 
   // If official 3Speak iframe player is preferred and available
   if (meta?.useIframe) {
-    const embedSrc = build3SpeakEmbedUrl({ author, permlink, videoUrl, autoplay, layout });
+    const embedSrc = build3SpeakEmbedUrl({ author, permlink, videoUrl, autoplay, layout, token });
     if (!embedSrc) {
       return (
         <div id={id} className={wrapperClass} style={inlineStyle} data-state="error">
