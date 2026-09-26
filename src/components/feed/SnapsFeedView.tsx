@@ -524,7 +524,9 @@ export function SnapsFeedView({
     ...(tagsEnabled
       ? [{
           id: TAGS_PILL_ID,
-          label: selection.kind === 'tag' ? `#${selection.tag}` : 'Tags',
+          // The pill's Hash icon already reads as "#", so avoid a
+          // redundant "# #tag" — just show the tag name once selected.
+          label: selection.kind === 'tag' ? selection.tag : 'Tags',
           icon: <Hash className="h-3.5 w-3.5" />,
         }]
       : []),
