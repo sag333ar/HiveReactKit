@@ -528,9 +528,12 @@ export function PostActionButton({
     requireLogin("Upvote", () => {
       if (isRestrictedVoter) {
         // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) — this
-        // account's voting is handled entirely by backend automation, so
-        // there's nothing for the vote dialog to do here.
-        showToast("Direct voting isn't available for this account");
+        // account's own click never broadcasts a direct vote. `onUpvote`
+        // (wired to the consumer's `vote()`) already detects the
+        // restriction itself and sends a curation request instead, so we
+        // just call it straight through — no slider needed since the
+        // weight is ignored on that path.
+        void handleRestrictedVoterUpvote();
         return;
       }
       if (hasVoted) {
@@ -543,6 +546,21 @@ export function PostActionButton({
       }
       setShowVoteSlider(true);
     });
+  };
+
+  const handleRestrictedVoterUpvote = async () => {
+    if (!onUpvote) return;
+    setVoteLoading(true);
+    try {
+      await Promise.resolve(onUpvote(defaultVotePercent));
+      // The consumer's `vote()` shows its own "Curation request sent!"
+      // toast for this path — nothing to add here.
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send curation request";
+      showToast(msg);
+    } finally {
+      setVoteLoading(false);
+    }
   };
 
   const handleVoteSubmit = async (percent: number) => {
@@ -602,7 +620,7 @@ export function PostActionButton({
     setShowUpvoteListModal(false);
     if (!isLoggedIn) { showToast("Please Login to Upvote"); return; }
     if (isRestrictedVoter) {
-      showToast("Direct voting isn't available for this account");
+      void handleRestrictedVoterUpvote();
       return;
     }
     if (hasVoted) {
@@ -1127,7 +1145,7 @@ export function PostActionButton({
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
-          showVoteButton={!!showVoteButton && !hasVoted && !isRestrictedVoter}
+          showVoteButton={!!showVoteButton && !hasVoted}
           parentTags={parentTags}
           defaultReward={defaultReward}
           defaultBeneficiaries={defaultBeneficiaries}

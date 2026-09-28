@@ -306,10 +306,6 @@ const CommentTile = ({
                     showToast("Upvoting is restricted for Web2 accounts");
                     return;
                   }
-                  if (isRestrictedVoter) {
-                    showToast("Direct voting isn't available for this account");
-                    return;
-                  }
                   if (onClickCommentUpvote) {
                     if (!currentUser) {
                       showToast("Please login to upvote");
@@ -319,7 +315,19 @@ const CommentTile = ({
                       showToast('You have already upvoted this comment');
                       return;
                     }
+                    if (isRestrictedVoter) {
+                      // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) —
+                      // this account's click never broadcasts a direct vote.
+                      // `onClickCommentUpvote` (wired to the consumer's
+                      // `vote()`) already detects the restriction and sends
+                      // a curation request instead, so skip the slider —
+                      // the weight is ignored on that path.
+                      void handlePerformUpvote(100);
+                      return;
+                    }
                     handleOpenVote();
+                  } else if (isRestrictedVoter) {
+                    showToast("Direct voting isn't available for this account");
                   } else if (onClickUpvoteButton) {
                     if (!currentUser) {
                       showToast("Please login to upvote");

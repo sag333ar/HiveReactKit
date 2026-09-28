@@ -596,14 +596,17 @@ export default function InlineCommentItem({
       return;
     }
     if (!currentUser) { showToast('Please login to upvote'); return; }
-    if (isRestrictedVoter) {
-      // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) — this
-      // account's voting is handled entirely by backend automation.
-      showToast("Direct voting isn't available for this account");
-      return;
-    }
     if (hasAlreadyVoted || isUpvoted) {
       showToast('You have already upvoted this comment');
+      return;
+    }
+    if (isRestrictedVoter) {
+      // See RESTRICTED_DIRECT_VOTE_ACCOUNTS (postVotes.ts) — this account's
+      // click never broadcasts a direct vote. `onClickCommentUpvote`
+      // (wired to the consumer's `vote()`) already detects the restriction
+      // and sends a curation request instead, so skip the slider — the
+      // weight is ignored on that path.
+      void handlePerformUpvote(100);
       return;
     }
     if (isPostTooOldToVote(comment.created)) { showToast(VOTE_WINDOW_MESSAGE); return; }
