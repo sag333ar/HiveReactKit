@@ -300,6 +300,10 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
   return (
     <SnapsFeedView
       feeds={feeds}
+      // "Following" isn't a meaningful filter scoped to a single
+      // community — omit it from the nav (feeds.following above is
+      // still supplied, empty, purely to satisfy the Record type).
+      enabledFeeds={['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz']}
       currentUser={currentUser}
       observer={observer}
       pageScroll={pageScroll}

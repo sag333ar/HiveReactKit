@@ -431,6 +431,10 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
   return (
     <SnapsFeedView
       feeds={feeds}
+      // "Following" isn't a meaningful filter scoped to one profile's
+      // own snaps — omit it from the nav (feeds.following above is
+      // still supplied, empty, purely to satisfy the Record type).
+      enabledFeeds={['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz']}
       currentUser={currentUsername}
       observer={observer}
       // Desktop gets the same left-sidebar-of-5 nav as the standalone

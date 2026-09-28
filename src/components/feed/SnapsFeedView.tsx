@@ -87,6 +87,19 @@ export interface SnapsFeedViewProps {
   /** Override per-feed avatar URL (defaults to canonical container account avatars). */
   avatars?: Partial<Record<SnapsFeedKey, string>>;
 
+  /**
+   * Which feed keys actually appear in the nav (desktop rail + mobile
+   * picker), in this order. Defaults to every `SnapsFeedKey` (all 6,
+   * including `following`). `feeds` must still supply a slot for every
+   * key regardless — this only controls what's offered to pick, not
+   * what data the host has to wire up. Existing consumers that don't
+   * want the newer `following` option (e.g. a single community's or
+   * profile's Snaps tab, where "who do I follow" isn't a meaningful
+   * filter) should pass the original 5 explicitly rather than getting
+   * an empty, non-functional "Following" pill for free.
+   */
+  enabledFeeds?: SnapsFeedKey[];
+
   /** Initial feed shown (the only mounted feed at any viewport width).
    *  Defaults to `snaps`. */
   defaultPrimary?: SnapsFeedKey;
@@ -330,6 +343,7 @@ export function SnapsFeedView({
   feeds,
   labels,
   avatars,
+  enabledFeeds,
   defaultPrimary = 'snaps',
   desktopNav = 'topPills',
   trendingTags,
@@ -393,6 +407,14 @@ export function SnapsFeedView({
   // point, and the sheet.
   const tagsEnabled = Array.isArray(trendingTags);
 
+  // Computed early (rather than alongside the other render-time consts
+  // further down) so the selection initializer below can check against
+  // it — a key restored from `lastSelection` must be valid for THIS
+  // consumer's own `enabledFeeds`, not just any SnapsFeedKey, since the
+  // module-level cache is shared across every SnapsFeedView instance
+  // app-wide and different consumers can enable different subsets.
+  const feedOptions: SnapsFeedKey[] = enabledFeeds ?? FEED_KEYS;
+
   // The selection picks which single thing is mounted — a named feed or
   // a trending tag — at every viewport width. Only the active selection's
   // data is fetched/rendered/kept in memory; switching unmounts whatever
@@ -401,7 +423,7 @@ export function SnapsFeedView({
   // were viewing before navigating to a post.
   const [selection, setSelection] = useState<SnapsFeedSelection>(() => {
     if (lastSelection) {
-      if (lastSelection.kind === 'feed' && isFeedKey(lastSelection.feed)) return lastSelection;
+      if (lastSelection.kind === 'feed' && isFeedKey(lastSelection.feed) && feedOptions.includes(lastSelection.feed)) return lastSelection;
       if (lastSelection.kind === 'tag' && tagsEnabled) return lastSelection;
     }
     return { kind: 'feed', feed: defaultPrimary };
@@ -511,8 +533,6 @@ export function SnapsFeedView({
     isWeb2User,
     disableIframePreviews,
   };
-
-  const feedOptions: SnapsFeedKey[] = FEED_KEYS;
 
   /** The active selection's body (error banner + list). This is the
    *  ONLY feed body ever rendered — switching `selection` unmounts this
