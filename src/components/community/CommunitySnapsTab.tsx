@@ -289,6 +289,10 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
       snapie: { posts: [], loading: false, hasMore: false, error: null },
       hivesuite: { posts: [], loading: false, hasMore: false, error: null },
       slothbuzz: { posts: [], loading: false, hasMore: false, error: null },
+      // No community-scoped "following" concept — a static empty slot
+      // satisfies the (now-total) SnapsFeedKey union without inventing
+      // following-feed behavior for this surface.
+      following: { posts: [], loading: false, hasMore: false, error: null },
     }),
     [state, filterPost, loadMore],
   );

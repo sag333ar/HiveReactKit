@@ -628,6 +628,7 @@ const Index = () => {
             threads: slot(threadsPosts, threadsLoading),
             liketu: slot(liketuPosts, liketuLoading),
             slothbuzz: slot(slothbuzzPosts, slothbuzzLoading),
+            following: slot([], false),
           }}
           currentUser={mockUser?.username}
           onUpvote={(author, permlink, percent) => {

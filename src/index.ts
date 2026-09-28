@@ -60,6 +60,10 @@ export {
   type TagsBottomSheetProps,
 } from './components/feed/TagsBottomSheet';
 export {
+  default as FeedPickerBottomSheet,
+  type FeedPickerBottomSheetProps,
+} from './components/feed/FeedPickerBottomSheet';
+export {
   getWeb2Identity,
   Web2ProviderBadge,
   TwitterEmbed,

@@ -39,9 +39,11 @@ export function SnapsFeedSidebarNav({
                 : 'text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)]'
             }`}
           >
-            {opt.avatarUrl && (
+            {opt.avatarUrl ? (
               <img src={opt.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
-            )}
+            ) : opt.icon ? (
+              <span className="shrink-0 flex items-center">{opt.icon}</span>
+            ) : null}
             <span className="truncate">{opt.label}</span>
           </button>
         );

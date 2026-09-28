@@ -44,14 +44,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
-import { ArrowUp, Hash } from 'lucide-react';
+import { ArrowUp, Hash, Users, ChevronDown } from 'lucide-react';
 import FeedSegmentControl, { type FeedSegmentOption } from './FeedSegmentControl';
 import SnapsFeedSidebarNav from './SnapsFeedSidebarNav';
 import TrendingTagsPanel, { type SnapsTrendingTag } from './TrendingTagsPanel';
 import TagsBottomSheet from './TagsBottomSheet';
+import FeedPickerBottomSheet from './FeedPickerBottomSheet';
 import type { RewardOption } from '../../utils/commentOptions';
 
-export type SnapsFeedKey = 'snaps' | 'ecency' | 'threads' | 'liketu' | 'slothbuzz';
+export type SnapsFeedKey = 'snaps' | 'ecency' | 'threads' | 'liketu' | 'slothbuzz' | 'following';
 
 export type { SnapsTrendingTag };
 
@@ -229,6 +230,27 @@ export interface SnapsFeedViewProps {
   toolbar?: ReactNode;
   /** Optional element rendered at the bottom of the layout (e.g. Compose FAB). */
   footer?: ReactNode;
+  /**
+   * Optional render slot for a "Who to follow" widget — an arbitrary,
+   * host-owned block (data + styling entirely up to the host, mirrors
+   * `toolbar`/`footer` as pass-through slots). When `desktopNav="sidebar"`,
+   * rendered directly below `<SnapsFeedSidebarNav/>` inside the same left
+   * `<aside>`. On mobile, rendered directly below the feed-picker row
+   * (pills or dropdown trigger), before the feed body. The host is
+   * responsible for making its own internal markup responsive.
+   */
+  whoToFollow?: ReactNode;
+  /**
+   * Mobile feed-picker UX.
+   *   'pills' (default) — the original horizontal pill row. Zero change
+   *     for existing consumers (e.g. `CommunitySnapsTab`, profile Snaps
+   *     tabs) that don't pass this prop.
+   *   'dropdown' — a compact trigger button (active feed's icon/avatar +
+   *     label + chevron) that opens a `FeedPickerBottomSheet` listing
+   *     every `mobileOptions` entry, avoiding an unwieldy multi-pill
+   *     horizontal scroll once there are several feed types.
+   */
+  mobileNav?: 'pills' | 'dropdown';
 
   /** Optional render slot for a per-card right-side header action menu
    *  (Edit / Delete / Flag). Forwarded to every <SnapsFeedCard/>. */
@@ -271,6 +293,7 @@ const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
   threads: 'Threads',
   liketu: 'Moments',
   slothbuzz: 'Hangs',
+  following: 'Following',
 };
 
 const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
@@ -279,9 +302,13 @@ const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
   threads: 'https://images.hive.blog/u/leothreads/avatar',
   liketu: 'https://images.hive.blog/u/liketu.moments/avatar',
   slothbuzz: 'https://images.hive.blog/u/slothbuzz.hangs/avatar',
+  // No single container account backs "Following" — unused for rendering
+  // (segOpt() special-cases this key to use an icon instead), kept here
+  // only so this stays a total Record<SnapsFeedKey, string>.
+  following: '',
 };
 
-const FEED_KEYS: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz'];
+const FEED_KEYS: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz', 'following'];
 
 function isFeedKey(id: string): id is SnapsFeedKey {
   return (FEED_KEYS as string[]).includes(id);
@@ -348,6 +375,8 @@ export function SnapsFeedView({
   defaultReward,
   toolbar,
   footer,
+  whoToFollow,
+  mobileNav = 'pills',
   renderHeaderActions,
   actionsAsMenu,
   onSelectionChange,
@@ -388,6 +417,7 @@ export function SnapsFeedView({
   const selectTag = (tag: string) => setSelection({ kind: 'tag', tag });
 
   const [tagsSheetOpen, setTagsSheetOpen] = useState(false);
+  const [feedPickerSheetOpen, setFeedPickerSheetOpen] = useState(false);
 
   const [scrolled, setScrolled] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -429,7 +459,12 @@ export function SnapsFeedView({
   const segOpt = (k: SnapsFeedKey): FeedSegmentOption => ({
     id: k,
     label: finalLabels[k],
-    avatarUrl: finalAvatars[k],
+    // 'following' has no single container account backing it, so it gets
+    // an icon instead of an avatar image — avatarUrl must stay undefined
+    // (not '') since FeedSegmentControl/SnapsFeedSidebarNav prefer
+    // avatarUrl over icon whenever it's truthy.
+    avatarUrl: k === 'following' ? undefined : finalAvatars[k],
+    icon: k === 'following' ? <Users className="h-4 w-4" /> : undefined,
   });
 
   const sharedListProps = {
@@ -532,9 +567,11 @@ export function SnapsFeedView({
       : []),
   ];
   const mobileValue = selection.kind === 'tag' ? TAGS_PILL_ID : selection.feed;
+  const activeMobileOption = mobileOptions.find((o) => o.id === mobileValue) ?? mobileOptions[0];
 
   const showSidebarLayout = desktopNav === 'sidebar';
   const showTagsRail = showSidebarLayout && tagsEnabled;
+  const useDropdownNav = mobileNav === 'dropdown';
 
   return (
     <div
@@ -552,12 +589,13 @@ export function SnapsFeedView({
           existing consumers (e.g. CommunitySnapsTab) that don't pass it
           keep the original top-pill layout untouched. */}
       {showSidebarLayout && (
-        <aside className="hidden md:block md:sticky md:top-0 md:max-h-screen md:overflow-y-auto">
+        <aside className="hidden md:flex md:flex-col md:gap-4 md:sticky md:top-0 md:max-h-screen md:overflow-y-auto">
           <SnapsFeedSidebarNav
             options={feedOptions.map(segOpt)}
             activeFeed={activeFeedForHighlight}
             onSelect={(id) => { if (isFeedKey(id)) selectFeed(id); }}
           />
+          {whoToFollow}
         </aside>
       )}
 
@@ -567,14 +605,30 @@ export function SnapsFeedView({
               left rail takes over on desktop). On the legacy top-pills
               layout it's shown at every width, unchanged. */}
           <div className={`overflow-x-auto min-w-0 flex-1 scrollbar-none ${showSidebarLayout ? 'md:hidden' : ''}`}>
-            <FeedSegmentControl
-              options={mobileOptions}
-              value={mobileValue}
-              onChange={(id) => {
-                if (id === TAGS_PILL_ID) { setTagsSheetOpen(true); return; }
-                if (isFeedKey(id)) selectFeed(id);
-              }}
-            />
+            {useDropdownNav ? (
+              <button
+                type="button"
+                onClick={() => setFeedPickerSheetOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-sm font-medium text-[var(--hrk-text-primary)]"
+              >
+                {activeMobileOption?.avatarUrl ? (
+                  <img src={activeMobileOption.avatarUrl} alt="" className="h-4 w-4 shrink-0 rounded-full object-cover" />
+                ) : activeMobileOption?.icon ? (
+                  <span className="shrink-0 flex items-center">{activeMobileOption.icon}</span>
+                ) : null}
+                <span className="truncate">{activeMobileOption?.label}</span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--hrk-text-tertiary)]" />
+              </button>
+            ) : (
+              <FeedSegmentControl
+                options={mobileOptions}
+                value={mobileValue}
+                onChange={(id) => {
+                  if (id === TAGS_PILL_ID) { setTagsSheetOpen(true); return; }
+                  if (isFeedKey(id)) selectFeed(id);
+                }}
+              />
+            )}
           </div>
           {toolbar && (
             <div className="shrink-0">
@@ -582,6 +636,11 @@ export function SnapsFeedView({
             </div>
           )}
         </div>
+        {whoToFollow && (
+          <div className={showSidebarLayout ? 'md:hidden' : ''}>
+            {whoToFollow}
+          </div>
+        )}
         <div className="relative flex flex-col">
           {showPill && (
             <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
@@ -637,6 +696,27 @@ export function SnapsFeedView({
           loading={trendingTagsLoading}
           activeTag={activeTagForHighlight}
           onSelectTag={selectTag}
+        />
+      )}
+
+      {useDropdownNav && (
+        <FeedPickerBottomSheet
+          isOpen={feedPickerSheetOpen}
+          onClose={() => setFeedPickerSheetOpen(false)}
+          options={mobileOptions}
+          value={mobileValue}
+          onSelect={(id) => {
+            if (id === TAGS_PILL_ID) {
+              // Sequential, not nested — leave this sheet and go straight
+              // into the existing trending-tags sheet instead of stacking
+              // two sheets on top of each other.
+              setFeedPickerSheetOpen(false);
+              setTagsSheetOpen(true);
+              return;
+            }
+            if (isFeedKey(id)) selectFeed(id);
+            setFeedPickerSheetOpen(false);
+          }}
         />
       )}
     </div>
