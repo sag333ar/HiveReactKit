@@ -1092,6 +1092,7 @@ export function PostActionButton({
         <RewardsModal
           onClose={() => setShowRewardsModal(false)}
           details={payoutDetails}
+          author={author}
           hiveIconUrl={hiveIconUrl}
         />
       )}

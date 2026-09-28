@@ -43,6 +43,11 @@ export interface RewardsModalPayoutDetails {
 interface RewardsModalProps {
   onClose: () => void;
   details: RewardsModalPayoutDetails;
+  /** The post/comment's author — added as the final row of the payout
+   *  recipients list (its "who gets what" is otherwise only
+   *  beneficiaries). Omit only if genuinely unavailable; the recipients
+   *  list is skipped entirely without it. */
+  author?: string;
   /** Optional avatar URL builder for beneficiary rows. Defaults to
    *  `https://images.hive.blog/u/<account>/avatar`. */
   avatarUrlFn?: (account: string) => string;
@@ -69,7 +74,7 @@ function formatRemaining(iso: string): string | null {
 
 const FALLBACK_HBD_PER_HIVE = 0.134; // ~ 1 HBD ≈ 7.46 Hive when feed is unavailable.
 
-export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: RewardsModalProps) {
+export function RewardsModal({ onClose, details, author, avatarUrlFn, hiveIconUrl }: RewardsModalProps) {
   const { pendingValue, authorValue, curatorValue, totalValue, isPaidout, payoutAt, percentHbd, beneficiaries } = details;
 
   // HBD-per-Hive ratio from `get_current_median_history_price`.
@@ -157,6 +162,14 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
   const authorNetHbd = perPartyHbd * authorNetFraction;
   const authorNetHpHive = perPartyHpHive * authorNetFraction;
 
+  // The author's 50% share, split among beneficiaries and the author
+  // themself — one flat "who gets what" list rather than a separate
+  // gross/beneficiaries/net breakdown.
+  const recipientRows = [
+    ...beneficiaryRows,
+    ...(author ? [{ account: author, weight: 0, pct: authorNetFraction * 100, hbd: authorNetHbd, hpHive: authorNetHpHive }] : []),
+  ];
+
   const modeLabel = isPoweredUp
     ? 'Hive Rewards · 100% Powered Up'
     : `Hive Rewards · ${(hbdFraction * 100).toFixed(0)}% HBD / ${((1 - hbdFraction) * 100).toFixed(0)}% HP`;
@@ -241,105 +254,43 @@ export function RewardsModal({ onClose, details, avatarUrlFn, hiveIconUrl }: Rew
             fmt={fmt}
           />
 
-          <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-[var(--hrk-text-secondary)]">
-              <span>Author (50%)</span>
-              {totalBeneficiaryWeight > 0 && (
-                <span className="text-[10px] font-normal text-[var(--hrk-text-tertiary)]">
-                  − {(totalBeneficiaryWeight / 100).toFixed(2)}% to beneficiaries
-                </span>
-              )}
-            </div>
-
-            {/* Gross author share (before beneficiary cuts) */}
-            {totalBeneficiaryWeight > 0 && (
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
-                Gross share
-              </div>
-            )}
-            {isPoweredUp ? (
-              <Row
-                label="Hive Power"
-                value={`${fmt(perPartyHpHive)} Hive Power`}
-                subtle="100% as Hive Power"
-              />
-            ) : (
-              <>
-                <Row
-                  label="HBD"
-                  value={`${fmt(perPartyHbd)} HBD`}
-                  subtle={`${(hbdFraction * 100).toFixed(0)}% as HBD`}
-                />
-                <Row
-                  label="Hive Power"
-                  value={`${fmt(perPartyHpHive)} Hive Power`}
-                  subtle={`${((1 - hbdFraction) * 100).toFixed(0)}% as Hive Power`}
-                />
-              </>
-            )}
-
-            {/* Beneficiaries — each row shows the actual HBD/HP slice
-                they receive, computed from the author's share. */}
-            {beneficiaryRows.length > 0 && (
-              <>
-                <div className="my-2 border-t border-[var(--hrk-border-default)]" />
-                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
-                  Beneficiaries take their cut
-                </div>
-                <ul className="space-y-1.5">
-                  {beneficiaryRows.map((b) => (
-                    <li
-                      key={`${b.account}-${b.weight}`}
-                      className="flex items-center gap-2.5 rounded-md bg-[var(--hrk-bg-surface-sunken)]/60 px-2 py-1.5"
-                    >
-                      <img
-                        src={(avatarUrlFn ?? ((a) => `https://images.hive.blog/u/${a}/avatar`))(b.account)}
-                        alt={b.account}
-                        className="h-7 w-7 shrink-0 rounded-full bg-gray-700"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${b.account}&background=random`;
-                        }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-xs text-white">{b.account}</span>
-                          <span className="shrink-0 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
-                            {b.pct.toFixed(2)}%
-                          </span>
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[10px] text-[var(--hrk-text-tertiary)]">
-                          {!isPoweredUp && b.hbd > 0 && (
-                            <span className="tabular-nums">{fmt(b.hbd)} HBD</span>
-                          )}
-                          {b.hpHive > 0 && (
-                            <span className="tabular-nums">{fmt(b.hpHive)} Hive Power</span>
-                          )}
-                        </div>
+          {recipientRows.length > 0 && (
+            <div className="rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] p-3">
+              <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-0.5">
+                {recipientRows.map((r) => (
+                  <li
+                    key={r.account}
+                    className="flex items-center gap-2.5 rounded-md bg-[var(--hrk-bg-surface-sunken)]/60 px-2 py-1.5"
+                  >
+                    <img
+                      src={(avatarUrlFn ?? ((a) => `https://images.hive.blog/u/${a}/avatar`))(r.account)}
+                      alt={r.account}
+                      className="h-7 w-7 shrink-0 rounded-full bg-gray-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${r.account}&background=random`;
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs text-white">{r.account}</span>
+                        <span className="shrink-0 text-[10px] font-medium text-[var(--hrk-text-tertiary)]">
+                          {r.pct.toFixed(2)}%
+                        </span>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* Author's net take after beneficiary deductions */}
-                <div className="my-2 border-t border-[var(--hrk-border-default)]" />
-                <div className="mb-1.5 text-[10px] uppercase tracking-wide text-[var(--hrk-text-tertiary)]">
-                  Author take (net)
-                </div>
-                {isPoweredUp ? (
-                  <Row
-                    label="Hive Power"
-                    value={`${fmt(authorNetHpHive)} Hive Power`}
-                    bold
-                  />
-                ) : (
-                  <>
-                    <Row label="HBD" value={`${fmt(authorNetHbd)} HBD`} bold />
-                    <Row label="Hive Power" value={`${fmt(authorNetHpHive)} Hive Power`} bold />
-                  </>
-                )}
-              </>
-            )}
-          </div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[10px] text-[var(--hrk-text-tertiary)]">
+                        {!isPoweredUp && r.hbd > 0 && (
+                          <span className="tabular-nums">{fmt(r.hbd)} HBD</span>
+                        )}
+                        {r.hpHive > 0 && (
+                          <span className="tabular-nums">{fmt(r.hpHive)} Hive Power</span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>

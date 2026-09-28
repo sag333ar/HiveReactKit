@@ -264,6 +264,7 @@ const VideoCard = ({
       {showRewards && (
         <RewardsModal
           onClose={() => setShowRewards(false)}
+          author={video.author}
           details={rewardsDetails ?? {
             pendingValue: stats.hiveValue ?? 0,
             authorValue: 0,

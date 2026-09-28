@@ -974,6 +974,7 @@ export default function InlineCommentItem({
               <RewardsModal
                 onClose={() => setShowRewardsModal(false)}
                 details={payoutDetails}
+                author={comment.author}
                 hiveIconUrl={hiveIconUrl}
               />
             )}
