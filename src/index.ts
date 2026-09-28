@@ -157,6 +157,7 @@ export {
   VOTE_WINDOW_MESSAGE,
 } from './utils/voteAge';
 export { getReputationDetails, formatReputation, isNegativeReputation } from './utils/reputation';
+export { RESTRICTED_DIRECT_VOTE_ACCOUNTS, isRestrictedDirectVoter } from './utils/postVotes';
 
 // Re-exports from @snapie/renderer — Hive markdown renderer used internally
 // by HiveDetailPost / AddCommentInput / InlineCommentItem. Surfaced so
