@@ -246,11 +246,12 @@ export interface SnapsFeedViewProps {
   /**
    * Optional render slot for a "Who to follow" widget — an arbitrary,
    * host-owned block (data + styling entirely up to the host, mirrors
-   * `toolbar`/`footer` as pass-through slots). When `desktopNav="sidebar"`,
-   * rendered directly below `<SnapsFeedSidebarNav/>` inside the same left
-   * `<aside>`. On mobile, rendered directly below the feed-picker row
-   * (pills or dropdown trigger), before the feed body. The host is
-   * responsible for making its own internal markup responsive.
+   * `toolbar`/`footer` as pass-through slots). Only rendered when
+   * `desktopNav="sidebar"`, directly below `<SnapsFeedSidebarNav/>` inside
+   * the same left `<aside>` — which is itself desktop-only (`hidden
+   * md:flex`), so this never shows on mobile at all; there's no spare
+   * room for it in a phone-width feed. Has no effect under the default
+   * `desktopNav="topPills"`.
    */
   whoToFollow?: ReactNode;
   /**
@@ -620,11 +621,16 @@ export function SnapsFeedView({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <div className="sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2">
-          {/* On the sidebar layout, the pill row is mobile-only (the
-              left rail takes over on desktop). On the legacy top-pills
-              layout it's shown at every width, unchanged. */}
-          <div className={`overflow-x-auto min-w-0 flex-1 scrollbar-none ${showSidebarLayout ? 'md:hidden' : ''}`}>
+        <div className={`sticky top-0 z-20 -mx-2 bg-[var(--hrk-bg-app)]/85 px-2 py-1.5 backdrop-blur flex items-center justify-between gap-2 ${showSidebarLayout ? 'md:hidden' : ''}`}>
+          {/* On the sidebar layout, this WHOLE row (pill row + toolbar) is
+              mobile-only (the left rail takes over navigation on desktop,
+              and any toolbar content the host passes is meant for mobile
+              only too — e.g. SnapsUnifiedPage's own toolbar doc comment).
+              Hiding just the pill row and leaving this wrapper's padding
+              behind left an empty sticky bar floating above the feed on
+              desktop. On the legacy top-pills layout it's shown at every
+              width, unchanged. */}
+          <div className="overflow-x-auto min-w-0 flex-1 scrollbar-none">
             {useDropdownNav ? (
               <button
                 type="button"
@@ -656,11 +662,6 @@ export function SnapsFeedView({
             </div>
           )}
         </div>
-        {whoToFollow && (
-          <div className={showSidebarLayout ? 'md:hidden' : ''}>
-            {whoToFollow}
-          </div>
-        )}
         <div className="relative flex flex-col">
           {showPill && (
             <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
