@@ -44,7 +44,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
-import { ArrowUp, Hash, Users, ChevronDown } from 'lucide-react';
+import { ArrowUp, Hash, Users, Globe, ChevronDown } from 'lucide-react';
 import FeedSegmentControl, { type FeedSegmentOption } from './FeedSegmentControl';
 import SnapsFeedSidebarNav from './SnapsFeedSidebarNav';
 import TrendingTagsPanel, { type SnapsTrendingTag } from './TrendingTagsPanel';
@@ -52,7 +52,7 @@ import TagsBottomSheet from './TagsBottomSheet';
 import FeedPickerBottomSheet from './FeedPickerBottomSheet';
 import type { RewardOption } from '../../utils/commentOptions';
 
-export type SnapsFeedKey = 'snaps' | 'ecency' | 'threads' | 'liketu' | 'slothbuzz' | 'following';
+export type SnapsFeedKey = 'snaps' | 'ecency' | 'threads' | 'liketu' | 'slothbuzz' | 'following' | 'all';
 
 export type { SnapsTrendingTag };
 
@@ -81,6 +81,9 @@ export interface SnapsFeedSlot {
 
 export interface SnapsFeedViewProps {
   feeds: Record<SnapsFeedKey, SnapsFeedSlot>;
+
+  /** Optional controlled active feed key */
+  activeFeed?: SnapsFeedKey;
 
   /** Override per-feed display name (default labels: Snaps / Ecency / Threads / Liketu / SlothBuzz). */
   labels?: Partial<Record<SnapsFeedKey, string>>;
@@ -308,6 +311,7 @@ const DEFAULT_LABELS: Record<SnapsFeedKey, string> = {
   liketu: 'Moments',
   slothbuzz: 'Hangs',
   following: 'Following',
+  all: 'All',
 };
 
 const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
@@ -316,13 +320,14 @@ const DEFAULT_AVATARS: Record<SnapsFeedKey, string> = {
   threads: 'https://images.hive.blog/u/leothreads/avatar',
   liketu: 'https://images.hive.blog/u/liketu.moments/avatar',
   slothbuzz: 'https://images.hive.blog/u/slothbuzz.hangs/avatar',
-  // No single container account backs "Following" — unused for rendering
-  // (segOpt() special-cases this key to use an icon instead), kept here
+  // No single container account backs "Following" or "All" — unused for rendering
+  // (segOpt() special-cases these keys to use an icon instead), kept here
   // only so this stays a total Record<SnapsFeedKey, string>.
   following: '',
+  all: '',
 };
 
-const FEED_KEYS: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz', 'following'];
+const FEED_KEYS: SnapsFeedKey[] = ['snaps', 'ecency', 'threads', 'liketu', 'slothbuzz', 'following', 'all'];
 
 function isFeedKey(id: string): id is SnapsFeedKey {
   return (FEED_KEYS as string[]).includes(id);
@@ -342,6 +347,7 @@ const TAGS_PILL_ID = '__tags__';
 
 export function SnapsFeedView({
   feeds,
+  activeFeed,
   labels,
   avatars,
   enabledFeeds,
@@ -423,12 +429,26 @@ export function SnapsFeedView({
   // the module-level cache so the user lands back on the same thing they
   // were viewing before navigating to a post.
   const [selection, setSelection] = useState<SnapsFeedSelection>(() => {
+    if (activeFeed && isFeedKey(activeFeed) && feedOptions.includes(activeFeed)) {
+      return { kind: 'feed', feed: activeFeed };
+    }
     if (lastSelection) {
       if (lastSelection.kind === 'feed' && isFeedKey(lastSelection.feed) && feedOptions.includes(lastSelection.feed)) return lastSelection;
       if (lastSelection.kind === 'tag' && tagsEnabled) return lastSelection;
     }
     return { kind: 'feed', feed: defaultPrimary };
   });
+
+  // Sync if controlled activeFeed prop changes
+  useEffect(() => {
+    if (activeFeed && isFeedKey(activeFeed)) {
+      setSelection((prev) => {
+        if (prev.kind === 'feed' && prev.feed === activeFeed) return prev;
+        return { kind: 'feed', feed: activeFeed };
+      });
+    }
+  }, [activeFeed]);
+
   // Keep the module cache in sync on every change.
   useEffect(() => {
     lastSelection = selection;
@@ -436,8 +456,14 @@ export function SnapsFeedView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection]);
 
-  const selectFeed = (feed: SnapsFeedKey) => setSelection({ kind: 'feed', feed });
-  const selectTag = (tag: string) => setSelection({ kind: 'tag', tag });
+  const selectFeed = (feed: SnapsFeedKey) => {
+    setSelection({ kind: 'feed', feed });
+    if (onSelectionChange) onSelectionChange({ kind: 'feed', feed });
+  };
+  const selectTag = (tag: string) => {
+    setSelection({ kind: 'tag', tag });
+    if (onSelectionChange) onSelectionChange({ kind: 'tag', tag });
+  };
 
   const [tagsSheetOpen, setTagsSheetOpen] = useState(false);
   const [feedPickerSheetOpen, setFeedPickerSheetOpen] = useState(false);
@@ -482,12 +508,12 @@ export function SnapsFeedView({
   const segOpt = (k: SnapsFeedKey): FeedSegmentOption => ({
     id: k,
     label: finalLabels[k],
-    // 'following' has no single container account backing it, so it gets
+    // 'following' and 'all' have no single container account backing them, so they get
     // an icon instead of an avatar image — avatarUrl must stay undefined
     // (not '') since FeedSegmentControl/SnapsFeedSidebarNav prefer
     // avatarUrl over icon whenever it's truthy.
-    avatarUrl: k === 'following' ? undefined : finalAvatars[k],
-    icon: k === 'following' ? <Users className="h-4 w-4" /> : undefined,
+    avatarUrl: (k === 'following' || k === 'all') ? undefined : finalAvatars[k],
+    icon: k === 'following' ? <Users className="h-4 w-4" /> : k === 'all' ? <Globe className="h-4 w-4" /> : undefined,
   });
 
   const sharedListProps = {

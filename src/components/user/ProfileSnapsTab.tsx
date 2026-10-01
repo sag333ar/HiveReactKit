@@ -424,6 +424,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       // satisfies the (now-total) SnapsFeedKey union without inventing
       // following-feed behavior for this surface.
       following: { posts: [], loading: false, hasMore: false, error: null },
+      all: { posts: [], loading: false, hasMore: false, error: null },
     }),
     [state, filterPost, loadMore],
   );
