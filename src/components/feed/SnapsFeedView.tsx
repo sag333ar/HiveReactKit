@@ -149,15 +149,17 @@ export interface SnapsFeedViewProps {
   tagFeed?: SnapsFeedSlot;
 
   /**
-   * Optional mixed-source timeline. When provided, mixable ids (typically
-   * `snaps` / `ecency` / `liketu`) render as checkboxes in the desktop
-   * sidebar and the mobile feed-picker sheet. Checking all three is the
-   * old "All" feed — there is no separate All nav item. Default selection
-   * is `{ kind: 'mix' }` whenever this array is passed.
+   * Optional mixed-source timeline. When provided, those ids render a
+   * checkbox in the desktop sidebar and the mobile feed-picker sheet.
+   * Clicking a row label exclusive-selects that feed (`onMixExclusiveSelect`);
+   * ticking extra checkboxes merges feeds (`onMixSourceChange`). Default
+   * selection is `{ kind: 'mix' }` whenever this array is passed.
    */
   mixSources?: SnapsMixSource[];
   /** Host-owned toggle. The kit also refuses to uncheck the last source. */
   onMixSourceChange?: (id: SnapsFeedKey, checked: boolean) => void;
+  /** Row-label click: host should check only this source. */
+  onMixExclusiveSelect?: (id: SnapsFeedKey) => void;
   /** Body rendered while `selection.kind === 'mix'`. */
   mixFeed?: SnapsFeedSlot;
 
@@ -379,6 +381,7 @@ export function SnapsFeedView({
   tagFeed,
   mixSources,
   onMixSourceChange,
+  onMixExclusiveSelect,
   mixFeed,
   currentUser,
   observer,
@@ -447,7 +450,7 @@ export function SnapsFeedView({
   // module-level cache is shared across every SnapsFeedView instance
   // app-wide and different consumers can enable different subsets.
   const feedOptions: SnapsFeedKey[] = (enabledFeeds ?? FEED_KEYS).filter(
-    (k) => !(mixEnabled && k === 'all'),
+    (k) => !(mixEnabled && k === 'all' && !mixById.has('all')),
   );
 
   // The selection picks which single thing is mounted — a named feed,
@@ -513,8 +516,12 @@ export function SnapsFeedView({
 
   const handleMixActivate = (id: string) => {
     if (!isFeedKey(id)) return;
-    const src = mixById.get(id);
-    if (src && !src.checked) onMixSourceChange?.(id, true);
+    if (onMixExclusiveSelect) {
+      onMixExclusiveSelect(id);
+    } else {
+      const src = mixById.get(id);
+      if (src && !src.checked) onMixSourceChange?.(id, true);
+    }
     selectMix();
   };
 

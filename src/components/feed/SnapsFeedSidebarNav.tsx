@@ -7,10 +7,9 @@
  * one *body* active at a time; `activeFeed` is null when a trending tag
  * or the mixed timeline is showing, so no radio row highlights.
  *
- * When the host opts into mixed sources (`mixSources`), the mixable
- * rows (typically Snaps / Waves / Moments) render a checkbox instead of
- * radio-selecting a single feed. Toggling a checkbox updates the mix;
- * clicking Threads / Hangs / Following still selects that one feed.
+ * When the host opts into mixed sources (`mixSources`), those rows
+ * always render a checkbox (checked or not). Clicking the label
+ * exclusive-selects that feed; ticking extra boxes merges feeds.
  */
 import type { FeedSegmentOption } from './FeedSegmentControl';
 
@@ -80,7 +79,7 @@ export function SnapsFeedSidebarNav({
                 checked={mixEntry.checked}
                 onChange={(e) => onMixToggle?.(opt.id, e.target.checked)}
                 aria-label={`Include ${opt.label} in mixed feed`}
-                className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--hrk-brand)]"
+                className="h-4 w-4 shrink-0 cursor-pointer rounded-[3px] border-2 border-[var(--hrk-text-secondary)] bg-white accent-[var(--hrk-brand)]"
               />
             </div>
           );

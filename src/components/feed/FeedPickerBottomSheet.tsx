@@ -10,9 +10,9 @@
  * feed options" treatment in the kit.
  *
  * When the host opts into mixed sources (`mixSources`), mixable rows
- * render a checkbox (same behavior as the desktop sidebar) so mixing
- * Snaps / Waves / Moments is not desktop-only. Radio rows (Threads /
- * Hangs / Following / Tags) still close the sheet on select.
+ * always render a checkbox (same as the desktop sidebar). Clicking the
+ * label exclusive-selects; extra checks merge. Rows without mixSources
+ * still close the sheet on select.
  */
 import { Check, X } from 'lucide-react';
 import type { FeedSegmentOption } from './FeedSegmentControl';
@@ -104,7 +104,7 @@ export function FeedPickerBottomSheet({
                     checked={mixEntry.checked}
                     onChange={(e) => onMixToggle?.(opt.id, e.target.checked)}
                     aria-label={`Include ${opt.label} in mixed feed`}
-                    className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--hrk-brand)]"
+                    className="h-4 w-4 shrink-0 cursor-pointer rounded-[3px] border-2 border-[var(--hrk-text-secondary)] bg-white accent-[var(--hrk-brand)]"
                   />
                 </div>
               );
