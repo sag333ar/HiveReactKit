@@ -8,9 +8,19 @@
  * Rows mirror `SnapsFeedSidebarNav`'s active-row styling (solid brand
  * background + white text) since that's the closest existing "list of
  * feed options" treatment in the kit.
+ *
+ * When the host opts into mixed sources (`mixSources`), mixable rows
+ * render a checkbox (same behavior as the desktop sidebar) so mixing
+ * Snaps / Waves / Moments is not desktop-only. Radio rows (Threads /
+ * Hangs / Following / Tags) still close the sheet on select.
  */
 import { Check, X } from 'lucide-react';
 import type { FeedSegmentOption } from './FeedSegmentControl';
+
+export interface SnapsSheetMixSource {
+  id: string;
+  checked: boolean;
+}
 
 export interface FeedPickerBottomSheetProps {
   isOpen: boolean;
@@ -18,6 +28,10 @@ export interface FeedPickerBottomSheetProps {
   options: FeedSegmentOption[];
   value: string;
   onSelect: (id: string) => void;
+  mixSources?: SnapsSheetMixSource[];
+  mixActive?: boolean;
+  onMixToggle?: (id: string, checked: boolean) => void;
+  onMixActivate?: (id: string) => void;
 }
 
 export function FeedPickerBottomSheet({
@@ -26,8 +40,14 @@ export function FeedPickerBottomSheet({
   options,
   value,
   onSelect,
+  mixSources,
+  mixActive = false,
+  onMixToggle,
+  onMixActivate,
 }: FeedPickerBottomSheetProps) {
   if (!isOpen) return null;
+
+  const mixById = new Map((mixSources ?? []).map((s) => [s.id, s]));
 
   return (
     <div
@@ -53,6 +73,43 @@ export function FeedPickerBottomSheet({
         </div>
         <div className="flex flex-col gap-1">
           {options.map((opt) => {
+            const mixEntry = mixById.get(opt.id);
+            const isMixable = !!mixEntry;
+
+            if (isMixable) {
+              const isActive = mixActive && mixEntry.checked;
+              return (
+                <div
+                  key={opt.id}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-[var(--hrk-bg-hover)] text-[var(--hrk-text-primary)]'
+                      : 'text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-hover)] hover:text-[var(--hrk-text-primary)]'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onMixActivate?.(opt.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    {opt.avatarUrl ? (
+                      <img src={opt.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                    ) : opt.icon ? (
+                      <span className="shrink-0 flex items-center">{opt.icon}</span>
+                    ) : null}
+                    <span className="truncate flex-1">{opt.label}</span>
+                  </button>
+                  <input
+                    type="checkbox"
+                    checked={mixEntry.checked}
+                    onChange={(e) => onMixToggle?.(opt.id, e.target.checked)}
+                    aria-label={`Include ${opt.label} in mixed feed`}
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-[var(--hrk-brand)]"
+                  />
+                </div>
+              );
+            }
+
             const isActive = value === opt.id;
             return (
               <button

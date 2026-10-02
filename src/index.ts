@@ -31,6 +31,7 @@ export {
   type SnapsFeedSlot,
   type SnapsFeedKey,
   type SnapsFeedSelection,
+  type SnapsMixSource,
   type SnapsTrendingTag,
 } from './components/feed/SnapsFeedView';
 export {

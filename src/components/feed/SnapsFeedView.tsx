@@ -64,7 +64,15 @@ export type { SnapsTrendingTag };
  */
 export type SnapsFeedSelection =
   | { kind: 'feed'; feed: SnapsFeedKey }
-  | { kind: 'tag'; tag: string };
+  | { kind: 'tag'; tag: string }
+  | { kind: 'mix' };
+
+/** A mixable source the host can expose as a checkbox (Snaps / Waves / Moments). */
+export interface SnapsMixSource {
+  id: SnapsFeedKey;
+  label: string;
+  checked: boolean;
+}
 
 export interface SnapsFeedSlot {
   posts: Post[];
@@ -139,6 +147,19 @@ export interface SnapsFeedViewProps {
    * upstream).
    */
   tagFeed?: SnapsFeedSlot;
+
+  /**
+   * Optional mixed-source timeline. When provided, mixable ids (typically
+   * `snaps` / `ecency` / `liketu`) render as checkboxes in the desktop
+   * sidebar and the mobile feed-picker sheet. Checking all three is the
+   * old "All" feed — there is no separate All nav item. Default selection
+   * is `{ kind: 'mix' }` whenever this array is passed.
+   */
+  mixSources?: SnapsMixSource[];
+  /** Host-owned toggle. The kit also refuses to uncheck the last source. */
+  onMixSourceChange?: (id: SnapsFeedKey, checked: boolean) => void;
+  /** Body rendered while `selection.kind === 'mix'`. */
+  mixFeed?: SnapsFeedSlot;
 
   /** Logged-in observer username (drives auth-gated buttons inside post cards). */
   currentUser?: string;
@@ -249,12 +270,12 @@ export interface SnapsFeedViewProps {
   /**
    * Optional render slot for a "Who to follow" widget — an arbitrary,
    * host-owned block (data + styling entirely up to the host, mirrors
-   * `toolbar`/`footer` as pass-through slots). Only rendered when
-   * `desktopNav="sidebar"`, directly below `<SnapsFeedSidebarNav/>` inside
-   * the same left `<aside>` — which is itself desktop-only (`hidden
-   * md:flex`), so this never shows on mobile at all; there's no spare
-   * room for it in a phone-width feed. Has no effect under the default
-   * `desktopNav="topPills"`.
+   * `toolbar`/`footer` as pass-through slots). Rendered in two places
+   * when `desktopNav="sidebar"`: the desktop left rail (below the feed
+   * nav) and a `md:hidden` block under the mobile feed picker. The host
+   * can pass the same node; CSS in the widget should handle both
+   * layouts. Has no effect under the default `desktopNav="topPills"`
+   * except the inline (always-visible) placement.
    */
   whoToFollow?: ReactNode;
   /**
@@ -356,6 +377,9 @@ export function SnapsFeedView({
   trendingTags,
   trendingTagsLoading,
   tagFeed,
+  mixSources,
+  onMixSourceChange,
+  mixFeed,
   currentUser,
   observer,
   onUpvote,
@@ -413,6 +437,8 @@ export function SnapsFeedView({
   // every bit of tags UI — desktop right rail, mobile "Tags" entry
   // point, and the sheet.
   const tagsEnabled = Array.isArray(trendingTags);
+  const mixEnabled = Array.isArray(mixSources) && mixSources.length > 0;
+  const mixById = new Map((mixSources ?? []).map((s) => [s.id, s]));
 
   // Computed early (rather than alongside the other render-time consts
   // further down) so the selection initializer below can check against
@@ -420,22 +446,27 @@ export function SnapsFeedView({
   // consumer's own `enabledFeeds`, not just any SnapsFeedKey, since the
   // module-level cache is shared across every SnapsFeedView instance
   // app-wide and different consumers can enable different subsets.
-  const feedOptions: SnapsFeedKey[] = enabledFeeds ?? FEED_KEYS;
+  const feedOptions: SnapsFeedKey[] = (enabledFeeds ?? FEED_KEYS).filter(
+    (k) => !(mixEnabled && k === 'all'),
+  );
 
-  // The selection picks which single thing is mounted — a named feed or
-  // a trending tag — at every viewport width. Only the active selection's
-  // data is fetched/rendered/kept in memory; switching unmounts whatever
-  // was previously showing instead of just hiding it. Initialized from
-  // the module-level cache so the user lands back on the same thing they
-  // were viewing before navigating to a post.
+  // The selection picks which single thing is mounted — a named feed,
+  // a trending tag, or the mixed timeline — at every viewport width.
+  // Only the active selection's body is rendered; switching unmounts
+  // whatever was previously showing. Initialized from the module-level
+  // cache so the user lands back on the same thing they were viewing
+  // before navigating to a post. When the host opts into mixSources,
+  // mix is the default (checking all three = the old "All" feed).
   const [selection, setSelection] = useState<SnapsFeedSelection>(() => {
     if (activeFeed && isFeedKey(activeFeed) && feedOptions.includes(activeFeed)) {
       return { kind: 'feed', feed: activeFeed };
     }
     if (lastSelection) {
+      if (lastSelection.kind === 'mix' && mixEnabled) return lastSelection;
       if (lastSelection.kind === 'feed' && isFeedKey(lastSelection.feed) && feedOptions.includes(lastSelection.feed)) return lastSelection;
       if (lastSelection.kind === 'tag' && tagsEnabled) return lastSelection;
     }
+    if (mixEnabled) return { kind: 'mix' };
     return { kind: 'feed', feed: defaultPrimary };
   });
 
@@ -463,6 +494,28 @@ export function SnapsFeedView({
   const selectTag = (tag: string) => {
     setSelection({ kind: 'tag', tag });
     if (onSelectionChange) onSelectionChange({ kind: 'tag', tag });
+  };
+  const selectMix = () => {
+    setSelection({ kind: 'mix' });
+    if (onSelectionChange) onSelectionChange({ kind: 'mix' });
+  };
+
+  const handleMixToggle = (id: string, checked: boolean) => {
+    if (!isFeedKey(id)) return;
+    if (!checked) {
+      const checkedCount = (mixSources ?? []).filter((s) => s.checked).length;
+      const thisChecked = mixById.get(id)?.checked;
+      if (thisChecked && checkedCount <= 1) return;
+    }
+    onMixSourceChange?.(id, checked);
+    selectMix();
+  };
+
+  const handleMixActivate = (id: string) => {
+    if (!isFeedKey(id)) return;
+    const src = mixById.get(id);
+    if (src && !src.checked) onMixSourceChange?.(id, true);
+    selectMix();
   };
 
   const [tagsSheetOpen, setTagsSheetOpen] = useState(false);
@@ -566,12 +619,18 @@ export function SnapsFeedView({
    *  and mounts a fresh one for the newly-selected feed/tag, so nothing
    *  else is ever kept mounted/in memory at the same time. */
   const renderBody = () => {
-    const slot = selection.kind === 'feed' ? feeds[selection.feed] : tagFeed;
+    const slot = selection.kind === 'mix'
+      ? mixFeed
+      : selection.kind === 'feed'
+        ? feeds[selection.feed]
+        : tagFeed;
     // Guard: if the host hasn't wired up this slot yet, show nothing.
     if (!slot) return null;
-    const emptyLabel = selection.kind === 'feed'
-      ? finalLabels[selection.feed].toLowerCase()
-      : `#${selection.tag}`;
+    const emptyLabel = selection.kind === 'mix'
+      ? 'mixed'
+      : selection.kind === 'feed'
+        ? finalLabels[selection.feed].toLowerCase()
+        : `#${selection.tag}`;
     return (
       <>
         {slot.error && (
@@ -592,10 +651,24 @@ export function SnapsFeedView({
     );
   };
 
-  const activeSlot = selection.kind === 'feed' ? feeds[selection.feed] : tagFeed;
+  const activeSlot = selection.kind === 'mix'
+    ? mixFeed
+    : selection.kind === 'feed'
+      ? feeds[selection.feed]
+      : tagFeed;
   const showPill = !!(activeSlot && activeSlot.newCount && activeSlot.newCount > 0 && scrolled);
   const activeFeedForHighlight = selection.kind === 'feed' ? selection.feed : null;
   const activeTagForHighlight = selection.kind === 'tag' ? selection.tag : null;
+  const mixActive = selection.kind === 'mix';
+  const mixTriggerLabel = (mixSources ?? [])
+    .filter((s) => s.checked)
+    .map((s) => s.label)
+    .join(' · ') || 'Mixed';
+  const mixTriggerAvatars = (mixSources ?? [])
+    .filter((s) => s.checked)
+    .map((s) => finalAvatars[s.id])
+    .filter(Boolean)
+    .slice(0, 3);
 
   // Mobile pill row: the 5 named feeds, plus (when the host opted into
   // trending tags) one more entry — "Tags" normally, or the active
@@ -613,7 +686,11 @@ export function SnapsFeedView({
         }]
       : []),
   ];
-  const mobileValue = selection.kind === 'tag' ? TAGS_PILL_ID : selection.feed;
+  const mobileValue = selection.kind === 'tag'
+    ? TAGS_PILL_ID
+    : selection.kind === 'feed'
+      ? selection.feed
+      : '__mix__';
   const activeMobileOption = mobileOptions.find((o) => o.id === mobileValue) ?? mobileOptions[0];
 
   const showSidebarLayout = desktopNav === 'sidebar';
@@ -641,6 +718,10 @@ export function SnapsFeedView({
             options={feedOptions.map(segOpt)}
             activeFeed={activeFeedForHighlight}
             onSelect={(id) => { if (isFeedKey(id)) selectFeed(id); }}
+            mixSources={mixEnabled ? mixSources : undefined}
+            mixActive={mixActive}
+            onMixToggle={handleMixToggle}
+            onMixActivate={handleMixActivate}
           />
           {whoToFollow}
         </aside>
@@ -663,12 +744,25 @@ export function SnapsFeedView({
                 onClick={() => setFeedPickerSheetOpen(true)}
                 className="inline-flex items-center gap-2 rounded-lg border border-[var(--hrk-border-default)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-sm font-medium text-[var(--hrk-text-primary)]"
               >
-                {activeMobileOption?.avatarUrl ? (
+                {mixActive && mixEnabled ? (
+                  <>
+                    {mixTriggerAvatars.length > 0 && (
+                      <span className="flex -space-x-1.5 shrink-0">
+                        {mixTriggerAvatars.map((url) => (
+                          <img key={url} src={url} alt="" className="h-4 w-4 rounded-full object-cover ring-1 ring-[var(--hrk-bg-surface)]" />
+                        ))}
+                      </span>
+                    )}
+                    <span className="truncate">{mixTriggerLabel}</span>
+                  </>
+                ) : activeMobileOption?.avatarUrl ? (
                   <img src={activeMobileOption.avatarUrl} alt="" className="h-4 w-4 shrink-0 rounded-full object-cover" />
                 ) : activeMobileOption?.icon ? (
                   <span className="shrink-0 flex items-center">{activeMobileOption.icon}</span>
                 ) : null}
-                <span className="truncate">{activeMobileOption?.label}</span>
+                {!(mixActive && mixEnabled) && (
+                  <span className="truncate">{activeMobileOption?.label}</span>
+                )}
                 <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--hrk-text-tertiary)]" />
               </button>
             ) : (
@@ -688,6 +782,11 @@ export function SnapsFeedView({
             </div>
           )}
         </div>
+        {whoToFollow && (
+          <div className={showSidebarLayout ? 'md:hidden' : ''}>
+            {whoToFollow}
+          </div>
+        )}
         <div className="relative flex flex-col">
           {showPill && (
             <div className="sticky top-14 left-0 right-0 z-30 h-0 overflow-visible flex justify-center pointer-events-none">
@@ -752,6 +851,13 @@ export function SnapsFeedView({
           onClose={() => setFeedPickerSheetOpen(false)}
           options={mobileOptions}
           value={mobileValue}
+          mixSources={mixEnabled ? mixSources : undefined}
+          mixActive={mixActive}
+          onMixToggle={handleMixToggle}
+          onMixActivate={(id) => {
+            handleMixActivate(id);
+            setFeedPickerSheetOpen(false);
+          }}
           onSelect={(id) => {
             if (id === TAGS_PILL_ID) {
               // Sequential, not nested — leave this sheet and go straight
