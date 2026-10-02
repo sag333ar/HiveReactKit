@@ -29,6 +29,13 @@ export const SNAP_CLIENT_APPS: Record<string, Omit<SnapClientApp, 'id'>> = {
   liketu: { label: 'Liketu', iconUrl: HIVE_AVATAR('liketu.moments') },
   slothbuzz: { label: 'SlothBuzz', iconUrl: HIVE_AVATAR('slothbuzz.hangs') },
   snapie: { label: 'Snapie', iconUrl: 'https://snapie.io/favicon.ico' },
+  hivesnaps: { label: 'Snapie', iconUrl: 'https://snapie.io/favicon.ico' },
+  zingit: {
+    label: 'Zingit',
+    iconUrl: 'https://images.hive.blog/p/KWcVEiwEzuiCBTwfYuGBSPQDkk5ieAch4R8vog3KPVNbFrbEPjEs7vGr7JJ32vV3JSECh3TTxe3VUBRqBc?width=128&height=128',
+  },
+  'hive-grove': { label: 'Hive Grove', iconUrl: 'https://hivegrove.up.railway.app/favicon.ico' },
+  hivegrove: { label: 'Hive Grove', iconUrl: 'https://hivegrove.up.railway.app/favicon.ico' },
   hiveblog: { label: 'Hive.blog', iconUrl: HIVE_AVATAR('hiveio') },
   'hive.blog': { label: 'Hive.blog', iconUrl: HIVE_AVATAR('hiveio') },
 };
