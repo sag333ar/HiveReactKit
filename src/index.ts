@@ -73,6 +73,12 @@ export {
   isFirstContextPost,
   type Web2Identity,
 } from './components/feed/AttachmentStrip';
+export {
+  resolveSnapClientApp,
+  snapClientAppId,
+  SNAP_CLIENT_APPS,
+  type SnapClientApp,
+} from './utils/snapClientApp';
 export * from './utils/firstContext';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';

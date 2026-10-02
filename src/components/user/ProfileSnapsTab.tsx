@@ -142,6 +142,9 @@ export interface ProfileSnapsTabProps {
   /** Per-card right-side header action menu slot (e.g. Edit / Flag). */
   renderHeaderActions?: (post: Post) => ReactNode;
 
+  /** Optional posting-client icon URL overrides. Forwarded to <SnapsFeedView/>. */
+  appIcons?: Partial<Record<string, string>>;
+
   isWeb2User?: boolean;
 
   /**

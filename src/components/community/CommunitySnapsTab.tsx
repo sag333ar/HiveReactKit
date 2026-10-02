@@ -105,6 +105,8 @@ export interface CommunitySnapsTabProps {
 
   /** Per-card right-side header action menu slot. */
   renderHeaderActions?: (post: Post) => ReactNode;
+  /** Optional posting-client icon URL overrides. Forwarded to <SnapsFeedView/>. */
+  appIcons?: Partial<Record<string, string>>;
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab. Forwarded into <SnapsFeedView/>. */
   actionsAsMenu?: boolean;

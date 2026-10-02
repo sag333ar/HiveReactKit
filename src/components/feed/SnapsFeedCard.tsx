@@ -34,6 +34,7 @@ import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePos
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX } from '../IpfsMedia';
 import { HiveLink } from '../common/HiveLink';
+import { resolveSnapClientApp } from '@/utils/snapClientApp';
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -157,6 +158,13 @@ export interface SnapsFeedCardProps {
    *  menu with Edit / Delete / Flag). Receives the post so the host can
    *  own edit/delete/flag state per card. */
   renderHeaderActions?: (post: Post) => ReactNode;
+
+  /**
+   * Optional icon URL overrides for the posting-client badge in the
+   * card header (keyed by `json_metadata.app` prefix, e.g. `hivesuite`,
+   * `peakd`, `ecency`). Hosts can point these at local logos.
+   */
+  appIcons?: Partial<Record<string, string>>;
 
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab menu inside the action bar. */
@@ -343,6 +351,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   awaitingWalletApproval,
   defaultReward,
   renderHeaderActions,
+  appIcons,
   actionsAsMenu,
   isWeb2User,
   disableIframePreviews,
@@ -374,6 +383,10 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   const isHivesuitePost = useMemo(
     () => hasHivesuiteFamilyTag(post),
     [post.json_metadata],
+  );
+  const clientApp = useMemo(
+    () => resolveSnapClientApp(post, appIcons),
+    [post.json_metadata, appIcons],
   );
   const web2Identity = useMemo(
     () => getWeb2Identity(post.author, post.json_metadata, `https://images.hive.blog/u/${post.author}/avatar`),
@@ -731,6 +744,26 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             </>
           )}
         </div>
+        {clientApp && (
+          <span
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--hrk-bg-hover)] ring-1 ring-[var(--hrk-border-default)]/80"
+            title={`Posted via ${clientApp.label}`}
+            aria-label={`Posted via ${clientApp.label}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={clientApp.iconUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                const el = e.currentTarget;
+                el.style.display = 'none';
+                const wrap = el.parentElement;
+                if (wrap) wrap.style.display = 'none';
+              }}
+            />
+          </span>
+        )}
         {renderHeaderActions && (
           <div
             className="shrink-0"

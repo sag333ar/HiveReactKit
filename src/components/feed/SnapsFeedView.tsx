@@ -296,6 +296,13 @@ export interface SnapsFeedViewProps {
    *  (Edit / Delete / Flag). Forwarded to every <SnapsFeedCard/>. */
   renderHeaderActions?: (post: import('@/types/post').Post) => ReactNode;
 
+  /**
+   * Optional icon URL overrides for the posting-client badge on each
+   * snap card. Keys are `json_metadata.app` prefixes (`hivesuite`,
+   * `peakd`, `ecency`, …). Forwarded to every <SnapsFeedCard/>.
+   */
+  appIcons?: Partial<Record<string, string>>;
+
   /** Collapse the per-card secondary actions (reblog · share · tip ·
    *  flag) into a single 3-dot kebab menu. Forwarded to every
    *  <SnapsFeedCard/>. */
@@ -426,6 +433,7 @@ export function SnapsFeedView({
   whoToFollow,
   mobileNav = 'pills',
   renderHeaderActions,
+  appIcons,
   actionsAsMenu,
   onSelectionChange,
   isWeb2User,
@@ -616,6 +624,7 @@ export function SnapsFeedView({
     awaitingWalletApproval,
     defaultReward,
     renderHeaderActions,
+    appIcons,
     actionsAsMenu,
     isWeb2User,
     disableIframePreviews,
