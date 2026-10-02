@@ -76,6 +76,7 @@ export {
 export {
   resolveSnapClientApp,
   snapClientAppId,
+  isHiveSuiteClientMeta,
   SNAP_CLIENT_APPS,
   type SnapClientApp,
 } from './utils/snapClientApp';
