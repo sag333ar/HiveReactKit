@@ -14,7 +14,7 @@
  * pagination) so community snaps look and behave exactly like the
  * profile-level snaps tab.
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
 import SnapsFeedView, { type SnapsFeedKey, type SnapsFeedSlot } from '../feed/SnapsFeedView';
 import { communityService } from '@/services/communityService';
@@ -124,6 +124,8 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
   ...feedProps
 }) => {
   const observer = observerProp ?? currentUser
+  const communityIdRef = useRef(communityId);
+  communityIdRef.current = communityId;
 
   const [state, setState] = useState<Record<SnapSubType, SubTypeState>>(
     () => communitySnapsCache.get(communityId) ?? makeInitialState(),
@@ -222,7 +224,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
     async (sub: SnapSubType) => {
       const slot = state[sub];
       if (!slot || slot.loadingMore || slot.nextStartId === null) return;
-      setState((prev) => ({ ...prev, [sub]: { ...prev[sub], loadingMore: true } }));
+      setState((prev) => ({ ...prev, [sub]: { ...prev[sub], loadingMore: true, error: null } }));
       try {
         const { snaps, nextStartId } = await communityService.getCommunitySnaps(
           communityId,
@@ -253,6 +255,47 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
     [state, communityId, observer],
   );
 
+  const refreshSub = useCallback(async (sub: SnapSubType) => {
+    const slot = state[sub];
+    if (!slot || slot.loading || slot.loadingMore) return;
+    if (slot.posts.length > 0 && slot.nextStartId !== null) {
+      await loadMore(sub);
+      return;
+    }
+    const id = communityId;
+    setState((prev) => ({
+      ...prev,
+      [sub]: { posts: [], nextStartId: null, loading: true, loadingMore: false, error: null },
+    }));
+    try {
+      const { snaps, nextStartId } = await communityService.getCommunitySnaps(
+        communityId,
+        SNAP_SUBTYPE_PARENTS[sub],
+        undefined,
+        observer,
+      );
+      if (communityIdRef.current !== id) return;
+      setState((prev) => ({
+        ...prev,
+        [sub]: {
+          posts: snaps,
+          nextStartId,
+          loading: false,
+          loadingMore: false,
+          error: null,
+        },
+      }));
+    } catch (err) {
+      if (communityIdRef.current !== id) return;
+      const e = err as Error;
+      if (e.name === 'AbortError') return;
+      setState((prev) => ({
+        ...prev,
+        [sub]: { posts: [], nextStartId: null, loading: false, loadingMore: false, error: e.message ?? 'Failed to load' },
+      }));
+    }
+  }, [state, loadMore, communityId, observer]);
+
   const feeds = useMemo<Record<SnapsFeedKey, SnapsFeedSlot>>(
     () => ({
       snaps: {
@@ -262,6 +305,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         hasMore: state.snaps.nextStartId !== null,
         error: state.snaps.error,
         onLoadMore: () => { void loadMore('snaps'); },
+        onRefresh: () => { void refreshSub('snaps'); },
       },
       ecency: {
         posts: filterPost(state.ecency.posts),
@@ -270,6 +314,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         hasMore: state.ecency.nextStartId !== null,
         error: state.ecency.error,
         onLoadMore: () => { void loadMore('ecency'); },
+        onRefresh: () => { void refreshSub('ecency'); },
       },
       threads: {
         posts: filterPost(state.threads.posts),
@@ -278,6 +323,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         hasMore: state.threads.nextStartId !== null,
         error: state.threads.error,
         onLoadMore: () => { void loadMore('threads'); },
+        onRefresh: () => { void refreshSub('threads'); },
       },
       liketu: {
         posts: filterPost(state.liketu.posts),
@@ -286,6 +332,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
         hasMore: state.liketu.nextStartId !== null,
         error: state.liketu.error,
         onLoadMore: () => { void loadMore('liketu'); },
+        onRefresh: () => { void refreshSub('liketu'); },
       },
       // Snapie, HiveSuite and SlothBuzz feeds are not yet supported at the community level.
       snapie: { posts: [], loading: false, hasMore: false, error: null },
@@ -297,7 +344,7 @@ const CommunitySnapsTab: React.FC<CommunitySnapsTabProps> = ({
       following: { posts: [], loading: false, hasMore: false, error: null },
       all: { posts: [], loading: false, hasMore: false, error: null },
     }),
-    [state, filterPost, loadMore],
+    [state, filterPost, loadMore, refreshSub],
   );
 
   return (

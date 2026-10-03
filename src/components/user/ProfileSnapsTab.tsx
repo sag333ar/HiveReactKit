@@ -215,6 +215,63 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
     [reportedPostKeys, reportedAuthorSet, web2IdFilter],
   );
 
+  const onWeb2IdentityFoundRef = useRef(onWeb2IdentityFound);
+  onWeb2IdentityFoundRef.current = onWeb2IdentityFound;
+
+  const loadFirstPage = useCallback(async (
+    sub: SnapSubType,
+    signal?: AbortSignal,
+  ): Promise<{ posts: Post[]; nextStartId: number | null } | 'aborted'> => {
+    let { snaps: raw, nextStartId } = await userService.getUserSnaps(
+      username,
+      undefined,
+      observer,
+      signal,
+      SNAP_SUBTYPE_PARENTS[sub],
+    );
+    if (signal?.aborted) return 'aborted';
+
+    // If web2IdFilter is set and the initial batch has 0 matching posts, auto-advance.
+    while (
+      web2IdFilter &&
+      filterPost(raw).length === 0 &&
+      nextStartId !== null &&
+      !signal?.aborted
+    ) {
+      const nextRes = await userService.getUserSnaps(
+        username,
+        nextStartId,
+        observer,
+        signal,
+        SNAP_SUBTYPE_PARENTS[sub],
+      );
+      if (signal?.aborted) return 'aborted';
+      raw = [...raw, ...nextRes.snaps];
+      nextStartId = nextRes.nextStartId;
+    }
+
+    const onWeb2IdentityFound = onWeb2IdentityFoundRef.current;
+    if (web2IdFilter && onWeb2IdentityFound) {
+      const match = raw.find((item) => {
+        const ident = getWeb2Identity(item.author, item.json_metadata, '');
+        return ident.isWeb2 && ident.web2id === web2IdFilter;
+      });
+      if (match) {
+        const ident = getWeb2Identity(match.author, match.json_metadata, '');
+        if (ident.isWeb2 && ident.web2id) {
+          onWeb2IdentityFound({
+            displayName: ident.displayName,
+            avatarUrl: ident.avatarUrl,
+            provider: ident.provider,
+            web2id: ident.web2id,
+          });
+        }
+      }
+    }
+
+    return { posts: raw, nextStartId };
+  }, [username, observer, web2IdFilter, filterPost]);
+
   // First-time hydration per cache key. If the cache already has data
   // for this key, we skip the fetch entirely and keep the previously
   // loaded pages.
@@ -255,58 +312,13 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
 
     const fetchOne = async (sub: SnapSubType) => {
       try {
-        let { snaps: raw, nextStartId } = await userService.getUserSnaps(
-          username,
-          undefined,
-          observer,
-          controller.signal,
-          SNAP_SUBTYPE_PARENTS[sub],
-        );
-        if (aborted) return;
-
-        // If web2IdFilter is set and initial batch has 0 matching posts, auto-advance
-        while(
-          web2IdFilter &&
-          filterPost(raw).length === 0 &&
-          nextStartId !== null &&
-          !aborted
-        ) {
-          const nextRes = await userService.getUserSnaps(
-            username,
-            nextStartId,
-            observer,
-            controller.signal,
-            SNAP_SUBTYPE_PARENTS[sub],
-          );
-          if (aborted) return;
-          raw = [...raw, ...nextRes.snaps];
-          nextStartId = nextRes.nextStartId;
-        }
-
-        if (web2IdFilter && onWeb2IdentityFound) {
-          const match = raw.find((item) => {
-            const ident = getWeb2Identity(item.author, item.json_metadata, '');
-            return ident.isWeb2 && ident.web2id === web2IdFilter;
-          });
-          if (match) {
-            const ident = getWeb2Identity(match.author, match.json_metadata, '');
-            if (ident.isWeb2 && ident.web2id) {
-              onWeb2IdentityFound({
-                displayName: ident.displayName,
-                avatarUrl: ident.avatarUrl,
-                provider: ident.provider,
-                web2id: ident.web2id,
-              });
-            }
-          }
-        }
-
-        if (aborted) return;
+        const result = await loadFirstPage(sub, controller.signal);
+        if (aborted || result === 'aborted') return;
         setState((prev) => ({
           ...prev,
           [sub]: {
-            posts: raw,
-            nextStartId,
+            posts: result.posts,
+            nextStartId: result.nextStartId,
             loading: false,
             loadingMore: false,
             error: null,
@@ -329,13 +341,13 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       aborted = true;
       controller.abort();
     };
-  }, [fullCacheKey, username, observer, web2IdFilter, filterPost]);
+  }, [fullCacheKey, loadFirstPage]);
 
   const loadMore = useCallback(
     async (sub: SnapSubType) => {
       const slot = state[sub];
       if (!slot || slot.loadingMore || slot.nextStartId === null) return;
-      setState((prev) => ({ ...prev, [sub]: { ...prev[sub], loadingMore: true } }));
+      setState((prev) => ({ ...prev, [sub]: { ...prev[sub], loadingMore: true, error: null } }));
       try {
         const initialRes = await userService.getUserSnaps(
           username,
@@ -385,6 +397,43 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
     [state, username, observer, web2IdFilter, filterPost],
   );
 
+  const refreshSub = useCallback(async (sub: SnapSubType) => {
+    const slot = state[sub];
+    if (!slot || slot.loading || slot.loadingMore) return;
+    // A later page failed — keep the posts already on screen and retry that page.
+    if (slot.posts.length > 0 && slot.nextStartId !== null) {
+      await loadMore(sub);
+      return;
+    }
+    const key = fullCacheKey;
+    setState((prev) => ({
+      ...prev,
+      [sub]: { posts: [], nextStartId: null, loading: true, loadingMore: false, error: null },
+    }));
+    try {
+      const result = await loadFirstPage(sub);
+      if (result === 'aborted' || stateKeyRef.current !== key) return;
+      setState((prev) => ({
+        ...prev,
+        [sub]: {
+          posts: result.posts,
+          nextStartId: result.nextStartId,
+          loading: false,
+          loadingMore: false,
+          error: null,
+        },
+      }));
+    } catch (err) {
+      if (stateKeyRef.current !== key) return;
+      const e = err as Error;
+      if (e.name === 'AbortError') return;
+      setState((prev) => ({
+        ...prev,
+        [sub]: { posts: [], nextStartId: null, loading: false, loadingMore: false, error: e.message ?? 'Failed to load' },
+      }));
+    }
+  }, [state, loadMore, loadFirstPage, fullCacheKey]);
+
   const feeds = useMemo<Record<SnapsFeedKey, SnapsFeedSlot>>(
     () => ({
       snaps: {
@@ -394,6 +443,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         hasMore: state.snaps.nextStartId !== null,
         error: state.snaps.error,
         onLoadMore: () => { void loadMore('snaps'); },
+        onRefresh: () => { void refreshSub('snaps'); },
       },
       ecency: {
         posts: filterPost(state.ecency.posts),
@@ -402,6 +452,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         hasMore: state.ecency.nextStartId !== null,
         error: state.ecency.error,
         onLoadMore: () => { void loadMore('ecency'); },
+        onRefresh: () => { void refreshSub('ecency'); },
       },
       threads: {
         posts: filterPost(state.threads.posts),
@@ -410,6 +461,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         hasMore: state.threads.nextStartId !== null,
         error: state.threads.error,
         onLoadMore: () => { void loadMore('threads'); },
+        onRefresh: () => { void refreshSub('threads'); },
       },
       liketu: {
         posts: filterPost(state.liketu.posts),
@@ -418,6 +470,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
         hasMore: state.liketu.nextStartId !== null,
         error: state.liketu.error,
         onLoadMore: () => { void loadMore('liketu'); },
+        onRefresh: () => { void refreshSub('liketu'); },
       },
       // Snapie, HiveSuite and SlothBuzz not yet supported at profile level.
       snapie: { posts: [], loading: false, hasMore: false, error: null },
@@ -429,7 +482,7 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
       following: { posts: [], loading: false, hasMore: false, error: null },
       all: { posts: [], loading: false, hasMore: false, error: null },
     }),
-    [state, filterPost, loadMore],
+    [state, filterPost, loadMore, refreshSub],
   );
 
   return (

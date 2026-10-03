@@ -44,7 +44,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
 import SnapsFeedList from './SnapsFeedList';
-import { ArrowUp, Hash, Users, Globe, ChevronDown } from 'lucide-react';
+import { ArrowUp, Hash, Users, Globe, ChevronDown, RefreshCw } from 'lucide-react';
 import FeedSegmentControl, { type FeedSegmentOption } from './FeedSegmentControl';
 import SnapsFeedSidebarNav from './SnapsFeedSidebarNav';
 import TrendingTagsPanel, { type SnapsTrendingTag } from './TrendingTagsPanel';
@@ -650,19 +650,32 @@ export function SnapsFeedView({
     return (
       <>
         {slot.error && (
-          <div className="mb-3 rounded-md border border-[var(--hrk-brand)] bg-red-900/20 p-2 text-xs font-medium text-red-400">
-            {slot.error}
+          <div className="mb-3 flex flex-col items-center gap-2 rounded-md border border-[var(--hrk-brand)] bg-red-900/20 px-3 py-3 text-center">
+            <p className="text-xs font-medium text-red-400">{slot.error}</p>
+            {slot.onRefresh && (
+              <button
+                type="button"
+                onClick={() => slot.onRefresh?.()}
+                disabled={!!slot.loading || !!slot.loadingMore}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/40 bg-red-950/40 px-3 py-1.5 text-xs font-semibold text-red-100 transition-colors hover:bg-red-900/50 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${slot.loading || slot.loadingMore ? 'animate-spin' : ''}`} />
+                Retry
+              </button>
+            )}
           </div>
         )}
-        <SnapsFeedList
-          {...sharedListProps}
-          posts={slot.posts}
-          loading={!!slot.loading}
-          loadingMore={!!slot.loadingMore}
-          hasMore={!!slot.hasMore}
-          onLoadMore={slot.onLoadMore}
-          emptyMessage={`No ${emptyLabel} posts yet.`}
-        />
+        {!(slot.error && slot.posts.length === 0) && (
+          <SnapsFeedList
+            {...sharedListProps}
+            posts={slot.posts}
+            loading={!!slot.loading}
+            loadingMore={!!slot.loadingMore}
+            hasMore={!!slot.hasMore}
+            onLoadMore={slot.onLoadMore}
+            emptyMessage={`No ${emptyLabel} posts yet.`}
+          />
+        )}
       </>
     );
   };
