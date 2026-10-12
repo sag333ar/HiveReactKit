@@ -929,9 +929,11 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           payoutDetails={payoutDetails}
           initialVotes={(post.active_votes as ActiveVote[] | undefined) ?? []}
           initialVoteCount={
-            (post as { stats?: { total_votes?: number } }).stats?.total_votes
-            ?? (post.active_votes as ActiveVote[] | undefined)?.length
-            ?? Math.max(0, (post as { net_votes?: number }).net_votes ?? 0)
+            Math.max(
+              (post as { stats?: { total_votes?: number } }).stats?.total_votes ?? 0,
+              (post as { net_votes?: number }).net_votes ?? 0,
+              (post.active_votes as ActiveVote[] | undefined)?.length ?? 0
+            )
           }
           initialFlagWeight={(post as { stats?: { flag_weight?: number } }).stats?.flag_weight}
           initialCommentsCount={post.children || 0}

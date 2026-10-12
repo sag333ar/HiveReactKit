@@ -668,10 +668,10 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 payoutDetails={payoutDetails}
                 initialVotes={(item.active_votes as ActiveVote[] | undefined) ?? []}
                 initialVoteCount={
-                  (item as { stats?: { total_votes?: number } }).stats?.total_votes
-                  ?? Math.max(
-                    (item.active_votes as ActiveVote[] | undefined)?.length ?? 0,
-                    (item as { net_votes?: number }).net_votes ?? 0
+                  Math.max(
+                    (item as { stats?: { total_votes?: number } }).stats?.total_votes ?? 0,
+                    (item as { net_votes?: number }).net_votes ?? 0,
+                    (item.active_votes as ActiveVote[] | undefined)?.length ?? 0
                   )
                 }
                 initialFlagWeight={(item as { stats?: { flag_weight?: number } }).stats?.flag_weight}

@@ -304,30 +304,31 @@ export function PostActionButton({
     const fromArray = votes.filter((v) => isDownvote(v)).length;
     if (fromArray > 0) return fromArray;
     if (hasDownvotes) {
-      if (voteCount > votes.length) {
-        return voteCount - votes.length;
-      }
       if (typeof initialFlagWeight === 'number' && initialFlagWeight > 0) {
         return Math.round(initialFlagWeight);
+      }
+      // Only infer missing downvotes from the difference if the array wasn't capped at 1000
+      if (voteCount > votes.length && votes.length < 1000) {
+        return voteCount - votes.length;
       }
     }
     return 0;
   }, [votes, hasDownvotes, voteCount, initialFlagWeight]);
 
   const upvoteCount = useMemo(() => {
-    const downvotes = votes.filter((v) => isDownvote(v)).length;
-    if (voteCount > votes.length) {
-      if (downvotes > 0) {
-        return Math.max(0, voteCount - downvotes);
-      }
-      // If downvotes were missing from the votes array, votes.length is the upvote count
-      return votes.length;
+    const fromArrayUpvotes = votes.filter((v) => !isDownvote(v)).length;
+    const downvotes = downvoteCount;
+    // When the canonical voteCount is provided (stats.total_votes or net_votes),
+    // calculate upvotes as voteCount minus downvotes, but never less than the
+    // known upvotes already observed in the votes array.
+    if (voteCount > 0) {
+      return Math.max(fromArrayUpvotes, voteCount - downvotes);
     }
     if (votes.length > 0) {
-      return votes.length - downvotes;
+      return fromArrayUpvotes;
     }
-    return voteCount;
-  }, [votes, voteCount]);
+    return 0;
+  }, [votes, voteCount, downvoteCount]);
 
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount ?? 0);
   const [showVoteSlider, setShowVoteSlider] = useState(false);

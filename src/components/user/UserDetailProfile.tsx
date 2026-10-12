@@ -2846,9 +2846,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             payoutDetails={payoutDetails}
             initialVotes={item.active_votes || []}
             initialVoteCount={
-              (item as { stats?: { total_votes?: number } }).stats?.total_votes
-              ?? item.active_votes?.length
-              ?? Math.max(0, (item as { net_votes?: number }).net_votes ?? 0)
+              Math.max(
+                (item as { stats?: { total_votes?: number } }).stats?.total_votes ?? 0,
+                (item as { net_votes?: number }).net_votes ?? 0,
+                item.active_votes?.length ?? 0
+              )
             }
             initialFlagWeight={(item as { stats?: { flag_weight?: number } }).stats?.flag_weight}
             initialCommentsCount={item.children || 0}
