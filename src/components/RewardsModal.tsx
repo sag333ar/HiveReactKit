@@ -164,10 +164,12 @@ export function RewardsModal({ onClose, details, author, avatarUrlFn, hiveIconUr
 
   // The author's 50% share, split among beneficiaries and the author
   // themself — one flat "who gets what" list rather than a separate
-  // gross/beneficiaries/net breakdown.
+  // gross/beneficiaries/net breakdown. Don't show author if their share is 0%.
+  const authorPct = authorNetFraction * 100;
+  const showAuthor = Boolean(author && authorPct >= 0.005);
   const recipientRows = [
     ...beneficiaryRows,
-    ...(author ? [{ account: author, weight: 0, pct: authorNetFraction * 100, hbd: authorNetHbd, hpHive: authorNetHpHive }] : []),
+    ...(showAuthor ? [{ account: author!, weight: 0, pct: authorPct, hbd: authorNetHbd, hpHive: authorNetHpHive }] : []),
   ];
 
   const modeLabel = isPoweredUp
