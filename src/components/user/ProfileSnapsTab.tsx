@@ -375,16 +375,20 @@ const ProfileSnapsTab: React.FC<ProfileSnapsTabProps> = ({
           nextStartId = nextRes.nextStartId;
         }
 
-        setState((prev) => ({
-          ...prev,
-          [sub]: {
-            posts: [...prev[sub].posts, ...accumulated],
-            nextStartId,
-            loading: false,
-            loadingMore: false,
-            error: null,
-          },
-        }));
+        setState((prev) => {
+          const existingKeys = new Set(prev[sub].posts.map((p) => `${p.author}/${p.permlink}`));
+          const uniqueAccumulated = accumulated.filter((p) => !existingKeys.has(`${p.author}/${p.permlink}`));
+          return {
+            ...prev,
+            [sub]: {
+              posts: [...prev[sub].posts, ...uniqueAccumulated],
+              nextStartId,
+              loading: false,
+              loadingMore: false,
+              error: null,
+            },
+          };
+        });
       } catch (err) {
         const e = err as Error;
         if (e.name === 'AbortError') return;

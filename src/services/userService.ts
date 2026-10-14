@@ -13,6 +13,22 @@ const SNAPS_PAGE_SIZE = 20;
 export const DEFAULT_SNAP_PARENT = 'peak.snaps';
 
 /**
+ * The API serving HiveSuite-owned resources such as Snap references. This is
+ * deliberately separate from the selectable Hive JSON-RPC node.
+ */
+const DEFAULT_HIVE_SUITE_API_URL = 'https://api.hivesuite.app';
+let hiveSuiteApiUrl = DEFAULT_HIVE_SUITE_API_URL;
+
+export function setHiveSuiteApiUrl(url?: string): void {
+  const normalized = typeof url === 'string' ? url.trim().replace(/\/+$/, '') : '';
+  hiveSuiteApiUrl = normalized || DEFAULT_HIVE_SUITE_API_URL;
+}
+
+export function getHiveSuiteApiUrl(): string {
+  return hiveSuiteApiUrl;
+}
+
+/**
  * Known snap-container parents supported by UserDetailProfile's segmented
  * control. Values are the account names queried via `?parent=<account>`.
  */
@@ -25,12 +41,13 @@ export const SNAP_SUBTYPE_PARENTS = {
 export type SnapSubType = keyof typeof SNAP_SUBTYPE_PARENTS;
 
 /**
- * In-memory cache of the full snap-references list per (username, parent).
- * The hreplier endpoint returns a single fixed batch (no server-side
- * pagination), so we fetch it once per key and slice client-side for
- * infinite scroll. Cache key: `${username}|${parent}`.
+ * Compatibility cache for the pre-cursor `/snaps` deployment. That endpoint
+ * ignored `limit` and always returned its newest 100 references. A negative
+ * `startId` denotes an offset into that one legacy response; HAF ids are
+ * always positive, so it cannot collide with the real cursor protocol.
+ * Remove this once every deployed API honours `startId` and `limit`.
  */
-const snapRefsCache = new Map<string, { id: number; author: string; permlink: string }[]>();
+const legacySnapRefsCache = new Map<string, { id: number; author: string; permlink: string }[]>();
 
 /**
  * Web2 user posting limits and remaining daily credits.
@@ -115,6 +132,10 @@ class UserService {
   /** Always read the latest endpoint — `setHiveApiEndpoint()` may have been
    * called after construction, and a stale instance field would miss it. */
   private get HIVE_API_URL(): string { return getHiveApiEndpoint(); }
+
+  /** HiveSuite backend for app-owned REST APIs; unlike HIVE_API_URL, this
+   * is not a Hive JSON-RPC node and must not follow the node selector. */
+  private get HIVE_SUITE_API_URL(): string { return getHiveSuiteApiUrl(); }
 
   /** Central fetch wrapper — threads AbortSignal to every network request */
   private async _fetch(url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
@@ -417,28 +438,44 @@ class UserService {
   }
 
   /**
-   * Fetch snap references for a user from the hreplier API.
-   * Returns `{ id, author, permlink }[]`. The endpoint does not support
-   * cursor-based pagination — it returns a single batch, so `startId`
-   * is accepted for call-site compatibility but ignored.
+   * Fetch one cursor page of snap references for a user from the hreplier
+   * API. `lastId` is the lowest HAF comment id already rendered; the next
+   * request asks for rows strictly older than it.
    *
    * `parent` selects the container account: `peak.snaps` (Snaps), `ecency.waves`
    * (Ecency waves), `leothreads` (Threads), `liketu.moments` (Liketu moments).
    */
   async getSnapReferences(
     username: string,
-    _startId?: number,
+    lastId?: number,
     signal?: AbortSignal,
     parent: string = DEFAULT_SNAP_PARENT,
+    limit: number = SNAPS_PAGE_SIZE,
   ): Promise<{ id: number; author: string; permlink: string }[]> {
-    const url = `https://api.hivesuite.app/snaps?author=${encodeURIComponent(username)}&parent=${encodeURIComponent(parent)}`;
+    const params = new URLSearchParams({
+      author: username,
+      parent,
+      limit: String(limit),
+    });
+    const hasCursor = typeof lastId === 'number' && Number.isFinite(lastId) && lastId > 0;
+    if (hasCursor) {
+      params.set('last_id', String(Math.floor(lastId)));
+      params.set('startId', String(Math.floor(lastId)));
+    }
+    const url = `${this.HIVE_SUITE_API_URL}/snaps?${params.toString()}`;
     const response = await this._fetch(url, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
     }, signal);
-    if (!response.ok) throw new Error(`Snaps API error: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Snaps API error: ${response.status}`);
+    }
+
     const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) {
+      throw new Error('Snaps API returned an invalid response');
+    }
+    return data;
   }
 
   /**
@@ -479,20 +516,16 @@ class UserService {
   /**
    * Fetch a page of snaps for a user via the hreplier API + Hive bridge.get_post.
    *
-   * The hreplier endpoint returns the full snap-reference list in one shot and
-   * has no server-side pagination, so we cache it per (username, parent) and
-   * slice client-side. `startId` is repurposed as the slice offset (20-item
-   * pages):
-   *   - undefined / 0 → first 20 refs
-   *   - 20, 40, …     → subsequent pages
-   * `nextStartId` is the next offset to request, or null when exhausted.
+   * `startId` is the HAF comment-id cursor of the oldest reference from the
+   * prior page. The API returns references in descending id order, and each
+   * request is limited to one UI page. `nextStartId` is the lowest returned
+   * id when another server page may exist, or null once the returned page is
+   * empty or exhausted.
    *
    * `parent` selects the container account — see SNAP_SUBTYPE_PARENTS
    * (defaults to `peak.snaps`). Cache is keyed per parent so switching
-   * segments never collides.
-   *
-   * Only the current slice is materialised via bridge.get_post, so switching
-   * pages stays snappy.
+   * segments never collides. Only the current page is materialised via
+   * bridge.get_post, so scrolling stays snappy even for long-lived accounts.
    */
   async getUserSnaps(
     username: string,
@@ -501,25 +534,63 @@ class UserService {
     signal?: AbortSignal,
     parent: string = DEFAULT_SNAP_PARENT,
   ): Promise<{ snaps: Post[]; nextStartId: number | null }> {
-    const offset = typeof startId === 'number' && Number.isFinite(startId) ? Math.max(0, Math.floor(startId)) : 0;
-
-    // Fetch references once per (username, parent); reuse for subsequent page slices.
     const cacheKey = `${username}|${parent}`;
-    let refs = snapRefsCache.get(cacheKey);
-    if (!refs) {
-      refs = await this.getSnapReferences(username, undefined, signal, parent);
+    const legacyOffset = typeof startId === 'number' && Number.isFinite(startId) && startId < 0
+      ? Math.abs(Math.floor(startId))
+      : null;
+
+    let pageRefs: { id: number; author: string; permlink: string }[];
+    let nextStartId: number | null;
+
+    if (legacyOffset !== null) {
+      const legacyRefs = legacySnapRefsCache.get(cacheKey) ?? [];
+      pageRefs = legacyRefs.slice(legacyOffset, legacyOffset + SNAPS_PAGE_SIZE);
+      const nextOffset = legacyOffset + pageRefs.length;
+      if (nextOffset < legacyRefs.length) {
+        // Still paging through the cached legacy batch
+        nextStartId = -nextOffset;
+      } else {
+        // Exhausted the cached batch! Transition to cursor-based paging with the oldest item's id:
+        const lastRef = legacyRefs[legacyRefs.length - 1];
+        nextStartId = lastRef && typeof lastRef.id === 'number' && Number.isFinite(lastRef.id) && lastRef.id > 0
+          ? lastRef.id
+          : null;
+      }
+    } else {
+      const cursor = typeof startId === 'number' && Number.isFinite(startId) && startId > 0
+        ? Math.floor(startId)
+        : undefined;
+      const refs = await this.getSnapReferences(username, cursor, signal, parent, SNAPS_PAGE_SIZE);
       if (signal?.aborted) throw new Error('aborted');
-      snapRefsCache.set(cacheKey, refs);
+
+      if (refs.length > SNAPS_PAGE_SIZE) {
+        // Returned a large batch (e.g. 100 rows): slice first page and cache remainder
+        legacySnapRefsCache.set(cacheKey, refs);
+        pageRefs = refs.slice(0, SNAPS_PAGE_SIZE);
+        const nextOffset = pageRefs.length;
+        if (nextOffset < refs.length) {
+          nextStartId = -nextOffset;
+        } else {
+          const lastRef = refs[refs.length - 1];
+          nextStartId = lastRef && typeof lastRef.id === 'number' && Number.isFinite(lastRef.id) && lastRef.id > 0
+            ? lastRef.id
+            : null;
+        }
+      } else {
+        pageRefs = refs;
+        const lastRef = refs[refs.length - 1];
+        // As long as we received references and have a valid oldest id, allow loading next page
+        nextStartId = refs.length > 0 && lastRef && typeof lastRef.id === 'number' && Number.isFinite(lastRef.id) && lastRef.id > 0
+          ? lastRef.id
+          : null;
+      }
     }
 
-    if (refs.length === 0 || offset >= refs.length) {
+    if (pageRefs.length === 0) {
       return { snaps: [], nextStartId: null };
     }
 
-    const slice = refs.slice(offset, offset + SNAPS_PAGE_SIZE);
-    const snaps = await this.batchGetPosts(slice, observer || username, signal);
-    const nextOffset = offset + slice.length;
-    const nextStartId = nextOffset < refs.length ? nextOffset : null;
+    const snaps = await this.batchGetPosts(pageRefs, observer || username, signal);
     return { snaps, nextStartId };
   }
 

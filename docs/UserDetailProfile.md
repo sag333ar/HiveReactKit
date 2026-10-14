@@ -237,7 +237,7 @@ Defaults to `"en"` (no-op). See [i18n.md](i18n.md) for the full provider API, ho
 |-------|-------|-------------|------------|
 | `"blogs"` | Blogs | `bridge.get_account_posts` (sort: blog) | Cursor-based, infinite scroll |
 | `"posts"` | Posts | `bridge.get_account_posts` (sort: posts) | Cursor-based, infinite scroll |
-| `"snaps"` | Snaps | PeakD API + `bridge.get_post` batch | startId cursor, infinite scroll |
+| `"snaps"` | Snaps | HiveSuite snap-reference API + `bridge.get_post` batch | HAF `last_id` cursor, infinite scroll |
 | `"polls"` | Polls | HiveHub polls API | All at once |
 | `"growth"` | Growth | `condenser_api.get_account_history` (rewards / power-up / power-down ops) | Streamed (7d/30d toggle) |
 | `"comments"` | Comments | `bridge.get_account_posts` (sort: comments) | Cursor-based, infinite scroll |

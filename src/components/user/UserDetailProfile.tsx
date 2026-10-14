@@ -2160,7 +2160,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         }
         case "posts": {
           if (postsSubTab === "blogs") {
-            const last = blogs[blogs.length - 1];
+            const last = [...blogs].reverse().find(p => p && p.author && p.permlink);
             if (!last) break;
             const raw = await userService.getUserBlogs(targetUsername, PAGE_SIZE, last.author, last.permlink);
             const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
@@ -2172,7 +2172,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             });
             setHasMore((prev) => ({ ...prev, blogs: raw.length >= PAGE_SIZE }));
           } else {
-            const last = posts[posts.length - 1];
+            const last = [...posts].reverse().find(p => p && p.author && p.permlink);
             if (!last) break;
             const raw = await userService.getUserPosts(targetUsername, PAGE_SIZE, last.author, last.permlink);
             const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
@@ -2188,7 +2188,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         }
         case "replies": {
           if (repliesSubTab === "comments") {
-            const last = comments[comments.length - 1];
+            const last = [...comments].reverse().find(p => p && p.author && p.permlink);
             if (!last) break;
             const raw = await userService.getUserComments(targetUsername, PAGE_SIZE, last.author, last.permlink);
             const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
@@ -2200,7 +2200,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             });
             setHasMore((prev) => ({ ...prev, comments: raw.length >= PAGE_SIZE }));
           } else {
-            const last = replies[replies.length - 1];
+            const last = [...replies].reverse().find(p => p && p.author && p.permlink);
             if (!last) break;
             const raw = await userService.getUserReplies(targetUsername, PAGE_SIZE, last.author, last.permlink);
             const sliced = raw.length > 0 && raw[0].permlink === last.permlink ? raw.slice(1) : raw;
@@ -2216,7 +2216,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
         }
         case "followers": {
           if (followsSubTab === "followers") {
-            const last = followers[followers.length - 1];
+            const last = [...followers].reverse().find(f => f && f.follower);
             if (!last) break;
             const raw = await userService.getFollowers(targetUsername, last.follower, FOLLOWER_PAGE_SIZE);
             const newItems = raw.length > 0 && raw[0].follower === last.follower ? raw.slice(1) : raw;
@@ -2227,7 +2227,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             });
             setHasMore((prev) => ({ ...prev, followers: raw.length >= FOLLOWER_PAGE_SIZE }));
           } else {
-            const last = following[following.length - 1];
+            const last = [...following].reverse().find(f => f && f.following);
             if (!last) break;
             const raw = await userService.getFollowing(targetUsername, last.following, FOLLOWER_PAGE_SIZE);
             const newItems = raw.length > 0 && raw[0].following === last.following ? raw.slice(1) : raw;
