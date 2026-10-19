@@ -26,6 +26,7 @@ import {
   History,
   FileCode2,
   Pencil,
+  MessageCircle,
   Volume2,
   VolumeX,
   Play,
@@ -64,6 +65,7 @@ import { extractPostMedia } from '@/utils/postMedia';
 import { stripFirstContextLink, extractFirstContextTwitterId } from '@/utils/firstContext';
 import { stripViaAppsCredit } from './feed/AttachmentStrip';
 import { DEFAULT_TRANSLATE_LANGUAGES } from '@/i18n/selectionTranslate';
+import { toast } from '@/hooks';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -216,6 +218,8 @@ export interface HiveDetailPostProps {
    *  consumer is responsible for confirming and broadcasting the
    *  `delete_comment` operation. */
   onDelete?: (data: { author: string; permlink: string }) => void;
+  /** Called when the user clicks "Drop a comment" in the header options menu. Defaults to scrolling directly to the inline comment composer. */
+  onDropComment?: () => void;
 
   // Comment-level action callbacks (receive author/permlink of the specific comment)
   onShareComment?: (author: string, permlink: string) => void;
@@ -519,6 +523,7 @@ export function HiveDetailPost({
   decentMemesAppAccount,
   decentMemesTheme,
   isWeb2User = false,
+  onDropComment: onDropCommentProp,
 }: HiveDetailPostProps) {
   const observer = observerProp ?? currentUser;
 
@@ -644,6 +649,26 @@ export function HiveDetailPost({
   // Mobile language bottom-sheet state
   const [langSheetOpen, setLangSheetOpen] = useState(false);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleDropComment = useCallback(() => {
+    if (onDropCommentProp) {
+      onDropCommentProp();
+      return;
+    }
+    const composerEl = document.getElementById('inline-comment-composer');
+    if (composerEl) {
+      composerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        const inputEl = composerEl.querySelector('textarea, input, [contenteditable="true"]') as HTMLElement | null;
+        inputEl?.focus();
+      }, 500);
+    } else {
+      commentsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (!currentUser) {
+        toast({ title: 'Please log in', description: 'Please log in to comment' });
+      }
+    }
+  }, [onDropCommentProp, currentUser]);
   const postBodyRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [selectedChoices, setSelectedChoices] = useState<number[]>([]);
@@ -2632,6 +2657,7 @@ export function HiveDetailPost({
               onSelectLanguage={onSelectLanguage}
               isSpeaking={isSpeaking}
               onSpeechToggle={handleSpeechToggle}
+              onDropComment={handleDropComment}
             />
             {onOpenProfileMenu && (
               <button
@@ -3698,6 +3724,7 @@ interface HeaderMoreMenuProps {
    *  `post.author === currentUser`, so the trigger row stays hidden
    *  for everyone else. */
   onEdit?: () => void;
+  onDropComment?: () => void;
   onReblog?: () => void;
   isReblogged?: boolean;
   onReSnap?: () => void;
@@ -3718,6 +3745,7 @@ function HeaderMoreMenu({
   onVersionHistory,
   onViewRaw,
   onEdit,
+  onDropComment,
   onReblog,
   isReblogged = false,
   onReSnap,
@@ -3778,7 +3806,7 @@ function HeaderMoreMenu({
   // No handlers registered — render nothing (the trigger itself
   // disappears, mirroring how the inline icons drop out when their
   // callbacks aren't passed).
-  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onReblog && !onReSnap && !onSelectLanguage && !onSpeechToggle) return null;
+  if (!onToggleBookmark && !onShare && !onReport && !onVersionHistory && !onViewRaw && !onEdit && !onDropComment && !onReblog && !onReSnap && !onSelectLanguage && !onSpeechToggle) return null;
 
   const run = (cb?: () => void) => () => {
     setOpen(false);
@@ -3810,6 +3838,17 @@ function HeaderMoreMenu({
               >
                 <Pencil className="h-3.5 w-3.5 text-gray-300" />
                 <span>Edit post</span>
+              </button>
+            )}
+            {onDropComment && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={run(onDropComment)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[var(--hrk-text-secondary)] transition-colors hover:bg-[var(--hrk-bg-hover)]"
+              >
+                <MessageCircle className="h-3.5 w-3.5 text-gray-300" />
+                <span>Drop a comment</span>
               </button>
             )}
             {onReblog && (

@@ -66,6 +66,8 @@ export interface CommunityDetailProps {
   onUserClick?: (username: string) => void
   onPostClick?: (author: string, permlink: string, title?: string, contextPosts?: Post[]) => void
   onCommentClick?: (author: string, permlink: string) => void
+  onClickCommentIcon?: (author: string, permlink: string, parentTags?: string[]) => void
+  onClickCommentCount?: (author: string, permlink: string, contextPosts?: Post[]) => void
   // URL builders — forwarded into the embedded BlogPostList /
   // SnapsFeedView so post & author surfaces render as real <a href>
   // links ("open in new tab" etc.). Plain clicks still route through
@@ -272,6 +274,8 @@ const CommunityDetail = ({
   getTagUrl,
   getCommunityUrl,
   onCommentClick,
+  onClickCommentIcon,
+  onClickCommentCount,
   onUpvote,
   onSubmitComment,
   onClickCommentUpvote,
@@ -579,6 +583,8 @@ const CommunityDetail = ({
       getUserUrl,
       getCommunityUrl,
       onCommentClick,
+      onClickCommentIcon,
+      onClickCommentCount,
       ecencyToken,
       threeSpeakApiKey,
       giphyApiKey,
@@ -616,6 +622,8 @@ const CommunityDetail = ({
       getUserUrl,
       getCommunityUrl,
       onCommentClick,
+      onClickCommentIcon,
+      onClickCommentCount,
       ecencyToken,
       threeSpeakApiKey,
       giphyApiKey,
@@ -627,6 +635,7 @@ const CommunityDetail = ({
       awaitingWalletApproval,
       defaultReward,
       actionsAsMenu,
+      isWeb2User,
     ],
   )
 
@@ -977,6 +986,8 @@ const CommunityDetail = ({
             onTip={onTip}
             onSharePost={onSharePost}
             onCommentClick={onCommentClick}
+            onClickCommentIcon={onClickCommentIcon}
+            onClickCommentCount={onClickCommentCount}
             onReportPost={onReportPost}
             onUserClick={onUserClick}
             onPostClick={onPostClick}

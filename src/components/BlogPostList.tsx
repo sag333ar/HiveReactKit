@@ -26,7 +26,7 @@ import { extractPostMedia, type PostMedia } from '../utils/postMedia';
 import { getRebloggedBy, getRebloggedByList } from '../utils/reblogUtils';
 import { MediaLightbox } from './MediaLightbox';
 import { HiveLink } from './common/HiveLink';
-import { getWeb2Identity, Web2ProviderBadge } from './feed/AttachmentStrip';
+import { getWeb2Identity, Web2ProviderBadge, extractTagsFromMeta } from './feed/AttachmentStrip';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -56,6 +56,10 @@ export interface BlogPostListProps {
   onSharePost?: (author: string, permlink: string) => void;
   onCrossPost?: (author: string, permlink: string, post?: Post) => void;
   onCommentClick?: (author: string, permlink: string) => void;
+  /** Called when the comment ICON is clicked (separate from count). Typical use: open inline comment composer popup. */
+  onClickCommentIcon?: (author: string, permlink: string, parentTags?: string[]) => void;
+  /** Called when the comment COUNT is clicked (separate from icon). Typical use: navigate into post comments. */
+  onClickCommentCount?: (author: string, permlink: string, contextPosts?: Post[]) => void;
   onReportPost?: (author: string, permlink: string) => void;
   /** Per-row bookmark toggle. Forwarded to each PostActionButton's
    *  kebab. Consumer decides add vs remove based on
@@ -379,6 +383,8 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   onSharePost,
   onCrossPost,
   onCommentClick,
+  onClickCommentIcon,
+  onClickCommentCount,
   onReportPost,
   onToggleBookmark,
   isPostBookmarked,
@@ -531,6 +537,12 @@ export const BlogPostList: FC<BlogPostListProps> = ({
 
         const web2Identity = getWeb2Identity(item.author, item.json_metadata, `https://images.hive.blog/u/${item.author}/avatar`);
 
+        const parentMetaTags = extractTagsFromMeta(item);
+        const myReplyKey = currentUser && item.replies
+          ? (item.replies.find((r: string) => r.startsWith(`${currentUser}/`)) ?? null)
+          : null;
+        const hasCommented = myReplyKey !== null;
+
         const rebloggedBy = getRebloggedBy(item);
         const reblogList = getRebloggedByList(item);
 
@@ -583,7 +595,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0 sm:gap-x-2 sm:gap-y-0.5">
                     <HiveLink
                       href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(item.author)}
-                      onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(item.author)}
+                      onActivate={() => web2Identity.isWeb2 ? onWeb2UserClick?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(item.author)}
                       className="text-[11px] font-medium text-white hover:text-[var(--hrk-brand)] sm:text-sm"
                     >
                       {tierMap[item.author] ? (
@@ -696,8 +708,12 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 onDelete={item.author === currentUser && onDeletePost ? () => onDeletePost(item.author, item.permlink) : undefined}
                 onPin={canPin && !item.stats?.is_pinned && onPinPost ? () => onPinPost(item.author, item.permlink) : undefined}
                 onUnpin={canPin && item.stats?.is_pinned && onUnpinPost ? () => onUnpinPost(item.author, item.permlink) : undefined}
-                disableCommentsModal={!!onCommentClick}
+                disableCommentsModal={!!onCommentClick || !!onClickCommentIcon || !!onClickCommentCount}
                 onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
+                onClickCommentIcon={onClickCommentIcon ? () => onClickCommentIcon(item.author, item.permlink, parentMetaTags) : undefined}
+                onClickCommentCount={onClickCommentCount ? () => onClickCommentCount(item.author, item.permlink, posts) : (onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined)}
+                hasCommented={hasCommented}
+                myReplyKey={myReplyKey ?? undefined}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
                 giphyApiKey={giphyApiKey}

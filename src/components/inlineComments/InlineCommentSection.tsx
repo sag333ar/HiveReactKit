@@ -361,7 +361,7 @@ export default function InlineCommentSection({
   const isSelfPost = currentUser === author;
 
   return (
-    <div className="border-t border-gray-700/50 mt-2">
+    <div id="comments" className="border-t border-gray-700/50 mt-2 scroll-mt-20">
       {/* Section header */}
       <div className="flex items-center justify-between px-1 py-3">
         <div className="flex items-center gap-2">
@@ -405,7 +405,7 @@ export default function InlineCommentSection({
 
       {/* Top-level composer — reply to the post author (hidden when replying to a comment) */}
       {showTopComposer && (
-        <div className="border border-gray-700 rounded-xl mb-3 overflow-hidden bg-gray-800/50">
+        <div id="inline-comment-composer" className="border border-gray-700 rounded-xl mb-3 overflow-hidden bg-gray-800/50 scroll-mt-20">
           {/* Header: currentUser replying to post author */}
           {(() => {
             const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));

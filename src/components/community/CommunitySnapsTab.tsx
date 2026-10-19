@@ -73,8 +73,8 @@ export interface CommunitySnapsTabProps {
   onTip?: (author: string, permlink: string) => void;
   onSharePost?: (author: string, permlink: string) => void;
   onCommentClick?: (author: string, permlink: string) => void;
-  onClickCommentIcon?: (author: string, permlink: string) => void;
-  onClickCommentCount?: (author: string, permlink: string) => void;
+  onClickCommentIcon?: (author: string, permlink: string, parentTags?: string[]) => void;
+  onClickCommentCount?: (author: string, permlink: string, contextPosts?: Post[]) => void;
   onReportPost?: (author: string, permlink: string) => void;
   /** Author-only Delete entry — forwarded into the embedded
    *  <SnapsFeedView/> so each card's kebab gets a red Delete item
