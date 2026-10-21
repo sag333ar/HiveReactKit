@@ -20,7 +20,7 @@ import {
 } from '../../utils/beneficiaries';
 import ImageUploader, { type ImageUploaderRef } from '../composer/ImageUploader';
 import AudioUploader from '../composer/AudioUploader';
-import VideoUploader from '../composer/VideoUploader';
+import VideoUploader, { type VideoUploadDetails } from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
 import YoutubePicker from '../composer/YoutubePicker';
 import EmojiPicker from '../composer/EmojiPicker';
@@ -77,6 +77,12 @@ export interface PostComposerProps {
   signingUsername?: string;
   /** 3Speak API key — enables audio and video upload */
   threeSpeakApiKey?: string;
+  /** Custom 3Speak upload host(s) (e.g. 'https://embed.3speak.tv') */
+  threeSpeakUploadHost?: string;
+  /** 3Speak frontend app name (defaults to 'snapie-web') */
+  threeSpeakFrontendApp?: string;
+  /** Emitted with full 3Speak video upload details upon completion */
+  onVideoUploadDetails?: (details: VideoUploadDetails) => void;
   /** GIPHY API key — enables GIF search */
   giphyApiKey?: string;
   /** YouTube Data API v3 key — enables the YouTube video picker */
@@ -289,6 +295,9 @@ const PostComposer = ({
   onSignMessage,
   signingUsername,
   threeSpeakApiKey,
+  threeSpeakUploadHost,
+  threeSpeakFrontendApp,
+  onVideoUploadDetails,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -403,6 +412,7 @@ const PostComposer = ({
   const [audioDuration, setAudioDuration] = useState(0);
   const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoUploadDetails, setVideoUploadDetails] = useState<VideoUploadDetails | null>(null);
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
   const [templates, setTemplates] = useState<TemplateModel[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -800,6 +810,7 @@ const PostComposer = ({
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoEmbedUrl(null);
       setVideoPreviewUrl(null);
+      setVideoUploadDetails(null);
     }
   }, [value]);
 
@@ -993,6 +1004,7 @@ const PostComposer = ({
       setVideoEmbedUrl(null);
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoPreviewUrl(null);
+      setVideoUploadDetails(null);
       setPollData(null);
       onPollChange?.(null);
       setDecentMemes([]);
@@ -1020,6 +1032,7 @@ const PostComposer = ({
         setVideoEmbedUrl(null);
         if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
         setVideoPreviewUrl(null);
+        setVideoUploadDetails(null);
         setPollData(null);
         onPollChange?.(null);
         setDecentMemes([]);
@@ -1037,7 +1050,9 @@ const PostComposer = ({
   const removeAudio = () => { setAudioEmbedUrl(null); setAudioDuration(0); };
   const removeVideo = () => {
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
-    setVideoEmbedUrl(null); setVideoPreviewUrl(null);
+    setVideoEmbedUrl(null);
+    setVideoPreviewUrl(null);
+    setVideoUploadDetails(null);
   };
 
   // Preview rendering with code block copy buttons
@@ -1310,10 +1325,16 @@ const PostComposer = ({
               setVideoEmbedUrl(embedUrl);
               if (localFile) setVideoPreviewUrl(URL.createObjectURL(localFile));
             }}
+            onVideoUploadDetails={(details) => {
+              setVideoUploadDetails(details);
+              onVideoUploadDetails?.(details);
+            }}
             username={currentUser}
             ecencyToken={ecencyToken}
             onSignMessage={onSignMessage}
             threeSpeakApiKey={threeSpeakApiKey}
+            threeSpeakUploadHost={threeSpeakUploadHost}
+            frontendApp={threeSpeakFrontendApp}
             disabled={isSubmitting || !!videoEmbedUrl}
             allowLandscape={allowLandscapeVideos}
           />

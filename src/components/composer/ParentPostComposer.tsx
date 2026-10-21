@@ -196,6 +196,10 @@ export interface ParentPostComposerProps {
   onSignMessage?: PostingSignMessageFn;
   signingUsername?: string;
   threeSpeakApiKey?: string;
+  /** Custom 3Speak upload host(s) (e.g. 'https://embed.3speak.tv') */
+  threeSpeakUploadHost?: string;
+  /** 3Speak frontend app name (defaults to 'snapie-web') */
+  threeSpeakFrontendApp?: string;
   giphyApiKey?: string;
   /** YouTube Data API v3 key — enables the YouTube video picker */
   youtubeApiKey?: string;
@@ -514,6 +518,9 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   onSignMessage,
   signingUsername,
   threeSpeakApiKey,
+  threeSpeakUploadHost,
+  threeSpeakFrontendApp,
+  allowLandscapeVideos = true,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -542,7 +549,6 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   hideReward: hideRewardProp,
   hideBeneficiaries: hideBeneficiariesProp,
   requirePoll,
-  allowLandscapeVideos = true,
   mentionSeedAccounts,
   onUserClick,
   onNavigateToPost,
@@ -2306,12 +2312,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     disabled={isDisabled || !!audioEmbedUrl}
                   />
                 )}
-                {/* Video upload toolbar entry — temporarily disabled while
-                    the 3Speak v2 publish flow is being finalized. The kit
-                    keeps the snap composer's video icon untouched (this
-                    block is local to <ParentPostComposer/>); flip back on
-                    by uncommenting once the API integration is verified. */}
-                {/* {!hideVideo && threeSpeakApiKey && (
+                {!hideVideo && threeSpeakApiKey && (
                   <VideoUploader
                     onVideoUploaded={(embedUrl, uploadUrl, aspectRatio, localFile) => {
                       setVideoEmbedUrl(embedUrl);
@@ -2326,6 +2327,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     ecencyToken={ecencyToken}
                     onSignMessage={onSignMessage}
                     threeSpeakApiKey={threeSpeakApiKey}
+                    threeSpeakUploadHost={threeSpeakUploadHost}
+                    frontendApp={threeSpeakFrontendApp}
                     disabled={isDisabled || !!videoEmbedUrl}
                     allowLandscape={allowLandscapeVideos}
                     inline
@@ -2335,7 +2338,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     beforeUpload={beforeVideoUpload}
                     useThreeSpeakV2={useThreeSpeakV2}
                   />
-                )} */}
+                )}
                 {!hideEmoji && (
                   <button
                     type="button"

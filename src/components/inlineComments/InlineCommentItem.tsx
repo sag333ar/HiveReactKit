@@ -43,6 +43,8 @@ interface InlineCommentItemProps {
   encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  threeSpeakUploadHost?: string;
+  threeSpeakFrontendApp?: string;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -142,6 +144,8 @@ export default function InlineCommentItem({
   encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
+  threeSpeakUploadHost,
+  threeSpeakFrontendApp,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -1070,6 +1074,8 @@ export default function InlineCommentItem({
                         encoderUrl={encoderUrl}
                         ecencyToken={ecencyToken}
                         threeSpeakApiKey={threeSpeakApiKey}
+                        threeSpeakUploadHost={threeSpeakUploadHost}
+                        threeSpeakFrontendApp={threeSpeakFrontendApp}
                         giphyApiKey={giphyApiKey}
                         youtubeApiKey={youtubeApiKey}
                         templateToken={templateToken}
@@ -1165,6 +1171,8 @@ export default function InlineCommentItem({
                     encoderUrl={encoderUrl}
                     ecencyToken={ecencyToken}
                     threeSpeakApiKey={threeSpeakApiKey}
+                    threeSpeakUploadHost={threeSpeakUploadHost}
+                    threeSpeakFrontendApp={threeSpeakFrontendApp}
                     giphyApiKey={giphyApiKey}
                     youtubeApiKey={youtubeApiKey}
                     templateToken={templateToken}
@@ -1225,6 +1233,8 @@ export default function InlineCommentItem({
               encoderUrl={encoderUrl}
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
+              threeSpeakUploadHost={threeSpeakUploadHost}
+              threeSpeakFrontendApp={threeSpeakFrontendApp}
               giphyApiKey={giphyApiKey}
               youtubeApiKey={youtubeApiKey}
               templateToken={templateToken}

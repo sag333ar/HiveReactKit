@@ -4,8 +4,17 @@ export type { ImageUploaderProps, ImageUploaderRef } from './ImageUploader'
 export { default as AudioUploader } from './AudioUploader'
 export type { AudioUploaderProps } from './AudioUploader'
 
-export { default as VideoUploader } from './VideoUploader'
-export type { VideoUploaderProps, VideoUploadDetails } from './VideoUploader'
+export {
+  default as VideoUploader,
+  bindVideoToHivePost,
+  extractThreeSpeakPermlink,
+  getThreeSpeakVideoStatus,
+  selectUploadHost,
+  mintUploadToken,
+  uploadVideoWithToken,
+  setThumbnailOn3Speak,
+} from './VideoUploader'
+export type { VideoUploaderProps, VideoUploadDetails, MintTokenResponse, UploadProgress } from './VideoUploader'
 
 export { default as GiphyPicker } from './GiphyPicker'
 export type { GiphyPickerProps } from './GiphyPicker'

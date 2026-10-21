@@ -61,6 +61,8 @@ interface InlineCommentSectionProps {
   encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  threeSpeakUploadHost?: string;
+  threeSpeakFrontendApp?: string;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -166,6 +168,8 @@ export default function InlineCommentSection({
   encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
+  threeSpeakUploadHost,
+  threeSpeakFrontendApp,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -464,6 +468,8 @@ export default function InlineCommentSection({
             encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            threeSpeakUploadHost={threeSpeakUploadHost}
+            threeSpeakFrontendApp={threeSpeakFrontendApp}
             giphyApiKey={giphyApiKey}
             youtubeApiKey={youtubeApiKey}
             templateToken={templateToken}
@@ -546,6 +552,8 @@ export default function InlineCommentSection({
               encoderUrl={encoderUrl}
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
+              threeSpeakUploadHost={threeSpeakUploadHost}
+              threeSpeakFrontendApp={threeSpeakFrontendApp}
               giphyApiKey={giphyApiKey}
               youtubeApiKey={youtubeApiKey}
               templateToken={templateToken}

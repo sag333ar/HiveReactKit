@@ -267,6 +267,10 @@ export interface HiveDetailPostProps {
   encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  /** Custom 3Speak upload host(s) (e.g. 'https://embed.3speak.tv') */
+  threeSpeakUploadHost?: string;
+  /** 3Speak frontend app name (defaults to 'snapie-web') */
+  threeSpeakFrontendApp?: string;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -481,6 +485,8 @@ export function HiveDetailPost({
   encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
+  threeSpeakUploadHost,
+  threeSpeakFrontendApp,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -3541,6 +3547,8 @@ export function HiveDetailPost({
                 encoderUrl={encoderUrl}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
+                threeSpeakUploadHost={threeSpeakUploadHost}
+                threeSpeakFrontendApp={threeSpeakFrontendApp}
                 giphyApiKey={giphyApiKey}
                 youtubeApiKey={youtubeApiKey}
                 templateToken={templateToken}
