@@ -48,10 +48,27 @@ export interface VideoUploaderProps {
   ecencyToken?: string
   /** Optional signer used when the Ecency thumbnail upload fails. */
   onSignMessage?: PostingSignMessageFn
-  /** 3Speak API key. Falls back to default key if not provided. */
+  /** 3Speak API key. Falls back to default key if not provided. Ignored when `mintUploadTokenFn` is provided. */
   threeSpeakApiKey?: string
   /** 3Speak upload host(s) — comma-separated URLs or single URL (e.g. 'https://embed.3speak.tv'). */
   threeSpeakUploadHost?: string
+  /**
+   * When provided, used instead of the built-in token minting (which calls
+   * 3Speak's `/uploads/token` directly with `threeSpeakApiKey`). Lets a
+   * consumer proxy minting through its own backend so the 3Speak API key
+   * never has to reach the browser.
+   */
+  mintUploadTokenFn?: (opts: {
+    uploadHost: string
+    owner: string
+    frontendApp?: string
+    short: boolean
+  }) => Promise<MintTokenResponse>
+  /**
+   * When provided, used instead of the built-in `setThumbnailOn3Speak` call
+   * (same rationale as `mintUploadTokenFn`).
+   */
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>
   /** 3Speak frontend app name (default: 'snapie-web'). */
   frontendApp?: string
   disabled?: boolean
@@ -500,6 +517,8 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
   onSignMessage,
   threeSpeakApiKey,
   threeSpeakUploadHost,
+  mintUploadTokenFn,
+  setThumbnailFn,
   frontendApp = DEFAULT_FRONTEND_APP,
   disabled = false,
   allowLandscape = false,
@@ -612,14 +631,16 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
 
         // 2. Mint single-use upload token from upload host
         const isShort = !allowLandscape || duration <= 120
-        const tokenData = await mintUploadToken({
-          uploadHost: chosenHost,
-          apiKey,
-          owner: username,
-          frontendApp,
-          short: isShort,
-          signal: controller.signal,
-        })
+        const tokenData = mintUploadTokenFn
+          ? await mintUploadTokenFn({ uploadHost: chosenHost, owner: username, frontendApp, short: isShort })
+          : await mintUploadToken({
+              uploadHost: chosenHost,
+              apiKey,
+              owner: username,
+              frontendApp,
+              short: isShort,
+              signal: controller.signal,
+            })
 
         // 3. Kick off thumbnail upload asynchronously
         let thumbnailUrlPromise: Promise<string | null> = Promise.resolve(null)
@@ -656,7 +677,11 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
         // 5. Attach thumbnail if available
         const thumbnailUrl = await thumbnailUrlPromise
         if (thumbnailUrl && tokenData.permlink) {
-          await setThumbnailOn3Speak(chosenHost, tokenData.permlink, thumbnailUrl, apiKey)
+          if (setThumbnailFn) {
+            await setThumbnailFn(chosenHost, tokenData.permlink, thumbnailUrl)
+          } else {
+            await setThumbnailOn3Speak(chosenHost, tokenData.permlink, thumbnailUrl, apiKey)
+          }
         }
 
         // 6. Surface full details to consumer
@@ -700,6 +725,8 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
       onSignMessage,
       apiKey,
       threeSpeakUploadHost,
+      mintUploadTokenFn,
+      setThumbnailFn,
       frontendApp,
       allowLandscape,
       onVideoUploaded,

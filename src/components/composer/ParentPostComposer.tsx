@@ -77,8 +77,8 @@ import {
   type Beneficiary,
 } from '../../utils/beneficiaries';
 import ImageUploader, { type ImageUploaderRef } from './ImageUploader';
-import AudioUploader from './AudioUploader';
-import VideoUploader, { type VideoUploadDetails } from './VideoUploader';
+import AudioUploader, { type AudioUploaderProps } from './AudioUploader';
+import VideoUploader, { type VideoUploadDetails, type VideoUploaderProps } from './VideoUploader';
 import GiphyPicker from './GiphyPicker';
 import YoutubePicker from './YoutubePicker';
 import MemePicker from './MemePicker';
@@ -200,6 +200,12 @@ export interface ParentPostComposerProps {
   threeSpeakUploadHost?: string;
   /** 3Speak frontend app name (defaults to 'snapie-web') */
   threeSpeakFrontendApp?: string;
+  /** Forwarded to the embedded `<VideoUploader/>` — see its own prop doc. */
+  mintUploadTokenFn?: VideoUploaderProps['mintUploadTokenFn'];
+  /** Forwarded to the embedded `<VideoUploader/>` — see its own prop doc. */
+  setThumbnailFn?: VideoUploaderProps['setThumbnailFn'];
+  /** Forwarded to the embedded `<AudioUploader/>` — see its own prop doc. */
+  uploadAudioFn?: AudioUploaderProps['uploadAudioFn'];
   giphyApiKey?: string;
   /** YouTube Data API v3 key — enables the YouTube video picker */
   youtubeApiKey?: string;
@@ -520,6 +526,9 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
   threeSpeakApiKey,
   threeSpeakUploadHost,
   threeSpeakFrontendApp,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   allowLandscapeVideos = true,
   giphyApiKey,
   youtubeApiKey,
@@ -2301,7 +2310,7 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     disabled={isDisabled}
                   />
                 )}
-                {!hideAudio && threeSpeakApiKey && (
+                {!hideAudio && (threeSpeakApiKey || uploadAudioFn) && (
                   <AudioUploader
                     onAudioUploaded={(url, duration) => {
                       setAudioEmbedUrl(url);
@@ -2309,10 +2318,11 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     }}
                     username={currentUser}
                     threeSpeakApiKey={threeSpeakApiKey}
+                    uploadAudioFn={uploadAudioFn}
                     disabled={isDisabled || !!audioEmbedUrl}
                   />
                 )}
-                {!hideVideo && threeSpeakApiKey && (
+                {!hideVideo && (threeSpeakApiKey || mintUploadTokenFn) && (
                   <VideoUploader
                     onVideoUploaded={(embedUrl, uploadUrl, aspectRatio, localFile) => {
                       setVideoEmbedUrl(embedUrl);
@@ -2328,6 +2338,8 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
                     onSignMessage={onSignMessage}
                     threeSpeakApiKey={threeSpeakApiKey}
                     threeSpeakUploadHost={threeSpeakUploadHost}
+                    mintUploadTokenFn={mintUploadTokenFn}
+                    setThumbnailFn={setThumbnailFn}
                     frontendApp={threeSpeakFrontendApp}
                     disabled={isDisabled || !!videoEmbedUrl}
                     allowLandscape={allowLandscapeVideos}
@@ -3297,10 +3309,10 @@ const ParentPostComposer: React.FC<ParentPostComposerProps> = ({
           if (canUploadImages) {
             items.push({ icon: <ImageIcon className="h-4 w-4" />, label: 'Image', description: 'Upload an image — also works by drag-and-drop or paste into the textarea.' });
           }
-          if (!hideAudio && threeSpeakApiKey) {
+          if (!hideAudio && (threeSpeakApiKey || uploadAudioFn)) {
             items.push({ icon: <Mic className="h-4 w-4" />, label: 'Audio', description: 'Upload an audio file via 3Speak — embedded as a player when published.' });
           }
-          if (!hideVideo && threeSpeakApiKey) {
+          if (!hideVideo && (threeSpeakApiKey || mintUploadTokenFn)) {
             items.push({ icon: <Video className="h-4 w-4" />, label: 'Video', description: 'Upload a video via 3Speak — the 10% threespeakfund beneficiary is auto-attached.' });
           }
           if (!hideEmoji) {

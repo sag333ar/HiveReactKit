@@ -19,8 +19,8 @@ import {
   type Beneficiary,
 } from '../../utils/beneficiaries';
 import ImageUploader, { type ImageUploaderRef } from '../composer/ImageUploader';
-import AudioUploader from '../composer/AudioUploader';
-import VideoUploader, { type VideoUploadDetails } from '../composer/VideoUploader';
+import AudioUploader, { type AudioUploaderProps } from '../composer/AudioUploader';
+import VideoUploader, { type VideoUploadDetails, type VideoUploaderProps } from '../composer/VideoUploader';
 import GiphyPicker from '../composer/GiphyPicker';
 import YoutubePicker from '../composer/YoutubePicker';
 import EmojiPicker from '../composer/EmojiPicker';
@@ -81,6 +81,12 @@ export interface PostComposerProps {
   threeSpeakUploadHost?: string;
   /** 3Speak frontend app name (defaults to 'snapie-web') */
   threeSpeakFrontendApp?: string;
+  /** Forwarded to the embedded `<VideoUploader/>` — see its own prop doc. */
+  mintUploadTokenFn?: VideoUploaderProps['mintUploadTokenFn'];
+  /** Forwarded to the embedded `<VideoUploader/>` — see its own prop doc. */
+  setThumbnailFn?: VideoUploaderProps['setThumbnailFn'];
+  /** Forwarded to the embedded `<AudioUploader/>` — see its own prop doc. */
+  uploadAudioFn?: AudioUploaderProps['uploadAudioFn'];
   /** Emitted with full 3Speak video upload details upon completion */
   onVideoUploadDetails?: (details: VideoUploadDetails) => void;
   /** GIPHY API key — enables GIF search */
@@ -297,6 +303,9 @@ const PostComposer = ({
   threeSpeakApiKey,
   threeSpeakUploadHost,
   threeSpeakFrontendApp,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   onVideoUploadDetails,
   giphyApiKey,
   youtubeApiKey,
@@ -1311,15 +1320,16 @@ const PostComposer = ({
             disabled={isDisabled}
           />
         )}
-        {!hideAudio && threeSpeakApiKey && (
+        {!hideAudio && (threeSpeakApiKey || uploadAudioFn) && (
           <AudioUploader
             onAudioUploaded={(url, duration) => { setAudioEmbedUrl(url); setAudioDuration(duration); }}
             username={currentUser}
             threeSpeakApiKey={threeSpeakApiKey}
+            uploadAudioFn={uploadAudioFn}
             disabled={isSubmitting || !!audioEmbedUrl}
           />
         )}
-        {!hideVideo && threeSpeakApiKey && (
+        {!hideVideo && (threeSpeakApiKey || mintUploadTokenFn) && (
           <VideoUploader
             onVideoUploaded={(embedUrl, _uploadUrl, _aspectRatio, localFile) => {
               setVideoEmbedUrl(embedUrl);
@@ -1334,6 +1344,8 @@ const PostComposer = ({
             onSignMessage={onSignMessage}
             threeSpeakApiKey={threeSpeakApiKey}
             threeSpeakUploadHost={threeSpeakUploadHost}
+            mintUploadTokenFn={mintUploadTokenFn}
+            setThumbnailFn={setThumbnailFn}
             frontendApp={threeSpeakFrontendApp}
             disabled={isSubmitting || !!videoEmbedUrl}
             allowLandscape={allowLandscapeVideos}
@@ -2031,10 +2043,10 @@ const PostComposer = ({
           if (!hideImage && canUploadImages) {
             items.push({ icon: <ImageIcon className="h-4 w-4" />, label: 'Image', description: 'Upload an image — also works by drag-and-drop or paste into the textarea.' });
           }
-          if (!hideAudio && threeSpeakApiKey) {
+          if (!hideAudio && (threeSpeakApiKey || uploadAudioFn)) {
             items.push({ icon: <Mic className="h-4 w-4" />, label: 'Audio', description: 'Upload an audio file via 3Speak — embedded as a player when published.' });
           }
-          if (!hideVideo && threeSpeakApiKey) {
+          if (!hideVideo && (threeSpeakApiKey || mintUploadTokenFn)) {
             items.push({ icon: <Video className="h-4 w-4" />, label: 'Video', description: 'Upload a video via 3Speak — the 10% threespeakfund beneficiary is auto-attached.' });
           }
           if (!hideEmoji) {

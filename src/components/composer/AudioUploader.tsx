@@ -1,13 +1,27 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Music, Mic, Upload, X, Loader2, Play, Square, Trash2, RotateCcw, Pause } from 'lucide-react'
 
+export interface AudioUploadResult {
+  permlink?: string
+  cid?: string
+  playUrl?: string
+  error?: string
+}
+
 export interface AudioUploaderProps {
   /** Called with the audio embed URL and duration in seconds */
   onAudioUploaded: (audioUrl: string, durationSeconds: number) => void
   /** Hive username for the upload */
   username?: string
-  /** 3Speak API key. Falls back to demo key if not provided. */
+  /** 3Speak API key. Falls back to demo key if not provided. Ignored when `uploadAudioFn` is provided. */
   threeSpeakApiKey?: string
+  /**
+   * When provided, used instead of the built-in upload (which POSTs the
+   * file directly to 3Speak's audio host with `threeSpeakApiKey`). Lets a
+   * consumer proxy the upload through its own backend so the 3Speak API
+   * key never has to reach the browser.
+   */
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<AudioUploadResult>
   disabled?: boolean
 }
 
@@ -64,7 +78,7 @@ function getSupportedMimeType(): string {
   return ''
 }
 
-const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username, threeSpeakApiKey, disabled = false }) => {
+const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username, threeSpeakApiKey, uploadAudioFn, disabled = false }) => {
   const apiKey = threeSpeakApiKey || DEFAULT_API_KEY
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -252,24 +266,29 @@ const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username
     try {
       if (!username) throw new Error('Please log in to upload audio.')
       const format = file instanceof File ? getFileFormat(file.name) : 'webm'
-      const formData = new FormData()
-      formData.append('audio', file)
-      formData.append('duration', String(durationSeconds))
-      formData.append('format', format)
-      formData.append('title', `Audio by ${username}`)
 
-      const response = await fetch(`${AUDIO_API_ENDPOINT}/api/audio/upload`, {
-        method: 'POST',
-        headers: { 'X-API-Key': apiKey, 'X-User': username },
-        body: formData,
-      })
+      let data: AudioUploadResult
+      if (uploadAudioFn) {
+        data = await uploadAudioFn(file, durationSeconds, format)
+      } else {
+        const formData = new FormData()
+        formData.append('audio', file)
+        formData.append('duration', String(durationSeconds))
+        formData.append('format', format)
+        formData.append('title', `Audio by ${username}`)
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null)
-        throw new Error(errData?.message ?? errData?.error ?? `Upload failed: ${response.statusText}`)
+        const response = await fetch(`${AUDIO_API_ENDPOINT}/api/audio/upload`, {
+          method: 'POST',
+          headers: { 'X-API-Key': apiKey, 'X-User': username },
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null)
+          throw new Error(errData?.message ?? errData?.error ?? `Upload failed: ${response.statusText}`)
+        }
+        data = (await response.json()) as AudioUploadResult
       }
-
-      const data = (await response.json()) as { permlink?: string; cid?: string; playUrl?: string; error?: string }
       if (data.error) throw new Error(data.error)
 
       let audioEmbedUrl: string
