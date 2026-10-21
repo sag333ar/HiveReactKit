@@ -12,6 +12,9 @@ interface ReplyModalProps {
   encoderUrl?: string;
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
@@ -27,6 +30,9 @@ const ReplyModal = ({
   encoderUrl,
   ecencyToken,
   threeSpeakApiKey,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -98,6 +104,9 @@ const ReplyModal = ({
             encoderUrl={encoderUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            mintUploadTokenFn={mintUploadTokenFn}
+            setThumbnailFn={setThumbnailFn}
+            uploadAudioFn={uploadAudioFn}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}

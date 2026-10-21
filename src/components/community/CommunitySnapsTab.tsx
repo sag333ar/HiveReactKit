@@ -91,6 +91,9 @@ export interface CommunitySnapsTabProps {
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;

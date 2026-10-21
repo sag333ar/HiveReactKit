@@ -45,6 +45,9 @@ interface InlineCommentItemProps {
   threeSpeakApiKey?: string;
   threeSpeakUploadHost?: string;
   threeSpeakFrontendApp?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -146,6 +149,9 @@ export default function InlineCommentItem({
   threeSpeakApiKey,
   threeSpeakUploadHost,
   threeSpeakFrontendApp,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -1076,6 +1082,9 @@ export default function InlineCommentItem({
                         threeSpeakApiKey={threeSpeakApiKey}
                         threeSpeakUploadHost={threeSpeakUploadHost}
                         threeSpeakFrontendApp={threeSpeakFrontendApp}
+                        mintUploadTokenFn={mintUploadTokenFn}
+                        setThumbnailFn={setThumbnailFn}
+                        uploadAudioFn={uploadAudioFn}
                         giphyApiKey={giphyApiKey}
                         youtubeApiKey={youtubeApiKey}
                         templateToken={templateToken}
@@ -1173,6 +1182,9 @@ export default function InlineCommentItem({
                     threeSpeakApiKey={threeSpeakApiKey}
                     threeSpeakUploadHost={threeSpeakUploadHost}
                     threeSpeakFrontendApp={threeSpeakFrontendApp}
+                    mintUploadTokenFn={mintUploadTokenFn}
+                    setThumbnailFn={setThumbnailFn}
+                    uploadAudioFn={uploadAudioFn}
                     giphyApiKey={giphyApiKey}
                     youtubeApiKey={youtubeApiKey}
                     templateToken={templateToken}
@@ -1235,6 +1247,9 @@ export default function InlineCommentItem({
               threeSpeakApiKey={threeSpeakApiKey}
               threeSpeakUploadHost={threeSpeakUploadHost}
               threeSpeakFrontendApp={threeSpeakFrontendApp}
+              mintUploadTokenFn={mintUploadTokenFn}
+              setThumbnailFn={setThumbnailFn}
+              uploadAudioFn={uploadAudioFn}
               giphyApiKey={giphyApiKey}
               youtubeApiKey={youtubeApiKey}
               templateToken={templateToken}

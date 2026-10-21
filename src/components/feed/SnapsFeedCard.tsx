@@ -140,6 +140,9 @@ export interface SnapsFeedCardProps {
 
   ecencyToken?: string;
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
@@ -342,6 +345,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   getWeb2UserUrl,
   ecencyToken,
   threeSpeakApiKey,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -975,6 +981,9 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
           myReplyKey={myReplyKey}
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
+          mintUploadTokenFn={mintUploadTokenFn}
+          setThumbnailFn={setThumbnailFn}
+          uploadAudioFn={uploadAudioFn}
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}

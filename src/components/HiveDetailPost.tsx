@@ -271,6 +271,9 @@ export interface HiveDetailPostProps {
   threeSpeakUploadHost?: string;
   /** 3Speak frontend app name (defaults to 'snapie-web') */
   threeSpeakFrontendApp?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -487,6 +490,9 @@ export function HiveDetailPost({
   threeSpeakApiKey,
   threeSpeakUploadHost,
   threeSpeakFrontendApp,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -3483,6 +3489,9 @@ export function HiveDetailPost({
                 getUserUrl={getUserUrl}
                 ecencyToken={ecencyToken}
                 threeSpeakApiKey={threeSpeakApiKey}
+                mintUploadTokenFn={mintUploadTokenFn}
+                setThumbnailFn={setThumbnailFn}
+                uploadAudioFn={uploadAudioFn}
                 giphyApiKey={giphyApiKey}
                 templateToken={templateToken}
                 templateApiBaseUrl={templateApiBaseUrl}
@@ -3549,6 +3558,9 @@ export function HiveDetailPost({
                 threeSpeakApiKey={threeSpeakApiKey}
                 threeSpeakUploadHost={threeSpeakUploadHost}
                 threeSpeakFrontendApp={threeSpeakFrontendApp}
+                mintUploadTokenFn={mintUploadTokenFn}
+                setThumbnailFn={setThumbnailFn}
+                uploadAudioFn={uploadAudioFn}
                 giphyApiKey={giphyApiKey}
                 youtubeApiKey={youtubeApiKey}
                 templateToken={templateToken}

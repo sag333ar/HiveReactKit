@@ -164,6 +164,9 @@ export interface UserDetailProfileProps {
   ecencyToken?: string;
   /** 3Speak API key — enables audio and video upload in comment composer */
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
   /** HReplier API token — enables template picker in comment composer */
@@ -594,6 +597,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   tabShown,
   ecencyToken,
   threeSpeakApiKey,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -2887,6 +2893,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             onComments={onCommentClick ? () => onCommentClick(item.author, item.permlink) : undefined}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            mintUploadTokenFn={mintUploadTokenFn}
+            setThumbnailFn={setThumbnailFn}
+            uploadAudioFn={uploadAudioFn}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}
@@ -4468,6 +4477,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               onUserClick={onUserClick}
               ecencyToken={ecencyToken}
               threeSpeakApiKey={threeSpeakApiKey}
+              mintUploadTokenFn={mintUploadTokenFn}
+              setThumbnailFn={setThumbnailFn}
+              uploadAudioFn={uploadAudioFn}
               giphyApiKey={giphyApiKey}
               templateToken={templateToken}
               templateApiBaseUrl={templateApiBaseUrl}
@@ -4627,6 +4639,9 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             getCommunityUrl={getCommunityUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            mintUploadTokenFn={mintUploadTokenFn}
+            setThumbnailFn={setThumbnailFn}
+            uploadAudioFn={uploadAudioFn}
             isWeb2User={isWeb2User}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}

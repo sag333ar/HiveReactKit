@@ -121,6 +121,9 @@ export interface CommunityDetailProps {
   // Composer tokens
   ecencyToken?: string
   threeSpeakApiKey?: string
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>
   giphyApiKey?: string
   templateToken?: string
   templateApiBaseUrl?: string
@@ -296,6 +299,9 @@ const CommunityDetail = ({
   onVotePoll,
   ecencyToken,
   threeSpeakApiKey,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -587,6 +593,9 @@ const CommunityDetail = ({
       onClickCommentCount,
       ecencyToken,
       threeSpeakApiKey,
+      mintUploadTokenFn,
+      setThumbnailFn,
+      uploadAudioFn,
       giphyApiKey,
       templateToken,
       templateApiBaseUrl,
@@ -626,6 +635,9 @@ const CommunityDetail = ({
       onClickCommentCount,
       ecencyToken,
       threeSpeakApiKey,
+      mintUploadTokenFn,
+      setThumbnailFn,
+      uploadAudioFn,
       giphyApiKey,
       templateToken,
       templateApiBaseUrl,
@@ -997,6 +1009,9 @@ const CommunityDetail = ({
             getCommunityUrl={getCommunityUrl}
             ecencyToken={ecencyToken}
             threeSpeakApiKey={threeSpeakApiKey}
+            mintUploadTokenFn={mintUploadTokenFn}
+            setThumbnailFn={setThumbnailFn}
+            uploadAudioFn={uploadAudioFn}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}

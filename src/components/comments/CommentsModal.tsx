@@ -50,6 +50,9 @@ interface CommentsModalProps {
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
   /** HReplier API token — enables template picker in comment composer */
@@ -69,7 +72,7 @@ interface CommentsModalProps {
   isWeb2User?: boolean;
 }
 
-const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, threeSpeakToken, encoderUrl, ecencyToken, threeSpeakApiKey, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval, isWeb2User = false }: CommentsModalProps) => {
+const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickCommentUpvote, onClickCommentReply, onClickUpvoteButton, onSubmitComment, threeSpeakToken, encoderUrl, ecencyToken, threeSpeakApiKey, mintUploadTokenFn, setThumbnailFn, uploadAudioFn, giphyApiKey, templateToken, templateApiBaseUrl, showVoteButton, parentTags, defaultReward, defaultBeneficiaries, beneficiaryFavorites, defaultVotePercent, voteWeightStep, allowLandscapeVideos, awaitingWalletApproval, isWeb2User = false }: CommentsModalProps) => {
   const isCurrentUserWeb2 = isWeb2User || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
@@ -301,6 +304,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
                   encoderUrl={encoderUrl}
                   ecencyToken={ecencyToken}
                   threeSpeakApiKey={threeSpeakApiKey}
+                  mintUploadTokenFn={mintUploadTokenFn}
+                  setThumbnailFn={setThumbnailFn}
+                  uploadAudioFn={uploadAudioFn}
                   giphyApiKey={giphyApiKey}
                   templateToken={templateToken}
                   templateApiBaseUrl={templateApiBaseUrl}
@@ -388,6 +394,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
           currentUser={currentUser}
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
+          mintUploadTokenFn={mintUploadTokenFn}
+          setThumbnailFn={setThumbnailFn}
+          uploadAudioFn={uploadAudioFn}
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}

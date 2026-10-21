@@ -147,6 +147,9 @@ export interface PostActionButtonProps {
   ecencyToken?: string;
   /** 3Speak API key — enables audio/video upload in comment composer */
   threeSpeakApiKey?: string;
+  mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
+  setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
+  uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
   /** HReplier API token — enables template picker in comment composer */
@@ -230,6 +233,9 @@ export function PostActionButton({
   getUserUrl,
   ecencyToken,
   threeSpeakApiKey,
+  mintUploadTokenFn,
+  setThumbnailFn,
+  uploadAudioFn,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -1144,6 +1150,9 @@ export function PostActionButton({
           onClickCommentUpvote={onClickCommentUpvote}
           ecencyToken={ecencyToken}
           threeSpeakApiKey={threeSpeakApiKey}
+          mintUploadTokenFn={mintUploadTokenFn}
+          setThumbnailFn={setThumbnailFn}
+          uploadAudioFn={uploadAudioFn}
           giphyApiKey={giphyApiKey}
           templateToken={templateToken}
           templateApiBaseUrl={templateApiBaseUrl}
