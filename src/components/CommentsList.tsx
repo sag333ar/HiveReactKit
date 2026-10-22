@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, RefreshCw, MessageCirclePlus } from 'lucide-react
 import CommentTile from './comments/CommentTile';
 import AddCommentInput from './comments/AddCommentInput';
 import { toast } from '@/hooks';
+import type { ThreeSpeakPlayerInjectedProps } from './ThreeSpeakPlayer';
 
 interface CommentsListProps {
   author: string;
@@ -16,6 +17,8 @@ interface CommentsListProps {
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
   onClickCommentUpvote?: (author: string, permlink: string, percent: number) => void | Promise<void>;
   onClickCommentReply?: (comment: Discussion) => void;
+  /** Forwarded to each `<CommentTile/>` — see its own `ThreeSpeakPlayerComponent` prop doc. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
 }
 
 export function CommentsList({
@@ -28,6 +31,7 @@ export function CommentsList({
   onClickUpvoteButton,
   onClickCommentUpvote,
   onClickCommentReply,
+  ThreeSpeakPlayerComponent,
 }: CommentsListProps) {
   const [comments, setComments] = useState<Discussion[]>([]);
   const [filteredComments, setFilteredComments] = useState<Discussion[]>([]);
@@ -214,6 +218,7 @@ export function CommentsList({
               comment={comment}
               allComments={filteredComments}
               onReply={handleReply}
+              ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
               currentUser={currentUser}
               token={token}
               searchQuery=""

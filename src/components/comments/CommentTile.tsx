@@ -12,6 +12,7 @@ import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { isRestrictedDirectVoter } from '@/utils/postVotes';
 import { TranslatedBody } from '../TranslatedBody';
 import { getWeb2Identity, Web2ProviderBadge } from '../feed/AttachmentStrip';
+import { ThreeSpeakPlayer, type ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 
 interface CommentTileProps {
   comment: Discussion;
@@ -28,6 +29,20 @@ interface CommentTileProps {
 
   onClickUpvoteButton?: (currentUser?: string, token?: string) => void;
   isWeb2User?: boolean;
+  /** Rendered in place of the kit's own zero-knowledge `<ThreeSpeakPlayer>`
+   *  for any 3Speak video referenced in this comment — see HiveDetailPost's
+   *  prop doc for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
+}
+
+const THREE_SPEAK_REF_RE =
+  /(?:play\.)?3speak\.(?:tv|co)\/(?:embed|watch|shorts|play|v)(?:\?(?:[^"\s'<>]*[?&])?v=|\/)([a-z0-9.-]+)\/([a-z0-9.-]+)/i;
+
+/** Extracts the first `owner/permlink` 3Speak reference from a comment body, if any. */
+function extractThreeSpeakRef(body: string): { author: string; permlink: string } | null {
+  const m = body.match(THREE_SPEAK_REF_RE);
+  if (!m) return null;
+  return { author: m[1].toLowerCase(), permlink: m[2] };
 }
 
 const getReputationDetails = (rep: any): { score: string; formatted: string } => {
@@ -64,7 +79,9 @@ const CommentTile = ({
   onClickCommentReply,
   onClickUpvoteButton,
   isWeb2User = false,
+  ThreeSpeakPlayerComponent,
 }: CommentTileProps) => {
+  const ActiveThreeSpeakPlayer = ThreeSpeakPlayerComponent ?? ThreeSpeakPlayer;
   const isCurrentUserWeb2 = isWeb2User || currentUser === 'hivesuite-w2prxy' || Boolean(currentUser && !/^[a-z][a-z0-9.-]{2,15}$/.test(currentUser));
   const [isUpvoted, setIsUpvoted] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -198,6 +215,16 @@ const CommentTile = ({
   const hasMarkdownImagesInBody = /!\[[^\]]*\]\([^)]+\)/.test(sanitizedBody) || /<img\s/i.test(sanitizedBody);
   const metadataImages: string[] = Array.isArray(metadata?.image) ? metadata.image : [];
 
+  // A comment linking/embedding a 3Speak video gets its own inline player
+  // (rendered separately below, with a real viewer-reward token when
+  // `ThreeSpeakPlayerComponent` is supplied) instead of whatever raw
+  // iframe/anchor the Hive renderer would otherwise produce for that URL.
+  const commentThreeSpeakRef = useMemo(() => extractThreeSpeakRef(sanitizedBody), [sanitizedBody]);
+  const stripThreeSpeakFromHtml = (html: string): string =>
+    html
+      .replace(/<(?:iframe|video)\b[^>]*\bsrc=["'][^"']*3speak\.(?:tv|co)[^"']*["'][^>]*>(?:\s*<\/(?:iframe|video)>)?/gi, '')
+      .replace(/<a\s[^>]*href="https?:\/\/(?:[a-z0-9-]+\.)?3speak\.(?:tv|co)\/[^"]*"[^>]*>[^<]*<\/a>/gi, '');
+
   // Hive content renderer instance (memoized per render)
   const renderHive = useMemo(() => {
     try {
@@ -279,9 +306,15 @@ const CommentTile = ({
               {searchQuery ? (
                 <TranslatedBody className="text-left" html={displayBody} />
               ) : (
-                <TranslatedBody className="text-left" html={renderHive(sanitizedBody)} />
+                <TranslatedBody className="text-left" html={stripThreeSpeakFromHtml(renderHive(sanitizedBody))} />
               )}
             </div>
+
+            {commentThreeSpeakRef && (
+              <div className="mb-3 max-w-sm">
+                <ActiveThreeSpeakPlayer author={commentThreeSpeakRef.author} permlink={commentThreeSpeakRef.permlink} hideThumbnail />
+              </div>
+            )}
 
             {/* Render metadata images if body has no inline images */}
             {!hasMarkdownImagesInBody && metadataImages.length > 0 && (
