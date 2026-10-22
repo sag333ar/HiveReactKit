@@ -32,6 +32,15 @@ export interface ThreeSpeakPlayerProps {
   token?: string;
 }
 
+/**
+ * Props every consumer-supplied `ThreeSpeakPlayerComponent` override must
+ * accept — the same shape as `ThreeSpeakPlayerProps` minus `token`, since an
+ * override is expected to mint/attach its own viewer-reward token
+ * internally (see HiveDetailPost/MediaLightbox/AttachmentStrip's
+ * `ThreeSpeakPlayerComponent` prop doc).
+ */
+export type ThreeSpeakPlayerInjectedProps = Omit<ThreeSpeakPlayerProps, 'token'>;
+
 interface EmbedMeta {
   useIframe?: boolean;
   videoUrl?: string;

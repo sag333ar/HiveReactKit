@@ -13,7 +13,7 @@ import {
   Repeat,
 } from 'lucide-react';
 import type { Post } from '@/types/post';
-import { ThreeSpeakPlayer as ThreeSpeakNativePlayer } from '../ThreeSpeakPlayer';
+import { ThreeSpeakPlayer as ThreeSpeakNativePlayer, type ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 import { IPFS_URL_REGEX, useIpfsKind } from '../IpfsMedia';
 import { stripFirstContextLink, extractFirstContextTwitterId, isFirstContextPost } from '@/utils/firstContext';
 
@@ -33,6 +33,10 @@ export interface AttachmentStripProps {
    * (`false`) keeps their behavior exactly as before.
    */
   disableIframePreviews?: boolean;
+  /** Rendered in place of the kit's own zero-knowledge `<ThreeSpeakPlayer>`
+   *  for any 3Speak attachment — see HiveDetailPost's prop doc for the
+   *  rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
 }
 
 export interface ParsedBody {
@@ -1123,7 +1127,8 @@ export const MediaPopup: FC<{
   );
 };
 
-export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments, disableIframePreviews }) => {
+export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments, disableIframePreviews, ThreeSpeakPlayerComponent }) => {
+  const ActiveThreeSpeakPlayer = ThreeSpeakPlayerComponent ?? ThreeSpeakNativePlayer;
   const [idx, setIdx] = useState(0);
   const [activeAttachment, setActiveAttachment] = useState<Attachment | null>(null);
   const [popupIdx, setPopupIdx] = useState<number>(0);
@@ -1261,7 +1266,7 @@ export const AttachmentStrip: FC<AttachmentStripProps> = ({ attachments, disable
           onClick={(e) => e.stopPropagation()}
         >
           {ap ? (
-            <ThreeSpeakNativePlayer author={ap.author} permlink={ap.permlink} hideThumbnail />
+            <ActiveThreeSpeakPlayer author={ap.author} permlink={ap.permlink} hideThumbnail />
           ) : (
             <a
               href={current.url}

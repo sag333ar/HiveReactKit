@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ThreeSpeakPlayer } from './ThreeSpeakPlayer';
+import { ThreeSpeakPlayer, type ThreeSpeakPlayerInjectedProps } from './ThreeSpeakPlayer';
 import { apiService } from '@/services/apiService';
 import { userService } from '@/services/userService';
 import { Post } from '@/types/post';
@@ -274,6 +274,15 @@ export interface HiveDetailPostProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /**
+   * Rendered in place of the kit's own zero-knowledge `<ThreeSpeakPlayer>`
+   * for every 3Speak video found in this post's body/metadata. Pass your
+   * own wrapper that mints and attaches a signed viewer-reward `vt` token
+   * (see 3Speak's partner-integration docs) if you want watchtime
+   * credited — this kit never knows about that protocol. Defaults to the
+   * built-in (token-less, anonymous-only) player.
+   */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   giphyApiKey?: string;
   youtubeApiKey?: string;
   templateToken?: string;
@@ -493,6 +502,7 @@ export function HiveDetailPost({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   youtubeApiKey,
   templateToken,
@@ -538,6 +548,7 @@ export function HiveDetailPost({
   onDropComment: onDropCommentProp,
 }: HiveDetailPostProps) {
   const observer = observerProp ?? currentUser;
+  const ActiveThreeSpeakPlayer = ThreeSpeakPlayerComponent ?? ThreeSpeakPlayer;
 
   // Compute background style from prop
   const bgStyle = useMemo<React.CSSProperties>(() => {
@@ -2038,7 +2049,7 @@ export function HiveDetailPost({
     targets.forEach(({ el, author, permlink }) => {
       el.dataset.mounted = '1';
       const root = createRoot(el);
-      root.render(<ThreeSpeakPlayer author={author} permlink={permlink} />);
+      root.render(<ActiveThreeSpeakPlayer author={author} permlink={permlink} />);
       roots.push(root);
     });
     return () => {
@@ -2055,7 +2066,7 @@ export function HiveDetailPost({
         });
       });
     };
-  }, [renderedBody]);
+  }, [renderedBody, ActiveThreeSpeakPlayer]);
 
   // NOTE: The useLayoutEffect Odysee anchor-replacement approach is superseded
   // by the odyseeBodyRefs pre-extraction approach (mirrors threeSpeakBodyRefs).
@@ -3083,7 +3094,7 @@ export function HiveDetailPost({
                     id={idx === 0 ? "parent-threespeak-player-wrapper" : undefined}
                     className="flex justify-center w-full max-w-[800px] mx-auto"
                   >
-                    <ThreeSpeakPlayer
+                    <ActiveThreeSpeakPlayer
                       id={idx === 0 ? "parent-threespeak-player" : undefined}
                       author={ref.author}
                       permlink={ref.permlink}
@@ -3179,6 +3190,7 @@ export function HiveDetailPost({
                     onUserClick={onUserClick}
                     onPreviewVisibilityChange={handleReSnapPreviewVisibility}
                     showTopLevelPostPreview
+                    ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
                   />
                 </div>
               )}

@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
 import SnapsFeedView, { type SnapsFeedKey, type SnapsFeedSlot } from '../feed/SnapsFeedView';
+import type { ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 import { communityService } from '@/services/communityService';
 import { SNAP_SUBTYPE_PARENTS, type SnapSubType } from '@/services/userService';
 import type { RewardOption } from '../../utils/commentOptions';
@@ -94,6 +95,9 @@ export interface CommunitySnapsTabProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /** Forwarded to the embedded <SnapsFeedView/> — see HiveDetailPost's prop
+   *  doc for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;

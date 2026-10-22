@@ -94,6 +94,7 @@ export {
   ThreeSpeakPlayer,
   build3SpeakEmbedUrl,
   type ThreeSpeakPlayerProps,
+  type ThreeSpeakPlayerInjectedProps,
 } from './components/ThreeSpeakPlayer';
 export { default as CommentsModal } from './components/comments/CommentsModal';
 export {

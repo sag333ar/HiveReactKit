@@ -45,6 +45,7 @@ import { CommunityDetailsResponse } from '../../types/community'
 import type { Post, PostSort } from '../../types/post'
 import type { RewardOption } from '../../utils/commentOptions'
 import BlogPostList from '../BlogPostList'
+import type { ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer'
 
 export interface CommunityDetailProps {
   /** Community id (e.g. `hive-167922`). */
@@ -124,6 +125,9 @@ export interface CommunityDetailProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>
+  /** Forwarded to the embedded <BlogPostList/> — see HiveDetailPost's prop
+   *  doc for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>
   giphyApiKey?: string
   templateToken?: string
   templateApiBaseUrl?: string
@@ -302,6 +306,7 @@ const CommunityDetail = ({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -596,6 +601,7 @@ const CommunityDetail = ({
       mintUploadTokenFn,
       setThumbnailFn,
       uploadAudioFn,
+      ThreeSpeakPlayerComponent,
       giphyApiKey,
       templateToken,
       templateApiBaseUrl,
@@ -638,6 +644,7 @@ const CommunityDetail = ({
       mintUploadTokenFn,
       setThumbnailFn,
       uploadAudioFn,
+      ThreeSpeakPlayerComponent,
       giphyApiKey,
       templateToken,
       templateApiBaseUrl,
@@ -1012,6 +1019,7 @@ const CommunityDetail = ({
             mintUploadTokenFn={mintUploadTokenFn}
             setThumbnailFn={setThumbnailFn}
             uploadAudioFn={uploadAudioFn}
+            ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
             templateApiBaseUrl={templateApiBaseUrl}

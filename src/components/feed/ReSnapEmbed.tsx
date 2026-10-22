@@ -24,6 +24,7 @@ import { apiService } from '@/services/apiService';
 import type { Post } from '@/types/post';
 import { getHivePostLevel } from '@/utils/hivePostReferences';
 import { AttachmentStrip, parseBody, getWeb2Identity, Web2ProviderBadge, type Attachment } from './AttachmentStrip';
+import type { ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 
 interface ReSnapEmbedProps {
   /** Snap author whose post is being re-snapped. */
@@ -53,6 +54,9 @@ interface ReSnapEmbedProps {
    *  `true` by `<SnapsFeedCard/>` on the Snaps feed; the post-detail
    *  page's own `<ReSnapEmbed/>` call omits it. */
   disableIframePreviews?: boolean;
+  /** Forwarded to this embed's own `<AttachmentStrip/>` — see its own
+   *  `ThreeSpeakPlayerComponent` prop doc. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -109,6 +113,7 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
   onPreviewVisibilityChange,
   showTopLevelPostPreview = false,
   disableIframePreviews,
+  ThreeSpeakPlayerComponent,
 }) => {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -299,7 +304,11 @@ const ReSnapEmbed: FC<ReSnapEmbedProps> = ({
           </div>
 
           {attachments.length > 0 ? (
-            <AttachmentStrip attachments={attachments} disableIframePreviews={disableIframePreviews} />
+            <AttachmentStrip
+              attachments={attachments}
+              disableIframePreviews={disableIframePreviews}
+              ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
+            />
           ) : previewImage ? (
             <img
               src={previewImage}

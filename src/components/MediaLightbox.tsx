@@ -9,7 +9,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { parseThreeSpeakRef, type PostMedia } from '../utils/postMedia';
-import { ThreeSpeakPlayer } from './ThreeSpeakPlayer';
+import { ThreeSpeakPlayer, type ThreeSpeakPlayerInjectedProps } from './ThreeSpeakPlayer';
 
 /**
  * Shared lightbox / preview overlay used by feed-card carousels
@@ -31,13 +31,17 @@ export interface MediaLightboxProps {
   items: PostMedia[];
   startIndex?: number;
   onClose: () => void;
+  /** Rendered in place of the kit's own zero-knowledge `<ThreeSpeakPlayer>`
+   *  for any 3Speak entry — see HiveDetailPost's prop doc for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
 }
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 0.5;
 
-export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, onClose }) => {
+export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, onClose, ThreeSpeakPlayerComponent }) => {
+  const ActiveThreeSpeakPlayer = ThreeSpeakPlayerComponent ?? ThreeSpeakPlayer;
   const [index, setIndex] = useState(() =>
     Math.max(0, Math.min(startIndex, Math.max(0, items.length - 1))),
   );
@@ -298,7 +302,7 @@ export const MediaLightbox: FC<MediaLightboxProps> = ({ items, startIndex = 0, o
           // when the URL isn't a parseable author/permlink ref.
           return ref ? (
             <div className="w-full" style={{ maxWidth: '800px' }}>
-              <ThreeSpeakPlayer author={ref.author} permlink={ref.permlink} hideThumbnail />
+              <ActiveThreeSpeakPlayer author={ref.author} permlink={ref.permlink} hideThumbnail />
             </div>
           ) : (
             <a

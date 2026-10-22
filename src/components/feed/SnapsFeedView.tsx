@@ -43,6 +43,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Post } from '@/types/post';
+import type { ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 import SnapsFeedList from './SnapsFeedList';
 import { ArrowUp, Hash, Users, Globe, ChevronDown, RefreshCw } from 'lucide-react';
 import FeedSegmentControl, { type FeedSegmentOption } from './FeedSegmentControl';
@@ -253,6 +254,9 @@ export interface SnapsFeedViewProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /** Forwarded to every <SnapsFeedCard/> — see HiveDetailPost's prop doc
+   *  for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
@@ -426,6 +430,7 @@ export function SnapsFeedView({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -624,6 +629,7 @@ export function SnapsFeedView({
     mintUploadTokenFn,
     setThumbnailFn,
     uploadAudioFn,
+    ThreeSpeakPlayerComponent,
     giphyApiKey,
     templateToken,
     templateApiBaseUrl,

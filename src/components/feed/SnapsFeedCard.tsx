@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import { Repeat2, Heart, MessageCircle, Gift } from 'lucide-react';
+import type { ThreeSpeakPlayerInjectedProps } from '../ThreeSpeakPlayer';
 import { createHiveRenderer } from '@snapie/renderer';
 import { apiService } from '@/services/apiService';
 import type { Discussion } from '@/types/comment';
@@ -143,6 +144,10 @@ export interface SnapsFeedCardProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /** Forwarded to this card's own `<AttachmentStrip/>` and to its embedded
+   *  re-snap preview's `<AttachmentStrip/>` — see HiveDetailPost's prop doc
+   *  for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
@@ -348,6 +353,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -792,7 +798,11 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
         className="cursor-pointer space-y-2 overflow-hidden px-4 pb-2 pt-1"
         onClick={handleBodyClick}
       >
-        <AttachmentStrip attachments={parsed.attachments} disableIframePreviews={disableIframePreviews} />
+        <AttachmentStrip
+          attachments={parsed.attachments}
+          disableIframePreviews={disableIframePreviews}
+          ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
+        />
         {renderedBodyHtml ? (
           // No `line-clamp-6` here: webkit-line-clamp is an
           // inline-text clamp and breaks block-level rendering for
@@ -895,6 +905,7 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             onPreviewVisibilityChange={handleReSnapPreviewVisibility}
             showTopLevelPostPreview
             disableIframePreviews={disableIframePreviews}
+            ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
           />
         )}
       </div>

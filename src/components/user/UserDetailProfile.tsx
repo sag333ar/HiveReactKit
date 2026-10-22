@@ -68,6 +68,7 @@ import { getWeb2Identity, Web2ProviderBadge } from "../feed/AttachmentStrip";
 import { extractPostMedia, type PostMedia } from "../../utils/postMedia";
 import { getRebloggedBy, getRebloggedByList } from "../../utils/reblogUtils";
 import { MediaLightbox } from "../MediaLightbox";
+import type { ThreeSpeakPlayerInjectedProps } from "../ThreeSpeakPlayer";
 import { HiveLink } from "../common/HiveLink";
 import { getHiveApiEndpoint, getGlobalPostFilter, subscribeGlobalPostFilter } from "../../config/hiveEndpoint";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -167,6 +168,10 @@ export interface UserDetailProfileProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /** Forwarded to the profile's own media carousel's `<MediaLightbox/>` and
+   *  to the embedded `<ProfileSnapsTab/>` — see HiveDetailPost's prop doc
+   *  for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   /** GIPHY API key — enables GIF search in comment composer */
   giphyApiKey?: string;
   /** HReplier API token — enables template picker in comment composer */
@@ -600,6 +605,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -2835,7 +2841,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             )}
           </div>
 
-          <PostImageCarousel media={postMedia} />
+          <PostImageCarousel media={postMedia} ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent} />
         </div>
 
         {/* Action bar — always visible */}
@@ -4642,6 +4648,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
             mintUploadTokenFn={mintUploadTokenFn}
             setThumbnailFn={setThumbnailFn}
             uploadAudioFn={uploadAudioFn}
+            ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
             isWeb2User={isWeb2User}
             giphyApiKey={giphyApiKey}
             templateToken={templateToken}
@@ -5538,7 +5545,10 @@ const PostMediaTile: React.FC<{ media: PostMedia }> = ({ media }) => {
  * Moved to module scope so it doesn't unmount and reset loaded states
  * on parent renders.
  */
-const PostImageCarousel: React.FC<{ media: PostMedia[] }> = ({ media }) => {
+const PostImageCarousel: React.FC<{
+  media: PostMedia[];
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
+}> = ({ media, ThreeSpeakPlayerComponent }) => {
   const [idx, setIdx] = useState(0);
   const [previewStart, setPreviewStart] = useState<number | null>(null);
   if (media.length === 0) return null;
@@ -5595,6 +5605,7 @@ const PostImageCarousel: React.FC<{ media: PostMedia[] }> = ({ media }) => {
             Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== "twitter").length - 1),
           )}
           onClose={() => setPreviewStart(null)}
+          ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
         />
       )}
     </>

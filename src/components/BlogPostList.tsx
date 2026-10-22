@@ -19,6 +19,7 @@ import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/cont
 import type { Post } from '@/types/post';
 import type { ActiveVote } from '@/types/video';
 import { PostActionButton } from './actionButtons/PostActionButton';
+import type { ThreeSpeakPlayerInjectedProps } from './ThreeSpeakPlayer';
 import { PollVoteWidget } from './PollVoteWidget';
 import { TranslatedText } from './TranslatedText';
 import type { RewardOption } from '../utils/commentOptions';
@@ -111,6 +112,9 @@ export interface BlogPostListProps {
   mintUploadTokenFn?: (opts: { uploadHost: string; owner: string; frontendApp?: string; short: boolean }) => Promise<any>;
   setThumbnailFn?: (uploadHost: string, permlink: string, thumbnailUrl: string) => Promise<boolean>;
   uploadAudioFn?: (file: File | Blob, durationSeconds: number, format: string) => Promise<any>;
+  /** Forwarded to each card's media carousel's `<MediaLightbox/>` — see
+   *  HiveDetailPost's prop doc for the rationale. */
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
   giphyApiKey?: string;
   templateToken?: string;
   templateApiBaseUrl?: string;
@@ -294,7 +298,10 @@ const MediaTile: FC<{ media: PostMedia }> = ({ media }) => {
  *   • image / youtube / threespeak → open in <MediaLightbox/>
  *   • twitter                      → open the tweet in a new tab
  */
-const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
+const PostMediaCarousel: FC<{
+  media: PostMedia[];
+  ThreeSpeakPlayerComponent?: React.ComponentType<ThreeSpeakPlayerInjectedProps>;
+}> = ({ media, ThreeSpeakPlayerComponent }) => {
   const [idx, setIdx] = useState(0);
   // Track the lightbox open state by start index instead of a single
   // media reference so the prev/next nav inside the lightbox can
@@ -358,6 +365,7 @@ const PostMediaCarousel: FC<{ media: PostMedia[] }> = ({ media }) => {
             Math.max(0, media.slice(0, previewStart + 1).filter((m) => m.kind !== 'twitter').length - 1),
           )}
           onClose={() => setPreviewStart(null)}
+          ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent}
         />
       )}
     </>
@@ -408,6 +416,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   mintUploadTokenFn,
   setThumbnailFn,
   uploadAudioFn,
+  ThreeSpeakPlayerComponent,
   giphyApiKey,
   templateToken,
   templateApiBaseUrl,
@@ -657,7 +666,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                 )}
               </div>
 
-              <PostMediaCarousel media={postMedia} />
+              <PostMediaCarousel media={postMedia} ThreeSpeakPlayerComponent={ThreeSpeakPlayerComponent} />
 
               {/* Inline poll voting for poll posts (content_type === 'poll'). */}
               {onVotePoll && item.json_metadata?.content_type === 'poll' && (
