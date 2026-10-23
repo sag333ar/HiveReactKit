@@ -99,6 +99,7 @@ const ReplyModal = ({
             currentUser={currentUser}
             parentAuthor={parentAuthor}
             parentPermlink={parentPermlink}
+            replyDraft
             placeholder={`Reply to @${parentAuthor}...`}
             threeSpeakToken={threeSpeakToken}
             encoderUrl={encoderUrl}

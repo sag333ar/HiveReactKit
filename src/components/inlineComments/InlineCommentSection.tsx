@@ -469,6 +469,7 @@ export default function InlineCommentSection({
             currentUserDisplayName={currentUserDisplayName}
             parentAuthor={author}
             parentPermlink={permlink}
+            replyDraft
             placeholder={`Write a comment to @${author}...`}
             threeSpeakToken={threeSpeakToken}
             encoderUrl={encoderUrl}

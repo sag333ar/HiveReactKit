@@ -9,6 +9,16 @@ export {
   type SupporterTierMap,
 } from './context/SupporterTierContext';
 
+// Reply/comment draft autosave — host provides the storage adapter; opt-in
+// composers (`replyDraft` prop) restore / autosave / delete through it.
+export {
+  ReplyDraftProvider,
+  useReplyDraftAdapter,
+  type ReplyDraftAdapter,
+  type ReplyDraftRecord,
+  type ReplyDraftSavePayload,
+} from './context/ReplyDraftContext';
+
 // Main components exports
 export { default as VideoCard } from './components/VideoCard';
 export { default as VideoDetail } from './components/VideoDetail';
@@ -174,6 +184,7 @@ export { default as ExpensesView } from './components/landing-page/ExpensesView'
 export * from './hooks/use-mobile';
 export * from './hooks/use-toast';
 export * from './hooks/useHiveImageSign';
+export * from './hooks/useReplyDraftAutosave';
 
 // Utils
 export { parseHiveFrontendUrl, rewriteHiveUrlsToHiveSuite, type HiveLinkTarget, preLinkMentions, preLinkUrls, preLinkHashtags } from './utils/hiveLinks';

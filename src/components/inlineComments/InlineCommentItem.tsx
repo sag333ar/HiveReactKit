@@ -15,6 +15,7 @@ import UpvoteListModal from '../UpvoteListModal';
 import { RewardsModal } from '../RewardsModal';
 import type { RewardsModalPayoutDetails } from '../RewardsModal';
 import { PostComposer } from '../comments/AddCommentInput';
+import { useIsMobile } from '../../hooks/use-mobile';
 import type { RewardOption } from '../../utils/commentOptions';
 import type { Beneficiary } from '../../utils/beneficiaries';
 import { toast } from '@/index';
@@ -239,6 +240,10 @@ export default function InlineCommentItem({
 
   // Is this comment the active reply target?
   const isReplyTarget = activeReplyKey === `${comment.author}/${comment.permlink}`;
+  // The mobile (portal) and desktop (inline) reply composers are both
+  // mounted and toggled with CSS; only the visible one autosaves drafts so
+  // the same reply isn't saved twice under two draft ids.
+  const isMobileViewport = useIsMobile();
 
   // Reset reply body when this comment becomes/stops being the reply target
   useEffect(() => {
@@ -1073,6 +1078,7 @@ export default function InlineCommentItem({
                         currentUserDisplayName={currentUserDisplayName}
                         parentAuthor={comment.author}
                         parentPermlink={comment.permlink}
+                        replyDraft={isMobileViewport}
                         placeholder={`Reply to @${comment.author}...`}
                         value={replyBody}
                         onChange={setReplyBody}
@@ -1173,6 +1179,7 @@ export default function InlineCommentItem({
                     currentUserDisplayName={currentUserDisplayName}
                     parentAuthor={comment.author}
                     parentPermlink={comment.permlink}
+                    replyDraft={!isMobileViewport}
                     placeholder={`Reply to @${comment.author}...`}
                     value={replyBody}
                     onChange={setReplyBody}

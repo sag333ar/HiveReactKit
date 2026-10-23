@@ -168,6 +168,9 @@ export function CommentsList({
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
           <AddCommentInput
             onSubmit={(body) => handleCommentSubmitted(author, permlink, body)}
+            parentAuthor={author}
+            parentPermlink={permlink}
+            replyDraft
             onCancel={() => setShowAddComment(false)}
             currentUser={currentUser}
             threeSpeakToken={threeSpeakToken}
@@ -182,6 +185,9 @@ export function CommentsList({
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
           <AddCommentInput
             onSubmit={(body) => handleCommentSubmitted(replyingTo.author, replyingTo.permlink, body)}
+            parentAuthor={replyingTo.author}
+            parentPermlink={replyingTo.permlink}
+            replyDraft
             onCancel={() => setReplyingTo(null)}
             currentUser={currentUser}
             threeSpeakToken={threeSpeakToken}

@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useReplyDraftAdapter, type ReplyDraftAdapter } from '../../context/ReplyDraftContext';
+import { useReplyDraftAutosave } from '../../hooks/useReplyDraftAutosave';
 import { createPortal } from 'react-dom';
 import { Send, X, User, Bold, Italic, Link, Smile, Code, Copy, Check, AtSign, FileText, Eye, EyeOff, BarChart3, Tag, Coins, Lock, ThumbsUp, Users, Play, HelpCircle, Image as ImageIcon, Mic, Video, Languages, RotateCcw } from 'lucide-react';
 import {
@@ -280,6 +282,23 @@ export interface PostComposerProps {
   onIncludeAppSuffixChange?: (include: boolean) => void;
   /** Custom label for the app suffix toggle (default "Posted via HiveSuite") */
   appSuffixLabel?: string;
+  /**
+   * Opt in to reply/comment draft autosave (default false). When true and
+   * both `parentAuthor`/`parentPermlink` are set, the composer restores the
+   * newest saved draft for that parent into an empty composer, autosaves
+   * changed non-empty text every `replyDraftIntervalMs`, does a best-effort
+   * save on close, and deletes the draft only after a successful submit.
+   * Storage comes from `replyDraftAdapter` or the nearest
+   * `<ReplyDraftProvider>`; with neither, this is a no-op. Leave off for
+   * edit / template / new-post composers.
+   */
+  replyDraft?: boolean;
+  /** Explicit draft adapter (overrides `<ReplyDraftProvider>`; `null` disables). */
+  replyDraftAdapter?: ReplyDraftAdapter | null;
+  /** Autosave interval in ms (default 10000). */
+  replyDraftIntervalMs?: number;
+  /** Hide the subtle "Draft saved" status line (default false). */
+  hideReplyDraftStatus?: boolean;
 }
 
 /** @deprecated Use PostComposerProps instead */
@@ -377,6 +396,10 @@ const PostComposer = ({
   includeAppSuffix: controlledIncludeAppSuffix,
   onIncludeAppSuffixChange,
   appSuffixLabel = 'Posted via HiveSuite',
+  replyDraft = false,
+  replyDraftAdapter,
+  replyDraftIntervalMs,
+  hideReplyDraftStatus = false,
 }: PostComposerProps) => {
   const hideAudio = hideAudioProp;
   const hideVideo = hideVideoProp;
@@ -404,6 +427,19 @@ const PostComposer = ({
   };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDisabled = disabled || isSubmitting;
+
+  // Reply/comment draft autosave (opt-in via `replyDraft`) — see the prop docs.
+  const contextDraftAdapter = useReplyDraftAdapter();
+  const draftAdapter = replyDraftAdapter !== undefined ? replyDraftAdapter : contextDraftAdapter;
+  const replyDraftState = useReplyDraftAutosave({
+    adapter: draftAdapter,
+    enabled: replyDraft,
+    parentAuthor,
+    parentPermlink,
+    body,
+    setBody,
+    intervalMs: replyDraftIntervalMs,
+  });
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
   const [isYoutubeOpen, setIsYoutubeOpen] = useState(false);
   const [isMemeOpen, setIsMemeOpen] = useState(false);
@@ -1000,6 +1036,8 @@ const PostComposer = ({
   const handleSubmit = async () => {
     if (!body.trim() || isDisabled) return;
     setIsSubmitting(true);
+    replyDraftState.beginSend();
+    let sent = false;
     try {
       let finalBody = body.trim();
       if (audioEmbedUrl) finalBody += `\n${audioEmbedUrl}`;
@@ -1007,6 +1045,7 @@ const PostComposer = ({
       const result = await Promise.resolve((onSubmit as any)(finalBody, { includeAppSuffix: currentIncludeAppSuffix }));
       // If onSubmit returns false, the operation was cancelled — preserve text and attachments
       if (result === false) return;
+      sent = true;
       setBody('');
       setAudioEmbedUrl(null);
       setAudioDuration(0);
@@ -1021,6 +1060,8 @@ const PostComposer = ({
       console.error('Failed to submit:', error);
     } finally {
       setIsSubmitting(false);
+      // Deletes the saved draft only when the send succeeded.
+      replyDraftState.endSend(sent);
     }
   };
 
@@ -1766,6 +1807,28 @@ const PostComposer = ({
             </div>
           )}
         </div>
+
+        {!hideReplyDraftStatus && replyDraft && replyDraftState.status !== 'idle' && (
+          <div
+            className="-mt-1 px-0.5 text-[11px] leading-4 text-[var(--hrk-text-tertiary)] flex items-center gap-1"
+            aria-live="polite"
+            data-testid="reply-draft-status"
+          >
+            {replyDraftState.status === 'saving' && 'Saving draft…'}
+            {replyDraftState.status === 'saved' && (
+              <>
+                <Check className="h-3 w-3" />
+                Draft saved
+              </>
+            )}
+            {replyDraftState.status === 'restored' && (
+              <>
+                <RotateCcw className="h-3 w-3" />
+                Draft restored
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tag strip — inline chips + (optional) add-tag input row. */}
         {!hideTags && (mergedTags.length > 0 || isTagsOpen) && (

@@ -299,6 +299,9 @@ const CommentsModal = ({ author, permlink, onClose, currentUser, token, onClickC
               <div className="border-b border-gray-700">
                 <AddCommentInput
                   onSubmit={(body) => handleCommentSubmitted(author, permlink, body)}
+                  parentAuthor={author}
+                  parentPermlink={permlink}
+                  replyDraft
                   onCancel={() => setShowAddComment(false)}
                   currentUser={currentUser}
                   placeholder="Add a comment..."
