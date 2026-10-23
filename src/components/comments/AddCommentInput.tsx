@@ -240,8 +240,8 @@ export interface PostComposerProps {
   disabled?: boolean;
   /** Hide the built-in submit button and keyboard hint footer (default false). Use when providing external submit buttons */
   hideSubmitArea?: boolean;
-  /** Ref that receives a { submit(), getFinalBody(), clear() } handle. Call submit() from external buttons to trigger the full submit flow. Call getFinalBody() to get body with audio/video URLs appended without submitting. Call clear() to reset all state. */
-  submitRef?: React.MutableRefObject<{ submit: () => Promise<void>; getFinalBody: () => string; clear: () => void } | null>;
+  /** Ref that receives a { submit(), getFinalBody(), clear() } handle. Call submit() from external buttons to trigger the full submit flow. Call getFinalBody() to get body with audio/video URLs appended without submitting. Call clear() to reset all state. Call markDraftSent() after sending the body through your own path (e.g. an "Upvote & Reply" button that bypasses submit()) so the saved reply draft is deleted. */
+  submitRef?: React.MutableRefObject<{ submit: () => Promise<void>; getFinalBody: () => string; clear: () => void; markDraftSent?: () => void } | null>;
   /** Hide the avatar and username header (default false) */
   hideUserHeader?: boolean;
   /** Custom background color for the composer container (e.g. "var(--hrk-bg-surface)", "transparent") */
@@ -1087,6 +1087,7 @@ const PostComposer = ({
         onPollChange?.(null);
         setDecentMemes([]);
       },
+      markDraftSent: replyDraftState.markSent,
       includeAppSuffix: currentIncludeAppSuffix,
     } as any;
     return () => { if (submitRef) submitRef.current = null; };
@@ -1723,6 +1724,7 @@ const PostComposer = ({
               const t = e.currentTarget;
               mentions.onValueChange(t.value, t.selectionStart ?? t.value.length);
             }}
+            onFocus={replyDraft ? replyDraftState.refresh : undefined}
             onBlur={() => {
               // Defer so a click on a suggestion row can apply before the
               // dropdown unmounts. The dropdown's onMouseDown also calls
