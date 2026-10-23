@@ -60,8 +60,12 @@ const log = (msg: string, err?: unknown) => {
 /**
  * Background autosave for a reply/comment composer.
  *
- *  - When enabled for a parent, loads the newest saved draft and restores it
- *    if the composer is still empty (reusing its `draftId`).
+ *  - Restore-on-open: every time the composer opens for a parent it fetches
+ *    from the server (`adapter.load` — no local cache, so a draft deleted
+ *    after sending is never brought back) and fills the newest draft in ONLY
+ *    if the composer text is still empty when that fetch resolves — text the
+ *    user typed meanwhile is never overwritten (its `draftId` is adopted so
+ *    the next save updates the same row).
  *  - Every `intervalMs` (10 s), saves the text if it changed and is
  *    non-empty; if the user cleared a previously-saved text, deletes it.
  *  - On unmount / parent change, does one last best-effort save if the text
