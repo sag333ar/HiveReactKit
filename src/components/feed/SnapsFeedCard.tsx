@@ -35,7 +35,23 @@ import { detectHivePostReference, stripHivePostReference } from '@/utils/hivePos
 import ReSnapEmbed from './ReSnapEmbed';
 import { IPFS_URL_REGEX } from '../IpfsMedia';
 import { HiveLink } from '../common/HiveLink';
-import { resolveSnapClientApp } from '@/utils/snapClientApp';
+import { resolveSnapClientApp, resolveSnapClientAppBadge, type SnapClientAppBadge } from '@/utils/snapClientApp';
+import { JsonMetadataModal } from '../common/JsonMetadataModal';
+
+/** Letter badge used when a snap's posting client has no known icon. */
+function SnapAppInitialBadge({ badge }: { badge: SnapClientAppBadge }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-full w-full select-none items-center justify-center text-[11px] font-bold leading-none ${
+        badge.color ? 'text-white' : 'text-[var(--hrk-text-secondary)]'
+      }`}
+      style={badge.color ? { backgroundColor: badge.color } : undefined}
+    >
+      {badge.initial}
+    </span>
+  );
+}
 
 export interface SnapsFeedCardProps {
   post: Post;
@@ -400,6 +416,18 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
     () => resolveSnapClientApp(post, appIcons),
     [post.json_metadata, appIcons],
   );
+  const appBadge = useMemo(
+    () => resolveSnapClientAppBadge(post),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [post.json_metadata],
+  );
+  // Known icon that failed to load → fall back to the letter badge so
+  // the metadata stays inspectable.
+  const [failedIconUrl, setFailedIconUrl] = useState<string | null>(null);
+  const appIconUrl = clientApp && clientApp.iconUrl !== failedIconUrl ? clientApp.iconUrl : null;
+  const appLabel = clientApp?.label ?? appBadge.label;
+  const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const closeMetadata = useCallback(() => setIsMetadataOpen(false), []);
   const web2Identity = useMemo(
     () => getWeb2Identity(post.author, post.json_metadata, `https://images.hive.blog/u/${post.author}/avatar`),
     [post.author, post.json_metadata],
@@ -756,26 +784,47 @@ const SnapsFeedCard: FC<SnapsFeedCardProps> = ({
             </>
           )}
         </div>
-        {clientApp && (
-          <span
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--hrk-bg-hover)] ring-1 ring-[var(--hrk-border-default)]/80"
-            title={`Posted via ${clientApp.label}`}
-            aria-label={`Posted via ${clientApp.label}`}
-            onClick={(e) => e.stopPropagation()}
-          >
+        {/* Client-app icon (or letter badge for unknown apps) — tap to
+            inspect the snap's raw json_metadata. Stops propagation so
+            the card's own click / navigation handlers never fire. */}
+        <button
+          type="button"
+          className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-[var(--hrk-bg-hover)] ring-1 ring-[var(--hrk-border-default)]/80 transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hrk-brand)]"
+          title={appBadge.name || clientApp ? `Posted via ${appLabel} — view JSON metadata` : 'Unknown app — view JSON metadata'}
+          aria-label={appBadge.name || clientApp ? `Posted via ${appLabel}. View JSON metadata` : 'Unknown app. View JSON metadata'}
+          aria-haspopup="dialog"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsMetadataOpen(true);
+          }}
+        >
+          {appIconUrl ? (
             <img
-              src={clientApp.iconUrl}
+              src={appIconUrl}
               alt=""
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                const el = e.currentTarget;
-                el.style.display = 'none';
-                const wrap = el.parentElement;
-                if (wrap) wrap.style.display = 'none';
-              }}
+              className="pointer-events-none h-full w-full object-cover"
+              onError={() => setFailedIconUrl(appIconUrl)}
             />
-          </span>
-        )}
+          ) : (
+            <SnapAppInitialBadge badge={appBadge} />
+          )}
+        </button>
+        <JsonMetadataModal
+          isOpen={isMetadataOpen}
+          onClose={closeMetadata}
+          metadata={post.json_metadata}
+          subtitle={`@${post.author}/${post.permlink} · via ${appLabel}`}
+          icon={
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--hrk-bg-hover)] ring-1 ring-[var(--hrk-border-default)]/80">
+              {appIconUrl ? (
+                <img src={appIconUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <SnapAppInitialBadge badge={appBadge} />
+              )}
+            </span>
+          }
+        />
         {renderHeaderActions && (
           <div
             className="shrink-0"

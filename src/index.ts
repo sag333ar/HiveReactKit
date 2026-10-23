@@ -75,11 +75,21 @@ export {
 } from './components/feed/AttachmentStrip';
 export {
   resolveSnapClientApp,
+  resolveSnapClientAppBadge,
   snapClientAppId,
   isHiveSuiteClientMeta,
   SNAP_CLIENT_APPS,
   type SnapClientApp,
+  type SnapClientAppBadge,
 } from './utils/snapClientApp';
+export {
+  default as JsonMetadataModal,
+  type JsonMetadataModalProps,
+} from './components/common/JsonMetadataModal';
+export {
+  default as JsonTreeView,
+  type JsonTreeViewProps,
+} from './components/common/JsonTreeView';
 export * from './utils/firstContext';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';

@@ -74,3 +74,38 @@ export function resolveSnapClientApp(
     iconUrl: iconOverrides?.[id] || known.iconUrl,
   };
 }
+
+/**
+ * Fallback badge for snaps whose posting client has no known icon.
+ * `name` is the raw `json_metadata.app` value with any `/version`
+ * suffix stripped (e.g. `peakd/2024.1` → `peakd`), or `null` when the
+ * metadata carries no app at all.
+ */
+export interface SnapClientAppBadge {
+  name: string | null;
+  /** Upper-case first letter / digit of `name`, or `?` when unknown. */
+  initial: string;
+  /** Human label — the app name, or `Unknown app`. */
+  label: string;
+  /** Deterministic background colour derived from `name`; `null` when unknown. */
+  color: string | null;
+}
+
+export function resolveSnapClientAppBadge(
+  post: Pick<Post, 'json_metadata'>,
+): SnapClientAppBadge {
+  const meta = parseJsonMetadata(post.json_metadata as unknown);
+  const raw = typeof meta.app === 'string' ? meta.app.split('/')[0].trim() : '';
+  if (!raw) return { name: null, initial: '?', label: 'Unknown app', color: null };
+  const ch = raw.match(/[\p{L}\p{N}]/u)?.[0];
+  let hash = 0;
+  const key = raw.toLowerCase();
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return {
+    name: raw,
+    initial: ch ? ch.toUpperCase() : '?',
+    label: raw,
+    color: `hsl(${hue} 55% 38%)`,
+  };
+}
