@@ -28,6 +28,7 @@ import { getRebloggedBy, getRebloggedByList } from '../utils/reblogUtils';
 import { MediaLightbox } from './MediaLightbox';
 import { HiveLink } from './common/HiveLink';
 import { getWeb2Identity, Web2ProviderBadge, extractTagsFromMeta } from './feed/AttachmentStrip';
+import { ClientAppBadgeButton } from './common/ClientAppBadgeButton';
 
 export interface BlogPostListProps {
   /** Post records, in the order they should render. */
@@ -135,6 +136,10 @@ export interface BlogPostListProps {
    *  `<PostActionButton/>`. */
   actionsAsMenu?: boolean;
   isWeb2User?: boolean;
+  /** Per-app logo overrides for the posting-client badge in each card's
+   *  top-right (keyed by app id, e.g. `{ peakd: '/img/peakd.png' }`).
+   *  Unknown apps show a letter badge; tapping opens the JSON metadata. */
+  appIcons?: Partial<Record<string, string>>;
 }
 
 // ─── Inline helpers (mirror of UserDetailProfile's locals) ────────────────
@@ -427,6 +432,7 @@ export const BlogPostList: FC<BlogPostListProps> = ({
   defaultReward,
   actionsAsMenu,
   isWeb2User,
+  appIcons,
 }) => {
   const tierMap = useSupporterTierMap();
   const filterFn = getGlobalPostFilter();
@@ -627,6 +633,10 @@ export const BlogPostList: FC<BlogPostListProps> = ({
                     >
                       {formatTimeAgo(item.created)}
                     </HiveLink>
+                    {/* Posting-client logo / letter badge, inline after the
+                        time — tap for the JSON metadata (same control as the
+                        snap cards, small size). */}
+                    <ClientAppBadgeButton post={item} appIcons={appIcons} size="sm" />
                     {item.community_title && (
                       <HiveLink
                         href={item.community ? getCommunityUrl?.(item.community) : undefined}

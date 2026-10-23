@@ -90,6 +90,11 @@ export {
   default as JsonTreeView,
   type JsonTreeViewProps,
 } from './components/common/JsonTreeView';
+export {
+  default as ClientAppBadgeButton,
+  ClientAppInitialBadge,
+  type ClientAppBadgeButtonProps,
+} from './components/common/ClientAppBadgeButton';
 export * from './utils/firstContext';
 export { default as ProposalsList } from './components/ProposalsList';
 export { default as FollowersList } from './components/FollowersList';
