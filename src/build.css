@@ -688,3 +688,53 @@
   max-height: 80vh;
   background: transparent;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Supporter tier pulse (avatar ring + @username badge)
+   ─────────────────────────────────────────────────────────────────────────
+   Applied by getSupporterRing()/getSupporterBadge() — every supporter
+   surface (snaps, blog/post lists, comments, profile, witnesses) shares it.
+   The ring/border breathes between the full tier colour (with a soft glow)
+   and a faded version. Period: silver 5s · gold 2.5s · platinum 1s.
+   Only tiny avatar/badge boxes repaint, and off-screen ones aren't painted,
+   so long feeds stay cheap. Reduced motion → no animation, static ring.
+*/
+.hrk-tier--silver   { --hrk-tier-color: var(--color-slate-400, #90a1b9);  --hrk-tier-w: 1px; --hrk-tier-period: 5s; }
+.hrk-tier--gold     { --hrk-tier-color: var(--color-amber-400, #ffb900);  --hrk-tier-w: 2px; --hrk-tier-period: 2.5s; }
+.hrk-tier--platinum { --hrk-tier-color: var(--color-violet-400, #a684ff); --hrk-tier-w: 3px; --hrk-tier-period: 1s; }
+
+.hrk-tier-ring {
+  animation: hrk-tier-ring-pulse var(--hrk-tier-period, 5s) ease-in-out infinite;
+}
+.hrk-tier-badge {
+  /* Static tier border (also the reduced-motion look). Unlayered on purpose:
+     host apps' unlayered `* { border-color }` resets beat Tailwind's layered
+     `border-*-400/40` utility, which left the badge border grey. */
+  border-color: color-mix(in srgb, var(--hrk-tier-color) 40%, transparent);
+  animation: hrk-tier-badge-pulse var(--hrk-tier-period, 5s) ease-in-out infinite;
+}
+
+@keyframes hrk-tier-ring-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 var(--hrk-tier-w, 1px) var(--hrk-tier-color),
+      0 0 calc(var(--hrk-tier-w, 1px) * 2 + 4px) 0 color-mix(in srgb, var(--hrk-tier-color) 55%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 var(--hrk-tier-w, 1px) color-mix(in srgb, var(--hrk-tier-color) 25%, transparent),
+      0 0 0 0 transparent;
+  }
+}
+
+@keyframes hrk-tier-badge-pulse {
+  0%, 100% { border-color: color-mix(in srgb, var(--hrk-tier-color) 85%, transparent); }
+  50%      { border-color: color-mix(in srgb, var(--hrk-tier-color) 15%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hrk-tier-ring,
+  .hrk-tier-badge {
+    animation: none;
+  }
+}
