@@ -116,6 +116,7 @@ export { default as TransactionHistory } from './components/TransactionHistory';
 export { default as UserChannel } from './components/UserChannel';
 export { default as HiveToolbar, type HiveToolbarProps } from './components/HiveToolbar';
 export { HiveDetailPost, type HiveDetailPostProps } from './components/HiveDetailPost';
+export { AuthorInfoCard, ConfigurableDetailLayout, DEFAULT_POST_DETAIL_LAYOUT, type PostDetailLayout, type DetailPanelPlacement, type DetailAuthorPlacement, type AuthorProfileData } from './components/postDetail/DetailLayout';
 export {
   ThreeSpeakPlayer,
   build3SpeakEmbedUrl,
