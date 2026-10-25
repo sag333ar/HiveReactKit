@@ -5,6 +5,7 @@ export {
   useSupporterTier,
   getSupporterRing,
   getSupporterBadge,
+  SupporterTierPill,
   SUPPORTER_PULSE_PERIOD_MS,
   type SupporterTier,
   type SupporterTierMap,

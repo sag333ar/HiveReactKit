@@ -69,3 +69,24 @@ export function getSupporterRing(tier: SupporterTier | undefined, fallback = '')
 export function getSupporterBadge(tier: SupporterTier | undefined): string {
   return tier ? TIER_BADGE[tier] : '';
 }
+
+const TIER_LABEL: Record<SupporterTier, string> = {
+  silver: 'Silver supporter',
+  gold: 'Gold supporter',
+  platinum: 'Platinum supporter',
+};
+
+/** Small "Gold supporter" pill shown next to a name (profile header, post header). */
+export function SupporterTierPill({ tier, className = '' }: { tier: SupporterTier | undefined; className?: string }) {
+  if (!tier) return null;
+  return (
+    <span
+      data-supporter-tier={tier}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none sm:text-[11px] ${TIER_BADGE[tier]} ${className}`}
+      title={TIER_LABEL[tier]}
+    >
+      <span aria-hidden>★</span>
+      {TIER_LABEL[tier]}
+    </span>
+  );
+}

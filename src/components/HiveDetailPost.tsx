@@ -67,6 +67,7 @@ import { stripFirstContextLink, extractFirstContextTwitterId } from '@/utils/fir
 import { stripViaAppsCredit } from './feed/AttachmentStrip';
 import { DEFAULT_TRANSLATE_LANGUAGES } from '@/i18n/selectionTranslate';
 import { toast } from '@/hooks';
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge, SupporterTierPill } from '@/context/SupporterTierContext';
 import { AuthorInfoCard, ConfigurableDetailLayout, type PostDetailLayout } from './postDetail/DetailLayout';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -561,6 +562,7 @@ export function HiveDetailPost({
   layout,
   onConfigureLayout,
 }: HiveDetailPostProps) {
+  const supporterTierMap = useSupporterTierMap();
   const [isWideLayout, setIsWideLayout] = useState(
     () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(min-width: 1024px)').matches,
   );
@@ -2555,7 +2557,7 @@ export function HiveDetailPost({
                   <img
                     src={`https://images.hive.blog/u/${post.parent_author}/avatar`}
                     alt={post.parent_author}
-                    className="w-9 h-9 rounded-full object-cover border border-[var(--hrk-border-subtle)] shrink-0"
+                    className={`w-9 h-9 rounded-full object-cover shrink-0 ${getSupporterRing(supporterTierMap[post.parent_author], "border border-[var(--hrk-border-subtle)]")}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.hive.blog/u/null/avatar';
                     }}
@@ -3323,7 +3325,7 @@ export function HiveDetailPost({
               <img
                 src={web2Identity.avatarUrl}
                 alt={web2Identity.displayName}
-                className="w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer"
+                className={`w-10 h-10 rounded-full bg-[var(--hrk-bg-surface-raised)] object-cover cursor-pointer ${web2Identity.isWeb2 ? "" : getSupporterRing(supporterTierMap[post.author])}`}
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${post.author}/avatar`;
                 }}
@@ -3343,10 +3345,11 @@ export function HiveDetailPost({
                 <HiveLink
                   href={web2Identity.isWeb2 ? getWeb2UserUrl?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : getUserUrl?.(post.author)}
                   onActivate={() => web2Identity.isWeb2 ? (onWeb2UserClick as any)?.(web2Identity.web2id!, web2Identity.displayName, web2Identity.avatarUrl, web2Identity.provider) : onUserClick?.(post.author)}
-                  className="text-sm font-semibold text-white hover:text-blue-400 transition-colors"
+                  className={`text-sm font-semibold text-white hover:text-blue-400 transition-colors ${web2Identity.isWeb2 ? '' : `rounded px-1 ${getSupporterBadge(supporterTierMap[post.author])}`}`}
                 >
                   {web2Identity.isWeb2 ? web2Identity.displayName : `@${post.author}`}
                 </HiveLink>
+                {!web2Identity.isWeb2 && <SupporterTierPill tier={supporterTierMap[post.author]} className="hidden sm:inline-flex" />}
                 {post.author_reputation !== undefined && (
                   <div className="relative group inline-flex shrink-0">
                     <span

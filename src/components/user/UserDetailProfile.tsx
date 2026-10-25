@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useSupporterTierMap, getSupporterRing, getSupporterBadge } from '@/context/SupporterTierContext';
+import { useSupporterTierMap, getSupporterRing, getSupporterBadge, SupporterTierPill } from '@/context/SupporterTierContext';
 import {
   ArrowLeft,
   Menu,
@@ -4742,7 +4742,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 `https://images.hive.blog/u/${targetUsername}/avatar`
               }
               alt={profile.name || targetUsername}
-              className="w-8 h-8 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover"
+              className={`w-8 h-8 rounded-full flex-shrink-0 bg-[var(--hrk-bg-surface-raised)] object-cover ${getSupporterRing(tierMap[targetUsername])}`}
               onError={(e) => {
                 // A user-supplied profile_image can point to a dead/expired
                 // URL (e.g. an old Facebook CDN link) — fall back to Hive's
@@ -4767,6 +4767,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                     ? `${profile.name} (Web2 Account)`
                     : `@${targetUsername}`}
                 </h1>
+                <SupporterTierPill tier={tierMap[targetUsername]} className="hidden min-[400px]:inline-flex shrink-0" />
               </div>
             </div>
 
@@ -4997,7 +4998,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={targetUsername}
-                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${getSupporterRing(tierMap[targetUsername])} ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://images.hive.blog/u/${targetUsername}/avatar`;
                     }}
@@ -5020,7 +5021,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                   <img
                     src={profile.profileImage || `https://images.hive.blog/u/${targetUsername}/avatar`}
                     alt={profile.name || targetUsername}
-                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover flex-shrink-0 ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
+                    className={`rounded-full border-2 sm:border-3 border-gray-900 bg-[var(--hrk-bg-surface-raised)] object-cover ${getSupporterRing(tierMap[targetUsername])} flex-shrink-0 ${isProxyUser ? 'w-13 h-13 sm:w-16 sm:h-16 md:w-18 md:h-18' : 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24'}`}
                     onError={(e) => {
                       // Same broken/expired profile_image case as the compact
                       // header avatar above — try Hive's avatar resolver
@@ -5042,6 +5043,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <h2 className="min-w-0 text-sm sm:text-base md:text-lg font-bold text-white drop-shadow-md flex items-center gap-1.5 flex-wrap">
                     <span className="truncate max-w-[130px] sm:max-w-[220px] md:max-w-[320px] inline-block">{profile.name || targetUsername}</span>
+                    {!isProxyUser && <SupporterTierPill tier={tierMap[targetUsername]} className="shrink-0" />}
                     {profile.reputation !== undefined && !isProxyUser && (
                       <div className="relative group inline-flex shrink-0">
                         <span
