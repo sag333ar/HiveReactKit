@@ -458,6 +458,28 @@ interface ProfileData {
   web3provider?: string;
 }
 
+// Gallery thumbnail size: the minimum tile width for an auto-fill grid,
+// so the column count grows with the screen width. Remembered in localStorage.
+type GalleryThumbSize = "small" | "medium" | "large";
+const GALLERY_THUMB_MIN_PX: Record<GalleryThumbSize, number> = { small: 110, medium: 170, large: 260 };
+const GALLERY_THUMB_STORAGE_KEY = "hrk-gallery-thumb-size";
+const readGalleryThumbSize = (): GalleryThumbSize => {
+  try {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem(GALLERY_THUMB_STORAGE_KEY) : null;
+    return v === "small" || v === "large" || v === "medium" ? v : "medium";
+  } catch {
+    return "medium";
+  }
+};
+// Inline grid style instead of Tailwind breakpoint classes: the host app's
+// CSS doesn't always include the kit's responsive grid utilities, which left
+// the gallery stuck at 2 columns on wide screens.
+const galleryGridStyle = (size: GalleryThumbSize): React.CSSProperties => ({
+  display: "grid",
+  gridTemplateColumns: `repeat(auto-fill, minmax(min(${GALLERY_THUMB_MIN_PX[size]}px, 100%), 1fr))`,
+  gap: size === "small" ? 6 : 10,
+});
+
 type TabType = "blogs" | "posts" | "snaps" | "polls" | "gallery" | "comments" | "replies" | "activities" | "authorRewards" | "curationRewards" | "followers" | "following" | "wallet" | "votingPower" | "badges" | "witnessVotes" | "growth" | "curation" | "rewards" | "tokens" | "follows" | "blockchainData";
 
 
@@ -973,6 +995,11 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [galleryComments, setGalleryComments] = useState<Post[]>(cached?.galleryComments || []);
   const [galleryLoaded, setGalleryLoaded] = useState<boolean>(cached?.galleryLoaded || false);
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryThumbSize, setGalleryThumbSizeState] = useState<GalleryThumbSize>(readGalleryThumbSize);
+  const setGalleryThumbSize = (size: GalleryThumbSize) => {
+    setGalleryThumbSizeState(size);
+    try { window.localStorage.setItem(GALLERY_THUMB_STORAGE_KEY, size); } catch { /* storage unavailable */ }
+  };
   const [galleryLoadingMore, setGalleryLoadingMore] = useState(false);
   const [galleryHasMorePosts, setGalleryHasMorePosts] = useState<boolean>(cached?.galleryHasMorePosts ?? true);
   const [galleryHasMoreComments, setGalleryHasMoreComments] = useState<boolean>(cached?.galleryHasMoreComments ?? true);
@@ -3088,7 +3115,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   /** Gallery tab thumbnail-grid skeleton — mirrors the grid used once photos
    *  land, just with pulsing placeholder tiles instead of images. */
   const renderGallerySkeleton = (count = 12) => (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5 animate-pulse">
+    <div className="animate-pulse" style={galleryGridStyle(galleryThumbSize)}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="aspect-square rounded-lg bg-[var(--hrk-bg-surface-raised)]" />
       ))}
@@ -4439,7 +4466,28 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
       const galleryHasMore = galleryHasMorePosts || galleryHasMoreComments;
       return (
         <div className="w-full space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs text-[var(--hrk-text-tertiary)]">Thumbnail size</span>
+            <div className="inline-flex overflow-hidden rounded-lg border border-[var(--hrk-border-subtle)]" role="radiogroup" aria-label="Thumbnail size">
+              {(["small", "medium", "large"] as GalleryThumbSize[]).map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  role="radio"
+                  aria-checked={galleryThumbSize === size}
+                  onClick={() => setGalleryThumbSize(size)}
+                  className={`px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${
+                    galleryThumbSize === size
+                      ? "bg-[var(--hrk-brand)] text-[var(--hrk-text-on-brand)]"
+                      : "bg-[var(--hrk-bg-surface)] text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)]"
+                  }`}
+                >
+                  {size === "small" ? "Small" : size === "medium" ? "Medium" : "Large"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={galleryGridStyle(galleryThumbSize)}>
             {galleryPhotos.map((photo, i) => (
               <HiveLink
                 key={`${photo.author}/${photo.permlink}/${i}`}
