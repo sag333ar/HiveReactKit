@@ -6,7 +6,7 @@ import { ThumbsUp, MessageSquare, MoreHorizontal, Clock, Ban } from 'lucide-reac
 import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
 import { apiService } from '@/services/apiService';
-import { VoteSlider } from '../VoteSlider';
+import { VoteSlider, ALREADY_VOTED_MESSAGE } from '../VoteSlider';
 import { toast } from '@/index';
 import { isPostTooOldToVote, VOTE_WINDOW_MESSAGE } from '@/utils/voteAge';
 import { isRestrictedDirectVoter } from '@/utils/postVotes';
@@ -345,7 +345,7 @@ const CommentTile = ({
                       return;
                     }
                     if (hasAlreadyVoted || isUpvoted) {
-                      showToast('You have already upvoted this comment');
+                      showToast(ALREADY_VOTED_MESSAGE);
                       return;
                     }
                     if (isRestrictedVoter) {
@@ -367,7 +367,7 @@ const CommentTile = ({
                       return;
                     }
                     if (hasAlreadyVoted || isUpvoted) {
-                      showToast('You have already upvoted this comment');
+                      showToast(ALREADY_VOTED_MESSAGE);
                       return;
                     }
                     handleOpenVote();
@@ -381,7 +381,7 @@ const CommentTile = ({
                       onVotedRefresh?.();
                       showToast('Vote submitted successfully ✅');
                     } else if (hasAlreadyVoted) {
-                      showToast('You have already upvoted this comment');
+                      showToast(ALREADY_VOTED_MESSAGE);
                     } else {
                       handleOpenVote();
                     }

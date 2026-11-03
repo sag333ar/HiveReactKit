@@ -21,7 +21,7 @@ import { apiService } from "@/services/apiService";
 import { ActiveVote } from "@/types/video";
 import type { Post } from "@/types/post";
 import { getHiveClient } from "@/config/hiveEndpoint";
-import { VoteSlider } from "./VoteSlider";
+import { VoteSlider, ALREADY_VOTED_MESSAGE } from "./VoteSlider";
 import { toast } from "@/hooks";
 import { isDownvote } from "@/utils/postVotes";
 
@@ -681,7 +681,7 @@ const UpvoteListModal = ({
                   return;
                 }
                 if (hasAlreadyVoted) {
-                  showToast("You have already upvoted this post");
+                  showToast(ALREADY_VOTED_MESSAGE);
                 } else {
                   setShowVoteSlider(true);
                 }

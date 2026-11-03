@@ -11,7 +11,7 @@ import {
   HeartCrack,
   Ban,
 } from "lucide-react";
-import { VoteSlider } from "@/components/VoteSlider";
+import { VoteSlider, ALREADY_VOTED_MESSAGE } from "@/components/VoteSlider";
 import UpvoteListModal from "@/components/UpvoteListModal";
 import { RewardsModal } from "@/components/RewardsModal";
 import type { RewardsModalPayoutDetails } from "@/components/RewardsModal";
@@ -582,7 +582,13 @@ export function PostActionButton({
         return;
       }
       if (isMultiVote ? allAccountsVoted : hasVoted) {
-        showToast(isMultiVote ? "All your accounts have already upvoted this post" : "You have already upvoted this post");
+        // With 2+ accounts the VoteSlider itself renders the shared
+        // "You've already voted on this content" dialog (see VoteSlider).
+        if (isMultiVote && (voteAccountOptions?.length ?? 0) > 1) {
+          setShowVoteSlider(true);
+          return;
+        }
+        showToast(ALREADY_VOTED_MESSAGE);
         return;
       }
       if (isPastVoteWindow) {
@@ -675,7 +681,7 @@ export function PostActionButton({
       return;
     }
     if (hasVoted) {
-      showToast("You have already upvoted this post");
+      showToast(ALREADY_VOTED_MESSAGE);
       return;
     }
     if (isPastVoteWindow) { showToast(VOTE_WINDOW_MESSAGE); return; }

@@ -51,6 +51,9 @@ export interface VoteAccountOption {
   votedPercent?: number;
 }
 
+/** Shared wording for every "already voted" path (dialog title and toasts). */
+export const ALREADY_VOTED_MESSAGE = "You've already voted on this content";
+
 export function VoteSlider({
   author,
   permlink,

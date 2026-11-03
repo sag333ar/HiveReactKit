@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { createHiveRenderer } from '@snapie/renderer';
 import { Discussion } from '@/types/comment';
 import { apiService } from '@/services/apiService';
-import { VoteSlider } from '../VoteSlider';
+import { VoteSlider, ALREADY_VOTED_MESSAGE } from '../VoteSlider';
 import UpvoteListModal from '../UpvoteListModal';
 import { RewardsModal } from '../RewardsModal';
 import type { RewardsModalPayoutDetails } from '../RewardsModal';
@@ -612,7 +612,7 @@ export default function InlineCommentItem({
     }
     if (!currentUser) { showToast('Please login to upvote'); return; }
     if (hasAlreadyVoted || isUpvoted) {
-      showToast('You have already upvoted this comment');
+      showToast(ALREADY_VOTED_MESSAGE);
       return;
     }
     if (isRestrictedVoter) {
