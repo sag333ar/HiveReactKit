@@ -24,10 +24,50 @@ const fmtHp = (v: number): string => {
   return `${v.toFixed(3)} HP`;
 };
 
+/** Plain number for the tooltip total, e.g. "10,000" or "12.345". */
+const fmtHpNum = (v: number): string => {
+  if (!Number.isFinite(v)) return "0";
+  if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return v.toFixed(3);
+};
+
 const fmtUsd = (v: number): string => {
   if (!Number.isFinite(v)) return "$0";
   if (Math.abs(v) >= 1000) return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   return `$${v.toFixed(2)}`;
+};
+
+// Series shown on each chart. `key` drives the legend checkboxes, the
+// drawing, the tooltip lines and the tooltip's day total.
+type SeriesDef = { key: string; color: string; label: string; value: (d: GrowthDailyPoint) => number; sign?: 1 | -1 };
+
+const HP_SERIES: SeriesDef[] = [
+  { key: "hp", color: "var(--hrk-success)", label: "Account HP", value: (d) => d.cumulativeHp },
+  { key: "powerUp", color: "rgba(34,197,94,0.6)", label: "Power Up", value: (d) => d.powerUp },
+  { key: "powerDown", color: "rgba(239,68,68,0.7)", label: "Power Down", value: (d) => d.powerDown, sign: -1 },
+  { key: "authorCuration", color: "rgba(125,211,252,0.7)", label: "Author + Curation", value: (d) => d.authorHp + d.curationHp },
+  { key: "witness", color: "rgba(167,139,250,0.8)", label: "Witness", value: (d) => d.witnessHp },
+  { key: "benefactor", color: "rgba(251,146,60,0.8)", label: "Benefactor", value: (d) => d.benefactorHp },
+];
+
+const EARNED_SERIES: SeriesDef[] = [
+  { key: "author", color: "rgba(34,197,94,0.85)", label: "Author", value: (d) => d.authorUsd },
+  { key: "curation", color: "rgba(56,189,248,0.85)", label: "Curation", value: (d) => d.curationUsd },
+  { key: "witness", color: "rgba(167,139,250,0.85)", label: "Witness", value: (d) => d.witnessUsd },
+  { key: "benefactor", color: "rgba(251,146,60,0.85)", label: "Benefactor", value: (d) => d.benefactorUsd },
+];
+
+/** Sum of the ticked series for one day (Power Down counts as negative). */
+const dayTotal = (defs: SeriesDef[], on: Set<string>, d: GrowthDailyPoint): number =>
+  defs.reduce((acc, s) => (on.has(s.key) ? acc + (s.sign ?? 1) * (s.value(d) || 0) : acc), 0);
+
+const allKeys = (defs: SeriesDef[]) => new Set(defs.map((s) => s.key));
+
+const toggleKey = (set: Set<string>, key: string): Set<string> => {
+  const next = new Set(set);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next;
 };
 
 const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, className }) => {
@@ -39,6 +79,9 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
   // re-issuing account history requests.
   const [full, setFull] = useState<GrowthAnalyticsResult | null>(null);
   const reqRef = useRef(0);
+  // Legend checkboxes: which series each chart shows (and totals).
+  const [hpOn, setHpOn] = useState<Set<string>>(() => allKeys(HP_SERIES));
+  const [earnedOn, setEarnedOn] = useState<Set<string>>(() => allKeys(EARNED_SERIES));
 
   useEffect(() => {
     const target = username.replace(/^@/, "").trim();
@@ -181,30 +224,14 @@ const UserGrowth: React.FC<UserGrowthProps> = ({ username, defaultRange = 7, cla
 
       {/* Account HP growth chart */}
       <ChartCard title={`Account HP — last ${range} days`}>
-        <GrowthChart series={data.series} />
-        <ChartLegend
-          items={[
-            { color: "var(--hrk-success)", label: "Account HP" },
-            { color: "rgba(34,197,94,0.6)", label: "Power Up" },
-            { color: "rgba(239,68,68,0.7)", label: "Power Down" },
-            { color: "rgba(125,211,252,0.7)", label: "Author + Curation" },
-            { color: "rgba(167,139,250,0.8)", label: "Witness" },
-            { color: "rgba(251,146,60,0.8)", label: "Benefactor" },
-          ]}
-        />
+        <GrowthChart series={data.series} on={hpOn} />
+        <ChartLegend items={HP_SERIES} on={hpOn} onToggle={(k) => setHpOn((s) => toggleKey(s, k))} />
       </ChartCard>
 
       {/* Earned (USD) chart */}
       <ChartCard title={`Earned per day — last ${range} days`}>
-        <EarnedChart series={data.series} />
-        <ChartLegend
-          items={[
-            { color: "rgba(34,197,94,0.85)", label: "Author" },
-            { color: "rgba(56,189,248,0.85)", label: "Curation" },
-            { color: "rgba(167,139,250,0.85)", label: "Witness" },
-            { color: "rgba(251,146,60,0.85)", label: "Benefactor" },
-          ]}
-        />
+        <EarnedChart series={data.series} on={earnedOn} />
+        <ChartLegend items={EARNED_SERIES} on={earnedOn} onToggle={(k) => setEarnedOn((s) => toggleKey(s, k))} />
         <EarnedTotals
           range={range}
           items={[
@@ -275,14 +302,30 @@ const ChartCard: React.FC<{ title: string; children: React.ReactNode }> = ({ tit
   </div>
 );
 
-const ChartLegend: React.FC<{ items: { color: string; label: string }[] }> = ({ items }) => (
-  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-[var(--hrk-text-tertiary)]">
-    {items.map((it) => (
-      <span key={it.label} className="flex items-center gap-1">
-        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: it.color }} />
-        {it.label}
-      </span>
-    ))}
+/** Legend with a checkbox per series — unticking hides the series from the
+ *  chart and leaves it out of the tooltip's day total. */
+const ChartLegend: React.FC<{
+  items: { key: string; color: string; label: string }[];
+  on: Set<string>;
+  onToggle: (key: string) => void;
+}> = ({ items, on, onToggle }) => (
+  <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2 text-[11px] text-[var(--hrk-text-tertiary)]">
+    {items.map((it) => {
+      const checked = on.has(it.key);
+      return (
+        <label key={it.key} className={`flex items-center gap-1 cursor-pointer select-none ${checked ? "" : "opacity-50"}`}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={() => onToggle(it.key)}
+            className="h-3 w-3 cursor-pointer"
+            style={{ accentColor: it.color }}
+          />
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: it.color }} />
+          {it.label}
+        </label>
+      );
+    })}
   </div>
 );
 
@@ -352,7 +395,7 @@ const recomputeTotals = (series: GrowthDailyPoint[]) => series.reduce(
 
 interface HoverInfo { x: number; y: number; index: number; lines: { color: string; label: string; value: string }[] }
 
-const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
+const GrowthChart: React.FC<{ series: GrowthDailyPoint[]; on: Set<string> }> = ({ series, on }) => {
   const [hover, setHover] = useState<HoverInfo | null>(null);
 
   const view = useMemo(() => {
@@ -365,8 +408,12 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
     const yLineMax = lineMax + linePad;
 
     // Bars range
-    const barTop = series.map((d) => d.powerUp + d.authorHp + d.curationHp + d.witnessHp + d.benefactorHp);
-    const barBottom = series.map((d) => -d.powerDown);
+    const barTop = series.map((d) =>
+      (on.has("powerUp") ? d.powerUp : 0) +
+      (on.has("authorCuration") ? d.authorHp + d.curationHp : 0) +
+      (on.has("witness") ? d.witnessHp : 0) +
+      (on.has("benefactor") ? d.benefactorHp : 0));
+    const barBottom = series.map((d) => (on.has("powerDown") ? -d.powerDown : 0));
     const yBarsMax = Math.max(0, ...barTop) || 1;
     const yBarsMin = Math.min(0, ...barBottom);
     const yBarPad = (yBarsMax - yBarsMin) * 0.1 || 0.5;
@@ -385,7 +432,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
     const ticks = niceTicks(yLineMin, yLineMax, 4);
 
     return { n, xStep, yLine, yBar, xAt, linePath, barWidth, ticks, yBarsMin, yBarsMax };
-  }, [series]);
+  }, [series, on]);
 
   if (!view) return <div className="h-32 flex items-center justify-center text-xs text-[var(--hrk-text-tertiary)]">No data</div>;
 
@@ -410,11 +457,11 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         {series.map((d, i) => {
           const x = view.xAt(i) - view.barWidth / 2;
           const segments = [
-            { v: d.powerUp, color: "rgba(34,197,94,0.6)" },
-            { v: d.authorHp + d.curationHp, color: "rgba(125,211,252,0.7)" },
-            { v: d.witnessHp, color: "rgba(167,139,250,0.8)" },
-            { v: d.benefactorHp, color: "rgba(251,146,60,0.8)" },
-          ];
+            { k: "powerUp", v: d.powerUp, color: "rgba(34,197,94,0.6)" },
+            { k: "authorCuration", v: d.authorHp + d.curationHp, color: "rgba(125,211,252,0.7)" },
+            { k: "witness", v: d.witnessHp, color: "rgba(167,139,250,0.8)" },
+            { k: "benefactor", v: d.benefactorHp, color: "rgba(251,146,60,0.8)" },
+          ].filter((sg) => on.has(sg.k));
           let cumulative = 0;
           const rects: React.ReactElement[] = [];
           segments.forEach((s, idx) => {
@@ -426,7 +473,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
               <rect key={`p-${i}-${idx}`} x={x} y={yTop} width={view.barWidth} height={Math.max(0, yBot - yTop)} fill={s.color} />
             );
           });
-          if (d.powerDown > 0) {
+          if (on.has("powerDown") && d.powerDown > 0) {
             const yTop = view.yBar(0);
             const yBot = view.yBar(-d.powerDown);
             rects.push(
@@ -437,7 +484,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         })}
 
         {/* line */}
-        <path d={view.linePath} fill="none" stroke="var(--hrk-success)" strokeWidth={2} />
+        {on.has("hp") && <path d={view.linePath} fill="none" stroke="var(--hrk-success)" strokeWidth={2} />}
 
         {/* x-axis labels (sparse) */}
         {series.map((d, i) => {
@@ -461,14 +508,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
               x: view.xAt(i),
               y: view.yLine(d.cumulativeHp),
               index: i,
-              lines: [
-                { color: "var(--hrk-success)", label: "Account HP", value: fmtHp(d.cumulativeHp) },
-                { color: "rgba(34,197,94,0.6)", label: "Power Up", value: fmtHp(d.powerUp) },
-                { color: "rgba(239,68,68,0.7)", label: "Power Down", value: fmtHp(d.powerDown) },
-                { color: "rgba(125,211,252,0.7)", label: "Author + Curation", value: fmtHp(d.authorHp + d.curationHp) },
-                { color: "rgba(167,139,250,0.8)", label: "Witness", value: fmtHp(d.witnessHp) },
-                { color: "rgba(251,146,60,0.8)", label: "Benefactor", value: fmtHp(d.benefactorHp) },
-              ],
+              lines: HP_SERIES.filter((sd) => on.has(sd.key)).map((sd) => ({ color: sd.color, label: sd.label, value: fmtHp(sd.value(d)) })),
             })}
           />
         ))}
@@ -476,7 +516,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         {hover && (
           <g pointerEvents="none">
             <line x1={hover.x} y1={PAD_T} x2={hover.x} y2={CHART_H - PAD_B} stroke="rgba(255,255,255,0.15)" />
-            <circle cx={hover.x} cy={hover.y} r={3.5} fill="var(--hrk-success)" stroke="white" strokeWidth={1} />
+            {on.has("hp") && <circle cx={hover.x} cy={hover.y} r={3.5} fill="var(--hrk-success)" stroke="white" strokeWidth={1} />}
           </g>
         )}
       </svg>
@@ -485,7 +525,7 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         <Tooltip
           x={hover.x}
           chartW={CHART_W}
-          dayLabel={series[hover.index]?.label}
+          dayLabel={series[hover.index] ? `${series[hover.index].label} (total ${fmtHpNum(dayTotal(HP_SERIES, on, series[hover.index]))})` : undefined}
           lines={hover.lines}
         />
       )}
@@ -493,13 +533,13 @@ const GrowthChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
   );
 };
 
-const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
+const EarnedChart: React.FC<{ series: GrowthDailyPoint[]; on: Set<string> }> = ({ series, on }) => {
   const [hover, setHover] = useState<HoverInfo | null>(null);
 
   const view = useMemo(() => {
     const n = series.length;
     if (!n) return null;
-    const totals = series.map((d) => d.authorUsd + d.curationUsd + d.witnessUsd + d.benefactorUsd);
+    const totals = series.map((d) => dayTotal(EARNED_SERIES, on, d));
     const max = Math.max(0.001, ...totals);
     const xStep = (CHART_W - PAD_L - PAD_R) / Math.max(1, n);
     const innerH = CHART_H - PAD_T - PAD_B;
@@ -508,7 +548,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
     const barW = Math.max(2, xStep * 0.6);
     const ticks = niceTicks(0, max, 4);
     return { n, xStep, y, xAt, barW, ticks, max };
-  }, [series]);
+  }, [series, on]);
 
   if (!view) return <div className="h-32 flex items-center justify-center text-xs text-[var(--hrk-text-tertiary)]">No data</div>;
 
@@ -524,12 +564,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
 
         {series.map((d, i) => {
           const x = view.xAt(i) - view.barW / 2;
-          const segs = [
-            { v: d.authorUsd, color: "rgba(34,197,94,0.85)", label: "Author" },
-            { v: d.curationUsd, color: "rgba(56,189,248,0.85)", label: "Curation" },
-            { v: d.witnessUsd, color: "rgba(167,139,250,0.85)", label: "Witness" },
-            { v: d.benefactorUsd, color: "rgba(251,146,60,0.85)", label: "Benefactor" },
-          ];
+          const segs = EARNED_SERIES.filter((sd) => on.has(sd.key)).map((sd) => ({ v: sd.value(d), color: sd.color, label: sd.label }));
           let acc = 0;
           return (
             <g key={d.key}>
@@ -562,14 +597,9 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
             fill="transparent"
             onMouseEnter={() => setHover({
               x: view.xAt(i),
-              y: view.y(d.authorUsd + d.curationUsd + d.witnessUsd + d.benefactorUsd),
+              y: view.y(dayTotal(EARNED_SERIES, on, d)),
               index: i,
-              lines: [
-                { color: "rgba(34,197,94,0.85)", label: "Author", value: fmtUsd(d.authorUsd) },
-                { color: "rgba(56,189,248,0.85)", label: "Curation", value: fmtUsd(d.curationUsd) },
-                { color: "rgba(167,139,250,0.85)", label: "Witness", value: fmtUsd(d.witnessUsd) },
-                { color: "rgba(251,146,60,0.85)", label: "Benefactor", value: fmtUsd(d.benefactorUsd) },
-              ],
+              lines: EARNED_SERIES.filter((sd) => on.has(sd.key)).map((sd) => ({ color: sd.color, label: sd.label, value: fmtUsd(sd.value(d)) })),
             })}
           />
         ))}
@@ -583,7 +613,7 @@ const EarnedChart: React.FC<{ series: GrowthDailyPoint[] }> = ({ series }) => {
         <Tooltip
           x={hover.x}
           chartW={CHART_W}
-          dayLabel={series[hover.index]?.label}
+          dayLabel={series[hover.index] ? `${series[hover.index].label} (total ${fmtUsd(dayTotal(EARNED_SERIES, on, series[hover.index]))})` : undefined}
           lines={hover.lines}
         />
       )}
