@@ -171,6 +171,30 @@ export function VoteSlider({
     }
   };
 
+  // Every one of the user's accounts has already voted: skip the picker.
+  const allVoted = multi && targetLoaded && eligible.length === 0;
+  if (allVoted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 sm:items-center" onClick={onCancel}>
+        <div
+          className="bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-default)] rounded-t-[16px] sm:rounded-[16px] w-full max-w-md p-5 sm:p-6 shadow-[var(--hrk-shadow-lg)] flex flex-col items-center text-center"
+          data-testid="vote-all-accounts-voted"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="text-base sm:text-lg font-semibold text-[var(--hrk-text-primary)] mb-2">You&apos;ve already voted on this content</h2>
+          <p className="text-sm text-[var(--hrk-text-secondary)] mb-5">All of your logged-in accounts have voted on @{author}&apos;s post.</p>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full rounded-[10px] bg-[var(--hrk-brand)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--hrk-brand-hover)]"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 sm:items-center">
       <div className="bg-[var(--hrk-bg-surface-raised)] border border-[var(--hrk-border-default)] rounded-t-[16px] sm:rounded-[16px] w-full max-w-md max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-[var(--hrk-shadow-lg)] flex flex-col">
