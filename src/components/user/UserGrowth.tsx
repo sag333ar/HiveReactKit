@@ -39,10 +39,12 @@ const fmtUsd = (v: number): string => {
 
 // Series shown on each chart. `key` drives the legend checkboxes, the
 // drawing, the tooltip lines and the tooltip's day total.
-type SeriesDef = { key: string; color: string; label: string; value: (d: GrowthDailyPoint) => number; sign?: 1 | -1 };
+type SeriesDef = { key: string; color: string; label: string; value: (d: GrowthDailyPoint) => number; sign?: 1 | -1;
+  /** false = drawn and listed in the tooltip but left out of the day total. */
+  inTotal?: boolean };
 
 const HP_SERIES: SeriesDef[] = [
-  { key: "hp", color: "var(--hrk-success)", label: "Account HP", value: (d) => d.cumulativeHp },
+  { key: "hp", color: "var(--hrk-success)", label: "Account HP", value: (d) => d.cumulativeHp, inTotal: false }, // balance, not a daily change
   { key: "powerUp", color: "rgba(34,197,94,0.6)", label: "Power Up", value: (d) => d.powerUp },
   { key: "powerDown", color: "rgba(239,68,68,0.7)", label: "Power Down", value: (d) => d.powerDown, sign: -1 },
   { key: "authorCuration", color: "rgba(125,211,252,0.7)", label: "Author + Curation", value: (d) => d.authorHp + d.curationHp },
@@ -57,9 +59,10 @@ const EARNED_SERIES: SeriesDef[] = [
   { key: "benefactor", color: "rgba(251,146,60,0.85)", label: "Benefactor", value: (d) => d.benefactorUsd },
 ];
 
-/** Sum of the ticked series for one day (Power Down counts as negative). */
+/** Sum of the ticked series for one day (Power Down counts as negative).
+ *  The Account HP balance is never included: the total is the day's HP change. */
 const dayTotal = (defs: SeriesDef[], on: Set<string>, d: GrowthDailyPoint): number =>
-  defs.reduce((acc, s) => (on.has(s.key) ? acc + (s.sign ?? 1) * (s.value(d) || 0) : acc), 0);
+  defs.reduce((acc, s) => (on.has(s.key) && s.inTotal !== false ? acc + (s.sign ?? 1) * (s.value(d) || 0) : acc), 0);
 
 const allKeys = (defs: SeriesDef[]) => new Set(defs.map((s) => s.key));
 
