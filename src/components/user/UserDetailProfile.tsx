@@ -979,6 +979,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
   const [curations, setCurations] = useState<ActivityListItem[]>(cached?.curations || []);
   const [lowestCurationIndex, setLowestCurationIndex] = useState<number>(cached?.lowestCurationIndex !== undefined ? cached.lowestCurationIndex : -1);
   const [refreshCurationTrigger, setRefreshCurationTrigger] = useState<number>(0);
+  // Bumped by the Blogs / Posts refresh button to force a re-fetch.
+  const [refreshPostsTrigger, setRefreshPostsTrigger] = useState<number>(0);
   const [polls, setPolls] = useState<Poll[]>(cached?.polls || []);
   const [authorRewards, setAuthorRewards] = useState<PendingAuthorRow[]>(cached?.authorRewards || []);
   const [authorRewardsTotals, setAuthorRewardsTotals] = useState<{ totalHbd: number; totalHpEq: number }>(cached?.authorRewardsTotals || { totalHbd: 0, totalHpEq: 0 });
@@ -1967,7 +1969,7 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     return () => {
       abortController.abort();
     };
-  }, [targetUsername, activeTab, refreshCurationTrigger, postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab]);
+  }, [targetUsername, activeTab, refreshCurationTrigger, refreshPostsTrigger, postsSubTab, repliesSubTab, rewardsSubTab, followsSubTab, activitiesSubTab, walletSubTab]);
 
   // ─── Gallery tab — lazy first-load only ──────────────────────────────────
   // Deliberately NOT part of the switch above: the Gallery tab fetches TWO
@@ -4348,6 +4350,26 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
     if (activeTab === "posts") {
       const data = postsSubTab === "blogs" ? filteredBlogs : filteredPosts;
       const type = postsSubTab === "blogs" ? "blog" : "post";
+      // Refresh: drop the cached list for the visible sub-tab and bump the
+      // trigger so the tab-content effect fetches the first page again.
+      const handleRefreshPosts = () => {
+        if (postsSubTab === "blogs") setBlogs([]);
+        else setPosts([]);
+        setHasMore((prev) => ({ ...prev, [postsSubTab]: true }));
+        setRefreshPostsTrigger((prev) => prev + 1);
+      };
+      const postsRefreshBtn = (
+        <button
+          type="button"
+          onClick={handleRefreshPosts}
+          disabled={loadingContent}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--hrk-border-subtle)] bg-[var(--hrk-bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--hrk-text-secondary)] hover:bg-[var(--hrk-bg-surface-raised)] hover:text-[var(--hrk-text-primary)] disabled:opacity-50 transition-colors focus:outline-none cursor-pointer"
+          title="Refresh"
+          aria-label="Refresh"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loadingContent ? 'animate-spin' : ''}`} />
+        </button>
+      );
       return (
         <div className="w-full space-y-2">
           {renderSubTabToggle(
@@ -4358,7 +4380,8 @@ const UserDetailProfile: React.FC<UserDetailProfileProps> = ({
               <button type="button" onClick={() => setActiveTab("posts")} className={subTabBtnClass(postsSubTab === "posts")}>
                 {t("tab.posts") || "Posts"}
               </button>
-            </>
+            </>,
+            postsRefreshBtn
           )}
           {loadingContent ? renderPostSkeleton() : data.length === 0 ? (
             <div className="text-center py-12">
