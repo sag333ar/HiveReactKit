@@ -1,12 +1,54 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ThumbsUp, X, Loader2 } from "lucide-react";
 import { useVoteAccountsContext, voteAccountsForAuthor } from "@/context/VoteAccountsContext";
+import { getHiveApiEndpoint } from "@/config/hiveEndpoint";
+
+/** Live payout status + active votes of the content being voted on. */
+interface VoteTargetInfo {
+  pendingValue: number;
+  paidValue: number;
+  paidOut: boolean;
+  /** voter (lowercase) -> vote percent (e.g. 50 for 50%) */
+  votes: Record<string, number>;
+}
+
+const parseAsset = (v?: string) => parseFloat(String(v ?? "0").split(" ")[0]) || 0;
+
+async function fetchVoteTargetInfo(author: string, permlink: string): Promise<VoteTargetInfo | null> {
+  try {
+    const res = await fetch(getHiveApiEndpoint(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_content", params: [author, permlink], id: 1 }),
+    });
+    const c = (await res.json())?.result;
+    if (!c || !c.author) return null;
+    const cashout = String(c.cashout_time ?? "");
+    const paidOut = cashout.startsWith("1969") || (!!cashout && Date.parse(cashout + "Z") <= Date.now());
+    const votes: Record<string, number> = {};
+    for (const v of c.active_votes ?? []) {
+      const pct = Number(v.percent ?? 0);
+      if (pct !== 0) votes[String(v.voter).toLowerCase()] = pct / 100;
+    }
+    return {
+      pendingValue: parseAsset(c.pending_payout_value),
+      paidValue: parseAsset(c.total_payout_value) + parseAsset(c.curator_payout_value),
+      paidOut,
+      votes,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** One account the user can vote from (multi-account vote picker). */
 export interface VoteAccountOption {
   username: string;
-  /** This account already voted on the post — shown disabled. */
+  /** This account already voted on the post. It stays selectable (so the
+   *  user can change the weight) but is not pre-selected. */
   alreadyVoted?: boolean;
+  /** Existing vote weight in percent, when known. */
+  votedPercent?: number;
 }
 
 export function VoteSlider({
@@ -50,20 +92,54 @@ export function VoteSlider({
   const voteCtx = useVoteAccountsContext();
   const ctxOptions = useMemo<VoteAccountOption[] | undefined>(() => {
     if (voteAccounts !== undefined) return undefined;
-    const list = voteAccountsForAuthor(voteCtx, author);
+    const list = [...voteAccountsForAuthor(voteCtx, author)];
+    const me = voteCtx?.currentAccount?.toLowerCase();
+    if (me) list.sort((a, b) => (a.toLowerCase() === me ? -1 : b.toLowerCase() === me ? 1 : 0));
     return list.length > 1 ? list.map((username) => ({ username })) : undefined;
   }, [voteAccounts, voteCtx, author]);
   const usingCtx = !!ctxOptions;
-  voteAccounts = voteAccounts ?? ctxOptions;
+  const [target, setTarget] = useState<VoteTargetInfo | null>(null);
+  const [targetLoaded, setTargetLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetchVoteTargetInfo(author, permlink).then((t) => {
+      if (alive) { setTarget(t); setTargetLoaded(true); }
+    });
+    return () => { alive = false; };
+  }, [author, permlink]);
+  const paidOut = !!target?.paidOut;
+  // Merge live active_votes into the options (existing vote % per account).
+  voteAccounts = useMemo(() => {
+    const base = voteAccounts ?? ctxOptions;
+    if (!base) return base;
+    return base.map((a) => {
+      const pct = target?.votes[a.username.toLowerCase()];
+      return pct !== undefined
+        ? { ...a, alreadyVoted: pct > 0 || a.alreadyVoted, votedPercent: pct }
+        : a;
+    });
+  }, [voteAccounts, ctxOptions, target]);
   const multi = (voteAccounts?.length ?? 0) > 1;
   const eligible = useMemo(
     () => (voteAccounts ?? []).filter((a) => !a.alreadyVoted).map((a) => a.username),
     [voteAccounts],
   );
+  const preferred = defaultSelectedAccounts ?? (voteCtx?.currentAccount ? [voteCtx.currentAccount.toLowerCase()] : []);
   const [selected, setSelected] = useState<string[]>(() => {
-    const wanted = (defaultSelectedAccounts ?? []).filter((u) => eligible.includes(u));
+    const wanted = preferred.filter((u) => eligible.includes(u));
     return wanted.length > 0 ? wanted : eligible.slice(0, 1);
   });
+  // Live votes arrive after mount: drop pre-selected accounts that turn out to have voted.
+  useEffect(() => {
+    if (!targetLoaded) return;
+    setSelected((prev) => {
+      const next = prev.filter((u) => eligible.includes(u));
+      if (next.length > 0 || prev.length === 0) return next;
+      const wanted = preferred.filter((u) => eligible.includes(u));
+      return wanted.length > 0 ? wanted : eligible.slice(0, 1);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetLoaded]);
   const allSelected = eligible.length > 0 && eligible.every((u) => selected.includes(u));
   const toggleAccount = (username: string) =>
     setSelected((prev) => (prev.includes(username) ? prev.filter((u) => u !== username) : [...prev, username]));
@@ -78,7 +154,7 @@ export function VoteSlider({
   const decimals = step >= 1 ? 0 : step >= 0.5 ? 1 : 2;
 
   const handleVoteClick = async () => {
-    if (percent === 0 || loading) return;
+    if (percent === 0 || loading || paidOut) return;
     if (multi && selected.length === 0) return;
     setLoading(true);
     try {
@@ -110,7 +186,34 @@ export function VoteSlider({
             {walletApprovalLabel}
           </p>
         )}
-        {!(loading && awaitingWalletApproval) && <div className="mb-4" />}
+        {!(loading && awaitingWalletApproval) && <div className="mb-2" />}
+
+        {/* Current value + payout status of the content */}
+        <div className="mb-4 flex items-center justify-center gap-2 text-xs sm:text-sm" data-testid="vote-target-status">
+          {!targetLoaded ? (
+            <span className="text-[var(--hrk-text-tertiary)]">Loading payout…</span>
+          ) : target ? (
+            <>
+              <span className="font-semibold tabular-nums text-[var(--hrk-text-primary)]">
+                ${(paidOut ? target.paidValue : target.pendingValue).toFixed(3)}
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                  paidOut ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400"
+                }`}
+              >
+                {paidOut ? "Paid out" : "Open for votes"}
+              </span>
+            </>
+          ) : (
+            <span className="text-[var(--hrk-text-tertiary)]">Payout info unavailable</span>
+          )}
+        </div>
+        {paidOut && (
+          <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-center text-xs text-red-300">
+            This has already been paid out (7-day window closed), so it can no longer receive votes.
+          </p>
+        )}
 
         {/* Slider Section */}
         <div className="relative w-full flex flex-col items-center mb-6">
@@ -180,7 +283,7 @@ export function VoteSlider({
                   className="h-4 w-4 accent-[var(--hrk-brand)]"
                   checked={allSelected}
                   ref={(el) => { if (el) el.indeterminate = !allSelected && selected.length > 0; }}
-                  disabled={eligible.length === 0 || loading}
+                  disabled={eligible.length === 0 || loading || paidOut}
                   onChange={toggleAll}
                   aria-label="All accounts"
                 />
@@ -190,13 +293,13 @@ export function VoteSlider({
               {voteAccounts!.map((a) => (
                 <label
                   key={a.username}
-                  className={`flex items-center gap-3 px-3 py-2 ${a.alreadyVoted ? 'opacity-50' : 'cursor-pointer hover:bg-[var(--hrk-bg-hover)]'}`}
+                  className={`flex items-center gap-3 px-3 py-2 ${paidOut ? 'opacity-50' : 'cursor-pointer hover:bg-[var(--hrk-bg-hover)]'}`}
                 >
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[var(--hrk-brand)]"
-                    checked={!a.alreadyVoted && selected.includes(a.username)}
-                    disabled={a.alreadyVoted || loading}
+                    checked={selected.includes(a.username)}
+                    disabled={loading || paidOut}
                     onChange={() => toggleAccount(a.username)}
                     aria-label={`Vote from @${a.username}`}
                   />
@@ -208,7 +311,9 @@ export function VoteSlider({
                   />
                   <span className="min-w-0 flex-1 truncate text-sm text-[var(--hrk-text-primary)]">@{a.username}</span>
                   {a.alreadyVoted && (
-                    <span className="shrink-0 text-[11px] text-[var(--hrk-text-tertiary)]">already voted</span>
+                    <span className="shrink-0 text-[11px] text-amber-400" title="Selecting this account changes its existing vote">
+                      already voted{a.votedPercent !== undefined ? ` ${Number(a.votedPercent.toFixed(2))}%` : ''}
+                    </span>
                   )}
                 </label>
               ))}
@@ -220,11 +325,11 @@ export function VoteSlider({
         <div className="flex gap-3">
           <button
             onClick={handleVoteClick}
-            disabled={percent === 0 || loading || (multi && selected.length === 0)}
+            disabled={percent === 0 || loading || paidOut || (multi && selected.length === 0)}
             className={`flex-1 flex items-center justify-center rounded-full font-semibold transition
               text-sm sm:text-base px-3 py-2 sm:px-4 sm:py-3 shadow
               ${
-                percent === 0 || loading || (multi && selected.length === 0)
+                percent === 0 || loading || paidOut || (multi && selected.length === 0)
                   ? "bg-[var(--hrk-bg-surface-raised)] text-[var(--hrk-text-tertiary)] cursor-not-allowed"
                   : "bg-[var(--hrk-brand)] hover:bg-[var(--hrk-brand-hover)] text-white"
               }`}

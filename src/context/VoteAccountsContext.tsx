@@ -10,8 +10,12 @@ import { createContext, useContext, type ReactNode } from 'react';
 export interface VoteAccountsContextValue {
   /** Logged-in Hive accounts the user can vote from (picker shows with 2+). */
   accounts: string[];
-  /** Content authors that never get the picker (e.g. accounts whose upvote
-   *  sends a curation request instead of a direct vote). Lowercase. */
+  /** The active (logged-in) account — pre-selected and listed first in the
+   *  picker. Lowercase. */
+  currentAccount?: string;
+  /** Content authors that never get the picker for the CURRENT voter (the
+   *  host decides per logged-in user, e.g. an account that never self-votes
+   *  excludes only itself). Also applied to explicit `voteAccounts`. Lowercase. */
   excludeAuthors?: string[];
   /** Broadcast one vote per selected account. Should resolve to
    *  `{ voted: string[] }` with the accounts whose vote landed. */

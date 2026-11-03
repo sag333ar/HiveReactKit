@@ -429,7 +429,8 @@ export function PostActionButton({
   const voteCtx = useVoteAccountsContext();
   const ctxAccounts = voteAccountsForAuthor(voteCtx, author);
   const usingCtxAccounts = !(voteAccounts && voteAccounts.length > 1) && ctxAccounts.length > 1;
-  const effectiveVoteAccounts = usingCtxAccounts ? ctxAccounts : voteAccounts;
+  const authorExcluded = (voteCtx?.excludeAuthors ?? []).some((x) => x.toLowerCase() === (author || '').toLowerCase());
+  const effectiveVoteAccounts = authorExcluded ? undefined : usingCtxAccounts ? ctxAccounts : voteAccounts;
   const voteAccountOptions = useMemo(() => {
     const seen = new Set<string>();
     const list = (effectiveVoteAccounts ?? [])
