@@ -26,7 +26,6 @@ export interface AudioUploaderProps {
 }
 
 const AUDIO_API_ENDPOINT = 'https://audio.3speak.tv'
-const DEFAULT_API_KEY = 'sk_demo_b0d3f4b972c5065b701394df3de2f44fd59aa3244c58c478'
 const ACCEPTED_AUDIO_TYPES = '.mp3,.wav,.ogg,.m4a,.aac,.flac,.weba,.opus,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/flac,audio/webm,audio/opus'
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 const MAX_RECORD_SECONDS = 300
@@ -79,7 +78,9 @@ function getSupportedMimeType(): string {
 }
 
 const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username, threeSpeakApiKey, uploadAudioFn, disabled = false }) => {
-  const apiKey = threeSpeakApiKey || DEFAULT_API_KEY
+  // No built-in key: callers pass their own threeSpeakApiKey or an uploadAudioFn
+  // that proxies through their backend (keeps the key server-side).
+  const apiKey = threeSpeakApiKey ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -271,6 +272,7 @@ const AudioUploader: React.FC<AudioUploaderProps> = ({ onAudioUploaded, username
       if (uploadAudioFn) {
         data = await uploadAudioFn(file, durationSeconds, format)
       } else {
+        if (!apiKey) throw new Error('3Speak audio upload is not configured (pass threeSpeakApiKey or uploadAudioFn).')
         const formData = new FormData()
         formData.append('audio', file)
         formData.append('duration', String(durationSeconds))

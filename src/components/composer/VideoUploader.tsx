@@ -107,7 +107,6 @@ export interface VideoUploaderProps {
 }
 
 export const DEFAULT_UPLOAD_HOST = 'https://embed.3speak.tv'
-export const DEFAULT_API_KEY = 'sk_snapie_d199a5af8631c11706930f69cb2fcfceffcb362eb8306b2d'
 export const DEFAULT_FRONTEND_APP = 'snapie-web'
 
 const CHUNK_SIZE = 5 * 1024 * 1024
@@ -191,6 +190,7 @@ export async function mintUploadToken(options: {
     deferEncode = false,
     signal,
   } = options
+  if (!apiKey) throw new Error('3Speak upload is not configured (pass threeSpeakApiKey or mintUploadTokenFn).')
 
   const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : ''
   const origins = allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : (origin ? [origin] : [])
@@ -375,7 +375,7 @@ export async function bindVideoToHivePost(
     hive_body?: string
     hive_tags?: string[]
   },
-  apiKey: string = DEFAULT_API_KEY,
+  apiKey: string,
   uploadHost: string = DEFAULT_UPLOAD_HOST,
 ): Promise<boolean> {
   try {
@@ -529,7 +529,9 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
   beforeUpload,
   onVideoUploadDetails,
 }) => {
-  const apiKey = threeSpeakApiKey || DEFAULT_API_KEY
+  // No built-in key: callers pass threeSpeakApiKey, or mintUploadTokenFn /
+  // setThumbnailFn that proxy through their backend (key stays server-side).
+  const apiKey = threeSpeakApiKey ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadControllerRef = useRef<AbortController | null>(null)
 
